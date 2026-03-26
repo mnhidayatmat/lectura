@@ -60,6 +60,11 @@ class Course extends Model
         return $this->hasMany(CourseTopic::class)->orderBy('week_number');
     }
 
+    public function folders(): HasMany
+    {
+        return $this->hasMany(CourseFolder::class);
+    }
+
     public function sections(): HasMany
     {
         return $this->hasMany(Section::class);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
+use App\Http\Controllers\Tenant\CourseFileController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
@@ -168,9 +169,14 @@ Route::prefix('{tenant:slug}')
         Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
 
         // Course Files
-        Route::get('/files', function () {
-            return view('tenant.placeholder', ['title' => __('nav.course_files'), 'description' => 'Course file management with Google Drive sync will be available here.']);
-        })->name('tenant.files.index');
+        Route::get('/files', [CourseFileController::class, 'index'])->name('tenant.files.index');
+        Route::get('/files/course/{course}', [CourseFileController::class, 'manage'])->name('tenant.files.manage');
+        Route::post('/files/course/{course}/folders', [CourseFileController::class, 'createFolder'])->name('tenant.files.create-folder');
+        Route::put('/files/course/{course}/folders/{folder}', [CourseFileController::class, 'renameFolder'])->name('tenant.files.rename-folder');
+        Route::delete('/files/course/{course}/folders/{folder}', [CourseFileController::class, 'deleteFolder'])->name('tenant.files.delete-folder');
+        Route::post('/files/course/{course}/upload', [CourseFileController::class, 'upload'])->name('tenant.files.upload');
+        Route::delete('/files/course/{course}/file/{file}', [CourseFileController::class, 'deleteFile'])->name('tenant.files.delete-file');
+        Route::post('/files/course/{course}/file/{file}/tag', [CourseFileController::class, 'addTag'])->name('tenant.files.add-tag');
 
         // Admin Settings (tenant admin only)
         Route::get('/admin/settings', function () {
