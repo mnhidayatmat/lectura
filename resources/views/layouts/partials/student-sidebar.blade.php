@@ -1,0 +1,96 @@
+{{-- Mobile sidebar backdrop --}}
+<div x-show="sidebarOpen" x-cloak x-transition:enter="transition-opacity ease-linear duration-300"
+     x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+     x-transition:leave="transition-opacity ease-linear duration-300"
+     x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden" @click="sidebarOpen = false">
+</div>
+
+@php
+    $tenant = $currentTenant;
+    $prefix = $tenant ? '/' . $tenant->slug : '#';
+    $active = fn($pattern) => request()->is($pattern);
+@endphp
+
+{{-- Student Sidebar — hidden on mobile (bottom nav used instead), visible on desktop --}}
+<div :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+     class="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
+
+    {{-- Logo --}}
+    <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <div class="min-w-0">
+            <span class="text-lg font-bold text-slate-900">Lectura</span>
+            @if($tenant)
+                <p class="text-[11px] text-slate-400 truncate leading-none mt-0.5">{{ $tenant->name }}</p>
+            @endif
+        </div>
+    </div>
+
+    {{-- Navigation --}}
+    <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-1.5">
+
+        <a href="{{ $prefix }}/dashboard"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/dashboard') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/dashboard') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zm10-2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z"/></svg>
+            {{ __('nav.dashboard') }}
+        </a>
+
+        <a href="{{ $prefix }}/scan"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/scan') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/scan') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+            {{ __('nav.scan') }}
+        </a>
+
+        <div class="pt-5 pb-1 px-3">
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Learning</p>
+        </div>
+
+        <a href="{{ $prefix }}/my-courses"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/my-courses*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/my-courses*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            {{ __('nav.courses') }}
+        </a>
+
+        <a href="{{ $prefix }}/marks"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/marks*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/marks*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            {{ __('nav.marks') }} & Feedback
+        </a>
+
+        <div class="pt-5 pb-1 px-3">
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Assessments</p>
+        </div>
+
+        <a href="{{ $prefix }}/my-courses"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150">
+            <svg class="w-5 h-5 text-slate-400 group-hover:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Assignments
+        </a>
+
+        <a href="{{ $prefix }}/my-courses"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150">
+            <svg class="w-5 h-5 text-slate-400 group-hover:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Quiz History
+        </a>
+    </nav>
+
+    {{-- Sidebar footer --}}
+    <div class="flex-shrink-0 border-t border-slate-200 p-4">
+        <div class="flex items-center gap-3 px-2">
+            <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
+                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-slate-900 truncate">{{ auth()->user()->name }}</p>
+                <p class="text-xs text-slate-400 truncate">Student</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -65,20 +65,45 @@
                     </main>
                 </div>
             @else
-                @include('layouts.partials.student-topbar')
+                {{-- Student: Sidebar on desktop, bottom nav on mobile --}}
+                @include('layouts.partials.student-sidebar')
 
-                <main class="pb-20 pt-4">
-                    <div class="max-w-lg mx-auto px-4">
-                        @if(session('success'))
-                            <div class="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-4" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)">
-                                <p class="text-sm font-medium text-emerald-800">{{ session('success') }}</p>
+                <div class="lg:pl-72">
+                    @include('layouts.partials.student-topbar')
+
+                    @isset($header)
+                        <header class="bg-white border-b border-slate-200">
+                            <div class="max-w-5xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
+                                {{ $header }}
                             </div>
-                        @endif
-                        {{ $slot }}
-                    </div>
-                </main>
+                        </header>
+                    @endisset
 
-                @include('layouts.partials.bottom-nav')
+                    <main class="py-8 pb-24 lg:pb-8">
+                        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                            @if(session('success'))
+                                <div class="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3" x-data="{ show: true }" x-show="show" x-transition x-init="setTimeout(() => show = false, 5000)">
+                                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                    <p class="text-sm font-medium text-emerald-800">{{ session('success') }}</p>
+                                </div>
+                            @endif
+
+                            @if(session('error'))
+                                <div class="mb-6 rounded-xl bg-red-50 border border-red-200 p-4 flex items-center gap-3">
+                                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
+                                </div>
+                            @endif
+
+                            {{ $slot }}
+                        </div>
+                    </main>
+                </div>
+
+                {{-- Bottom nav: mobile only --}}
+                <div class="lg:hidden">
+                    @include('layouts.partials.bottom-nav')
+                </div>
             @endif
         </div>
 
