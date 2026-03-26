@@ -185,14 +185,89 @@
     @else
         {{-- Student Dashboard --}}
         <div class="space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <h4 class="font-semibold text-slate-900">{{ __('My Courses') }}</h4>
-                <p class="mt-2 text-sm text-slate-500">{{ __('No courses enrolled yet.') }}</p>
+
+            {{-- Welcome --}}
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-6 text-white relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8"></div>
+                <div class="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
+                <div class="relative">
+                    <p class="text-indigo-200 text-sm">{{ now()->format('l, j F Y') }}</p>
+                    <h2 class="text-xl font-bold mt-1">Welcome back, {{ explode(' ', auth()->user()->name)[0] }}!</h2>
+                    <p class="text-sm text-indigo-200 mt-2">{{ $tenant->name }}</p>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <h4 class="font-semibold text-slate-900">{{ __('Upcoming Deadlines') }}</h4>
-                <p class="mt-2 text-sm text-slate-500">{{ __('No upcoming deadlines.') }}</p>
+
+            {{-- Quick Actions --}}
+            <div class="grid grid-cols-2 gap-3">
+                <a href="{{ '/' . $tenant->slug }}/scan" class="bg-white rounded-2xl border border-slate-200 p-4 text-center hover:shadow-md transition group">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-emerald-200 transition">
+                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-900">Scan QR</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Check in attendance</p>
+                </a>
+
+                <a href="{{ '/' . $tenant->slug }}/my-courses" class="bg-white rounded-2xl border border-slate-200 p-4 text-center hover:shadow-md transition group">
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-200 transition">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-900">My Courses</p>
+                    <p class="text-xs text-slate-400 mt-0.5">View enrolled courses</p>
+                </a>
             </div>
+
+            {{-- Enrolled Courses --}}
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900">My Courses</h3>
+                    <span class="text-xs text-slate-400">0 enrolled</span>
+                </div>
+                <div class="p-8 flex flex-col items-center text-center">
+                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
+                        <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <p class="text-sm font-medium text-slate-900">No courses yet</p>
+                    <p class="text-xs text-slate-400 mt-1 max-w-xs">Ask your lecturer for a section invite code to enroll in your first course.</p>
+                    <div class="mt-4 w-full" x-data="{ code: '' }">
+                        <div class="flex gap-2">
+                            <input x-model="code" type="text" placeholder="Enter invite code" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center uppercase tracking-widest" maxlength="10" />
+                            <button class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition" :disabled="code.length < 4" :class="code.length < 4 ? 'opacity-50 cursor-not-allowed' : ''">
+                                Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Upcoming Deadlines --}}
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100">
+                    <h3 class="font-semibold text-slate-900">Upcoming Deadlines</h3>
+                </div>
+                <div class="p-6 flex flex-col items-center text-center">
+                    <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <p class="text-sm text-slate-500">No upcoming deadlines</p>
+                    <p class="text-xs text-slate-400 mt-1">Assignment due dates will appear here</p>
+                </div>
+            </div>
+
+            {{-- Recent Marks --}}
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900">Recent Marks</h3>
+                    <a href="{{ '/' . $tenant->slug }}/marks" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
+                </div>
+                <div class="p-6 flex flex-col items-center text-center">
+                    <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <p class="text-sm text-slate-500">No marks available yet</p>
+                    <p class="text-xs text-slate-400 mt-1">Your assessment results and AI feedback will show here</p>
+                </div>
+            </div>
+
         </div>
     @endif
 </x-tenant-layout>

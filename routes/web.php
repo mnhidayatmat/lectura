@@ -35,11 +35,33 @@ Route::middleware('auth')->group(function () {
 // ── Super Admin ──
 Route::prefix('admin')->middleware(['auth'])->group(function () {
     Route::get('/', function () {
-        if (! auth()->user()->is_super_admin) {
-            abort(403);
-        }
-        return view('admin.dashboard');
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        $tenants = \App\Models\Tenant::withCount('tenantUsers')->get();
+        $totalUsers = \App\Models\User::count();
+        return view('admin.dashboard', compact('tenants', 'totalUsers'));
     })->name('admin.dashboard');
+
+    Route::get('/tenants', function () {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        $tenants = \App\Models\Tenant::withCount('tenantUsers')->latest()->get();
+        return view('admin.tenants', compact('tenants'));
+    })->name('admin.tenants');
+
+    Route::get('/users', function () {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        $users = \App\Models\User::with('tenantUsers.tenant')->latest()->get();
+        return view('admin.users', compact('users'));
+    })->name('admin.users');
+
+    Route::get('/ai-usage', function () {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        return view('admin.placeholder', ['title' => 'AI Usage', 'description' => 'Monitor AI credit usage across all tenants.']);
+    })->name('admin.ai-usage');
+
+    Route::get('/activity', function () {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        return view('admin.placeholder', ['title' => 'Activity Log', 'description' => 'System-wide audit trail of important actions.']);
+    })->name('admin.activity');
 });
 
 // ── Tenant-Scoped Routes ──

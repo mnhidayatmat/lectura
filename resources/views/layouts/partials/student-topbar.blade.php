@@ -1,22 +1,43 @@
-<header class="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4">
-    <span class="text-lg font-bold text-blue-900">Lectura</span>
+@php
+    $tenant = app('current_tenant');
+@endphp
 
-    <div class="flex items-center gap-3">
+<header class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-md px-4 safe-area-top">
+    {{-- Logo --}}
+    <a href="{{ $tenant ? '/' . $tenant->slug . '/dashboard' : '/' }}" class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <span class="text-base font-bold text-slate-900">Lectura</span>
+    </a>
+
+    <div class="flex items-center gap-2">
         {{-- Notifications --}}
-        <button class="relative text-gray-500 hover:text-gray-700">
+        <button class="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
         </button>
 
-        {{-- User avatar --}}
+        {{-- User menu --}}
         <div x-data="{ open: false }" class="relative">
-            <button @click="open = !open" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-700">
+            <button @click="open = !open" class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
                 {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
             </button>
-            <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-50">
-                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ __('nav.profile') }}</a>
+            <div x-show="open" x-cloak @click.away="open = false" x-transition class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 z-50 py-1">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <p class="text-sm font-medium text-slate-900">{{ auth()->user()->name }}</p>
+                    <p class="text-xs text-slate-500 truncate">{{ auth()->user()->email }}</p>
+                </div>
+                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    {{ __('nav.profile') }}
+                </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ __('nav.logout') }}</button>
+                    <button type="submit" class="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        {{ __('nav.logout') }}
+                    </button>
                 </form>
             </div>
         </div>
