@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\AnalyticsController;
 use App\Http\Controllers\Tenant\AssignmentController;
 use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
+use App\Http\Controllers\Tenant\NotificationController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
@@ -177,6 +179,16 @@ Route::prefix('{tenant:slug}')
         Route::post('/files/course/{course}/upload', [CourseFileController::class, 'upload'])->name('tenant.files.upload');
         Route::delete('/files/course/{course}/file/{file}', [CourseFileController::class, 'deleteFile'])->name('tenant.files.delete-file');
         Route::post('/files/course/{course}/file/{file}/tag', [CourseFileController::class, 'addTag'])->name('tenant.files.add-tag');
+
+        // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('tenant.notifications.index');
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('tenant.notifications.unread-count');
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('tenant.notifications.mark-read');
+        Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('tenant.notifications.mark-all-read');
+
+        // Analytics
+        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('tenant.analytics.index');
+        Route::get('/analytics/course/{course}', [AnalyticsController::class, 'course'])->name('tenant.analytics.course');
 
         // Admin Settings (tenant admin only)
         Route::get('/admin/settings', function () {

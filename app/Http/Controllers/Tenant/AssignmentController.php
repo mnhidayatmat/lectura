@@ -13,6 +13,9 @@ use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
 use App\Models\Section;
+use App\Notifications\AssignmentPublished;
+use App\Notifications\FeedbackReleased;
+use App\Notifications\SubmissionReceived;
 use App\Models\StudentMark;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
@@ -151,7 +154,18 @@ class AssignmentController extends Controller
     public function publish(string $tenantSlug, Assignment $assignment): RedirectResponse
     {
         $assignment->update(['status' => 'published']);
-        return back()->with('success', 'Assignment published. Students can now submit.');
+        $assignment->load('course');
+
+        // Notify enrolled students
+        $sectionIds = $assignment->course->sections()->pluck('id');
+        $students = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)
+            ->where('is_active', true)->with('user')->get();
+
+        foreach ($students as $ss) {
+            $ss->user->notify(new AssignmentPublished($assignment));
+        }
+
+        return back()->with('success', 'Assignment published. ' . $students->count() . ' students notified.');
     }
 
     /**
@@ -187,6 +201,13 @@ class AssignmentController extends Controller
                 'file_size_bytes' => $file->getSize(),
                 'storage_path' => $path,
             ]);
+        }
+
+        // Notify lecturer
+        $assignment->load('course');
+        $lecturer = $assignment->course->lecturer;
+        if ($lecturer) {
+            $lecturer->notify(new SubmissionReceived($assignment, $user));
         }
 
         return back()->with('success', 'Submission uploaded successfully.' . ($isLate ? ' (Late submission)' : ''));
@@ -252,6 +273,12 @@ class AssignmentController extends Controller
                     'released_at' => now(),
                 ]
             );
+        }
+
+        // Notify student
+        $mark = StudentMark::where('assignment_id', $assignment->id)->where('user_id', $submission->user_id)->first();
+        if ($mark) {
+            $submission->user->notify(new FeedbackReleased($assignment, $mark));
         }
 
         return redirect()->route('tenant.assignments.show', [
