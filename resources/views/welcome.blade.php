@@ -46,8 +46,8 @@
                     @auth
                         <a href="{{ route('dashboard') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg hover:bg-white/10 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition">Log Masuk</a>
-                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Mula Sekarang</a>
+                        <a href="{{ route('login') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition">Log In</a>
+                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Get Started</a>
                     @endauth
                 </div>
                 <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-white">
@@ -76,8 +76,8 @@
                     @auth
                         <a href="{{ route('dashboard') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Log Masuk</a>
-                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Mula Sekarang</a>
+                        <a href="{{ route('login') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Log In</a>
+                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Get Started</a>
                     @endauth
                 </div>
                 <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-slate-700">
@@ -105,8 +105,8 @@
                 @auth
                     <a href="{{ route('dashboard') }}" class="block px-4 py-3 text-sm font-semibold text-center text-indigo-600 bg-indigo-50 rounded-xl">Go to Dashboard</a>
                 @else
-                    <a href="{{ route('login') }}" class="block px-4 py-3 text-sm font-medium text-center text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Log Masuk</a>
-                    <a href="{{ route('register') }}" class="block px-4 py-3 text-sm font-semibold text-center text-white bg-amber-500 hover:bg-amber-600 rounded-xl">Mula Sekarang</a>
+                    <a href="{{ route('login') }}" class="block px-4 py-3 text-sm font-medium text-center text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Log In</a>
+                    <a href="{{ route('register') }}" class="block px-4 py-3 text-sm font-semibold text-center text-white bg-amber-500 hover:bg-amber-600 rounded-xl">Get Started</a>
                 @endauth
             </div>
         </div>
@@ -138,7 +138,7 @@
 
                     <div class="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
                         <a href="{{ route('register') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/25 transition">
-                            Mulakan Percuma
+                            Start Free
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                         </a>
                         <a href="#how-it-works" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
@@ -644,7 +644,7 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Unlimited AI credits</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>PDPA compliance tools</li>
                     </ul>
-                    <a href="mailto:hello@lectura.app" class="mt-8 block text-center px-6 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition">Hubungi Kami</a>
+                    <a href="mailto:hello@lectura.app" class="mt-8 block text-center px-6 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition">Contact Us</a>
                 </div>
             </div>
         </div>
@@ -660,11 +660,11 @@
             <p class="mt-4 text-lg text-indigo-100">Join Malaysian lecturers who are saving hours every week with Lectura.</p>
             <div class="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center">
                 <a href="{{ route('register') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 transition text-lg">
-                    Mulakan Percuma
+                    Start Free
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 </a>
                 <a href="mailto:hello@lectura.app" class="inline-flex items-center gap-2 text-indigo-100 hover:text-white font-medium transition">
-                    Hubungi Kami
+                    Contact Us
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                 </a>
             </div>
