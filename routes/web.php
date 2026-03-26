@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\CloController;
+use App\Http\Controllers\Tenant\CourseController;
+use App\Http\Controllers\Tenant\SectionController;
+use App\Http\Controllers\Tenant\TopicController;
 use Illuminate\Support\Facades\Route;
 
 // ── Public ──
@@ -73,13 +77,45 @@ Route::prefix('{tenant:slug}')
             $user = auth()->user();
             $role = $user->roleInTenant($tenant->id);
 
-            return view('tenant.dashboard', compact('tenant', 'role'));
+            $courseCount = 0;
+            $studentCount = 0;
+            $courses = collect();
+
+            if ($role !== 'student') {
+                $courses = \App\Models\Course::where('lecturer_id', $user->id)
+                    ->withCount('sections')
+                    ->latest()->get();
+                $courseCount = $courses->count();
+                $sectionIds = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))->pluck('id');
+                $studentCount = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)->where('is_active', true)->distinct('user_id')->count('user_id');
+            }
+
+            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'courses'));
         })->name('tenant.dashboard');
 
         // Course Management
-        Route::get('/courses', function () {
-            return view('tenant.courses.index');
-        })->name('tenant.courses.index');
+        Route::get('/courses', [CourseController::class, 'index'])->name('tenant.courses.index');
+        Route::get('/courses/create', [CourseController::class, 'create'])->name('tenant.courses.create');
+        Route::post('/courses', [CourseController::class, 'store'])->name('tenant.courses.store');
+        Route::get('/courses/{course}', [CourseController::class, 'show'])->name('tenant.courses.show');
+        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('tenant.courses.edit');
+        Route::put('/courses/{course}', [CourseController::class, 'update'])->name('tenant.courses.update');
+        Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('tenant.courses.destroy');
+
+        // CLOs
+        Route::post('/courses/{course}/clos', [CloController::class, 'store'])->name('tenant.courses.clos.store');
+        Route::delete('/courses/{course}/clos/{clo}', [CloController::class, 'destroy'])->name('tenant.courses.clos.destroy');
+
+        // Topics
+        Route::post('/courses/{course}/topics', [TopicController::class, 'store'])->name('tenant.courses.topics.store');
+        Route::delete('/courses/{course}/topics/{topic}', [TopicController::class, 'destroy'])->name('tenant.courses.topics.destroy');
+
+        // Sections
+        Route::post('/courses/{course}/sections', [SectionController::class, 'store'])->name('tenant.courses.sections.store');
+        Route::get('/courses/{course}/sections/{section}', [SectionController::class, 'show'])->name('tenant.courses.sections.show');
+        Route::post('/courses/{course}/sections/{section}/students', [SectionController::class, 'addStudent'])->name('tenant.courses.sections.students.add');
+        Route::post('/courses/{course}/sections/{section}/students/import', [SectionController::class, 'importCsv'])->name('tenant.courses.sections.students.import');
+        Route::delete('/courses/{course}/sections/{section}/students/{user}', [SectionController::class, 'removeStudent'])->name('tenant.courses.sections.students.remove');
 
         // Attendance
         Route::get('/attendance', function () {
