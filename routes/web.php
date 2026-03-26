@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Tenant\AttendanceController;
+use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\SectionController;
@@ -131,9 +132,20 @@ Route::prefix('{tenant:slug}')
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('tenant.attendance.checkin');
 
         // Live Quizzes
-        Route::get('/quizzes', function () {
-            return view('tenant.placeholder', ['title' => __('nav.quizzes'), 'description' => 'Live quiz sessions will be managed here.']);
-        })->name('tenant.quizzes.index');
+        Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');
+        Route::get('/quizzes/create', [QuizController::class, 'create'])->name('tenant.quizzes.create');
+        Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
+        Route::get('/quizzes/{session}/control', [QuizController::class, 'control'])->name('tenant.quizzes.control');
+        Route::post('/quizzes/{session}/start', [QuizController::class, 'start'])->name('tenant.quizzes.start');
+        Route::post('/quizzes/{session}/next', [QuizController::class, 'nextQuestion'])->name('tenant.quizzes.next');
+        Route::post('/quizzes/{session}/end', [QuizController::class, 'end'])->name('tenant.quizzes.end');
+        Route::get('/quizzes/{session}/results', [QuizController::class, 'results'])->name('tenant.quizzes.results');
+        Route::get('/quizzes/{session}/state', [QuizController::class, 'state'])->name('tenant.quizzes.state');
+        // Student quiz
+        Route::get('/quiz/join', [QuizController::class, 'join'])->name('tenant.quizzes.join');
+        Route::get('/quiz/{session}/play', [QuizController::class, 'play'])->name('tenant.quizzes.play');
+        Route::post('/quiz/{session}/respond', [QuizController::class, 'respond'])->name('tenant.quizzes.respond');
+        Route::get('/quiz/{session}/student-state', [QuizController::class, 'studentState'])->name('tenant.quizzes.student-state');
 
         // Assignments
         Route::get('/assignments', function () {
