@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\AssignmentController;
 use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\CloController;
@@ -148,9 +149,15 @@ Route::prefix('{tenant:slug}')
         Route::get('/quiz/{session}/student-state', [QuizController::class, 'studentState'])->name('tenant.quizzes.student-state');
 
         // Assignments
-        Route::get('/assignments', function () {
-            return view('tenant.placeholder', ['title' => __('nav.assignments'), 'description' => 'Assignment creation and marking will be available here.']);
-        })->name('tenant.assignments.index');
+        Route::get('/assignments', [AssignmentController::class, 'index'])->name('tenant.assignments.index');
+        Route::get('/assignments/create', [AssignmentController::class, 'create'])->name('tenant.assignments.create');
+        Route::post('/assignments', [AssignmentController::class, 'store'])->name('tenant.assignments.store');
+        Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('tenant.assignments.show');
+        Route::post('/assignments/{assignment}/publish', [AssignmentController::class, 'publish'])->name('tenant.assignments.publish');
+        Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit'])->name('tenant.assignments.submit');
+        Route::get('/assignments/{assignment}/submissions/{submission}', [AssignmentController::class, 'review'])->name('tenant.assignments.review');
+        Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
+        Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
 
         // Course Files
         Route::get('/files', function () {

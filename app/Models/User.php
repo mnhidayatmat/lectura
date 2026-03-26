@@ -55,6 +55,13 @@ class User extends Authenticatable
         return $this->hasMany(TenantUser::class);
     }
 
+    public function sections(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Section::class, 'section_students')
+            ->withPivot(['enrolled_at', 'enrollment_method', 'is_active'])
+            ->wherePivot('is_active', true);
+    }
+
     // ── Tenant Helpers ──
 
     public function belongsToTenant(int $tenantId): bool
