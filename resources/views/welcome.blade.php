@@ -20,65 +20,99 @@
         .glow { box-shadow: 0 0 60px rgba(79, 70, 229, 0.15); }
     </style>
 </head>
-<body class="font-jakarta antialiased text-slate-600 bg-white" x-data="{ mobileNav: false }">
+<body class="font-jakarta antialiased text-slate-600 bg-white">
 
     {{-- ═══════════════════════════════════════════════════ --}}
     {{-- NAVIGATION --}}
     {{-- ═══════════════════════════════════════════════════ --}}
-    <nav class="fixed top-0 inset-x-0 z-50 transition-all duration-300"
-         x-data="{ scrolled: false }"
-         x-init="window.addEventListener('scroll', () => scrolled = window.scrollY > 50)"
-         :class="scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'">
+    <div x-data="{ scrolled: false, mobileNav: false }" x-init="window.addEventListener('scroll', () => scrolled = window.scrollY > 50)">
+
+    {{-- Transparent navbar (hero) — hides on scroll --}}
+    <nav x-show="!scrolled" class="fixed top-0 inset-x-0 z-50" style="background: transparent;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 lg:h-20">
-                {{-- Logo --}}
                 <a href="/" class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
                         <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                     </div>
-                    <span class="text-xl font-bold" :class="scrolled ? 'text-slate-900' : 'text-white'">Lectura</span>
+                    <span class="text-xl font-bold text-white">Lectura</span>
                 </a>
-
-                {{-- Desktop Nav --}}
                 <div class="hidden lg:flex items-center gap-8">
-                    <a href="#features" class="text-sm font-medium transition" :class="scrolled ? 'text-slate-600 hover:text-indigo-600' : 'text-slate-300 hover:text-white'">Features</a>
-                    <a href="#how-it-works" class="text-sm font-medium transition" :class="scrolled ? 'text-slate-600 hover:text-indigo-600' : 'text-slate-300 hover:text-white'">How It Works</a>
-                    <a href="#pricing" class="text-sm font-medium transition" :class="scrolled ? 'text-slate-600 hover:text-indigo-600' : 'text-slate-300 hover:text-white'">Pricing</a>
+                    <a href="#features" class="text-sm font-medium text-slate-300 hover:text-white transition">Features</a>
+                    <a href="#how-it-works" class="text-sm font-medium text-slate-300 hover:text-white transition">How It Works</a>
+                    <a href="#pricing" class="text-sm font-medium text-slate-300 hover:text-white transition">Pricing</a>
                 </div>
-
-                {{-- Desktop Auth --}}
                 <div class="hidden lg:flex items-center gap-3">
                     @auth
-                        <a href="{{ route('dashboard') }}" class="text-sm font-medium px-4 py-2 rounded-lg transition" :class="scrolled ? 'text-slate-700 hover:bg-slate-100' : 'text-white hover:bg-white/10'">Dashboard</a>
+                        <a href="{{ route('dashboard') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg hover:bg-white/10 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium px-4 py-2 rounded-lg transition" :class="scrolled ? 'text-slate-700 hover:bg-slate-100' : 'text-white hover:bg-white/10'">Log Masuk</a>
+                        <a href="{{ route('login') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition">Log Masuk</a>
                         <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Mula Sekarang</a>
                     @endauth
                 </div>
-
-                {{-- Mobile hamburger --}}
-                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md" :class="scrolled ? 'text-slate-700' : 'text-white'">
+                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
         </div>
+    </nav>
 
-        {{-- Mobile menu --}}
-        <div x-show="mobileNav" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0 -translate-y-2" @click.away="mobileNav = false" class="lg:hidden bg-white border-t shadow-lg">
-            <div class="px-4 py-4 space-y-2">
-                <a href="#features" @click="mobileNav = false" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md">Features</a>
-                <a href="#how-it-works" @click="mobileNav = false" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md">How It Works</a>
-                <a href="#pricing" @click="mobileNav = false" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md">Pricing</a>
-                <hr class="my-2">
-                @auth
-                    <a href="{{ route('dashboard') }}" class="block px-4 py-2 text-sm font-medium text-indigo-600">Dashboard</a>
-                @else
-                    <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-slate-700">Log Masuk</a>
-                    <a href="{{ route('register') }}" class="block px-4 py-2.5 text-sm font-medium text-center text-white bg-amber-500 rounded-lg">Mula Sekarang</a>
-                @endauth
+    {{-- Solid navbar — appears on scroll --}}
+    <nav x-show="scrolled" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="fixed top-0 inset-x-0 z-50 bg-white shadow-sm border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 lg:h-20">
+                <a href="/" class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <span class="text-xl font-bold text-slate-900">Lectura</span>
+                </a>
+                <div class="hidden lg:flex items-center gap-8">
+                    <a href="#features" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition">Features</a>
+                    <a href="#how-it-works" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition">How It Works</a>
+                    <a href="#pricing" class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition">Pricing</a>
+                </div>
+                <div class="hidden lg:flex items-center gap-3">
+                    @auth
+                        <a href="{{ route('dashboard') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Dashboard</a>
+                    @else
+                        <a href="{{ route('login') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Log Masuk</a>
+                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Mula Sekarang</a>
+                    @endauth
+                </div>
+                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-slate-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
             </div>
         </div>
     </nav>
+
+    {{-- Mobile menu (shared) --}}
+    <div x-show="mobileNav" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm lg:hidden" @click="mobileNav = false">
+        <div class="bg-white rounded-b-2xl shadow-xl mx-4 mt-4 overflow-hidden" @click.stop>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <span class="text-lg font-bold text-slate-900">Lectura</span>
+                <button @click="mobileNav = false" class="p-1 text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="px-4 py-4 space-y-1">
+                <a href="#features" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">Features</a>
+                <a href="#how-it-works" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">How It Works</a>
+                <a href="#pricing" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">Pricing</a>
+            </div>
+            <div class="px-4 pb-6 pt-2 space-y-2 border-t border-slate-100 mt-2">
+                @auth
+                    <a href="{{ route('dashboard') }}" class="block px-4 py-3 text-sm font-semibold text-center text-indigo-600 bg-indigo-50 rounded-xl">Go to Dashboard</a>
+                @else
+                    <a href="{{ route('login') }}" class="block px-4 py-3 text-sm font-medium text-center text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Log Masuk</a>
+                    <a href="{{ route('register') }}" class="block px-4 py-3 text-sm font-semibold text-center text-white bg-amber-500 hover:bg-amber-600 rounded-xl">Mula Sekarang</a>
+                @endauth
+            </div>
+        </div>
+    </div>
+
+    </div>
 
     {{-- ═══════════════════════════════════════════════════ --}}
     {{-- HERO --}}
