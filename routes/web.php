@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\SectionController;
@@ -118,9 +119,16 @@ Route::prefix('{tenant:slug}')
         Route::delete('/courses/{course}/sections/{section}/students/{user}', [SectionController::class, 'removeStudent'])->name('tenant.courses.sections.students.remove');
 
         // Attendance
-        Route::get('/attendance', function () {
-            return view('tenant.placeholder', ['title' => __('nav.attendance'), 'description' => 'QR attendance management will be available here.']);
-        })->name('tenant.attendance.index');
+        Route::get('/attendance', [AttendanceController::class, 'index'])->name('tenant.attendance.index');
+        Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('tenant.attendance.start');
+        Route::get('/attendance/{session}/qr', [AttendanceController::class, 'qr'])->name('tenant.attendance.qr');
+        Route::get('/attendance/{session}/token', [AttendanceController::class, 'refreshToken'])->name('tenant.attendance.token');
+        Route::post('/attendance/{session}/end', [AttendanceController::class, 'end'])->name('tenant.attendance.end');
+        Route::get('/attendance/{session}', [AttendanceController::class, 'show'])->name('tenant.attendance.show');
+        Route::put('/attendance/{session}/records/{record}', [AttendanceController::class, 'override'])->name('tenant.attendance.override');
+
+        // Student check-in API
+        Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('tenant.attendance.checkin');
 
         // Live Quizzes
         Route::get('/quizzes', function () {
@@ -149,7 +157,7 @@ Route::prefix('{tenant:slug}')
 
         // Student routes
         Route::get('/scan', function () {
-            return view('tenant.placeholder', ['title' => __('nav.scan'), 'description' => 'QR attendance scanning will be available here.']);
+            return view('tenant.attendance.scan');
         })->name('tenant.scan');
 
         Route::get('/my-courses', function () {
