@@ -18,17 +18,37 @@
         {{-- Step 1: Institution --}}
         <div>
             <label class="block text-sm font-semibold text-slate-700 mb-2">Institution</label>
-            <select name="tenant_id" x-model="tenantId" required
-                class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                <option value="">Select your institution...</option>
-                @foreach($tenants as $t)
-                    <option value="{{ $t->id }}">{{ $t->name }}</option>
-                @endforeach
-            </select>
+
+            @if($tenants->isNotEmpty())
+                <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 mb-3">
+                    <button type="button" @click="mode = 'select'" :class="mode === 'select' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Choose existing</button>
+                    <button type="button" @click="mode = 'create'" :class="mode === 'create' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Create new</button>
+                </div>
+            @endif
+
+            {{-- Select existing --}}
+            <div x-show="mode === 'select' && {{ $tenants->count() }}" x-transition>
+                <select name="tenant_id" x-model="tenantId"
+                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <option value="">Select your institution...</option>
+                    @foreach($tenants as $t)
+                        <option value="{{ $t->id }}">{{ $t->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Create new --}}
+            <div x-show="mode === 'create' || {{ $tenants->count() }} === 0" x-transition class="space-y-3">
+                <div>
+                    <input type="text" name="new_tenant_name" x-model="newTenantName" placeholder="e.g. University of Technology Malaysia"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <p class="text-xs text-slate-400">A new institution will be created and you'll be the first member.</p>
+            </div>
         </div>
 
         {{-- Step 2: Role --}}
-        <div x-show="tenantId" x-transition>
+        <div x-show="tenantId || newTenantName.length > 2" x-transition>
             <label class="block text-sm font-semibold text-slate-700 mb-3">I am a...</label>
             <div class="grid grid-cols-2 gap-3">
                 <label class="relative cursor-pointer" @click="role = 'lecturer'">
@@ -58,17 +78,17 @@
             </div>
         </div>
 
-        {{-- Step 3: Invite Code (students) --}}
-        <div x-show="role === 'student'" x-transition>
+        {{-- Step 3: Invite Code (students joining existing) --}}
+        <div x-show="role === 'student' && mode === 'select' && tenantId" x-transition>
             <label class="block text-sm font-semibold text-slate-700 mb-2">Section Invite Code <span class="font-normal text-slate-400">(optional)</span></label>
             <input type="text" name="invite_code" placeholder="e.g. ABC12345" value="{{ old('invite_code') }}"
                 class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm uppercase tracking-wider focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 maxlength="8">
-            <p class="mt-1.5 text-xs text-slate-400">Ask your lecturer for the invite code to join a specific course section. You can also join later.</p>
+            <p class="mt-1.5 text-xs text-slate-400">Ask your lecturer for the invite code to join a specific course section.</p>
         </div>
 
         {{-- Submit --}}
-        <div x-show="tenantId && role" x-transition>
+        <div x-show="(tenantId || newTenantName.length > 2) && role" x-transition>
             <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all">
                 Get Started
             </button>
@@ -78,7 +98,9 @@
     <script>
         function onboardingForm() {
             return {
+                mode: {{ $tenants->isEmpty() ? "'create'" : "'select'" }},
                 tenantId: '{{ old('tenant_id', '') }}',
+                newTenantName: '{{ old('new_tenant_name', '') }}',
                 role: '{{ old('role', '') }}',
             };
         }
