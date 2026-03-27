@@ -97,24 +97,24 @@
             {{-- Right Panel — Form --}}
             <div class="w-full lg:w-1/2 flex flex-col">
                 {{-- Mobile header --}}
-                <div class="lg:hidden flex items-center justify-between px-6 py-4 border-b bg-white">
+                <div class="lg:hidden flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1c2333]">
                     <a href="/" class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
                             <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                         </div>
-                        <span class="text-lg font-bold text-slate-900">Lectura</span>
+                        <span class="text-lg font-bold text-slate-900 dark:text-white">Lectura</span>
                     </a>
                 </div>
 
                 {{-- Form container --}}
-                <div class="flex-1 flex items-center justify-center px-6 py-12 sm:px-12 bg-white">
+                <div class="flex-1 flex items-center justify-center px-5 py-8 sm:px-12 sm:py-12 bg-white dark:bg-[#1c2333]">
                     <div class="w-full max-w-md">
                         {{ $slot }}
                     </div>
                 </div>
 
                 {{-- Footer --}}
-                <div class="px-6 py-4 text-center text-xs text-slate-400 border-t bg-white">
+                <div class="px-6 py-4 text-center text-xs text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1c2333]">
                     &copy; {{ date('Y') }} Lectura. Made in Malaysia.
                 </div>
             </div>
