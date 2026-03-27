@@ -175,40 +175,66 @@
                             ->get();
                     @endphp
                     @if($switchableUsers->isNotEmpty())
-                        <div class="relative" x-data="{ open: false, search: '' }">
-                            <button @click="open = !open" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition">
+                        <div class="relative" x-data="{ open: false, search: '', roleFilter: 'all' }">
+                            <button @click="open = !open" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 View As
                                 <svg class="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
                             <div x-show="open" x-cloak @click.away="open = false" x-transition
-                                class="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden">
-                                <div class="px-3 py-2 border-b border-slate-100">
-                                    <input type="text" x-model="search" placeholder="Search users..." autofocus
-                                        class="w-full px-3 py-1.5 text-sm border-0 bg-slate-50 rounded-lg focus:ring-2 focus:ring-indigo-500 placeholder-slate-400">
+                                class="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#242d3d] rounded-xl border border-slate-200 dark:border-[#354158] shadow-xl overflow-hidden">
+
+                                {{-- Search --}}
+                                <div class="px-3 pt-3 pb-2 border-b border-slate-100 dark:border-[#354158]">
+                                    <input type="text" x-model="search" placeholder="Search users..."
+                                        class="w-full px-3 py-1.5 text-sm border-0 bg-slate-50 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 dark:placeholder-slate-500">
                                 </div>
+
+                                {{-- Role filter tabs --}}
+                                <div class="flex items-center gap-1 px-3 py-2 border-b border-slate-100 dark:border-[#354158] bg-slate-50/50 dark:bg-slate-800/50">
+                                    <button type="button" @click="roleFilter = 'all'"
+                                        :class="roleFilter === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'"
+                                        class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition">
+                                        All
+                                    </button>
+                                    <button type="button" @click="roleFilter = 'lecturer'"
+                                        :class="roleFilter === 'lecturer' ? 'bg-indigo-50 dark:bg-indigo-500/15 shadow-sm text-indigo-700 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'"
+                                        class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                        Lecturer
+                                    </button>
+                                    <button type="button" @click="roleFilter = 'student'"
+                                        :class="roleFilter === 'student' ? 'bg-teal-50 dark:bg-teal-500/15 shadow-sm text-teal-700 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'"
+                                        class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                        Student
+                                    </button>
+                                </div>
+
+                                {{-- User list --}}
                                 <div class="max-h-72 overflow-y-auto">
                                     @foreach($switchableUsers as $su)
+                                        @php $suRole = $su->tenantUsers->first()?->role ?? 'none'; @endphp
                                         <form method="POST" action="{{ route('admin.users.impersonate', $su) }}"
-                                            x-show="!search || '{{ strtolower($su->name . ' ' . $su->email) }}'.includes(search.toLowerCase())"
+                                            x-show="(roleFilter === 'all' || roleFilter === '{{ $suRole }}') && (!search || '{{ strtolower($su->name . ' ' . $su->email) }}'.includes(search.toLowerCase()))"
                                             class="block">
                                             @csrf
-                                            <button type="submit" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 transition text-left">
+                                            <button type="submit" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left">
                                                 <div class="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
-                                                    {{ $su->tenantUsers->first()?->role === 'lecturer' ? 'bg-indigo-100 text-indigo-700' :
-                                                       ($su->tenantUsers->first()?->role === 'student' ? 'bg-teal-100 text-teal-700' :
-                                                       ($su->tenantUsers->first()?->role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')) }}">
+                                                    {{ $suRole === 'lecturer' ? 'bg-indigo-100 text-indigo-700' :
+                                                       ($suRole === 'student' ? 'bg-teal-100 text-teal-700' :
+                                                       ($suRole === 'admin' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400')) }}">
                                                     {{ strtoupper(substr($su->name, 0, 2)) }}
                                                 </div>
                                                 <div class="min-w-0 flex-1">
-                                                    <p class="text-sm font-medium text-slate-900 truncate">{{ $su->name }}</p>
-                                                    <p class="text-[11px] text-slate-400 truncate">{{ $su->email }}</p>
+                                                    <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ $su->name }}</p>
+                                                    <p class="text-[11px] text-slate-400 dark:text-slate-500 truncate">{{ $su->email }} @if($su->tenantUsers->first()?->tenant)&middot; {{ $su->tenantUsers->first()->tenant->name }}@endif</p>
                                                 </div>
                                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0
-                                                    {{ $su->tenantUsers->first()?->role === 'lecturer' ? 'bg-indigo-50 text-indigo-600' :
-                                                       ($su->tenantUsers->first()?->role === 'student' ? 'bg-teal-50 text-teal-600' :
-                                                       ($su->tenantUsers->first()?->role === 'admin' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600')) }}">
-                                                    {{ ucfirst($su->tenantUsers->first()?->role ?? 'user') }}
+                                                    {{ $suRole === 'lecturer' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400' :
+                                                       ($suRole === 'student' ? 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400' :
+                                                       ($suRole === 'admin' ? 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400')) }}">
+                                                    {{ ucfirst($suRole) }}
                                                 </span>
                                             </button>
                                         </form>
