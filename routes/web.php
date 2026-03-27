@@ -43,8 +43,12 @@ Route::get('/dashboard', function () {
         return redirect("/{$tenant->slug}/dashboard");
     }
 
-    return view('dashboard');
+    // No tenant — send to onboarding
+    return redirect()->route('onboarding');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/onboarding', [\App\Http\Controllers\Auth\OnboardingController::class, 'show'])->middleware('auth')->name('onboarding');
+Route::post('/onboarding', [\App\Http\Controllers\Auth\OnboardingController::class, 'store'])->middleware('auth')->name('onboarding.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

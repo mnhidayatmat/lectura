@@ -60,6 +60,7 @@ class GoogleController extends Controller
             return redirect('/' . $tenantUser->tenant->slug . '/dashboard');
         }
 
-        return redirect('/');
+        // New user with no tenant — onboarding
+        return redirect()->route('onboarding');
     }
 }
