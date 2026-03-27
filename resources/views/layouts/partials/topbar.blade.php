@@ -16,6 +16,42 @@
             </div>
         </div>
 
+        {{-- Role Switcher --}}
+        @php
+            $allRoles = auth()->user()->rolesInTenant($currentTenant->id);
+        @endphp
+        @if(count($allRoles) > 1)
+        <div x-data="{ open: false }" class="relative flex-shrink-0">
+            <button @click="open = !open" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition border"
+                :class="open ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-700 dark:text-indigo-300' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-[#2a3548] dark:border-[#354158] dark:text-slate-300 dark:hover:bg-[#354158]'"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                {{ ucfirst($userRole ?? 'admin') }}
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-cloak @click.away="open = false" x-transition class="absolute left-0 mt-1 w-44 bg-white dark:bg-[#242d3d] rounded-xl shadow-lg border border-slate-200 dark:border-[#354158] z-50 py-1">
+                <p class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Switch Role</p>
+                @foreach($allRoles as $r)
+                    @if($r === ($userRole ?? 'admin'))
+                        <div class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            {{ ucfirst($r) }}
+                        </div>
+                    @else
+                        <form method="POST" action="{{ route('tenant.switch-role', $currentTenant->slug) }}">
+                            @csrf
+                            <input type="hidden" name="role" value="{{ $r }}">
+                            <button type="submit" class="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#2a3548] transition">
+                                <svg class="w-4 h-4 text-transparent" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                {{ ucfirst($r) }}
+                            </button>
+                        </form>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         {{-- Center: Search bar --}}
         <div class="hidden md:block flex-1 max-w-md mx-auto">
             <div class="relative">

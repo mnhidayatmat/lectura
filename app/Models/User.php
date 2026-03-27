@@ -115,7 +115,13 @@ class User extends Authenticatable
             return null;
         }
 
-        // Super admins always have admin role in any tenant
+        // Check for session-based role override (role switcher)
+        $sessionRole = session("tenant_{$tenantId}_role");
+        if ($sessionRole) {
+            return $sessionRole;
+        }
+
+        // Super admins default to admin role in any tenant
         if ($this->is_super_admin) {
             return 'admin';
         }
@@ -124,6 +130,22 @@ class User extends Authenticatable
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->value('role');
+    }
+
+    public function rolesInTenant(int $tenantId): array
+    {
+        $roles = $this->tenantUsers()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->pluck('role')
+            ->toArray();
+
+        // Super admins always have admin role
+        if ($this->is_super_admin && ! in_array('admin', $roles)) {
+            array_unshift($roles, 'admin');
+        }
+
+        return $roles;
     }
 
     public function hasRoleInTenant(int $tenantId, array|string $roles): bool

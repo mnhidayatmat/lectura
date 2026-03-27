@@ -426,6 +426,9 @@ Route::prefix('{tenant:slug}')
             return view('tenant.placeholder', ['title' => __('nav.settings'), 'description' => 'Institution settings and configuration will be managed here.']);
         })->name('tenant.admin.settings');
 
+        // Role Switcher
+        Route::post('/switch-role', [\App\Http\Controllers\Tenant\RoleSwitchController::class, 'switch'])->name('tenant.switch-role');
+
         // Student routes
         Route::get('/scan', function () {
             return view('tenant.attendance.scan');
