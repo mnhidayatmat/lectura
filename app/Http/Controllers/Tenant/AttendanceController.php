@@ -127,8 +127,11 @@ class AttendanceController extends Controller
      */
     public function refreshToken(string $tenantSlug, AttendanceSession $session): JsonResponse
     {
-        if ($session->lecturer_id !== auth()->id() || ! $session->isActive()) {
+        if (! auth()->user()->is_super_admin && $session->lecturer_id !== auth()->id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        if (! $session->isActive()) {
+            return response()->json(['error' => 'Session ended'], 403);
         }
 
         $token = $this->qrService->generateToken(
@@ -138,11 +141,24 @@ class AttendanceController extends Controller
 
         $payload = $this->qrService->buildPayload($session->id, $token);
 
+        $records = $session->records()
+            ->whereIn('status', ['present', 'late'])
+            ->with('user:id,name')
+            ->orderByDesc('checked_in_at')
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'name' => $r->user->name,
+                'status' => $r->status,
+                'time' => $r->checked_in_at?->format('H:i:s'),
+            ]);
+
         return response()->json([
             'payload' => $payload,
             'rotation_seconds' => $session->qr_rotation_seconds,
-            'checked_in' => $session->records()->whereIn('status', ['present', 'late'])->count(),
+            'checked_in' => $records->count(),
             'total' => $session->section->activeStudents()->count(),
+            'records' => $records,
         ]);
     }
 
