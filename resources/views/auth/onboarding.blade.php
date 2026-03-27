@@ -21,30 +21,33 @@
 
             @if($tenants->isNotEmpty())
                 <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 mb-3">
-                    <button type="button" @click="mode = 'select'" :class="mode === 'select' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Choose existing</button>
-                    <button type="button" @click="mode = 'create'" :class="mode === 'create' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Create new</button>
+                    <button type="button" @click="mode = 'select'; newTenantName = ''" :class="mode === 'select' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Choose existing</button>
+                    <button type="button" @click="mode = 'create'; tenantId = ''" :class="mode === 'create' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition">Create new</button>
                 </div>
-            @endif
 
-            {{-- Select existing --}}
-            <div x-show="mode === 'select' && {{ $tenants->count() }}" x-transition>
-                <select name="tenant_id" x-model="tenantId"
-                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                    <option value="">Select your institution...</option>
-                    @foreach($tenants as $t)
-                        <option value="{{ $t->id }}">{{ $t->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+                {{-- Select existing --}}
+                <div x-show="mode === 'select'" x-transition>
+                    <select name="tenant_id" x-model="tenantId"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="">Select your institution...</option>
+                        @foreach($tenants as $t)
+                            <option value="{{ $t->id }}">{{ $t->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-            {{-- Create new --}}
-            <div x-show="mode === 'create' || {{ $tenants->count() }} === 0" x-transition class="space-y-3">
-                <div>
+                {{-- Create new --}}
+                <div x-show="mode === 'create'" x-transition class="space-y-3">
                     <input type="text" name="new_tenant_name" x-model="newTenantName" placeholder="e.g. University of Technology Malaysia"
                         class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <p class="text-xs text-slate-400">A new institution will be created and you'll be the first member.</p>
                 </div>
-                <p class="text-xs text-slate-400">A new institution will be created and you'll be the first member.</p>
-            </div>
+            @else
+                {{-- No institutions exist — create only --}}
+                <input type="text" name="new_tenant_name" x-model="newTenantName" placeholder="e.g. University of Technology Malaysia"
+                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                <p class="mt-1.5 text-xs text-slate-400">No institutions registered yet. Type your institution name to create one.</p>
+            @endif
         </div>
 
         {{-- Step 2: Role --}}
@@ -98,7 +101,7 @@
     <script>
         function onboardingForm() {
             return {
-                mode: {{ $tenants->isEmpty() ? "'create'" : "'select'" }},
+                mode: '{{ $tenants->isEmpty() ? 'create' : 'select' }}',
                 tenantId: '{{ old('tenant_id', '') }}',
                 newTenantName: '{{ old('new_tenant_name', '') }}',
                 role: '{{ old('role', '') }}',
