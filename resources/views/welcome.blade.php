@@ -44,13 +44,13 @@
                 </div>
                 <div class="hidden lg:flex items-center gap-3">
                     @auth
-                        <a href="{{ route('dashboard') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg hover:bg-white/10 transition">Dashboard</a>
+                        <a href="{{ route('dashboard') }}" class="text-sm font-semibold text-white px-5 py-2.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition">Log In</a>
-                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Get Started</a>
+                        <a href="{{ route('login') }}" class="text-sm font-semibold text-white px-5 py-2.5 rounded-lg bg-white/15 border border-white/30 hover:bg-white/25 transition backdrop-blur-sm">Log In</a>
+                        <a href="{{ route('register') }}" class="text-sm font-semibold px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition shadow-lg shadow-amber-500/25">Get Started Free</a>
                     @endauth
                 </div>
-                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-white">
+                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-white hover:bg-white/10 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
@@ -74,10 +74,10 @@
                 </div>
                 <div class="hidden lg:flex items-center gap-3">
                     @auth
-                        <a href="{{ route('dashboard') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Dashboard</a>
+                        <a href="{{ route('dashboard') }}" class="text-sm font-semibold text-indigo-600 px-5 py-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition">Log In</a>
-                        <a href="{{ route('register') }}" class="text-sm font-medium px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition shadow-sm">Get Started</a>
+                        <a href="{{ route('login') }}" class="text-sm font-semibold text-slate-900 px-5 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 transition">Log In</a>
+                        <a href="{{ route('register') }}" class="text-sm font-semibold px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition shadow-lg shadow-amber-500/25">Get Started Free</a>
                     @endauth
                 </div>
                 <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-slate-700">

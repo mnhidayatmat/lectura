@@ -72,7 +72,7 @@ class OnboardingController extends Controller
             TenantUser::create([
                 'user_id' => $user->id,
                 'tenant_id' => $tenant->id,
-                'role' => $request->role === 'lecturer' ? 'admin' : $request->role,
+                'role' => $request->role,
                 'is_active' => true,
                 'joined_at' => now(),
             ]);

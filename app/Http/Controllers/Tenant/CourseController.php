@@ -53,7 +53,7 @@ class CourseController extends Controller
             'faculty_id' => $request->faculty_id,
             'programme_id' => $request->programme_id,
             'academic_term_id' => $request->academic_term_id,
-            'status' => 'draft',
+            'status' => 'active',
         ]);
 
         // Create CLOs
