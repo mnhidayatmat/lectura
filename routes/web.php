@@ -54,6 +54,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Google Drive OAuth callback (outside tenant prefix since Google redirects here directly)
+    Route::get('/settings/drive/callback', [\App\Http\Controllers\Tenant\SettingsController::class, 'driveCallback'])->name('settings.drive.callback');
 });
 
 // ── Super Admin ──
@@ -434,6 +437,11 @@ Route::prefix('{tenant:slug}')
 
         Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
         Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
+
+        // Settings
+        Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
+        Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
+        Route::post('/settings/drive/disconnect', [\App\Http\Controllers\Tenant\SettingsController::class, 'disconnectDrive'])->name('tenant.settings.drive.disconnect');
     });
 
 require __DIR__.'/auth.php';

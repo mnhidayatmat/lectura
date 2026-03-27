@@ -37,11 +37,17 @@ class User extends Authenticatable
         'locale',
         'is_super_admin',
         'is_pro',
+        'drive_access_token',
+        'drive_refresh_token',
+        'drive_token_expires_at',
+        'drive_root_folder_id',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'drive_access_token',
+        'drive_refresh_token',
     ];
 
     protected function casts(): array
@@ -51,7 +57,13 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
             'is_pro' => 'boolean',
+            'drive_token_expires_at' => 'datetime',
         ];
+    }
+
+    public function isDriveConnected(): bool
+    {
+        return $this->drive_refresh_token !== null;
     }
 
     // ── Tenant Relationships ──
