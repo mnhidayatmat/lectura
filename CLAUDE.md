@@ -41,9 +41,22 @@ npm run build
 - Users are global; roles assigned per-tenant via `tenant_users` pivot. Check role with `$user->roleInTenant($tenantId)`
 - All tenant-scoped tables have `tenant_id` as first FK after `id`
 
+### Authentication
+
+- Laravel Breeze scaffolding with email/password login and registration
+- **Google OAuth** via Laravel Socialite (`laravel/socialite`): `GoogleController` handles redirect + callback
+  - Routes: `GET /auth/google` → Google consent, `GET /auth/google/callback` → create/link/login user
+  - New users created with `google_id` + `avatar_url`; existing email users auto-linked to Google account
+  - Requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` in `.env`
+  - Config in `config/services.php` under `google` key
+- Users table has `google_id` (nullable, unique) and `avatar_url` fields for OAuth
+- Password field is nullable to support passwordless Google-only accounts
+- After login, users redirect to their first active tenant dashboard
+
 ### Routing
 
 - **No API routes** — server-rendered Blade app only (`routes/web.php`)
+- Auth routes in `routes/auth.php` (Breeze + Google OAuth)
 - Tenant routes use `{tenant:slug}` prefix with middleware group: `auth`, `tenant`, `tenant.access`, `locale`
 - Route names prefixed with `tenant.` (e.g., `tenant.courses.index`, `tenant.assignments.show`)
 - Admin routes under `/admin` prefix with inline super_admin check
