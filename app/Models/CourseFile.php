@@ -17,13 +17,16 @@ class CourseFile extends Model
         'course_folder_id',
         'course_id',
         'uploaded_by',
+        'material_type',
         'file_name',
         'file_type',
         'file_size_bytes',
         'storage_path',
+        'url',
         'description',
         'section_id',
         'week_number',
+        'sort_order',
     ];
 
     public function folder(): BelongsTo
@@ -44,6 +47,21 @@ class CourseFile extends Model
     public function tags(): HasMany
     {
         return $this->hasMany(FileTag::class);
+    }
+
+    public function isLink(): bool
+    {
+        return $this->material_type === 'link';
+    }
+
+    public function isFile(): bool
+    {
+        return $this->material_type !== 'link';
+    }
+
+    public function scopeForWeek($query, int $week)
+    {
+        return $query->where('week_number', $week);
     }
 
     public function formattedSize(): string

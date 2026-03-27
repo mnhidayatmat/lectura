@@ -217,26 +217,51 @@
             </div>
 
             {{-- Enrolled Courses --}}
+            @php
+                $enrollments = \App\Models\SectionStudent::where('user_id', auth()->id())
+                    ->where('is_active', true)
+                    ->with('section.course.lecturer')
+                    ->get();
+                $enrolledCourses = $enrollments->groupBy(fn ($e) => $e->section->course_id)
+                    ->map(fn ($g) => $g->first()->section->course)->values();
+            @endphp
             <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                     <h3 class="font-semibold text-slate-900">My Courses</h3>
-                    <span class="text-xs text-slate-400">0 enrolled</span>
+                    <a href="{{ '/' . $tenant->slug }}/my-courses" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
                 </div>
-                <div class="p-8 flex flex-col items-center text-center">
-                    <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
-                        <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                    </div>
-                    <p class="text-sm font-medium text-slate-900">No courses yet</p>
-                    <p class="text-xs text-slate-400 mt-1 max-w-xs">Ask your lecturer for a section invite code to enroll in your first course.</p>
-                    <div class="mt-4 w-full" x-data="{ code: '' }">
-                        <div class="flex gap-2">
-                            <input x-model="code" type="text" placeholder="Enter invite code" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center uppercase tracking-widest" maxlength="10" />
-                            <button class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition" :disabled="code.length < 4" :class="code.length < 4 ? 'opacity-50 cursor-not-allowed' : ''">
-                                Join
-                            </button>
+                @if($enrolledCourses->isEmpty())
+                    <div class="p-6 flex flex-col items-center text-center">
+                        <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
+                            <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                         </div>
+                        <p class="text-sm font-medium text-slate-900">No courses yet</p>
+                        <p class="text-xs text-slate-400 mt-1 max-w-xs">Ask your lecturer for a section invite code to enroll.</p>
+                        <form method="POST" action="{{ route('tenant.my-courses.enroll', $tenant->slug) }}" class="mt-4 w-full">
+                            @csrf
+                            <div class="flex gap-2">
+                                <input type="text" name="invite_code" placeholder="Enter invite code" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 text-center uppercase tracking-widest" maxlength="20" required />
+                                <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">Join</button>
+                            </div>
+                            @error('invite_code') <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </form>
                     </div>
-                </div>
+                @else
+                    <div class="divide-y divide-slate-100">
+                        @foreach($enrolledCourses->take(5) as $c)
+                            <a href="{{ route('tenant.my-courses.show', [$tenant->slug, $c]) }}" class="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-white">{{ strtoupper(substr($c->code, 0, 2)) }}</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-slate-900 truncate">{{ $c->code }}</p>
+                                    <p class="text-xs text-slate-400 truncate">{{ $c->title }}</p>
+                                </div>
+                                <svg class="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             {{-- Upcoming Deadlines --}}

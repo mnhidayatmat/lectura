@@ -118,7 +118,6 @@
     </div>
 
     @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script>
         function qrAttendance(sessionId, tokenUrl) {
             return {

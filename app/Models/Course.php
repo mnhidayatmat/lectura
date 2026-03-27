@@ -9,10 +9,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Course extends Model
 {
-    use BelongsToTenant, SoftDeletes;
+    use BelongsToTenant, LogsActivity, SoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['code', 'title', 'status', 'teaching_mode'])
+            ->logOnlyDirty()
+            ->useLogName('course')
+            ->setDescriptionForEvent(fn (string $event) => "Course {$this->code} was {$event}");
+    }
 
     protected $fillable = [
         'tenant_id', 'faculty_id', 'programme_id', 'academic_term_id',
@@ -70,6 +81,16 @@ class Course extends Model
         return $this->hasMany(Section::class);
     }
 
+    public function files(): HasMany
+    {
+        return $this->hasMany(CourseFile::class);
+    }
+
+    public function activeLearningPlans(): HasMany
+    {
+        return $this->hasMany(ActiveLearningPlan::class);
+    }
+
     public function totalStudents(): int
     {
         return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))
@@ -82,6 +103,7 @@ class Course extends Model
     {
         return match ($this->status) {
             'active' => ['label' => 'Active', 'color' => 'emerald'],
+            'inactive' => ['label' => 'Inactive', 'color' => 'red'],
             'archived' => ['label' => 'Archived', 'color' => 'slate'],
             default => ['label' => 'Draft', 'color' => 'amber'],
         };

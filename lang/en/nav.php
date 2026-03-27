@@ -7,6 +7,8 @@ return [
     'attendance' => 'Attendance',
     'quizzes' => 'Live Quizzes',
     'assignments' => 'Assignments',
+    'active_learning' => 'Active Learning',
+    'live_session' => 'Live Session',
     'management' => 'Management',
     'course_files' => 'Course Files',
     'admin' => 'Administration',

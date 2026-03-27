@@ -28,6 +28,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Super admin always goes to admin panel
+        if (auth()->user()->is_super_admin) {
+            return redirect('/admin');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

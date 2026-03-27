@@ -10,16 +10,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Assignment extends Model
 {
-    use BelongsToTenant, SoftDeletes;
+    use BelongsToTenant, LogsActivity, SoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['title', 'status', 'marking_mode'])
+            ->logOnlyDirty()
+            ->useLogName('assignment')
+            ->setDescriptionForEvent(fn (string $event) => "Assignment \"{$this->title}\" was {$event}");
+    }
 
     protected $fillable = [
         'tenant_id', 'course_id', 'section_id', 'created_by',
         'title', 'description', 'type', 'total_marks', 'deadline',
         'allow_resubmission', 'max_resubmissions', 'marking_mode',
-        'answer_scheme', 'status', 'clo_ids',
+        'answer_scheme', 'answer_scheme_path', 'answer_scheme_filename',
+        'status', 'clo_ids',
     ];
 
     protected function casts(): array

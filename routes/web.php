@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AiProviderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Tenant\AnalyticsController;
 use App\Http\Controllers\Tenant\AssignmentController;
@@ -8,7 +9,15 @@ use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
+use App\Http\Controllers\Tenant\CourseMaterialController;
+use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningActivityController;
+use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningGroupController;
+use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningPlanController;
+use App\Http\Controllers\Tenant\ActiveLearning\SessionController;
+use App\Http\Controllers\Tenant\ActiveLearning\StudentSessionController;
+use App\Http\Controllers\Tenant\ActiveLearning\TenantAiSettingsController;
 use App\Http\Controllers\Tenant\NotificationController;
+use App\Http\Controllers\Tenant\StudentCourseController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
@@ -23,15 +32,15 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
+    // Super admin always goes to admin panel
+    if ($user->is_super_admin) {
+        return redirect('/admin');
+    }
+
     // If user has tenants, redirect to first active tenant dashboard
     $tenant = $user->activeTenants()->first();
     if ($tenant) {
         return redirect("/{$tenant->slug}/dashboard");
-    }
-
-    // Super admin without tenant goes to admin panel
-    if ($user->is_super_admin) {
-        return redirect('/admin');
     }
 
     return view('dashboard');
@@ -54,9 +63,35 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 
     Route::get('/tenants', function () {
         if (! auth()->user()->is_super_admin) { abort(403); }
-        $tenants = \App\Models\Tenant::withCount('tenantUsers')->latest()->get();
+        $tenants = \App\Models\Tenant::withCount([
+            'tenantUsers',
+            'tenantUsers as lecturers_count' => fn ($q) => $q->where('role', 'lecturer'),
+            'tenantUsers as students_count' => fn ($q) => $q->where('role', 'student'),
+        ])->latest()->get();
         return view('admin.tenants', compact('tenants'));
     })->name('admin.tenants');
+
+    Route::post('/tenants', function (\Illuminate\Http\Request $request) {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['required', 'string', 'max:255', 'unique:tenants,slug', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
+            'timezone' => ['required', 'string', 'timezone'],
+            'locale' => ['required', 'in:en,ms'],
+        ]);
+        $tenant = \App\Models\Tenant::create([
+            'name' => $validated['name'],
+            'slug' => $validated['slug'],
+            'timezone' => $validated['timezone'],
+            'locale' => $validated['locale'],
+            'is_active' => true,
+            'settings' => [
+                'auth' => ['allow_google_login' => true, 'sso_enabled' => false],
+                'ai' => ['enabled' => true, 'provider' => 'claude'],
+            ],
+        ]);
+        return back()->with('success', $tenant->name . ' has been created successfully.');
+    })->name('admin.tenants.store');
 
     Route::get('/users', function () {
         if (! auth()->user()->is_super_admin) { abort(403); }
@@ -64,14 +99,126 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
         return view('admin.users', compact('users'));
     })->name('admin.users');
 
-    Route::get('/ai-usage', function () {
+    Route::post('/users/{user}/impersonate', function (\App\Models\User $user) {
         if (! auth()->user()->is_super_admin) { abort(403); }
-        return view('admin.placeholder', ['title' => 'AI Usage', 'description' => 'Monitor AI credit usage across all tenants.']);
+        session()->put('impersonator_id', auth()->id());
+        auth()->login($user);
+        // Redirect to first tenant dashboard or home
+        $tenantUser = $user->tenantUsers()->where('is_active', true)->first();
+        if ($tenantUser) {
+            $tenant = $tenantUser->tenant;
+            return redirect('/' . $tenant->slug . '/dashboard');
+        }
+        return redirect('/');
+    })->name('admin.users.impersonate');
+
+    Route::post('/impersonate/stop', function () {
+        $impersonatorId = session()->pull('impersonator_id');
+        if ($impersonatorId) {
+            auth()->loginUsingId($impersonatorId);
+        }
+        return redirect()->route('admin.users');
+    })->name('admin.impersonate.stop');
+
+    Route::post('/users/{user}/toggle-pro', function (\App\Models\User $user) {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+        $user->is_pro = ! $user->is_pro;
+        $user->save();
+        $status = $user->is_pro ? 'Pro' : 'Free';
+        return back()->with('success', $user->name . ' is now on ' . $status . ' plan.');
+    })->name('admin.users.toggle-pro');
+
+    Route::get('/ai-usage', function (\Illuminate\Http\Request $request) {
+        if (! auth()->user()->is_super_admin) { abort(403); }
+
+        $query = \App\Models\AiUsageLog::query()->withoutGlobalScopes();
+        $period = $request->input('period', '30');
+
+        if ($period !== 'all') {
+            $query->where('created_at', '>=', now()->subDays((int) $period));
+        }
+
+        $logs = $query->latest('created_at')->get();
+
+        // Summary stats
+        $totalCalls = $logs->count();
+        $successCalls = $logs->where('response_status', 'success')->count();
+        $failedCalls = $logs->where('response_status', 'failed')->count();
+        $totalInputTokens = $logs->sum('input_tokens');
+        $totalOutputTokens = $logs->sum('output_tokens');
+        $totalCost = $logs->sum('cost_usd');
+        $avgDuration = $logs->avg('duration_ms');
+
+        // By module
+        $byModule = $logs->groupBy('module')->map(fn ($items) => [
+            'calls' => $items->count(),
+            'input_tokens' => $items->sum('input_tokens'),
+            'output_tokens' => $items->sum('output_tokens'),
+            'cost' => $items->sum('cost_usd'),
+        ])->sortByDesc('calls');
+
+        // By provider
+        $byProvider = $logs->groupBy('provider')->map(fn ($items) => [
+            'calls' => $items->count(),
+            'input_tokens' => $items->sum('input_tokens'),
+            'output_tokens' => $items->sum('output_tokens'),
+            'cost' => $items->sum('cost_usd'),
+        ])->sortByDesc('calls');
+
+        // By tenant
+        $tenantIds = $logs->pluck('tenant_id')->unique()->filter();
+        $tenants = \App\Models\Tenant::whereIn('id', $tenantIds)->pluck('name', 'id');
+        $byTenant = $logs->groupBy('tenant_id')->map(fn ($items, $tenantId) => [
+            'name' => $tenants[$tenantId] ?? 'Unknown',
+            'calls' => $items->count(),
+            'tokens' => $items->sum('input_tokens') + $items->sum('output_tokens'),
+            'cost' => $items->sum('cost_usd'),
+        ])->sortByDesc('calls');
+
+        // Recent logs with user info
+        $recentLogs = \App\Models\AiUsageLog::query()->withoutGlobalScopes()
+            ->with('user')
+            ->latest('created_at')
+            ->limit(50)
+            ->get();
+        $recentTenants = \App\Models\Tenant::whereIn('id', $recentLogs->pluck('tenant_id')->unique()->filter())->pluck('name', 'id');
+
+        return view('admin.ai-usage', compact(
+            'period', 'totalCalls', 'successCalls', 'failedCalls',
+            'totalInputTokens', 'totalOutputTokens', 'totalCost', 'avgDuration',
+            'byModule', 'byProvider', 'byTenant', 'recentLogs', 'recentTenants'
+        ));
     })->name('admin.ai-usage');
+
+    // AI Provider Settings
+    Route::get('/ai-settings', [AiProviderController::class, 'index'])->name('admin.ai-settings');
+    Route::post('/ai-settings', [AiProviderController::class, 'store'])->name('admin.ai-settings.store');
+    Route::put('/ai-settings/{aiProvider}', [AiProviderController::class, 'update'])->name('admin.ai-settings.update');
+    Route::delete('/ai-settings/{aiProvider}', [AiProviderController::class, 'destroy'])->name('admin.ai-settings.destroy');
+    Route::post('/ai-settings/{aiProvider}/test', [AiProviderController::class, 'testConnection'])->name('admin.ai-settings.test');
 
     Route::get('/activity', function () {
         if (! auth()->user()->is_super_admin) { abort(403); }
-        return view('admin.placeholder', ['title' => 'Activity Log', 'description' => 'System-wide audit trail of important actions.']);
+
+        $query = \Spatie\Activitylog\Models\Activity::with('causer', 'subject')
+            ->latest();
+
+        // Filter by log name
+        if (request('log')) {
+            $query->where('log_name', request('log'));
+        }
+
+        // Filter by event
+        if (request('event')) {
+            $query->where('event', request('event'));
+        }
+
+        $activities = $query->paginate(50)->withQueryString();
+
+        $logNames = \Spatie\Activitylog\Models\Activity::distinct()->pluck('log_name')->filter()->sort()->values();
+        $events = \Spatie\Activitylog\Models\Activity::distinct()->pluck('event')->filter()->sort()->values();
+
+        return view('admin.activity', compact('activities', 'logNames', 'events'));
     })->name('admin.activity');
 });
 
@@ -131,6 +278,11 @@ Route::prefix('{tenant:slug}')
         Route::post('/courses/{course}/sections/{section}/students/import', [SectionController::class, 'importCsv'])->name('tenant.courses.sections.students.import');
         Route::delete('/courses/{course}/sections/{section}/students/{user}', [SectionController::class, 'removeStudent'])->name('tenant.courses.sections.students.remove');
 
+        // Random Present Student Wheel
+        Route::get('/random-wheel', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'index'])->name('tenant.random-wheel');
+        Route::get('/random-wheel/sessions', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'sessions'])->name('tenant.random-wheel.sessions');
+        Route::get('/random-wheel/present-students', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'presentStudents'])->name('tenant.random-wheel.present-students');
+
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('tenant.attendance.index');
         Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('tenant.attendance.start');
@@ -139,6 +291,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/attendance/{session}/end', [AttendanceController::class, 'end'])->name('tenant.attendance.end');
         Route::get('/attendance/{session}', [AttendanceController::class, 'show'])->name('tenant.attendance.show');
         Route::put('/attendance/{session}/records/{record}', [AttendanceController::class, 'override'])->name('tenant.attendance.override');
+        Route::delete('/attendance/{session}', [AttendanceController::class, 'destroy'])->name('tenant.attendance.destroy');
 
         // Student check-in API
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('tenant.attendance.checkin');
@@ -180,6 +333,18 @@ Route::prefix('{tenant:slug}')
         Route::delete('/files/course/{course}/file/{file}', [CourseFileController::class, 'deleteFile'])->name('tenant.files.delete-file');
         Route::post('/files/course/{course}/file/{file}/tag', [CourseFileController::class, 'addTag'])->name('tenant.files.add-tag');
 
+        // Course Materials (Lecturer)
+        Route::get('/materials', [CourseMaterialController::class, 'index'])->name('tenant.materials.index');
+        Route::get('/materials/course/{course}', [CourseMaterialController::class, 'manage'])->name('tenant.materials.manage');
+        Route::post('/materials/course/{course}/upload', [CourseMaterialController::class, 'upload'])->name('tenant.materials.upload');
+        Route::post('/materials/course/{course}/link', [CourseMaterialController::class, 'storeLink'])->name('tenant.materials.store-link');
+        Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');
+        Route::get('/materials/course/{course}/file/{file}/download', [CourseMaterialController::class, 'download'])->name('tenant.materials.download');
+
+        // Course Materials (Student)
+        Route::get('/my-materials', [CourseMaterialController::class, 'studentIndex'])->name('tenant.materials.student-index');
+        Route::get('/my-materials/course/{course}', [CourseMaterialController::class, 'studentCourse'])->name('tenant.materials.student-course');
+
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index'])->name('tenant.notifications.index');
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('tenant.notifications.unread-count');
@@ -189,6 +354,60 @@ Route::prefix('{tenant:slug}')
         // Analytics
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('tenant.analytics.index');
         Route::get('/analytics/course/{course}', [AnalyticsController::class, 'course'])->name('tenant.analytics.course');
+
+        // Active Learning — standalone listing (all courses)
+        Route::get('/active-learning', [ActiveLearningPlanController::class, 'all'])->name('tenant.active-learning.all');
+
+        // Active Learning Plans (per-course)
+        Route::prefix('courses/{course}/active-learning')->group(function () {
+            Route::get('/', [ActiveLearningPlanController::class, 'index'])->name('tenant.active-learning.index');
+            Route::get('/create', [ActiveLearningPlanController::class, 'create'])->name('tenant.active-learning.create');
+            Route::post('/', [ActiveLearningPlanController::class, 'store'])->name('tenant.active-learning.store');
+            Route::get('/{plan}', [ActiveLearningPlanController::class, 'show'])->name('tenant.active-learning.show');
+            Route::get('/{plan}/edit', [ActiveLearningPlanController::class, 'edit'])->name('tenant.active-learning.edit');
+            Route::put('/{plan}', [ActiveLearningPlanController::class, 'update'])->name('tenant.active-learning.update');
+            Route::delete('/{plan}', [ActiveLearningPlanController::class, 'destroy'])->name('tenant.active-learning.destroy');
+            Route::post('/{plan}/publish', [ActiveLearningPlanController::class, 'publish'])->name('tenant.active-learning.publish');
+
+            // AI generation (Pro)
+            Route::post('/{plan}/generate-ai', [ActiveLearningPlanController::class, 'generateAi'])->name('tenant.active-learning.generate-ai');
+            Route::get('/{plan}/generation-status', [ActiveLearningPlanController::class, 'generationStatus'])->name('tenant.active-learning.generation-status');
+
+            // Activities
+            Route::post('/{plan}/activities', [ActiveLearningActivityController::class, 'store'])->name('tenant.active-learning.activities.store');
+            Route::put('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'update'])->name('tenant.active-learning.activities.update');
+            Route::delete('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'destroy'])->name('tenant.active-learning.activities.destroy');
+            Route::post('/{plan}/activities/reorder', [ActiveLearningActivityController::class, 'reorder'])->name('tenant.active-learning.activities.reorder');
+
+            // Groups
+            Route::post('/{plan}/activities/{activity}/groups', [ActiveLearningGroupController::class, 'store'])->name('tenant.active-learning.groups.store');
+            Route::delete('/{plan}/activities/{activity}/groups/{group}', [ActiveLearningGroupController::class, 'destroy'])->name('tenant.active-learning.groups.destroy');
+            Route::post('/{plan}/activities/{activity}/groups/{group}/members', [ActiveLearningGroupController::class, 'addMember'])->name('tenant.active-learning.groups.members.add');
+            Route::delete('/{plan}/activities/{activity}/groups/{group}/members/{user}', [ActiveLearningGroupController::class, 'removeMember'])->name('tenant.active-learning.groups.members.remove');
+            Route::post('/{plan}/activities/{activity}/groups/arrange-attendance', [ActiveLearningGroupController::class, 'arrangeFromAttendance'])->name('tenant.active-learning.groups.arrange-attendance');
+            Route::post('/{plan}/activities/{activity}/groups/arrange-ai', [ActiveLearningGroupController::class, 'arrangeWithAi'])->name('tenant.active-learning.groups.arrange-ai');
+
+            // Live Sessions (lecturer)
+            Route::post('/{plan}/sessions', [SessionController::class, 'start'])->name('tenant.active-learning.sessions.start');
+            Route::get('/{plan}/sessions/{session}', [SessionController::class, 'dashboard'])->name('tenant.active-learning.sessions.dashboard');
+            Route::post('/{plan}/sessions/{session}/advance', [SessionController::class, 'advance'])->name('tenant.active-learning.sessions.advance');
+            Route::post('/{plan}/sessions/{session}/end', [SessionController::class, 'end'])->name('tenant.active-learning.sessions.end');
+            Route::get('/{plan}/sessions/{session}/state', [SessionController::class, 'state'])->name('tenant.active-learning.sessions.state');
+            Route::get('/{plan}/sessions/{session}/summary', [SessionController::class, 'summary'])->name('tenant.active-learning.sessions.summary');
+        });
+
+        // Student Live Session Routes
+        Route::get('/session/join', [StudentSessionController::class, 'joinForm'])->name('tenant.session.join');
+        Route::post('/session/join', [StudentSessionController::class, 'joinByCode'])->name('tenant.session.join.process');
+        Route::get('/session/{session}/live', [StudentSessionController::class, 'live'])->name('tenant.session.live');
+        Route::post('/session/{session}/respond', [StudentSessionController::class, 'respond'])->name('tenant.session.respond');
+        Route::get('/session/{session}/state', [StudentSessionController::class, 'state'])->name('tenant.session.student-state');
+        Route::get('/session/{session}/review', [StudentSessionController::class, 'review'])->name('tenant.session.review');
+
+        // Tenant AI Settings (Pro)
+        Route::get('/admin/ai-settings', [TenantAiSettingsController::class, 'edit'])->name('tenant.admin.ai-settings');
+        Route::put('/admin/ai-settings', [TenantAiSettingsController::class, 'update'])->name('tenant.admin.ai-settings.update');
+        Route::post('/admin/ai-settings/test', [TenantAiSettingsController::class, 'testConnection'])->name('tenant.admin.ai-settings.test');
 
         // Admin Settings (tenant admin only)
         Route::get('/admin/settings', function () {
@@ -205,13 +424,12 @@ Route::prefix('{tenant:slug}')
             return view('tenant.attendance.scan');
         })->name('tenant.scan');
 
-        Route::get('/my-courses', function () {
-            return view('tenant.placeholder', ['title' => __('nav.courses'), 'description' => 'Your enrolled courses will appear here.']);
-        })->name('tenant.my-courses');
+        Route::get('/my-courses', [StudentCourseController::class, 'index'])->name('tenant.my-courses');
+        Route::get('/my-courses/{course}', [StudentCourseController::class, 'show'])->name('tenant.my-courses.show');
+        Route::post('/my-courses/enroll', [StudentCourseController::class, 'enroll'])->name('tenant.my-courses.enroll');
 
-        Route::get('/marks', function () {
-            return view('tenant.placeholder', ['title' => __('nav.marks'), 'description' => 'Your marks and feedback will be displayed here.']);
-        })->name('tenant.marks');
+        Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
+        Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
     });
 
 require __DIR__.'/auth.php';

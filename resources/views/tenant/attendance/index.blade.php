@@ -109,12 +109,13 @@
                                 <th class="text-center px-6 py-3 font-medium text-slate-500">Late</th>
                                 <th class="text-center px-6 py-3 font-medium text-slate-500">Absent</th>
                                 <th class="text-right px-6 py-3 font-medium text-slate-500">Date</th>
+                                <th class="text-right px-6 py-3 font-medium text-slate-500"></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             @foreach($pastSessions as $session)
-                                <tr class="hover:bg-slate-50/50 transition cursor-pointer" onclick="window.location='{{ route('tenant.attendance.show', [app('current_tenant')->slug, $session]) }}'">
-                                    <td class="px-6 py-3">
+                                <tr class="hover:bg-slate-50/50 transition">
+                                    <td class="px-6 py-3 cursor-pointer" onclick="window.location='{{ route('tenant.attendance.show', [app('current_tenant')->slug, $session]) }}'">
                                         <p class="font-medium text-slate-900">{{ $session->section->course->code }} — {{ $session->section->name }}</p>
                                     </td>
                                     <td class="px-6 py-3">
@@ -125,6 +126,15 @@
                                     <td class="px-6 py-3 text-center font-medium text-amber-600">{{ $session->records->where('status', 'late')->count() }}</td>
                                     <td class="px-6 py-3 text-center font-medium text-red-600">{{ $session->records->where('status', 'absent')->count() }}</td>
                                     <td class="px-6 py-3 text-right text-slate-400 text-xs">{{ $session->started_at->format('d M Y, H:i') }}</td>
+                                    <td class="px-6 py-3 text-right">
+                                        <form method="POST" action="{{ route('tenant.attendance.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this session and all its records? This cannot be undone.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition" title="Delete session">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

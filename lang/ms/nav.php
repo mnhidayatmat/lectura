@@ -7,6 +7,8 @@ return [
     'attendance' => 'Kehadiran',
     'quizzes' => 'Kuiz Langsung',
     'assignments' => 'Tugasan',
+    'active_learning' => 'Pembelajaran Aktif',
+    'live_session' => 'Sesi Langsung',
     'management' => 'Pengurusan',
     'course_files' => 'Fail Kursus',
     'admin' => 'Pentadbiran',

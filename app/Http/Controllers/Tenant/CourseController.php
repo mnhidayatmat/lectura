@@ -98,6 +98,7 @@ class CourseController extends Controller
             'learningOutcomes',
             'topics',
             'sections.activeStudents',
+            'activeLearningPlans',
             'faculty',
             'programme',
             'academicTerm',

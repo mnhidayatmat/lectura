@@ -4,7 +4,7 @@
     $active = fn($pattern) => request()->is($pattern);
 @endphp
 
-<nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 safe-area-bottom">
+<nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#242d3d]/95 backdrop-blur-md border-t border-slate-200 dark:border-[#354158] safe-area-bottom">
     <div class="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
 
         <a href="{{ $prefix }}/dashboard" class="flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition {{ $active('*/dashboard') ? 'text-indigo-600' : 'text-slate-400 active:text-slate-600' }}">

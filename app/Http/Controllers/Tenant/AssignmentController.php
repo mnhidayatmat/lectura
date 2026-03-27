@@ -44,14 +44,14 @@ class AssignmentController extends Controller
         }
 
         // Lecturer
-        $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $assignments = Assignment::whereIn('course_id', $courseIds)
+        $courses = Course::where('lecturer_id', $user->id)->get();
+        $assignments = Assignment::whereIn('course_id', $courses->pluck('id'))
             ->withCount('submissions')
             ->with('course')
             ->latest()
             ->get();
 
-        return view('tenant.assignments.index', compact('assignments'));
+        return view('tenant.assignments.index', compact('assignments', 'courses'));
     }
 
     public function create(): View
@@ -71,6 +71,7 @@ class AssignmentController extends Controller
             'type' => ['required', 'in:individual,group'],
             'marking_mode' => ['required', 'in:manual,ai_assisted'],
             'answer_scheme' => ['nullable', 'string'],
+            'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
             'criteria' => ['nullable', 'array'],
             'criteria.*.title' => ['required_with:criteria', 'string'],
             'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
@@ -78,6 +79,18 @@ class AssignmentController extends Controller
         ]);
 
         $tenant = app('current_tenant');
+
+        $schemeData = [
+            'answer_scheme' => $request->answer_scheme,
+            'answer_scheme_path' => null,
+            'answer_scheme_filename' => null,
+        ];
+
+        if ($request->hasFile('answer_scheme_file')) {
+            $file = $request->file('answer_scheme_file');
+            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'local');
+            $schemeData['answer_scheme_filename'] = $file->getClientOriginalName();
+        }
 
         $assignment = Assignment::create([
             'tenant_id' => $tenant->id,
@@ -89,8 +102,8 @@ class AssignmentController extends Controller
             'deadline' => $request->deadline,
             'type' => $request->type,
             'marking_mode' => $request->marking_mode,
-            'answer_scheme' => $request->answer_scheme,
             'status' => 'draft',
+            ...$schemeData,
         ]);
 
         // Create rubric with criteria

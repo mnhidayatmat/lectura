@@ -11,11 +11,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, LogsActivity, Notifiable, SoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'is_super_admin', 'is_pro'])
+            ->logOnlyDirty()
+            ->useLogName('user')
+            ->setDescriptionForEvent(fn (string $event) => "User {$this->name} was {$event}");
+    }
 
     protected $fillable = [
         'name',
@@ -25,6 +36,7 @@ class User extends Authenticatable
         'avatar_url',
         'locale',
         'is_super_admin',
+        'is_pro',
     ];
 
     protected $hidden = [
@@ -38,6 +50,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
+            'is_pro' => 'boolean',
         ];
     }
 
@@ -62,6 +75,18 @@ class User extends Authenticatable
             ->wherePivot('is_active', true);
     }
 
+    // ── Subscription Helpers ──
+
+    public function isPro(): bool
+    {
+        return (bool) $this->is_pro;
+    }
+
+    public function isFree(): bool
+    {
+        return ! $this->isPro();
+    }
+
     // ── Tenant Helpers ──
 
     public function belongsToTenant(int $tenantId): bool
@@ -76,6 +101,11 @@ class User extends Authenticatable
     {
         if (! $tenantId) {
             return null;
+        }
+
+        // Super admins always have admin role in any tenant
+        if ($this->is_super_admin) {
+            return 'admin';
         }
 
         return $this->tenantUsers()

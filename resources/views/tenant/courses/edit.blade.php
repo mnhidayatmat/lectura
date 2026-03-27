@@ -62,8 +62,10 @@
                     <select name="status" class="w-full sm:w-48 px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="draft" {{ $course->status === 'draft' ? 'selected' : '' }}>Draft</option>
                         <option value="active" {{ $course->status === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ $course->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
                         <option value="archived" {{ $course->status === 'archived' ? 'selected' : '' }}>Archived</option>
                     </select>
+                    <p class="mt-1.5 text-xs text-slate-400">Use <strong>Inactive</strong> for past semester courses. Students will still see their data but the course won't appear as current.</p>
                 </div>
             </div>
         </div>

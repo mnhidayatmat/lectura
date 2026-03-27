@@ -28,7 +28,7 @@ class UpdateCourseRequest extends FormRequest
             'faculty_id' => ['nullable', 'exists:faculties,id'],
             'programme_id' => ['nullable', 'exists:programmes,id'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
-            'status' => ['nullable', 'in:draft,active,archived'],
+            'status' => ['nullable', 'in:draft,active,inactive,archived'],
         ];
     }
 }

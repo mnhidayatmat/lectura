@@ -14,7 +14,7 @@
 
 {{-- Student Sidebar — hidden on mobile (bottom nav used instead), visible on desktop --}}
 <div :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-     class="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
+     class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#242d3d] border-r border-slate-200 dark:border-[#354158] transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
 
     {{-- Logo --}}
     <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">
@@ -46,6 +46,13 @@
             {{ __('nav.scan') }}
         </a>
 
+        <a href="{{ $prefix }}/session/join"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/session*') ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/session*') ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {{ __('nav.live_session') }}
+        </a>
+
         <div class="pt-5 pb-1 px-3">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Learning</p>
         </div>
@@ -55,6 +62,13 @@
                   {{ $active('*/my-courses*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
             <svg class="w-5 h-5 {{ $active('*/my-courses*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             {{ __('nav.courses') }}
+        </a>
+
+        <a href="{{ $prefix }}/my-materials"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/my-materials*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/my-materials*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Course Materials
         </a>
 
         <a href="{{ $prefix }}/marks"

@@ -294,4 +294,25 @@ class AttendanceController extends Controller
 
         return view('tenant.attendance.show', compact('session'));
     }
+
+    /**
+     * Delete an attendance session and all its records.
+     */
+    public function destroy(string $tenantSlug, AttendanceSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        // Don't allow deleting active sessions — end them first
+        if ($session->status === 'active') {
+            return back()->with('error', 'Cannot delete an active session. End it first.');
+        }
+
+        $session->records()->delete();
+        $session->delete();
+
+        return redirect()->route('tenant.attendance.index', $tenantSlug)
+            ->with('success', 'Attendance session deleted.');
+    }
 }
