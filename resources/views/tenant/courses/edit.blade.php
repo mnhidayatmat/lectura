@@ -71,15 +71,19 @@
         </div>
 
         <div class="flex items-center justify-between">
-            <form method="POST" action="{{ route('tenant.courses.destroy', [app('current_tenant')->slug, $course]) }}">
-                @csrf @method('DELETE')
-                <button type="submit" onclick="return confirm('Delete this course permanently?')" class="text-sm text-red-600 hover:text-red-700 font-medium">Delete Course</button>
-            </form>
-
+            <div></div>
             <div class="flex items-center gap-3">
                 <a href="{{ route('tenant.courses.show', [app('current_tenant')->slug, $course]) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition">Cancel</a>
                 <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Save Changes</button>
             </div>
         </div>
     </form>
+
+    {{-- Delete form must be OUTSIDE the update form --}}
+    <div class="mt-6 flex justify-start">
+        <form method="POST" action="{{ route('tenant.courses.destroy', [app('current_tenant')->slug, $course]) }}">
+            @csrf @method('DELETE')
+            <button type="submit" onclick="return confirm('Delete this course permanently? This cannot be undone.')" class="text-sm text-red-500 hover:text-red-700 font-medium transition">Delete Course</button>
+        </form>
+    </div>
 </x-tenant-layout>
