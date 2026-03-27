@@ -169,8 +169,7 @@
 
                     {{-- View As Switcher --}}
                     @php
-                        $switchableUsers = \App\Models\User::where('is_super_admin', false)
-                            ->whereHas('tenantUsers', fn($q) => $q->where('is_active', true))
+                        $switchableUsers = \App\Models\User::where('id', '!=', auth()->id())
                             ->with('tenantUsers.tenant')
                             ->orderBy('name')
                             ->get();
