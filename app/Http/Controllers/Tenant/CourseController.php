@@ -122,11 +122,11 @@ class CourseController extends Controller
     {
         $tenant = app('current_tenant');
 
-        $course->update($request->only([
+        $course->update(array_merge($request->only([
             'code', 'title', 'description', 'credit_hours', 'num_weeks',
             'teaching_mode', 'format', 'faculty_id', 'programme_id',
-            'academic_term_id', 'status',
-        ]));
+            'academic_term_id',
+        ]), ['status' => 'active']));
 
         return redirect()->route('tenant.courses.show', [
             'tenant' => $tenant->slug,
