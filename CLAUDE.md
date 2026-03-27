@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lectura is a multi-tenant SaaS platform built with Laravel for managing the full teaching cycle: courses, teaching plans, active learning plans (with AI generation), assignments with AI marking, live quizzes, QR attendance, course materials, and course file management. Supports per-user Pro subscription — Pro enables AI-assisted features. See `docs/SRS-Lectura.md`, `docs/Architecture-Lectura.md`, `docs/Workflow-Lectura.md` for full specs.
+Lectura is a multi-tenant SaaS platform built with Laravel for managing the full teaching cycle: courses, teaching plans, active learning plans (with AI generation), assignments with AI marking, live quizzes, QR attendance, course materials, random student wheel, and course file management. Supports per-user Pro subscription — Pro enables AI-assisted features. Lecturers can connect personal Google Drive for file storage. See `docs/SRS-Lectura.md`, `docs/Architecture-Lectura.md`, `docs/Workflow-Lectura.md` for full specs.
 
 ## Commands
 
@@ -41,7 +41,7 @@ npm run build
 - Users are global; roles assigned per-tenant via `tenant_users` pivot. Check role with `$user->roleInTenant($tenantId)`
 - All tenant-scoped tables have `tenant_id` as first FK after `id`
 
-### Authentication
+### Authentication & Onboarding
 
 - Laravel Breeze scaffolding with email/password login and registration
 - **Google OAuth** via Laravel Socialite (`laravel/socialite`): `GoogleController` handles redirect + callback
@@ -51,7 +51,13 @@ npm run build
   - Config in `config/services.php` under `google` key
 - Users table has `google_id` (nullable, unique) and `avatar_url` fields for OAuth
 - Password field is nullable to support passwordless Google-only accounts
-- After login, users redirect to their first active tenant dashboard
+- **Onboarding** (`/onboarding`): new users with no tenant see role selection page
+  - Choose existing institution from dropdown OR create a new one by typing name
+  - Select role: Lecturer or Student (visual card selection)
+  - Students can enter section invite code for auto-enrollment
+  - First lecturer to create an institution gets admin role
+  - `OnboardingController` handles both flows
+- After login, users redirect to their first active tenant dashboard; if none, to onboarding
 
 ### Routing
 
@@ -60,6 +66,7 @@ npm run build
 - Tenant routes use `{tenant:slug}` prefix with middleware group: `auth`, `tenant`, `tenant.access`, `locale`
 - Route names prefixed with `tenant.` (e.g., `tenant.courses.index`, `tenant.assignments.show`)
 - Admin routes under `/admin` prefix with inline super_admin check
+- Google Drive callback at `/settings/drive/callback` (outside tenant prefix, Google redirects here directly)
 
 ### Subscription Model (Per-User Pro)
 
@@ -84,6 +91,7 @@ npm run build
 - `App\Services\Attendance\QrCodeService` — HMAC-based rotating QR tokens
 - `App\Services\CourseFile\FolderService` — course folder management with default templates
 - `App\Services\Tenant\TenantResolver` — subdomain/path tenant resolution strategy
+- `App\Services\GoogleDriveService` — Google Drive API v3 integration (OAuth, folder/file management, quota)
 
 ### Controllers
 
@@ -94,18 +102,32 @@ Key controllers:
 - `StudentMarkController` — student marks & feedback dashboard
 - `RandomWheelController` — random present student wheel for classroom participation
 - `CourseFileController` — folder-based course file management (compliance/archive)
+- `SettingsController` — lecturer settings page with Google Drive connection/disconnect
+- `AttendanceController` — QR attendance with real-time check-in list (polls every 5s)
 
 ### Frontend Stack
 
 - Blade templates in `resources/views/`, organized by domain (`tenant/courses/`, `tenant/assignments/`, etc.)
 - Tailwind CSS (with `darkMode: 'class'`) + Alpine.js for interactivity
-- Dark mode: toggled via Alpine.js `darkMode()` function, persisted in `localStorage`, respects OS `prefers-color-scheme`. Custom "Dimmed" palette in `resources/css/app.css` using CSS `@layer base` overrides
+- Dark mode: toggled via Alpine.js `darkMode()` function, persisted in `localStorage`, respects OS `prefers-color-scheme`. Custom "Dimmed" palette in `resources/css/app.css` using CSS `@layer base` overrides — warm blue-grey tones (#1c2333 canvas, #242d3d surface, #354158 borders), never pure black
 - Livewire 4 for reactive components (quizzes, attendance)
 - Laravel Echo + Pusher.js for WebSocket (via Laravel Reverb)
 
 ### App Configuration
 
 Custom config in `config/lectura.php` covers: tenant resolution, AI providers (Claude/OpenAI/Gemini with model selection), attendance (QR rotation, late threshold), file uploads (size limits, allowed types), quiz settings, and default folder templates.
+
+### Google Drive Storage
+
+- Lecturers can connect their personal Google Drive at `/{tenant}/settings`
+- OAuth flow via `google/apiclient` package with `drive.file` scope
+- Tokens stored per-user: `drive_access_token`, `drive_refresh_token`, `drive_token_expires_at`, `drive_root_folder_id`
+- `User::isDriveConnected()` checks if Drive is linked
+- `GoogleDriveService` handles: auth URL generation, callback token exchange, automatic token refresh, folder creation, file upload, storage quota retrieval, disconnect/revoke
+- Auto-creates "Lectura" root folder in lecturer's Drive on first connect
+- Requires `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REDIRECT_URI` in `.env`
+- Config in `config/services.php` under `google_drive` key
+- Google Drive API must be enabled in Google Cloud Console
 
 ### Active Learning Plans
 
@@ -127,27 +149,39 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 ### Assignments & Marking
 
 - Assignments support `marking_mode`: `manual` or `ai_assisted`
-- Answer scheme: text field + optional PDF upload (`answer_scheme_path`, `answer_scheme_filename`)
+- Answer scheme: text field + optional PDF upload (`answer_scheme_path`, `answer_scheme_filename`) with 3-mode toggle (Text / Upload PDF / Both)
 - AI marking generates `MarkingSuggestion` records with confidence scores
-- `StudentMark` stores finalized grades; `Feedback` stores released feedback (strengths, improvements, missing points, revision advice)
-- Student marks dashboard at `/{tenant}/marks`
+- `StudentMark` stores finalized grades; `Feedback` stores released feedback (strengths, improvements, missing points, misconceptions, revision advice)
+- Student marks dashboard at `/{tenant}/marks` with filter tabs (All/Graded/Pending), expandable inline feedback
+
+### Attendance
+
+- QR-based attendance with rotating tokens (configurable interval, default 30s)
+- **Real-time check-in list**: lecturer's QR page polls every 5 seconds for new check-ins
+- New student flash banner: "[Name] just checked in!" with green highlight, auto-dismisses after 3s
+- `refreshToken` API returns full records array (name, status, time) sorted newest first
+- Student scan page with camera QR detection via `html5-qrcode`
+- Auto-marks absent students when session ends
+- Manual status override: present, late, absent, excused
 
 ### Random Present Student Wheel
 
 - Lecturer tool for randomly selecting present students during class
 - Loads only students with `status='present'` (optionally `'late'`) from `AttendanceRecord`
-- Canvas-based wheel with crypto-random selection and smooth animation
-- Auto-remove, spin history, session persistence via `sessionStorage`
+- Canvas-based wheel with crypto-random selection (`crypto.getRandomValues`) and smooth cubic ease-out animation (4.5-6s)
+- Auto-remove winner, spin history with timestamps, session persistence via `sessionStorage`
+- Fullscreen mode for projector/classroom use
 - Route: `/{tenant}/random-wheel`
 
 ### Admin Panel
 
 - Super admin dashboard at `/admin` with institution, user, AI usage, and activity management
 - **Impersonate ("View As")**: admin can switch to any user's perspective via dropdown in admin topbar. Session stores `impersonator_id`; amber banner shown on tenant pages with "Stop Viewing" button
-- **User Pro management**: toggle Pro/Free status per user at `/admin/users`
-- **Institution management**: create institutions with name, slug, timezone, locale at `/admin/tenants`
-- **AI Usage monitoring**: real-time dashboard at `/admin/ai-usage` with breakdowns by module, provider, and institution
+- **User management**: toggle Pro/Free status, view role (Lecturer/Student/Admin/Coordinator) at `/admin/users`
+- **Institution management**: create institutions with name, slug, timezone, locale; view lecturer/student counts at `/admin/tenants`
+- **AI Usage monitoring**: real-time dashboard at `/admin/ai-usage` with period filter, breakdowns by module, provider, and institution
 - **AI Provider settings**: manage provider configs at `/admin/ai-settings`
+- **Activity log**: system-wide audit trail with filters by log name and event at `/admin/activity`
 
 ## Conventions
 
@@ -156,6 +190,7 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Models use `BelongsToTenant` trait for tenant-scoped tables
 - Controllers use Form Requests for validation (`{Action}{Model}Request`)
 - Policies for authorization on all resource controllers
+- Activity logging via `spatie/laravel-activitylog` on key models
 
 ### Naming
 - Models: singular PascalCase (`Course`, `TeachingPlan`, `ActiveLearningPlan`)
@@ -180,3 +215,24 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Feature tests for controller actions, tenant isolation tests for scoped models
 - Mock AI providers in tests — never call real AI APIs
 - Queue set to `sync`, cache to `array` in test env
+
+### Environment Variables
+
+Key `.env` variables for external services:
+```
+# Google OAuth (Login)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=${APP_URL}/auth/google/callback
+
+# Google Drive (Storage)
+GOOGLE_DRIVE_CLIENT_ID=
+GOOGLE_DRIVE_CLIENT_SECRET=
+GOOGLE_DRIVE_REDIRECT_URI=${APP_URL}/settings/drive/callback
+
+# AI Providers
+AI_DEFAULT_PROVIDER=claude
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+```
