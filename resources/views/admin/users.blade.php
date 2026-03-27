@@ -93,20 +93,34 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-center">
-                                <form method="POST" action="{{ route('admin.users.toggle-pro', $u) }}" x-data x-on:submit.prevent="if(confirm('{{ $u->is_pro ? 'Downgrade' : 'Upgrade' }} {{ $u->name }} to {{ $u->is_pro ? 'Free' : 'Pro' }}?')) $el.submit()">
-                                    @csrf
-                                    @if($u->is_pro)
-                                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                                            Downgrade
-                                        </button>
-                                    @else
-                                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-                                            Upgrade Pro
-                                        </button>
+                                <div class="flex items-center justify-center gap-2">
+                                    {{-- Pro toggle --}}
+                                    <form method="POST" action="{{ route('admin.users.toggle-pro', $u) }}" x-data x-on:submit.prevent="if(confirm('{{ $u->is_pro ? 'Downgrade' : 'Upgrade' }} {{ $u->name }} to {{ $u->is_pro ? 'Free' : 'Pro' }}?')) $el.submit()">
+                                        @csrf
+                                        @if($u->is_pro)
+                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                                Downgrade
+                                            </button>
+                                        @else
+                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                                Upgrade Pro
+                                            </button>
+                                        @endif
+                                    </form>
+
+                                    {{-- View As (impersonate) --}}
+                                    @if($u->id !== auth()->id())
+                                        <form method="POST" action="{{ route('admin.users.impersonate', $u) }}" x-data x-on:submit.prevent="if(confirm('View as {{ $u->name }}? You will be logged in as this user.')) $el.submit()">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                View As
+                                            </button>
+                                        </form>
                                     @endif
-                                </form>
+                                </div>
                             </td>
                             <td class="px-6 py-4 text-right text-slate-400 text-xs">{{ $u->created_at->format('d M Y') }}</td>
                         </tr>
