@@ -27,13 +27,18 @@ class SettingsController extends Controller
         if ($user->isDriveConnected()) {
             try {
                 $driveInfo = $this->driveService->getStorageQuota($user);
-
-                if ($user->drive_root_folder_id) {
-                    $rootFolderInfo = $this->driveService->getFolderInfo($user, $user->drive_root_folder_id);
-                }
             } catch (\Throwable $e) {
                 // Token expired or revoked externally
                 $driveInfo = ['error' => 'Unable to connect. Please reconnect your Google Drive.'];
+            }
+
+            if ($driveInfo && ! isset($driveInfo['error']) && $user->drive_root_folder_id) {
+                try {
+                    $rootFolderInfo = $this->driveService->getFolderInfo($user, $user->drive_root_folder_id);
+                } catch (\Throwable) {
+                    // Folder may have been deleted — still show the page
+                    $rootFolderInfo = ['id' => $user->drive_root_folder_id, 'name' => '(Folder not found)'];
+                }
             }
         }
 

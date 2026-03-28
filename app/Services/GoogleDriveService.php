@@ -19,7 +19,7 @@ class GoogleDriveService
         $this->client->setClientId(config('services.google_drive.client_id'));
         $this->client->setClientSecret(config('services.google_drive.client_secret'));
         $this->client->setRedirectUri(config('services.google_drive.redirect'));
-        $this->client->addScope(GoogleDrive::DRIVE_FILE);
+        $this->client->addScope(GoogleDrive::DRIVE);
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
     }
