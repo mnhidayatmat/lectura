@@ -23,6 +23,7 @@ class CourseFile extends Model
         'file_size_bytes',
         'storage_path',
         'url',
+        'drive_file_id',
         'description',
         'section_id',
         'material_section_id',
@@ -62,7 +63,12 @@ class CourseFile extends Model
 
     public function isFile(): bool
     {
-        return $this->material_type !== 'link';
+        return in_array($this->material_type, ['file', 'drive'], true);
+    }
+
+    public function isDriveFile(): bool
+    {
+        return $this->material_type === 'drive';
     }
 
     public function scopeForWeek($query, int $week)

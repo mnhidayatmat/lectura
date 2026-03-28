@@ -161,7 +161,12 @@ class GoogleDriveService
         return $created->id;
     }
 
-    public function uploadFile(User $user, string $filePath, string $fileName, string $mimeType, ?string $folderId = null): string
+    /**
+     * Upload a file to Google Drive and return its ID and web view link.
+     *
+     * @return array{id: string, web_view_link: string}
+     */
+    public function uploadFile(User $user, string $filePath, string $fileName, string $mimeType, ?string $folderId = null): array
     {
         $drive = $this->getDriveService($user);
         $parent = $folderId ?? $this->ensureRootFolder($user);
@@ -180,7 +185,20 @@ class GoogleDriveService
             'fields' => 'id,webViewLink',
         ]);
 
-        return $uploaded->id;
+        return [
+            'id' => $uploaded->getId(),
+            'web_view_link' => $uploaded->getWebViewLink(),
+        ];
+    }
+
+    public function deleteFile(User $user, string $fileId): void
+    {
+        try {
+            $drive = $this->getDriveService($user);
+            $drive->files->delete($fileId);
+        } catch (\Throwable) {
+            // File may already be deleted or inaccessible — ignore
+        }
     }
 
     public function getStorageQuota(User $user): array

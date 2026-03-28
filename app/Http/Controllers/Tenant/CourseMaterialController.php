@@ -10,9 +10,11 @@ use App\Models\CourseFile;
 use App\Models\CourseFolder;
 use App\Models\CourseMaterialSection;
 use App\Models\SectionStudent;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -90,9 +92,7 @@ class CourseMaterialController extends Controller
         }
 
         foreach ($section->files as $file) {
-            if ($file->storage_path) {
-                Storage::disk('local')->delete($file->storage_path);
-            }
+            $this->deleteFileStorage($file);
             $file->forceDelete();
         }
 
@@ -140,7 +140,64 @@ class CourseMaterialController extends Controller
         ]);
 
         $sectionId = (int) $request->input('material_section_id');
+        $user      = auth()->user();
 
+        if ($user->isDriveConnected()) {
+            return $this->uploadToDrive($request, $course, $sectionId, $user);
+        }
+
+        return $this->uploadToLocal($request, $course, $sectionId);
+    }
+
+    private function uploadToDrive(Request $request, Course $course, int $sectionId, $user): RedirectResponse
+    {
+        $section     = CourseMaterialSection::findOrFail($sectionId);
+        $driveService = app(GoogleDriveService::class);
+
+        try {
+            $courseFolderId  = $driveService->findOrCreateFolder($user, "{$course->code} — {$course->title}");
+            $sectionFolderId = $driveService->findOrCreateFolder($user, $section->title, $courseFolderId);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['files' => 'Could not create folder on Google Drive: ' . $e->getMessage()]);
+        }
+
+        $uploaded = 0;
+
+        foreach ($request->file('files') as $file) {
+            try {
+                $result = $driveService->uploadFile(
+                    $user,
+                    $file->getPathname(),
+                    $file->getClientOriginalName(),
+                    $file->getMimeType() ?? 'application/octet-stream',
+                    $sectionFolderId
+                );
+
+                CourseFile::create([
+                    'course_id'           => $course->id,
+                    'uploaded_by'         => auth()->id(),
+                    'material_type'       => 'drive',
+                    'file_name'           => $file->getClientOriginalName(),
+                    'file_type'           => $file->getMimeType(),
+                    'file_size_bytes'     => $file->getSize(),
+                    'url'                 => $result['web_view_link'],
+                    'drive_file_id'       => $result['id'],
+                    'description'         => $request->input('description'),
+                    'material_section_id' => $sectionId,
+                    'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
+                ]);
+
+                $uploaded++;
+            } catch (\Throwable $e) {
+                return back()->withErrors(['files' => 'Google Drive upload failed: ' . $e->getMessage()]);
+            }
+        }
+
+        return back()->with('success', $uploaded . ' ' . Str::plural('file', $uploaded) . ' uploaded to Google Drive.');
+    }
+
+    private function uploadToLocal(Request $request, Course $course, int $sectionId): RedirectResponse
+    {
         $folder = CourseFolder::firstOrCreate(
             ['course_id' => $course->id, 'name' => 'Weekly Materials', 'parent_id' => null],
             ['sort_order' => 2]
@@ -150,17 +207,17 @@ class CourseMaterialController extends Controller
             $path = $file->store("course-files/{$course->id}/{$folder->id}", 'local');
 
             CourseFile::create([
-                'course_folder_id'   => $folder->id,
-                'course_id'          => $course->id,
-                'uploaded_by'        => auth()->id(),
-                'material_type'      => 'file',
-                'file_name'          => $file->getClientOriginalName(),
-                'file_type'          => $file->getMimeType(),
-                'file_size_bytes'    => $file->getSize(),
-                'storage_path'       => $path,
-                'description'        => $request->input('description'),
+                'course_folder_id'    => $folder->id,
+                'course_id'           => $course->id,
+                'uploaded_by'         => auth()->id(),
+                'material_type'       => 'file',
+                'file_name'           => $file->getClientOriginalName(),
+                'file_type'           => $file->getMimeType(),
+                'file_size_bytes'     => $file->getSize(),
+                'storage_path'        => $path,
+                'description'         => $request->input('description'),
                 'material_section_id' => $sectionId,
-                'sort_order'         => CourseFile::where('material_section_id', $sectionId)->count(),
+                'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
             ]);
         }
 
@@ -202,16 +259,13 @@ class CourseMaterialController extends Controller
             abort(403);
         }
 
-        if ($file->storage_path) {
-            Storage::disk('local')->delete($file->storage_path);
-        }
-
+        $this->deleteFileStorage($file);
         $file->delete();
 
         return back()->with('success', 'Material removed.');
     }
 
-    public function download(string $tenantSlug, Course $course, CourseFile $file): StreamedResponse
+    public function download(string $tenantSlug, Course $course, CourseFile $file): mixed
     {
         $isLecturer = $course->lecturer_id === auth()->id();
         $isStudent  = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
@@ -223,11 +277,31 @@ class CourseMaterialController extends Controller
             abort(403);
         }
 
+        if ($file->isDriveFile() && $file->url) {
+            return redirect($file->url);
+        }
+
         if ($file->isLink() || ! $file->storage_path) {
             abort(404);
         }
 
         return Storage::disk('local')->download($file->storage_path, $file->file_name);
+    }
+
+    private function deleteFileStorage(CourseFile $file): void
+    {
+        if ($file->isDriveFile() && $file->drive_file_id) {
+            try {
+                $uploader = \App\Models\User::find($file->uploaded_by);
+                if ($uploader?->isDriveConnected()) {
+                    app(GoogleDriveService::class)->deleteFile($uploader, $file->drive_file_id);
+                }
+            } catch (\Throwable) {
+                // Drive delete failure should not block the record delete
+            }
+        } elseif ($file->storage_path) {
+            Storage::disk('local')->delete($file->storage_path);
+        }
     }
 
     // ── Student ──
