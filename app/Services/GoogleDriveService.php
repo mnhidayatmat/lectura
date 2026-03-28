@@ -33,6 +33,14 @@ class GoogleDriveService
     {
         $token = $this->client->fetchAccessTokenWithAuthCode($code);
 
+        if (isset($token['error'])) {
+            throw new \RuntimeException($token['error_description'] ?? $token['error']);
+        }
+
+        if (! isset($token['access_token'])) {
+            throw new \RuntimeException('No access token received from Google. Please try again.');
+        }
+
         $user->update([
             'drive_access_token' => $token['access_token'],
             'drive_refresh_token' => $token['refresh_token'] ?? $user->drive_refresh_token,
