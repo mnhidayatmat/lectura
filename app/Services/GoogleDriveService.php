@@ -42,7 +42,7 @@ class GoogleDriveService
         }
 
         $user->update([
-            'drive_access_token' => $token['access_token'],
+            'drive_access_token' => json_encode($token),
             'drive_refresh_token' => $token['refresh_token'] ?? $user->drive_refresh_token,
             'drive_token_expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
         ]);
@@ -54,8 +54,13 @@ class GoogleDriveService
 
         if ($this->client->isAccessTokenExpired() && $user->drive_refresh_token) {
             $token = $this->client->fetchAccessTokenWithRefreshToken($user->drive_refresh_token);
+
+            if (isset($token['error']) || ! isset($token['access_token'])) {
+                throw new \RuntimeException($token['error_description'] ?? $token['error'] ?? 'Failed to refresh Google Drive token. Please reconnect.');
+            }
+
             $user->update([
-                'drive_access_token' => $token['access_token'],
+                'drive_access_token' => json_encode($token),
                 'drive_token_expires_at' => now()->addSeconds($token['expires_in'] ?? 3600),
             ]);
         }
