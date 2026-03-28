@@ -343,6 +343,10 @@ Route::prefix('{tenant:slug}')
         // Course Materials (Lecturer)
         Route::get('/materials', [CourseMaterialController::class, 'index'])->name('tenant.materials.index');
         Route::get('/materials/course/{course}', [CourseMaterialController::class, 'manage'])->name('tenant.materials.manage');
+        Route::post('/materials/course/{course}/sections', [CourseMaterialController::class, 'storeSection'])->name('tenant.materials.sections.store');
+        Route::patch('/materials/course/{course}/sections/{section}', [CourseMaterialController::class, 'updateSection'])->name('tenant.materials.sections.update');
+        Route::delete('/materials/course/{course}/sections/{section}', [CourseMaterialController::class, 'destroySection'])->name('tenant.materials.sections.destroy');
+        Route::post('/materials/course/{course}/sections/{section}/move', [CourseMaterialController::class, 'moveSection'])->name('tenant.materials.sections.move');
         Route::post('/materials/course/{course}/upload', [CourseMaterialController::class, 'upload'])->name('tenant.materials.upload');
         Route::post('/materials/course/{course}/link', [CourseMaterialController::class, 'storeLink'])->name('tenant.materials.store-link');
         Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');

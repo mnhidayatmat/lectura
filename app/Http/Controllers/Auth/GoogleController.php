@@ -54,6 +54,11 @@ class GoogleController extends Controller
 
         Auth::login($user, remember: true);
 
+        // Super admin always goes to admin panel
+        if ($user->is_super_admin) {
+            return redirect('/admin');
+        }
+
         // Redirect to first tenant dashboard if user belongs to one
         $tenantUser = $user->tenantUsers()->where('is_active', true)->first();
         if ($tenantUser) {

@@ -86,6 +86,11 @@ class Course extends Model
         return $this->hasMany(CourseFile::class);
     }
 
+    public function materialSections(): HasMany
+    {
+        return $this->hasMany(CourseMaterialSection::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function activeLearningPlans(): HasMany
     {
         return $this->hasMany(ActiveLearningPlan::class);

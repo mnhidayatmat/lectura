@@ -25,6 +25,7 @@ class CourseFile extends Model
         'url',
         'description',
         'section_id',
+        'material_section_id',
         'week_number',
         'sort_order',
     ];
@@ -42,6 +43,11 @@ class CourseFile extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function materialSection(): BelongsTo
+    {
+        return $this->belongsTo(CourseMaterialSection::class, 'material_section_id');
     }
 
     public function tags(): HasMany

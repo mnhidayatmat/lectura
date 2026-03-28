@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseFile;
 use App\Models\CourseFolder;
+use App\Models\CourseMaterialSection;
 use App\Models\SectionStudent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,16 +38,92 @@ class CourseMaterialController extends Controller
         }
 
         $tenant = app('current_tenant');
-        $topics = $course->topics()->get()->keyBy('week_number');
 
-        $materials = $course->files()
-            ->orderBy('week_number')
-            ->orderBy('sort_order')
-            ->orderBy('created_at')
-            ->get()
-            ->groupBy('week_number');
+        $sections = $course->materialSections()
+            ->with(['files' => fn ($q) => $q->orderBy('sort_order')->orderBy('created_at')])
+            ->get();
 
-        return view('tenant.materials.manage', compact('tenant', 'course', 'topics', 'materials'));
+        return view('tenant.materials.manage', compact('tenant', 'course', 'sections'));
+    }
+
+    public function storeSection(Request $request, string $tenantSlug, Course $course): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+        ]);
+
+        $maxOrder = $course->materialSections()->max('sort_order') ?? -1;
+
+        CourseMaterialSection::create([
+            'course_id' => $course->id,
+            'title'     => $request->input('title'),
+            'sort_order' => $maxOrder + 1,
+            'is_visible' => true,
+        ]);
+
+        return back()->with('success', 'Section created.');
+    }
+
+    public function updateSection(Request $request, string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+        ]);
+
+        $section->update(['title' => $request->input('title')]);
+
+        return back()->with('success', 'Section renamed.');
+    }
+
+    public function destroySection(string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+            abort(403);
+        }
+
+        foreach ($section->files as $file) {
+            if ($file->storage_path) {
+                Storage::disk('local')->delete($file->storage_path);
+            }
+            $file->forceDelete();
+        }
+
+        $section->delete();
+
+        return back()->with('success', 'Section deleted.');
+    }
+
+    public function moveSection(Request $request, string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $direction = $request->input('direction');
+        $ids = $course->materialSections()->pluck('id')->toArray();
+        $pos = array_search($section->id, $ids, true);
+
+        if ($direction === 'up' && $pos > 0) {
+            [$ids[$pos - 1], $ids[$pos]] = [$ids[$pos], $ids[$pos - 1]];
+        } elseif ($direction === 'down' && $pos < count($ids) - 1) {
+            [$ids[$pos], $ids[$pos + 1]] = [$ids[$pos + 1], $ids[$pos]];
+        } else {
+            return back();
+        }
+
+        foreach ($ids as $order => $id) {
+            CourseMaterialSection::where('id', $id)->update(['sort_order' => $order]);
+        }
+
+        return back();
     }
 
     public function upload(Request $request, string $tenantSlug, Course $course): RedirectResponse
@@ -56,15 +133,14 @@ class CourseMaterialController extends Controller
         }
 
         $request->validate([
-            'week_number' => ['required', 'integer', 'min:1', 'max:52'],
-            'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:25600'],
-            'description' => ['nullable', 'string', 'max:500'],
+            'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
+            'files'               => ['required', 'array', 'min:1'],
+            'files.*'             => ['file', 'max:25600'],
+            'description'         => ['nullable', 'string', 'max:500'],
         ]);
 
-        $weekNumber = (int) $request->input('week_number');
+        $sectionId = (int) $request->input('material_section_id');
 
-        // Find or create "Weekly Materials" folder
         $folder = CourseFolder::firstOrCreate(
             ['course_id' => $course->id, 'name' => 'Weekly Materials', 'parent_id' => null],
             ['sort_order' => 2]
@@ -74,17 +150,17 @@ class CourseMaterialController extends Controller
             $path = $file->store("course-files/{$course->id}/{$folder->id}", 'local');
 
             CourseFile::create([
-                'course_folder_id' => $folder->id,
-                'course_id' => $course->id,
-                'uploaded_by' => auth()->id(),
-                'material_type' => 'file',
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getMimeType(),
-                'file_size_bytes' => $file->getSize(),
-                'storage_path' => $path,
-                'description' => $request->input('description'),
-                'week_number' => $weekNumber,
-                'sort_order' => CourseFile::where('course_id', $course->id)->where('week_number', $weekNumber)->count(),
+                'course_folder_id'   => $folder->id,
+                'course_id'          => $course->id,
+                'uploaded_by'        => auth()->id(),
+                'material_type'      => 'file',
+                'file_name'          => $file->getClientOriginalName(),
+                'file_type'          => $file->getMimeType(),
+                'file_size_bytes'    => $file->getSize(),
+                'storage_path'       => $path,
+                'description'        => $request->input('description'),
+                'material_section_id' => $sectionId,
+                'sort_order'         => CourseFile::where('material_section_id', $sectionId)->count(),
             ]);
         }
 
@@ -98,23 +174,23 @@ class CourseMaterialController extends Controller
         }
 
         $request->validate([
-            'week_number' => ['required', 'integer', 'min:1', 'max:52'],
-            'title' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'url', 'max:2048'],
-            'description' => ['nullable', 'string', 'max:500'],
+            'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
+            'title'               => ['required', 'string', 'max:255'],
+            'url'                 => ['required', 'url', 'max:2048'],
+            'description'         => ['nullable', 'string', 'max:500'],
         ]);
 
-        $weekNumber = (int) $request->input('week_number');
+        $sectionId = (int) $request->input('material_section_id');
 
         CourseFile::create([
-            'course_id' => $course->id,
-            'uploaded_by' => auth()->id(),
-            'material_type' => 'link',
-            'file_name' => $request->input('title'),
-            'url' => $request->input('url'),
-            'description' => $request->input('description'),
-            'week_number' => $weekNumber,
-            'sort_order' => CourseFile::where('course_id', $course->id)->where('week_number', $weekNumber)->count(),
+            'course_id'           => $course->id,
+            'uploaded_by'         => auth()->id(),
+            'material_type'       => 'link',
+            'file_name'           => $request->input('title'),
+            'url'                 => $request->input('url'),
+            'description'         => $request->input('description'),
+            'material_section_id' => $sectionId,
+            'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
         ]);
 
         return back()->with('success', 'Link added successfully.');
@@ -126,6 +202,10 @@ class CourseMaterialController extends Controller
             abort(403);
         }
 
+        if ($file->storage_path) {
+            Storage::disk('local')->delete($file->storage_path);
+        }
+
         $file->delete();
 
         return back()->with('success', 'Material removed.');
@@ -133,9 +213,8 @@ class CourseMaterialController extends Controller
 
     public function download(string $tenantSlug, Course $course, CourseFile $file): StreamedResponse
     {
-        // Allow lecturer or enrolled student
         $isLecturer = $course->lecturer_id === auth()->id();
-        $isStudent = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+        $isStudent  = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', auth()->id())
             ->where('is_active', true)
             ->exists();
@@ -156,7 +235,7 @@ class CourseMaterialController extends Controller
     public function studentIndex(): View
     {
         $tenant = app('current_tenant');
-        $user = auth()->user();
+        $user   = auth()->user();
 
         $sectionIds = SectionStudent::where('user_id', $user->id)
             ->where('is_active', true)
@@ -173,9 +252,8 @@ class CourseMaterialController extends Controller
     public function studentCourse(string $tenantSlug, Course $course): View
     {
         $tenant = app('current_tenant');
-        $user = auth()->user();
+        $user   = auth()->user();
 
-        // Verify enrollment
         $isEnrolled = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', $user->id)
             ->where('is_active', true)
@@ -185,15 +263,12 @@ class CourseMaterialController extends Controller
             abort(403);
         }
 
-        $topics = $course->topics()->get()->keyBy('week_number');
-
-        $materials = $course->files()
-            ->orderBy('week_number')
-            ->orderBy('sort_order')
-            ->orderBy('created_at')
+        $sections = $course->materialSections()
+            ->where('is_visible', true)
+            ->with(['files' => fn ($q) => $q->orderBy('sort_order')->orderBy('created_at')])
             ->get()
-            ->groupBy('week_number');
+            ->filter(fn ($s) => $s->files->isNotEmpty());
 
-        return view('tenant.materials.student-course', compact('tenant', 'course', 'topics', 'materials'));
+        return view('tenant.materials.student-course', compact('tenant', 'course', 'sections'));
     }
 }
