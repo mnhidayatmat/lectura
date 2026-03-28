@@ -15,7 +15,7 @@ class GoogleDriveService
 
     public function __construct()
     {
-        $this->client = new GoogleClient();
+        $this->client = new GoogleClient;
         $this->client->setClientId(config('services.google_drive.client_id'));
         $this->client->setClientSecret(config('services.google_drive.client_secret'));
         $this->client->setRedirectUri(config('services.google_drive.redirect'));
@@ -88,13 +88,57 @@ class GoogleDriveService
         return $created->id;
     }
 
+    /**
+     * Validate that a folder ID exists and is accessible, then return its name.
+     */
+    public function getFolderInfo(User $user, string $folderId): array
+    {
+        $drive = $this->getDriveService($user);
+
+        $file = $drive->files->get($folderId, ['fields' => 'id,name,mimeType']);
+
+        if ($file->getMimeType() !== 'application/vnd.google-apps.folder') {
+            throw new \RuntimeException('The specified ID is not a folder.');
+        }
+
+        return [
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+        ];
+    }
+
+    /**
+     * Extract a Google Drive folder ID from a URL or return the raw ID.
+     */
+    public static function extractFolderId(string $input): string
+    {
+        $input = trim($input);
+
+        // Match: https://drive.google.com/drive/folders/{ID}
+        if (preg_match('#drive\.google\.com/drive/(?:u/\d+/)?folders/([a-zA-Z0-9_-]+)#', $input, $matches)) {
+            return $matches[1];
+        }
+
+        // Match: https://drive.google.com/open?id={ID}
+        if (preg_match('#drive\.google\.com/open\?id=([a-zA-Z0-9_-]+)#', $input, $matches)) {
+            return $matches[1];
+        }
+
+        // Assume raw folder ID (alphanumeric, hyphens, underscores)
+        if (preg_match('/^[a-zA-Z0-9_-]+$/', $input)) {
+            return $input;
+        }
+
+        throw new \RuntimeException('Could not extract a valid folder ID from the input.');
+    }
+
     public function findOrCreateFolder(User $user, string $name, ?string $parentId = null): string
     {
         $drive = $this->getDriveService($user);
         $parent = $parentId ?? $this->ensureRootFolder($user);
 
         // Check if folder exists
-        $query = "name='" . addcslashes($name, "'") . "' and mimeType='application/vnd.google-apps.folder' and '{$parent}' in parents and trashed=false";
+        $query = "name='".addcslashes($name, "'")."' and mimeType='application/vnd.google-apps.folder' and '{$parent}' in parents and trashed=false";
         $results = $drive->files->listFiles(['q' => $query, 'fields' => 'files(id,name)', 'spaces' => 'drive']);
 
         if (count($results->getFiles()) > 0) {
@@ -108,6 +152,7 @@ class GoogleDriveService
         ]);
 
         $created = $drive->files->create($folder, ['fields' => 'id']);
+
         return $created->id;
     }
 

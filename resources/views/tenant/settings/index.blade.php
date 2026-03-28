@@ -104,6 +104,54 @@
                             </ul>
                         </div>
 
+                        {{-- Root Folder Configuration --}}
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200" x-data="{ editing: false }">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Storage Folder</h4>
+                                <button @click="editing = !editing" type="button" class="text-xs text-blue-600 hover:text-blue-700 font-medium transition">
+                                    <span x-show="!editing">Change</span>
+                                    <span x-show="editing" x-cloak>Cancel</span>
+                                </button>
+                            </div>
+
+                            {{-- Current folder display --}}
+                            <div class="flex items-center gap-2 mb-1">
+                                <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                <span class="text-sm font-medium text-slate-800">{{ $rootFolderInfo['name'] ?? 'Lectura' }}</span>
+                            </div>
+                            @if(auth()->user()->drive_root_folder_id)
+                                <p class="text-[11px] text-slate-400 ml-6 break-all">ID: {{ auth()->user()->drive_root_folder_id }}</p>
+                            @endif
+
+                            {{-- Edit form --}}
+                            <div x-show="editing" x-cloak class="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                                <form method="POST" action="{{ route('tenant.settings.drive.folder', $tenant->slug) }}">
+                                    @csrf
+                                    <div class="mb-3">
+                                        <label for="folder_input" class="block text-xs font-medium text-slate-600 mb-1">Folder ID or Google Drive URL</label>
+                                        <input
+                                            type="text"
+                                            name="folder_input"
+                                            id="folder_input"
+                                            placeholder="e.g. 1aBcD_efGhIjKlMnOp or https://drive.google.com/drive/folders/..."
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-300"
+                                            required
+                                        >
+                                        <p class="mt-1 text-[11px] text-slate-400">Paste a Google Drive folder URL or folder ID. The folder must be in your Drive.</p>
+                                    </div>
+                                    <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">
+                                        Set Folder
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('tenant.settings.drive.folder.reset', $tenant->slug) }}">
+                                    @csrf
+                                    <button type="submit" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-medium rounded-lg transition">
+                                        Reset to Default
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
                         {{-- Disconnect --}}
                         <form method="POST" action="{{ route('tenant.settings.drive.disconnect', $tenant->slug) }}">
                             @csrf

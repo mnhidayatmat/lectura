@@ -444,6 +444,8 @@ Route::prefix('{tenant:slug}')
         // Settings
         Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
         Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
+        Route::post('/settings/drive/folder', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateDriveFolder'])->name('tenant.settings.drive.folder');
+        Route::post('/settings/drive/folder/reset', [\App\Http\Controllers\Tenant\SettingsController::class, 'resetDriveFolder'])->name('tenant.settings.drive.folder.reset');
         Route::post('/settings/drive/disconnect', [\App\Http\Controllers\Tenant\SettingsController::class, 'disconnectDrive'])->name('tenant.settings.drive.disconnect');
     });
 
