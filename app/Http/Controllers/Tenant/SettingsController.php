@@ -38,16 +38,25 @@ class SettingsController extends Controller
     {
         $url = $this->driveService->getAuthUrl();
 
-        // Store return URL in session
-        session(['drive_return_url' => url()->previous()]);
+        // Store tenant slug and return URL in session for the callback
+        session([
+            'drive_tenant_slug' => app('current_tenant')->slug,
+            'drive_return_url' => url()->previous(),
+        ]);
 
         return redirect($url);
     }
 
     public function driveCallback(Request $request): RedirectResponse
     {
+        $tenantSlug = session('drive_tenant_slug');
+
+        if (! $tenantSlug) {
+            return redirect('/')->with('error', 'Session expired. Please try connecting Google Drive again.');
+        }
+
         if ($request->has('error')) {
-            return redirect()->route('tenant.settings', app('current_tenant')->slug)
+            return redirect()->route('tenant.settings', $tenantSlug)
                 ->with('error', 'Google Drive authorization was cancelled.');
         }
 
@@ -57,10 +66,12 @@ class SettingsController extends Controller
             // Create root Lectura folder
             $this->driveService->ensureRootFolder(auth()->user());
 
-            return redirect()->route('tenant.settings', app('current_tenant')->slug)
+            session()->forget('drive_tenant_slug');
+
+            return redirect()->route('tenant.settings', $tenantSlug)
                 ->with('success', 'Google Drive connected successfully! A "Lectura" folder has been created in your Drive.');
         } catch (\Throwable $e) {
-            return redirect()->route('tenant.settings', app('current_tenant')->slug)
+            return redirect()->route('tenant.settings', $tenantSlug)
                 ->with('error', 'Failed to connect Google Drive: ' . $e->getMessage());
         }
     }
