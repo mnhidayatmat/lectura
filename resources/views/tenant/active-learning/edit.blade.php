@@ -506,7 +506,7 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <form method="POST" action="{{ route('tenant.active-learning.generate-ai', [app('current_tenant')->slug, $course, $plan]) }}" enctype="multipart/form-data" class="p-6 space-y-4">
+                <form method="POST" action="{{ route('tenant.active-learning.generate-ai', [app('current_tenant')->slug, $course, $plan]) }}" enctype="multipart/form-data" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                     @csrf
                     @php
                         $studentCount = \App\Models\SectionStudent::whereHas('section', fn($q) => $q->where('course_id', $course->id))->where('is_active', true)->distinct('user_id')->count('user_id');
@@ -521,6 +521,59 @@
                             <span class="font-semibold text-indigo-600">{{ $studentCount }}</span> {{ __('active_learning.enrolled') }}
                         </p>
                     </div>
+
+                    {{-- Course Materials Selector --}}
+                    @if($materialSections->isNotEmpty())
+                        <div x-data="{ open: false, selected: [] }">
+                            <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    Select from Course Materials
+                                    <span x-show="selected.length > 0" x-text="'(' + selected.length + ' selected)'" class="text-[11px] text-indigo-500"></span>
+                                </span>
+                                <svg class="w-4 h-4 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+
+                            <div x-show="open" x-cloak x-transition class="mt-2 border border-indigo-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                @foreach($materialSections as $section)
+                                    <div>
+                                        <p class="px-4 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-50">{{ $section->title }}</p>
+                                        @foreach($section->files as $file)
+                                            <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition">
+                                                <input
+                                                    type="checkbox"
+                                                    name="material_file_ids[]"
+                                                    value="{{ $file->id }}"
+                                                    @change="selected = $el.checked ? [...selected, {{ $file->id }}] : selected.filter(i => i !== {{ $file->id }})"
+                                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0">
+                                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                                    @if($file->isLink())
+                                                        <svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                                    @elseif($file->isDriveFile())
+                                                        <svg class="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                                    @else
+                                                        <svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                                    @endif
+                                                    <div class="min-w-0">
+                                                        <p class="text-xs font-medium text-slate-800 truncate">{{ $file->file_name }}</p>
+                                                        @if($file->description)
+                                                            <p class="text-[10px] text-slate-400 truncate">{{ $file->description }}</p>
+                                                        @endif
+                                                    </div>
+                                                    @if($file->storage_path && str_contains($file->file_type ?? '', 'pdf'))
+                                                        <span class="text-[9px] font-medium text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded flex-shrink-0">text extracted</span>
+                                                    @elseif($file->isLink() || $file->isDriveFile())
+                                                        <span class="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0">name + desc</span>
+                                                    @endif
+                                                </div>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
 
                     {{-- PDF Upload --}}
                     <div x-data="{ fileName: null }">

@@ -125,8 +125,14 @@ class ActiveLearningPlanController extends Controller
         // Get course files for material linking
         $courseFiles = CourseFile::where('course_id', $course->id)->get();
 
+        // Group materials by section for the AI generation picker
+        $materialSections = $course->materialSections()
+            ->with(['files' => fn ($q) => $q->orderBy('sort_order')])
+            ->get()
+            ->filter(fn ($s) => $s->files->isNotEmpty());
+
         return view('tenant.active-learning.edit', compact(
-            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles'
+            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles', 'materialSections'
         ));
     }
 
@@ -193,16 +199,46 @@ class ActiveLearningPlanController extends Controller
         }
 
         $request->validate([
-            'lecture_notes' => ['nullable', 'string', 'max:50000'],
+            'lecture_notes'      => ['nullable', 'string', 'max:50000'],
             'lecture_notes_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'material_file_ids'  => ['nullable', 'array'],
+            'material_file_ids.*' => ['integer', 'exists:course_files,id'],
         ]);
 
-        // Extract text from uploaded PDF
+        // Start with manually typed notes
         $lectureNotes = $request->input('lecture_notes', '');
 
+        // Append text from uploaded PDF
         if ($request->hasFile('lecture_notes_file')) {
             $pdfText = $this->extractPdfText($request->file('lecture_notes_file'));
             $lectureNotes = trim($lectureNotes . "\n\n" . $pdfText);
+        }
+
+        // Append content from selected course materials
+        if ($request->filled('material_file_ids')) {
+            $selectedFiles = CourseFile::where('course_id', $course->id)
+                ->whereIn('id', $request->input('material_file_ids'))
+                ->get();
+
+            foreach ($selectedFiles as $file) {
+                $chunk = "[Material: {$file->file_name}]";
+                if ($file->description) {
+                    $chunk .= "\nDescription: {$file->description}";
+                }
+                // Extract text from local PDFs
+                if ($file->storage_path && str_contains($file->file_type ?? '', 'pdf')) {
+                    $fullPath = storage_path('app/' . $file->storage_path);
+                    if (file_exists($fullPath)) {
+                        $extracted = $this->extractPdfTextFromPath($fullPath);
+                        if ($extracted) {
+                            $chunk .= "\n" . $extracted;
+                        }
+                    }
+                } elseif ($file->url) {
+                    $chunk .= "\nURL: {$file->url}";
+                }
+                $lectureNotes = trim($lectureNotes . "\n\n" . $chunk);
+            }
         }
 
         // Count enrolled students
@@ -223,10 +259,15 @@ class ActiveLearningPlanController extends Controller
 
     protected function extractPdfText(\Illuminate\Http\UploadedFile $file): string
     {
+        return $this->extractPdfTextFromPath($file->getRealPath());
+    }
+
+    protected function extractPdfTextFromPath(string $path): string
+    {
         try {
             $parser = new \Smalot\PdfParser\Parser();
-            $pdf = $parser->parseFile($file->getRealPath());
-            $text = $pdf->getText();
+            $pdf    = $parser->parseFile($path);
+            $text   = $pdf->getText();
 
             // Limit to 50K chars to avoid prompt overflow
             return mb_substr($text, 0, 50000);
