@@ -48,7 +48,7 @@ class GenerateActiveLearningPlan implements ShouldQueue
             $generator->generate($this->plan, $this->lectureNotesText, $this->studentCount);
 
             $this->plan->update([
-                'ai_generation_status' => 'completed',
+                'ai_generation_status' => 'draft_review',
                 'ai_generated_at' => now(),
                 'ai_prompt_summary' => mb_substr(
                     $this->lectureNotesText ?? 'Generated from topic and CLOs',

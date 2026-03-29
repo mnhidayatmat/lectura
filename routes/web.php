@@ -384,6 +384,8 @@ Route::prefix('{tenant:slug}')
             // AI generation (Pro)
             Route::post('/{plan}/generate-ai', [ActiveLearningPlanController::class, 'generateAi'])->name('tenant.active-learning.generate-ai');
             Route::get('/{plan}/generation-status', [ActiveLearningPlanController::class, 'generationStatus'])->name('tenant.active-learning.generation-status');
+            Route::post('/{plan}/accept-ai-draft', [ActiveLearningPlanController::class, 'acceptAiDraft'])->name('tenant.active-learning.accept-ai-draft');
+            Route::post('/{plan}/discard-ai-draft', [ActiveLearningPlanController::class, 'discardAiDraft'])->name('tenant.active-learning.discard-ai-draft');
 
             // Activities
             Route::post('/{plan}/activities', [ActiveLearningActivityController::class, 'store'])->name('tenant.active-learning.activities.store');

@@ -199,14 +199,35 @@ class ActiveLearningPlanController extends Controller
         }
 
         $request->validate([
-            'lecture_notes'      => ['nullable', 'string', 'max:50000'],
-            'lecture_notes_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'material_file_ids'  => ['nullable', 'array'],
+            'lecture_notes'       => ['nullable', 'string', 'max:50000'],
+            'lecture_notes_file'  => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'material_file_ids'   => ['nullable', 'array'],
             'material_file_ids.*' => ['integer', 'exists:course_files,id'],
+            'student_count'       => ['nullable', 'integer', 'min:1', 'max:500'],
+            'total_duration'      => ['nullable', 'integer', 'min:5', 'max:480'],
+            'teaching_preferences' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        // Use user-provided values or fall back to auto-detected
+        $studentCount = $request->integer('student_count')
+            ?: \App\Models\SectionStudent::whereHas(
+                'section',
+                fn ($q) => $q->where('course_id', $course->id)
+            )->where('is_active', true)->distinct('user_id')->count('user_id');
+
+        // Update plan duration if user changed it
+        $totalDuration = $request->integer('total_duration') ?: $plan->duration_minutes;
+        if ($totalDuration !== $plan->duration_minutes) {
+            $plan->update(['duration_minutes' => $totalDuration]);
+        }
 
         // Start with manually typed notes
         $lectureNotes = $request->input('lecture_notes', '');
+
+        // Prepend teaching preferences if provided
+        if ($request->filled('teaching_preferences')) {
+            $lectureNotes = "Teaching Preferences: {$request->input('teaching_preferences')}\n\n" . $lectureNotes;
+        }
 
         // Append text from uploaded PDF
         if ($request->hasFile('lecture_notes_file')) {
@@ -225,7 +246,6 @@ class ActiveLearningPlanController extends Controller
                 if ($file->description) {
                     $chunk .= "\nDescription: {$file->description}";
                 }
-                // Extract text from local PDFs
                 if ($file->storage_path && str_contains($file->file_type ?? '', 'pdf')) {
                     $fullPath = storage_path('app/' . $file->storage_path);
                     if (file_exists($fullPath)) {
@@ -241,11 +261,8 @@ class ActiveLearningPlanController extends Controller
             }
         }
 
-        // Count enrolled students
-        $studentCount = \App\Models\SectionStudent::whereHas(
-            'section',
-            fn ($q) => $q->where('course_id', $course->id)
-        )->where('is_active', true)->distinct('user_id')->count('user_id');
+        // Clear previous AI draft activities before generating new ones
+        $plan->activities()->where('ai_generated', true)->delete();
 
         $plan->update([
             'source' => 'ai_generated',
@@ -255,6 +272,34 @@ class ActiveLearningPlanController extends Controller
         GenerateActiveLearningPlan::dispatch($plan, $lectureNotes ?: null, $studentCount);
 
         return back()->with('success', __('active_learning.ai_generation_started'));
+    }
+
+    public function acceptAiDraft(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+        $this->assertPlanBelongsToCourse($plan, $course);
+
+        $plan->update(['ai_generation_status' => 'completed']);
+
+        return back()->with('success', __('active_learning.ai_draft_accepted'));
+    }
+
+    public function discardAiDraft(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+        $this->assertPlanBelongsToCourse($plan, $course);
+
+        $plan->activities()->where('ai_generated', true)->delete();
+        $plan->update([
+            'ai_generation_status' => null,
+            'source' => 'manual',
+        ]);
+
+        return back()->with('success', __('active_learning.ai_draft_discarded'));
     }
 
     protected function extractPdfText(\Illuminate\Http\UploadedFile $file): string

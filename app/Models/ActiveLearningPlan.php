@@ -81,6 +81,11 @@ class ActiveLearningPlan extends Model
         return $this->ai_generation_status === 'processing';
     }
 
+    public function isAiDraftReview(): bool
+    {
+        return $this->ai_generation_status === 'draft_review';
+    }
+
     public function publish(): void
     {
         $this->update([
