@@ -173,70 +173,131 @@
                         @if($section->files->isNotEmpty())
                             <div class="divide-y divide-slate-50 dark:divide-slate-700/50">
                                 @foreach($section->files as $material)
-                                    <div class="px-5 py-3 flex items-center justify-between gap-4 group hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
-                                        <div class="flex items-center gap-3 min-w-0">
-                                            @if($material->isLink())
-                                                <div class="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                                </div>
-                                            @elseif($material->isDriveFile())
-                                                <div class="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-green-600" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
-                                                </div>
-                                            @elseif(str_contains($material->file_type ?? '', 'pdf'))
-                                                <div class="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                                                </div>
-                                            @elseif(str_contains($material->file_type ?? '', 'image'))
-                                                <div class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                                </div>
-                                            @elseif(str_contains($material->file_type ?? '', 'presentation') || str_contains($material->file_name ?? '', '.pptx') || str_contains($material->file_name ?? '', '.ppt'))
-                                                <div class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                                                </div>
-                                            @else
-                                                <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                </div>
-                                            @endif
-                                            <div class="min-w-0">
-                                                <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ $material->file_name }}</p>
-                                                <div class="flex items-center gap-2 mt-0.5">
-                                                    @if($material->isLink())
-                                                        <span class="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">Link</span>
-                                                    @elseif($material->isDriveFile())
-                                                        <span class="text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded">Drive</span>
-                                                        <span class="text-xs text-slate-400">{{ $material->formattedSize() }}</span>
-                                                    @else
-                                                        <span class="text-xs text-slate-400">{{ $material->formattedSize() }}</span>
-                                                    @endif
-                                                    @if($material->description)
-                                                        <span class="text-slate-300 dark:text-slate-600">&middot;</span>
-                                                        <span class="text-xs text-slate-400 truncate">{{ Str::limit($material->description, 60) }}</span>
-                                                    @endif
+                                    <div
+                                        x-data="{
+                                            editing: false,
+                                            editTitle: '{{ addslashes($material->file_name) }}',
+                                            editUrl: '{{ addslashes($material->url ?? '') }}',
+                                            editDesc: '{{ addslashes($material->description ?? '') }}',
+                                            submitEdit() { this.$refs.editForm.submit(); }
+                                        }"
+                                        class="group">
+                                        {{-- Normal row --}}
+                                        <div x-show="!editing" class="px-5 py-3 flex items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                @if($material->isLink())
+                                                    <div class="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                                    </div>
+                                                @elseif($material->isDriveFile())
+                                                    <div class="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-green-600" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+                                                    </div>
+                                                @elseif(str_contains($material->file_type ?? '', 'pdf'))
+                                                    <div class="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                                    </div>
+                                                @elseif(str_contains($material->file_type ?? '', 'image'))
+                                                    <div class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                    </div>
+                                                @elseif(str_contains($material->file_type ?? '', 'presentation') || str_contains($material->file_name ?? '', '.pptx') || str_contains($material->file_name ?? '', '.ppt'))
+                                                    <div class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                                    </div>
+                                                @else
+                                                    <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    </div>
+                                                @endif
+                                                <div class="min-w-0">
+                                                    <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ $material->file_name }}</p>
+                                                    <div class="flex items-center gap-2 mt-0.5">
+                                                        @if($material->isLink())
+                                                            <span class="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">Link</span>
+                                                        @elseif($material->isDriveFile())
+                                                            <span class="text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-1.5 py-0.5 rounded">Drive</span>
+                                                            <span class="text-xs text-slate-400">{{ $material->formattedSize() }}</span>
+                                                        @else
+                                                            <span class="text-xs text-slate-400">{{ $material->formattedSize() }}</span>
+                                                        @endif
+                                                        @if($material->description)
+                                                            <span class="text-slate-300 dark:text-slate-600">&middot;</span>
+                                                            <span class="text-xs text-slate-400 truncate">{{ Str::limit($material->description, 60) }}</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
-                                            @if($material->isLink())
-                                                <a href="{{ $material->url }}" target="_blank" title="Open link" class="p-2 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                                </a>
-                                            @elseif($material->isDriveFile())
-                                                <a href="{{ $material->url }}" target="_blank" title="Open in Google Drive" class="p-2 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                                </a>
-                                            @else
-                                                <a href="{{ route('tenant.materials.download', [$tenant->slug, $course, $material]) }}" title="Download" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                                </a>
-                                            @endif
-                                            <form method="POST" action="{{ route('tenant.materials.destroy', [$tenant->slug, $course, $material]) }}" class="inline">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" onclick="return confirm('Remove this material?')" title="Delete" class="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+                                                @if($material->isLink())
+                                                    <a href="{{ $material->url }}" target="_blank" title="Open link" class="p-2 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                    </a>
+                                                @elseif($material->isDriveFile())
+                                                    <a href="{{ $material->url }}" target="_blank" title="Open in Google Drive" class="p-2 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                    </a>
+                                                @else
+                                                    <a href="{{ route('tenant.materials.download', [$tenant->slug, $course, $material]) }}" title="Download" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                    </a>
+                                                @endif
+                                                <button @click="editing = true; $nextTick(() => $refs.editTitleInput.focus())" title="Edit" class="p-2 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                                 </button>
+                                                <form method="POST" action="{{ route('tenant.materials.destroy', [$tenant->slug, $course, $material]) }}" class="inline">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" onclick="return confirm('Remove this material?')" title="Delete" class="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+
+                                        {{-- Inline edit row --}}
+                                        <div x-show="editing" x-cloak class="px-5 py-4 bg-indigo-50/60 dark:bg-indigo-900/10 border-t border-b border-indigo-100 dark:border-indigo-800">
+                                            <form x-ref="editForm" method="POST" action="{{ route('tenant.materials.update', [$tenant->slug, $course, $material]) }}" class="space-y-3">
+                                                @csrf @method('PATCH')
+                                                <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wide">Edit Material</p>
+                                                <div class="grid sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label class="text-xs font-medium text-slate-600 dark:text-slate-400">{{ $material->isLink() ? 'Title' : 'Display Name' }}</label>
+                                                        <input
+                                                            x-ref="editTitleInput"
+                                                            type="text"
+                                                            name="title"
+                                                            x-model="editTitle"
+                                                            required
+                                                            @keydown.escape="editing = false"
+                                                            class="mt-1 w-full px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    </div>
+                                                    @if($material->isLink())
+                                                        <div>
+                                                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400">URL</label>
+                                                            <input
+                                                                type="url"
+                                                                name="url"
+                                                                x-model="editUrl"
+                                                                required
+                                                                @keydown.escape="editing = false"
+                                                                class="mt-1 w-full px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div>
+                                                    <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Description <span class="text-slate-400">(optional)</span></label>
+                                                    <input
+                                                        type="text"
+                                                        name="description"
+                                                        x-model="editDesc"
+                                                        @keydown.escape="editing = false"
+                                                        class="mt-1 w-full px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        placeholder="Brief description of this resource">
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">Save</button>
+                                                    <button type="button" @click="editing = false" class="px-4 py-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 text-xs rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">Cancel</button>
+                                                </div>
                                             </form>
                                         </div>
                                     </div>

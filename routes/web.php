@@ -349,6 +349,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/materials/course/{course}/sections/{section}/move', [CourseMaterialController::class, 'moveSection'])->name('tenant.materials.sections.move');
         Route::post('/materials/course/{course}/upload', [CourseMaterialController::class, 'upload'])->name('tenant.materials.upload');
         Route::post('/materials/course/{course}/link', [CourseMaterialController::class, 'storeLink'])->name('tenant.materials.store-link');
+        Route::patch('/materials/course/{course}/{file}', [CourseMaterialController::class, 'updateMaterial'])->name('tenant.materials.update');
         Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');
         Route::get('/materials/course/{course}/file/{file}/download', [CourseMaterialController::class, 'download'])->name('tenant.materials.download');
 

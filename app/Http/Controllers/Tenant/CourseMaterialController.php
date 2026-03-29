@@ -253,6 +253,39 @@ class CourseMaterialController extends Controller
         return back()->with('success', 'Link added successfully.');
     }
 
+    public function updateMaterial(Request $request, string $tenantSlug, Course $course, CourseFile $file): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($file->isLink()) {
+            $request->validate([
+                'title'       => ['required', 'string', 'max:255'],
+                'url'         => ['required', 'url', 'max:2048'],
+                'description' => ['nullable', 'string', 'max:500'],
+            ]);
+
+            $file->update([
+                'file_name'   => $request->input('title'),
+                'url'         => $request->input('url'),
+                'description' => $request->input('description'),
+            ]);
+        } else {
+            $request->validate([
+                'title'       => ['required', 'string', 'max:255'],
+                'description' => ['nullable', 'string', 'max:500'],
+            ]);
+
+            $file->update([
+                'file_name'   => $request->input('title'),
+                'description' => $request->input('description'),
+            ]);
+        }
+
+        return back()->with('success', 'Material updated.');
+    }
+
     public function destroy(string $tenantSlug, Course $course, CourseFile $file): RedirectResponse
     {
         if ($course->lecturer_id !== auth()->id()) {
