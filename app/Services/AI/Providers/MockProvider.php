@@ -36,8 +36,75 @@ class MockProvider implements AiProviderInterface
 
         return match ($module) {
             'teaching_plan' => $this->generateTeachingPlanResponse($options),
+            'active_learning' => $this->generateActiveLearningResponse($options),
             default => 'Mock AI response for: ' . substr($prompt, 0, 100),
         };
+    }
+
+    protected function generateActiveLearningResponse(array $options): string
+    {
+        return json_encode([
+            [
+                'title' => 'Warm-Up: Concept Recall',
+                'type' => 'individual',
+                'description' => 'Students individually recall key concepts from the previous session.',
+                'instructions' => 'Take 3 minutes to write down everything you remember about last week\'s topic. Then submit your response.',
+                'duration_minutes' => 5,
+                'clo_codes' => [],
+                'grouping_strategy' => null,
+                'max_group_size' => null,
+                'response_type' => 'text',
+                'response_mode' => 'individual',
+            ],
+            [
+                'title' => 'Think-Pair-Share: Key Principles',
+                'type' => 'pair',
+                'description' => 'Students discuss and compare their understanding of core principles with a partner.',
+                'instructions' => 'Pair up with the person next to you. Share your notes, identify common themes, and discuss any points of confusion. Be ready to share one insight with the class.',
+                'duration_minutes' => 10,
+                'clo_codes' => [],
+                'grouping_strategy' => 'random',
+                'max_group_size' => 2,
+                'response_type' => 'text',
+                'response_mode' => 'group',
+            ],
+            [
+                'title' => 'Group Problem-Solving',
+                'type' => 'group',
+                'description' => 'Small groups collaborate to solve a practical problem applying the week\'s concepts.',
+                'instructions' => 'In your group, work through the given scenario. Apply the concepts we discussed and prepare a short explanation of your approach.',
+                'duration_minutes' => 20,
+                'clo_codes' => [],
+                'grouping_strategy' => 'random',
+                'max_group_size' => 4,
+                'response_type' => 'text',
+                'response_mode' => 'group',
+            ],
+            [
+                'title' => 'Class Discussion & Debrief',
+                'type' => 'whole_class',
+                'description' => 'Groups share their solutions and the class discusses different approaches.',
+                'instructions' => 'Each group will present their approach in 2 minutes. Listen actively and note any approaches that differ from yours.',
+                'duration_minutes' => 10,
+                'clo_codes' => [],
+                'grouping_strategy' => null,
+                'max_group_size' => null,
+                'response_type' => 'none',
+                'response_mode' => 'individual',
+            ],
+            [
+                'title' => 'Reflection: One-Minute Paper',
+                'type' => 'reflection',
+                'description' => 'Students reflect on their learning and identify remaining questions.',
+                'instructions' => 'Write down: (1) The most important thing you learned today, and (2) One question you still have.',
+                'duration_minutes' => 5,
+                'clo_codes' => [],
+                'grouping_strategy' => null,
+                'max_group_size' => null,
+                'response_type' => 'reflection',
+                'response_mode' => 'individual',
+            ],
+        ]);
     }
 
     protected function generateTeachingPlanResponse(array $options): string
