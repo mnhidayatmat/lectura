@@ -31,7 +31,7 @@ class ActiveLearningPlanController extends Controller
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        $courses = Course::where('lecturer_id', $user->id)->get();
+        $courses = Course::where('lecturer_id', $user->id)->latest()->get();
 
         $plans = ActiveLearningPlan::whereIn('course_id', $courses->pluck('id'))
             ->withCount('activities')
