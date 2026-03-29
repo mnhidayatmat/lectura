@@ -332,6 +332,10 @@
                                     <input type="file" name="files[]" multiple required class="mt-1 w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:text-slate-400">
                                 </div>
                                 <div>
+                                    <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Display Name <span class="text-slate-400">(optional)</span></label>
+                                    <input type="text" name="display_name" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white" placeholder="e.g. Week 3 Lecture Slides">
+                                </div>
+                                <div>
                                     <label class="text-xs font-medium text-slate-600 dark:text-slate-400">Description <span class="text-slate-400">(optional)</span></label>
                                     <input type="text" name="description" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white" placeholder="e.g. Lecture slides for this topic">
                                 </div>

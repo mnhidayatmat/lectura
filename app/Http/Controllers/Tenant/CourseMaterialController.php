@@ -136,6 +136,7 @@ class CourseMaterialController extends Controller
             'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
             'files'               => ['required', 'array', 'min:1'],
             'files.*'             => ['file', 'max:25600'],
+            'display_name'        => ['nullable', 'string', 'max:255'],
             'description'         => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -162,8 +163,11 @@ class CourseMaterialController extends Controller
         }
 
         $uploaded = 0;
+        $files = $request->file('files');
+        $isSingle = count($files) === 1;
+        $displayName = $request->input('display_name');
 
-        foreach ($request->file('files') as $file) {
+        foreach ($files as $file) {
             try {
                 $result = $driveService->uploadFile(
                     $user,
@@ -177,7 +181,7 @@ class CourseMaterialController extends Controller
                     'course_id'           => $course->id,
                     'uploaded_by'         => auth()->id(),
                     'material_type'       => 'drive',
-                    'file_name'           => $file->getClientOriginalName(),
+                    'file_name'           => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
                     'file_type'           => $file->getMimeType(),
                     'file_size_bytes'     => $file->getSize(),
                     'url'                 => $result['web_view_link'],
@@ -203,7 +207,11 @@ class CourseMaterialController extends Controller
             ['sort_order' => 2]
         );
 
-        foreach ($request->file('files') as $file) {
+        $files = $request->file('files');
+        $isSingle = count($files) === 1;
+        $displayName = $request->input('display_name');
+
+        foreach ($files as $file) {
             $path = $file->store("course-files/{$course->id}/{$folder->id}", 'local');
 
             CourseFile::create([
@@ -211,7 +219,7 @@ class CourseMaterialController extends Controller
                 'course_id'           => $course->id,
                 'uploaded_by'         => auth()->id(),
                 'material_type'       => 'file',
-                'file_name'           => $file->getClientOriginalName(),
+                'file_name'           => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
                 'file_type'           => $file->getMimeType(),
                 'file_size_bytes'     => $file->getSize(),
                 'storage_path'        => $path,
