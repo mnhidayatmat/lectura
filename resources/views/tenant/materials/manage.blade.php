@@ -71,7 +71,7 @@
             @foreach($sections as $section)
                 <div
                     x-data="{
-                        open: {{ $section->files->isNotEmpty() ? 'true' : 'false' }},
+                        open: false,
                         renaming: false,
                         editTitle: '{{ addslashes($section->title) }}',
                         showUpload: false,
