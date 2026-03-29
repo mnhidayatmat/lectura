@@ -47,13 +47,13 @@ class OnboardingController extends Controller
 
         // Create new institution if needed
         if ($request->filled('new_tenant_name') && ! $request->tenant_id) {
-            $slug = Str::slug($request->new_tenant_name);
+            $baseSlug = $this->generateSlug($request->new_tenant_name);
 
             // Ensure unique slug
-            $baseSlug = $slug;
-            $i = 1;
+            $slug = $baseSlug;
+            $i = 2;
             while (Tenant::where('slug', $slug)->exists()) {
-                $slug = $baseSlug . '-' . $i++;
+                $slug = $baseSlug . $i++;
             }
 
             $tenant = Tenant::create([
@@ -126,5 +126,29 @@ class OnboardingController extends Controller
         ]);
 
         return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' as ' . ucfirst($request->role) . '.');
+    }
+
+    private function generateSlug(string $name): string
+    {
+        $stopWords = ['of', 'the', 'and', 'at', 'in', 'for', 'a', 'an', 'de', 'la', 'le', 'di'];
+
+        // Split on whitespace/hyphens, drop empty parts
+        $words = array_values(array_filter(preg_split('/[\s\-]+/', $name)));
+
+        // If already a single short word, just slugify it
+        if (count($words) === 1) {
+            return strtolower(substr(preg_replace('/[^a-z0-9]/', '', Str::slug($words[0])), 0, 12));
+        }
+
+        // Build acronym from significant words (skip stop words)
+        $significant = array_filter($words, fn ($w) => ! in_array(strtolower($w), $stopWords));
+        $acronym = strtolower(implode('', array_map(fn ($w) => preg_replace('/[^a-z0-9]/i', '', $w[0]), $significant)));
+
+        // If acronym is meaningful (2+ chars), use it; otherwise fall back to truncated slug
+        if (strlen($acronym) >= 2) {
+            return $acronym;
+        }
+
+        return substr(Str::slug($name), 0, 12);
     }
 }
