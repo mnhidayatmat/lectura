@@ -14,17 +14,28 @@ export default function tiptapEditor(initialContent = '') {
         _initialized: false,
 
         init() {
-            // Defer initialization — watch for visibility via $nextTick + MutationObserver
+            // Try immediately in case element is already visible
             this._tryInit()
 
-            // Also watch for when a parent x-show reveals us
+            // Watch for visibility changes — observe style mutations on all ancestors
+            // so x-show toggling on any parent is detected
             const observer = new MutationObserver(() => this._tryInit())
-            observer.observe(this.$refs.editorContent.closest('[x-data]') || this.$el, {
-                attributes: true,
-                attributeFilter: ['style'],
-                subtree: true,
-            })
+            let el = this.$refs.editorContent
+            while (el && el !== document.body) {
+                observer.observe(el, { attributes: true, attributeFilter: ['style', 'class'] })
+                el = el.parentElement
+            }
             this._observer = observer
+
+            // Also poll briefly for cases MutationObserver misses (e.g. Alpine x-show transitions)
+            this._pollCount = 0
+            this._pollTimer = setInterval(() => {
+                this._tryInit()
+                this._pollCount++
+                if (this._initialized || this._pollCount > 50) {
+                    clearInterval(this._pollTimer)
+                }
+            }, 200)
         },
 
         _tryInit() {
@@ -63,6 +74,7 @@ export default function tiptapEditor(initialContent = '') {
         },
 
         destroy() {
+            clearInterval(this._pollTimer)
             this._observer?.disconnect()
             this.editor?.destroy()
         },
