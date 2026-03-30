@@ -22,24 +22,36 @@
                 </div>
                 <div class="divide-y divide-slate-100">
                     @foreach($liveSessions as $session)
-                        <a href="{{ route('tenant.quizzes.control', [app('current_tenant')->slug, $session]) }}" class="flex items-center justify-between px-6 py-4 hover:bg-indigo-50/30 transition">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
+                        <div class="flex items-center justify-between px-6 py-4 hover:bg-indigo-50/30 transition">
+                            <a href="{{ route('tenant.quizzes.control', [app('current_tenant')->slug, $session]) }}" class="flex items-center gap-4 flex-1 min-w-0">
+                                <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                                     <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                 </div>
-                                <div>
+                                <div class="min-w-0">
                                     <p class="text-sm font-semibold text-slate-900">{{ $session->title }}</p>
                                     <p class="text-xs text-slate-500">{{ $session->section->course->code }} — {{ $session->section->name }} &middot; Code: <code class="bg-indigo-100 text-indigo-700 px-1 rounded font-bold">{{ $session->join_code }}</code></p>
                                 </div>
-                            </div>
-                            <div class="flex items-center gap-3">
+                            </a>
+                            <div class="flex items-center gap-3 shrink-0">
                                 <div class="text-right">
                                     <p class="text-lg font-bold text-indigo-600">{{ $session->participants->count() }}</p>
                                     <p class="text-xs text-slate-400">joined</p>
                                 </div>
-                                <span class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg">Control</span>
+                                @if($session->status === 'waiting')
+                                    <a href="{{ route('tenant.quizzes.edit', [app('current_tenant')->slug, $session]) }}" class="p-2 text-slate-400 hover:text-indigo-600 transition" title="Edit">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    </a>
+                                @endif
+                                <a href="{{ route('tenant.quizzes.control', [app('current_tenant')->slug, $session]) }}" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg">Control</a>
+                                <form method="POST" action="{{ route('tenant.quizzes.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this quiz? This cannot be undone.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="p-2 text-slate-400 hover:text-red-500 transition" title="Delete">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
                             </div>
-                        </a>
+                        </div>
                     @endforeach
                 </div>
             </div>
@@ -65,18 +77,35 @@
                             <th class="text-left px-6 py-3 font-medium text-slate-500">Quiz</th>
                             <th class="text-center px-6 py-3 font-medium text-slate-500">Mode</th>
                             <th class="text-center px-6 py-3 font-medium text-slate-500">Participants</th>
-                            <th class="text-right px-6 py-3 font-medium text-slate-500">Date</th>
+                            <th class="text-center px-6 py-3 font-medium text-slate-500">Date</th>
+                            <th class="text-right px-6 py-3 font-medium text-slate-500">Actions</th>
                         </tr></thead>
                         <tbody class="divide-y divide-slate-100">
                             @foreach($pastSessions as $session)
-                                <tr class="hover:bg-slate-50/50 cursor-pointer" onclick="window.location='{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}'">
+                                <tr class="hover:bg-slate-50/50">
                                     <td class="px-6 py-3">
-                                        <p class="font-medium text-slate-900">{{ $session->title }}</p>
-                                        <p class="text-xs text-slate-400">{{ $session->section->course->code }} — {{ $session->section->name }}</p>
+                                        <a href="{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}" class="block">
+                                            <p class="font-medium text-slate-900">{{ $session->title }}</p>
+                                            <p class="text-xs text-slate-400">{{ $session->section->course->code }} — {{ $session->section->name }}</p>
+                                        </a>
                                     </td>
                                     <td class="px-6 py-3 text-center"><span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ ucfirst($session->mode) }}</span></td>
                                     <td class="px-6 py-3 text-center font-medium">{{ $session->participants->count() }}</td>
-                                    <td class="px-6 py-3 text-right text-xs text-slate-400">{{ $session->created_at->format('d M Y') }}</td>
+                                    <td class="px-6 py-3 text-center text-xs text-slate-400">{{ $session->created_at->format('d M Y') }}</td>
+                                    <td class="px-6 py-3 text-right">
+                                        <div class="flex items-center justify-end gap-1">
+                                            <a href="{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}" class="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="View Results">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                            </a>
+                                            <form method="POST" action="{{ route('tenant.quizzes.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this quiz and all its data? This cannot be undone.')" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-1.5 text-slate-400 hover:text-red-500 transition" title="Delete">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -137,6 +137,146 @@ class QuizController extends Controller
     }
 
     /**
+     * Edit quiz session (only if not yet started).
+     */
+    public function edit(string $tenantSlug, QuizSession $session): View
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($session->status !== 'waiting') {
+            return redirect()->route('tenant.quizzes.index', $tenantSlug)
+                ->with('error', 'Only quizzes that have not started can be edited.');
+        }
+
+        $user = auth()->user();
+        $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
+        $sections = Section::whereIn('course_id', $courseIds)->with('course')->where('is_active', true)->get();
+
+        $session->load(['sessionQuestions.question.options', 'section.course']);
+
+        return view('tenant.quizzes.edit', compact('session', 'sections'));
+    }
+
+    /**
+     * Update quiz session + questions (only if not yet started).
+     */
+    public function update(Request $request, string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($session->status !== 'waiting') {
+            return redirect()->route('tenant.quizzes.index', $tenantSlug)
+                ->with('error', 'Only quizzes that have not started can be edited.');
+        }
+
+        $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'section_id' => ['required', 'exists:sections,id'],
+            'mode' => ['required', 'in:formative,participation,graded'],
+            'is_anonymous' => ['nullable', 'boolean'],
+            'questions' => ['required', 'array', 'min:1'],
+            'questions.*.text' => ['required', 'string'],
+            'questions.*.type' => ['required', 'in:mcq,true_false,short_answer'],
+            'questions.*.time_limit' => ['nullable', 'integer', 'min:5', 'max:300'],
+            'questions.*.points' => ['nullable', 'numeric', 'min:0'],
+            'questions.*.options' => ['nullable', 'array'],
+            'questions.*.options.*.text' => ['required_with:questions.*.options', 'string'],
+            'questions.*.explanation' => ['nullable', 'string', 'max:1000'],
+            'questions.*.options.*.is_correct' => ['nullable', 'boolean'],
+        ]);
+
+        $tenant = app('current_tenant');
+
+        $session->update([
+            'title' => $request->title,
+            'section_id' => $request->section_id,
+            'mode' => $request->mode,
+            'is_anonymous' => (bool) $request->is_anonymous,
+        ]);
+
+        // Delete old questions and session-question links
+        $oldQuestionIds = $session->sessionQuestions()->pluck('question_id');
+        $session->sessionQuestions()->delete();
+        Question::whereIn('id', $oldQuestionIds)->each(function ($q) {
+            $q->options()->delete();
+            $q->delete();
+        });
+
+        // Re-create questions
+        foreach ($request->questions as $i => $qData) {
+            $question = Question::create([
+                'tenant_id' => $tenant->id,
+                'created_by' => auth()->id(),
+                'question_type' => $qData['type'],
+                'text' => $qData['text'],
+                'explanation' => $qData['explanation'] ?? null,
+                'time_limit_seconds' => $qData['time_limit'] ?? 30,
+                'points' => $qData['points'] ?? 1,
+                'is_bank' => true,
+            ]);
+
+            if (in_array($qData['type'], ['mcq', 'true_false']) && ! empty($qData['options'])) {
+                $labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+                foreach ($qData['options'] as $j => $opt) {
+                    QuestionOption::create([
+                        'question_id' => $question->id,
+                        'label' => $labels[$j] ?? chr(65 + $j),
+                        'text' => $opt['text'],
+                        'is_correct' => (bool) ($opt['is_correct'] ?? false),
+                        'sort_order' => $j,
+                    ]);
+                }
+            }
+
+            QuizSessionQuestion::create([
+                'quiz_session_id' => $session->id,
+                'question_id' => $question->id,
+                'sort_order' => $i,
+            ]);
+        }
+
+        return redirect()->route('tenant.quizzes.control', [
+            'tenant' => $tenant->slug,
+            'session' => $session->id,
+        ])->with('success', 'Quiz updated successfully.');
+    }
+
+    /**
+     * Delete quiz session and associated data.
+     */
+    public function destroy(string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+
+        // Delete responses, participants, session questions, questions, and options
+        foreach ($session->sessionQuestions as $sq) {
+            $sq->responses()->delete();
+        }
+        $session->participants()->delete();
+
+        $questionIds = $session->sessionQuestions()->pluck('question_id');
+        $session->sessionQuestions()->delete();
+
+        Question::whereIn('id', $questionIds)->each(function ($q) {
+            $q->options()->delete();
+            $q->delete();
+        });
+
+        $session->delete();
+
+        return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            ->with('success', 'Quiz deleted successfully.');
+    }
+
+    /**
      * Lecturer control panel — run the quiz live.
      */
     public function control(string $tenantSlug, QuizSession $session): View
