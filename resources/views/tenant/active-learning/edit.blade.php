@@ -328,7 +328,7 @@
                                     </div>
                                     <div>
                                         <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
-                                        <x-tiptap-editor name="instructions" :content="$activity->instructions ?? ''" />
+                                        <textarea name="instructions" rows="4" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="{{ __('active_learning.instructions_placeholder') }}">{{ $activity->instructions ?? '' }}</textarea>
                                     </div>
                                     <div class="grid sm:grid-cols-2 gap-3">
                                         <div>
@@ -436,7 +436,7 @@
                             </div>
                             <div>
                                 <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
-                                <x-tiptap-editor name="instructions" :content="''" />
+                                <textarea name="instructions" rows="4" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="{{ __('active_learning.instructions_placeholder') }}"></textarea>
                             </div>
                             <div class="grid sm:grid-cols-3 gap-4">
                                 <div>
