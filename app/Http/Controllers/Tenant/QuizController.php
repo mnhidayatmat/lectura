@@ -566,7 +566,7 @@ class QuizController extends Controller
             ->where('quiz_participant_id', $participant->id)->first();
 
         if ($existing) {
-            return response()->json(['message' => 'Already answered.', 'is_correct' => $existing->is_correct]);
+            return response()->json(['message' => 'Already answered.']);
         }
 
         // Score
@@ -597,9 +597,6 @@ class QuizController extends Controller
 
         return response()->json([
             'message' => 'Answer submitted.',
-            'is_correct' => $isCorrect,
-            'points_earned' => $points,
-            'explanation' => $question->explanation,
         ]);
     }
 

@@ -38,14 +38,12 @@
                                 :disabled="answered"
                                 :class="[
                                     'w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition',
-                                    selectedId === opt.id && lastCorrect === true ? 'border-emerald-500 bg-emerald-50' :
-                                    selectedId === opt.id && lastCorrect === false ? 'border-red-500 bg-red-50' :
                                     selectedId === opt.id ? 'border-indigo-500 bg-indigo-50' :
                                     answered ? 'border-slate-200 bg-slate-50 opacity-50' :
                                     'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50'
                                 ]">
                             <span class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-                                  :class="selectedId === opt.id ? (lastCorrect ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white') : 'bg-slate-100 text-slate-600'"
+                                  :class="selectedId === opt.id ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'"
                                   x-text="opt.label"></span>
                             <span class="text-sm font-medium text-slate-700" x-text="opt.text"></span>
                         </button>
@@ -53,15 +51,8 @@
                 </div>
 
                 {{-- Feedback --}}
-                <div x-show="answered" x-cloak class="mt-4 p-3 rounded-xl text-center text-sm font-medium"
-                     :class="lastCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
-                     x-text="lastCorrect ? 'Correct! +' + lastPoints + ' pts' : 'Incorrect'">
-                </div>
-
-                {{-- Explanation --}}
-                <div x-show="answered && explanation" x-cloak class="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                    <p class="text-xs font-semibold text-amber-700 mb-1">Explanation</p>
-                    <p class="text-sm text-amber-800" x-text="explanation"></p>
+                <div x-show="answered" x-cloak class="mt-4 p-3 rounded-xl text-center text-sm font-medium bg-indigo-50 text-indigo-700">
+                    Answer submitted! Waiting for next question...
                 </div>
             </div>
         </div>
@@ -85,9 +76,6 @@
                 question: null,
                 answered: false,
                 selectedId: null,
-                lastCorrect: null,
-                lastPoints: 0,
-                explanation: null,
                 score: 0,
                 polling: null,
 
@@ -108,8 +96,6 @@
                             this.question = data.question;
                             this.answered = data.answered;
                             this.selectedId = null;
-                            this.lastCorrect = null;
-                            this.explanation = null;
                         }
 
                         if (data.status === 'ended') {
@@ -132,13 +118,8 @@
                                 response_time_ms: 0,
                             }),
                         });
-                        const data = await res.json();
+                        await res.json();
                         this.answered = true;
-                        this.lastCorrect = data.is_correct;
-                        this.lastPoints = data.points_earned || 0;
-                        this.explanation = data.explanation || null;
-                        this.score = parseFloat(this.score) + parseFloat(this.lastPoints);
-                        window._quizScore = this.score;
                     } catch (e) {
                         this.selectedId = null;
                     }
