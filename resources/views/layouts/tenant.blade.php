@@ -136,7 +136,7 @@
             @endif
         </div>
 
-        @livewireScripts
+        @livewireScriptConfig
         @stack('scripts')
     </body>
 </html>

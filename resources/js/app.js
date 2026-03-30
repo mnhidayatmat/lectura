@@ -1,13 +1,16 @@
 import './bootstrap';
 
+import { Livewire, Alpine } from '../../vendor/livewire/livewire/dist/livewire.esm';
 import QRCode from 'qrcode';
 import tiptapEditor from './tiptap-editor';
 
 window.QRCode = QRCode;
+
+// Register tiptapEditor on THE SAME Alpine instance that Livewire uses.
+// This ensures x-data="tiptapEditor(...)" resolves correctly.
+Alpine.data('tiptapEditor', tiptapEditor);
+
+// Also expose on window for any inline x-data="tiptapEditor(...)" expressions
 window.tiptapEditor = tiptapEditor;
 
-// Register tiptapEditor on Livewire's Alpine instance (Livewire v4 bundles Alpine).
-// Do NOT import Alpine separately — that creates a duplicate instance.
-document.addEventListener('alpine:init', () => {
-    window.Alpine.data('tiptapEditor', tiptapEditor);
-});
+Livewire.start();
