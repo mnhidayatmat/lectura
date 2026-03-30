@@ -1,0 +1,199 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Tenant;
+
+use App\Http\Controllers\Controller;
+use App\Models\Course;
+use App\Models\StudentGroup;
+use App\Models\StudentGroupMember;
+use App\Models\StudentGroupSet;
+use App\Models\User;
+use App\Services\StudentGroupingService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class StudentGroupController extends Controller
+{
+    public function __construct(
+        protected StudentGroupingService $groupingService,
+    ) {}
+
+    // ── Lecturer ──
+
+    public function index(string $tenantSlug, Course $course): View
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+
+        $sets = $course->studentGroupSets()
+            ->withCount('groups')
+            ->with('creator')
+            ->latest()
+            ->get();
+
+        return view('tenant.student-groups.index', compact('tenant', 'course', 'sets'));
+    }
+
+    public function create(string $tenantSlug, Course $course): View
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+        $studentCount = $this->groupingService->getEnrolledStudents($course)->count();
+
+        return view('tenant.student-groups.create', compact('tenant', 'course', 'studentCount'));
+    }
+
+    public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:lecture,lab,tutorial'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'creation_method' => ['required', 'string', 'in:manual,random'],
+            'group_size' => ['required_if:creation_method,random', 'nullable', 'integer', 'min:2', 'max:20'],
+        ]);
+
+        $tenant = app('current_tenant');
+
+        $set = StudentGroupSet::create([
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
+            'type' => $request->input('type'),
+            'name' => $request->input('name'),
+            'description' => $request->input('description'),
+            'creation_method' => $request->input('creation_method'),
+            'created_by' => auth()->id(),
+        ]);
+
+        if ($request->input('creation_method') === 'random' && $request->filled('group_size')) {
+            $this->groupingService->arrangeRandom($set, $request->integer('group_size'));
+        }
+
+        return redirect()->route('tenant.student-groups.show', [$tenant->slug, $course, $set])
+            ->with('success', 'Group set created.');
+    }
+
+    public function show(string $tenantSlug, Course $course, StudentGroupSet $set): View
+    {
+        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+        $set->load('groups.members.user');
+
+        $unassigned = $this->groupingService->getUnassignedStudents($set);
+        $enrolledCount = $this->groupingService->getEnrolledStudents($course)->count();
+
+        return view('tenant.student-groups.show', compact('tenant', 'course', 'set', 'unassigned', 'enrolledCount'));
+    }
+
+    public function storeGroup(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $request->validate(['name' => ['required', 'string', 'max:100']]);
+
+        StudentGroup::create([
+            'student_group_set_id' => $set->id,
+            'name' => $request->input('name'),
+            'sort_order' => $set->groups()->count(),
+        ]);
+
+        return back()->with('success', 'Group added.');
+    }
+
+    public function destroyGroup(string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id || $group->student_group_set_id !== $set->id) {
+            abort(403);
+        }
+
+        $group->delete();
+
+        return back()->with('success', 'Group deleted.');
+    }
+
+    public function addMember(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $group->student_group_set_id !== $set->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'role' => ['nullable', 'string', 'in:member,leader'],
+        ]);
+
+        $student = User::findOrFail($request->integer('user_id'));
+        $this->groupingService->addMember($group, $student, $request->input('role', 'member'));
+
+        return back()->with('success', $student->name . ' added to ' . $group->name . '.');
+    }
+
+    public function removeMember(string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group, User $user): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $group->student_group_set_id !== $set->id) {
+            abort(403);
+        }
+
+        $this->groupingService->removeMember($group, $user);
+
+        return back()->with('success', $user->name . ' removed from ' . $group->name . '.');
+    }
+
+    public function arrangeRandom(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $request->validate(['group_size' => ['required', 'integer', 'min:2', 'max:20']]);
+
+        $this->groupingService->arrangeRandom($set, $request->integer('group_size'));
+
+        return back()->with('success', 'Students randomly arranged into groups.');
+    }
+
+    public function destroy(string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $set->delete();
+
+        return redirect()->route('tenant.student-groups.index', [app('current_tenant')->slug, $course])
+            ->with('success', 'Group set deleted.');
+    }
+
+    // ── Student ──
+
+    public function studentIndex(): View
+    {
+        $tenant = app('current_tenant');
+        $user = auth()->user();
+
+        $memberships = StudentGroupMember::where('user_id', $user->id)
+            ->with('group.groupSet.course')
+            ->get()
+            ->groupBy(fn ($m) => $m->group->groupSet->course_id);
+
+        return view('tenant.student-groups.student-index', compact('tenant', 'memberships'));
+    }
+}

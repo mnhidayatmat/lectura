@@ -6,6 +6,7 @@ use App\Http\Controllers\Tenant\AnalyticsController;
 use App\Http\Controllers\Tenant\AssignmentController;
 use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\QuizController;
+use App\Http\Controllers\Tenant\StudentGroupController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
@@ -421,6 +422,21 @@ Route::prefix('{tenant:slug}')
         Route::post('/session/{session}/respond', [StudentSessionController::class, 'respond'])->name('tenant.session.respond');
         Route::get('/session/{session}/state', [StudentSessionController::class, 'state'])->name('tenant.session.student-state');
         Route::get('/session/{session}/review', [StudentSessionController::class, 'review'])->name('tenant.session.review');
+
+        // Student Groups (per-course)
+        Route::prefix('courses/{course}/groups')->group(function () {
+            Route::get('/', [StudentGroupController::class, 'index'])->name('tenant.student-groups.index');
+            Route::get('/create', [StudentGroupController::class, 'create'])->name('tenant.student-groups.create');
+            Route::post('/', [StudentGroupController::class, 'store'])->name('tenant.student-groups.store');
+            Route::get('/{set}', [StudentGroupController::class, 'show'])->name('tenant.student-groups.show');
+            Route::delete('/{set}', [StudentGroupController::class, 'destroy'])->name('tenant.student-groups.destroy');
+            Route::post('/{set}/groups', [StudentGroupController::class, 'storeGroup'])->name('tenant.student-groups.groups.store');
+            Route::delete('/{set}/groups/{group}', [StudentGroupController::class, 'destroyGroup'])->name('tenant.student-groups.groups.destroy');
+            Route::post('/{set}/groups/{group}/members', [StudentGroupController::class, 'addMember'])->name('tenant.student-groups.members.add');
+            Route::delete('/{set}/groups/{group}/members/{user}', [StudentGroupController::class, 'removeMember'])->name('tenant.student-groups.members.remove');
+            Route::post('/{set}/arrange-random', [StudentGroupController::class, 'arrangeRandom'])->name('tenant.student-groups.arrange-random');
+        });
+        Route::get('/my-groups', [StudentGroupController::class, 'studentIndex'])->name('tenant.student-groups.my-index');
 
         // Tenant AI Settings (Pro)
         Route::get('/admin/ai-settings', [TenantAiSettingsController::class, 'edit'])->name('tenant.admin.ai-settings');

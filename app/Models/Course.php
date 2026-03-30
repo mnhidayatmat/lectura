@@ -91,6 +91,11 @@ class Course extends Model
         return $this->hasMany(CourseMaterialSection::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function studentGroupSets(): HasMany
+    {
+        return $this->hasMany(StudentGroupSet::class);
+    }
+
     public function activeLearningPlans(): HasMany
     {
         return $this->hasMany(ActiveLearningPlan::class);
