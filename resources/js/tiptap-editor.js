@@ -11,62 +11,52 @@ export default function tiptapEditor(initialContent = '') {
     return {
         editor: null,
         content: initialContent,
-        _observer: null,
 
         init() {
-            const el = this.$refs.editorContent
-            if (!el) return
+            // Wait for Alpine to finish processing refs, then create editor.
+            // ProseMirror attaches to DOM elements even if parent is display:none.
+            // The min-h CSS ensures correct sizing once the element becomes visible.
+            const createEditor = () => {
+                const el = this.$refs.editorContent
+                if (!el || this.editor) return
 
-            // Use IntersectionObserver to detect when the element becomes visible.
-            // This handles x-show, x-cloak, and any other hidden parent scenario.
-            this._observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && !this.editor) {
-                    this._createEditor()
-                    this._observer.disconnect()
-                }
-            }, { threshold: 0 })
-
-            this._observer.observe(el)
-
-            // Also try immediately for elements that are already visible
-            if (el.offsetWidth > 0 || el.offsetHeight > 0) {
-                this._createEditor()
-                this._observer.disconnect()
-            }
-        },
-
-        _createEditor() {
-            if (this.editor) return
-            this.editor = new Editor({
-                element: this.$refs.editorContent,
-                extensions: [
-                    StarterKit.configure({
-                        heading: { levels: [3, 4] },
-                    }),
-                    Underline,
-                    TextAlign.configure({
-                        types: ['heading', 'paragraph'],
-                    }),
-                    Table.configure({ resizable: false }),
-                    TableRow,
-                    TableCell,
-                    TableHeader,
-                ],
-                content: this.content,
-                editorProps: {
-                    attributes: {
-                        class: 'prose prose-sm max-w-none focus:outline-none min-h-[120px] px-3 py-2',
+                this.editor = new Editor({
+                    element: el,
+                    extensions: [
+                        StarterKit.configure({
+                            heading: { levels: [3, 4] },
+                        }),
+                        Underline,
+                        TextAlign.configure({
+                            types: ['heading', 'paragraph'],
+                        }),
+                        Table.configure({ resizable: false }),
+                        TableRow,
+                        TableCell,
+                        TableHeader,
+                    ],
+                    content: this.content,
+                    editorProps: {
+                        attributes: {
+                            class: 'focus:outline-none min-h-[120px] px-3 py-2',
+                        },
                     },
-                },
-                onUpdate: ({ editor }) => {
-                    this.content = editor.getHTML()
-                },
+                    onUpdate: ({ editor }) => {
+                        this.content = editor.getHTML()
+                    },
+                })
+            }
+
+            this.$nextTick(() => {
+                requestAnimationFrame(() => {
+                    createEditor()
+                })
             })
         },
 
         destroy() {
-            this._observer?.disconnect()
             this.editor?.destroy()
+            this.editor = null
         },
 
         toggleBold() { this.editor?.chain().focus().toggleBold().run() },

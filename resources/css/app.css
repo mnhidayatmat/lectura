@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 /* Tiptap Editor Styles */
+.tiptap-editable .ProseMirror { outline: none; min-height: 120px; padding: 0.5rem 0.75rem; }
 .tiptap-content .ProseMirror { outline: none; }
 .tiptap-content .ProseMirror h3 { font-size: 1.1rem; font-weight: 700; margin: 0.8em 0 0.4em; }
 .tiptap-content .ProseMirror h4 { font-size: 0.95rem; font-weight: 600; margin: 0.6em 0 0.3em; }
