@@ -13,16 +13,6 @@ export default function tiptapEditor(initialContent = '') {
         content: initialContent,
 
         init() {
-            // Convert plain text to HTML paragraphs so tiptap can process it.
-            // Plain text without <p> tags creates a broken ProseMirror document
-            // where formatting commands silently fail.
-            if (this.content && !this.content.includes('<')) {
-                this.content = this.content
-                    .split(/\r?\n\r?\n/)
-                    .map(block => '<p>' + block.replace(/\r?\n/g, '<br>') + '</p>')
-                    .join('')
-            }
-
             this._ensureEditor()
         },
 
