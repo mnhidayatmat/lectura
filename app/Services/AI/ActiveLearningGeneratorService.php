@@ -65,79 +65,67 @@ class ActiveLearningGeneratorService
 
         $studentSection = '';
         if ($studentCount > 0) {
-            $studentSection = "\nNumber of Students: {$studentCount} (design group sizes appropriate for this class size)";
+            $studentSection = "\nNumber of Students: {$studentCount}";
         }
+
+        $focusInstructions = match ($contentFocus) {
+            'case_study' => 'CASE STUDIES — every core activity must be a realistic scenario that forces students to apply the extracted concepts to diagnose, analyse, or solve a situation',
+            'technical_problem' => 'TECHNICAL PROBLEMS — every core activity must be a concrete problem with specific data/numbers/code that students must solve using the extracted concepts',
+            'mixed' => 'MIXED — include at least one case study AND one technical problem, both derived from the lecture concepts',
+            default => 'GENERAL — design activities that engage students with the lecture content',
+        };
 
         $lectureSection = '';
         if ($lectureNotesText) {
             $lectureSection = "
 
-=== LECTURE CONTENT (ANALYZE DEEPLY) ===
-The following is the actual lecture content for this session. You MUST:
-1. Extract the key technical concepts, theories, formulas, definitions, and factual content
-2. Use THIS SPECIFIC content to create activities — do NOT invent unrelated topics
-3. Reference specific terms, examples, data, and concepts from this material
-4. Every activity instruction must demonstrate deep understanding of this content
-
+=== LECTURE SLIDE CONTENT ===
 {$lectureNotesText}
-=== END LECTURE CONTENT ===";
+=== END LECTURE SLIDE CONTENT ===";
         }
 
-        $focusInstructions = match ($contentFocus) {
-            'case_study' => "
-CONTENT FOCUS: CASE STUDIES
-- Every core activity MUST include a realistic case study narrative (minimum 3-4 sentences describing a specific scenario, organisation, or situation) derived from the lecture content above
-- The scenario must use real concepts, data, or principles from the lecture — not generic situations
-- Students should analyse the case and answer specific questions about it
-- Include clear deliverables: what exactly should the group produce?",
-            'technical_problem' => "
-CONTENT FOCUS: TECHNICAL PROBLEMS
-- Every core activity MUST include a concrete technical problem with specific numbers, data, formulas, or code derived from the lecture content above
-- Include the exact problem statement students must solve with all data provided
-- Where appropriate, specify the expected form of the answer (calculation, diagram, code, written analysis)
-- Problems must require applying concepts taught in the lecture, not just recall",
-            'mixed' => "
-CONTENT FOCUS: MIXED (Case Studies + Technical Problems)
-- Include at least one case study activity (realistic scenario with narrative) AND at least one technical problem-solving activity
-- Case studies must include a full narrative scenario with specific details from the lecture content
-- Technical problems must include concrete data/numbers/specifications that students work through
-- Both types must be derived from the lecture content — not generic exercises",
-            default => "
-CONTENT FOCUS: GENERAL
-- Design activities that engage students with the lecture content
-- Include practical application where possible",
-        };
-
-        return "You are an expert instructional designer. Your job is to create CONTENT-RICH active learning activities that are deeply tailored to the specific lecture material provided.
+        return "You are an expert instructional designer. You will receive lecture slide content below. Your task has TWO phases.
 
 Course: {$course->code} - {$course->title}
-Week: {$plan->week_number}
-Topic: {$topic}
-Duration: {$plan->duration_minutes} minutes
-Teaching Mode: {$mode}{$studentSection}
-
-Course Learning Outcomes:
+Week: {$plan->week_number}, Topic: {$topic}
+Duration: {$plan->duration_minutes} minutes, Teaching Mode: {$mode}{$studentSection}
+CLOs:
 {$clos}{$lectureSection}
-{$focusInstructions}
 
-ACTIVITY DESIGN REQUIREMENTS:
-- Sequence: opener (recall/engage) → core activities (case study/problem-solving) → consolidation (reflect/synthesise)
-- Include at least one individual and one collaborative activity
-- Total durations must not exceed {$plan->duration_minutes} minutes
-- The 'instructions' field is what students see — write COMPLETE student-facing content:
-  * For case studies: the full scenario narrative, all questions, and expected deliverables
-  * For technical problems: the complete problem statement with all data needed to solve it
-  * For reflections: specific prompts tied to the lecture content
-- Do NOT write vague instructions like \"discuss the topic\" or \"solve practice problems\"
-- Every instruction must reference specific concepts from the lecture content
+────────────────────────────────────────
+PHASE 1 — CONTENT EXTRACTION (do this internally, do not output)
+────────────────────────────────────────
+Before generating activities, you MUST first internally identify:
+- Every specific concept, definition, theory, model, or framework in the lecture
+- Every formula, equation, algorithm, or method shown
+- Every example, diagram description, or data set mentioned
+- Every technical term introduced or explained
+- The logical flow: what builds on what
 
-Respond ONLY with a JSON array:
+────────────────────────────────────────
+PHASE 2 — ACTIVITY GENERATION (output this)
+────────────────────────────────────────
+Content Focus: {$focusInstructions}
+
+CRITICAL RULES:
+1. Students have ALREADY studied these slides in advance. Activities must test and deepen their understanding — NOT re-teach the content.
+2. Every activity instruction MUST use SPECIFIC terms, concepts, formulas, examples, or data FROM the lecture slides. Quote or reference them directly.
+3. Case studies: invent a realistic scenario (company, project, situation) where the EXACT concepts from the slides apply. The scenario must be detailed enough that students cannot solve it without having studied the lecture. Include specific questions that map to specific slide concepts.
+4. Technical problems: use the EXACT formulas, methods, or techniques from the slides. Provide concrete data and ask students to apply the method step-by-step. If the lecture shows a formula, the problem must require using that formula with new numbers.
+5. NEVER write generic instructions like \"discuss the topic\", \"apply the concepts\", or \"solve practice problems\". Every instruction must name the specific concept being applied.
+6. The opener should test whether students actually read the slides (e.g., ask them to explain a specific definition or reproduce a specific diagram from memory).
+7. The consolidation should ask students to connect multiple concepts from the lecture, not just recall one.
+
+Activity sequence: opener (5-10 min) → core activities → consolidation (5-10 min)
+Total duration must not exceed {$plan->duration_minutes} minutes.
+
+Respond ONLY with a JSON array (no other text):
 [
   {
     \"title\": \"...\",
     \"type\": \"individual|pair|group|discussion|reflection|whole_class\",
-    \"description\": \"Brief 1-2 sentence summary of the activity\",
-    \"instructions\": \"FULL student-facing content. Include complete case narratives, problem statements with data, specific questions. Use numbered lists and line breaks for clarity.\",
+    \"description\": \"1-2 sentence summary\",
+    \"instructions\": \"FULL student-facing content with specific references to lecture concepts. For case studies: complete scenario narrative + numbered questions. For problems: complete problem statement with all data.\",
     \"duration_minutes\": 15,
     \"clo_codes\": [\"CLO1\"],
     \"grouping_strategy\": \"random|manual|null\",
@@ -147,8 +135,8 @@ Respond ONLY with a JSON array:
     \"content_meta\": {
       \"content_focus\": \"case_study|technical_problem|general\",
       \"difficulty\": \"introductory|intermediate|advanced\",
-      \"expected_outcomes\": [\"What students should be able to do after this activity\"],
-      \"key_concepts\": [\"concept1\", \"concept2\"]
+      \"expected_outcomes\": [\"Specific outcome tied to lecture concept\"],
+      \"key_concepts\": [\"exact_term_from_slides\"]
     }
   }
 ]";
