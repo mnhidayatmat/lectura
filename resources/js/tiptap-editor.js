@@ -47,10 +47,11 @@ export default function tiptapEditor(initialContent = '') {
                 })
             }
 
+            // Use setTimeout(0) instead of requestAnimationFrame.
+            // rAF never fires for elements inside display:none parents.
+            // setTimeout(0) is guaranteed to fire regardless of visibility.
             this.$nextTick(() => {
-                requestAnimationFrame(() => {
-                    createEditor()
-                })
+                setTimeout(createEditor, 0)
             })
         },
 
