@@ -11,8 +11,30 @@ export default function tiptapEditor(initialContent = '') {
     return {
         editor: null,
         content: initialContent,
+        _initialized: false,
 
         init() {
+            // Defer initialization — watch for visibility via $nextTick + MutationObserver
+            this._tryInit()
+
+            // Also watch for when a parent x-show reveals us
+            const observer = new MutationObserver(() => this._tryInit())
+            observer.observe(this.$refs.editorContent.closest('[x-data]') || this.$el, {
+                attributes: true,
+                attributeFilter: ['style'],
+                subtree: true,
+            })
+            this._observer = observer
+        },
+
+        _tryInit() {
+            if (this._initialized) return
+            // Only init when the editor element is visible (offsetParent !== null)
+            if (!this.$refs.editorContent || this.$refs.editorContent.offsetParent === null) return
+
+            this._initialized = true
+            this._observer?.disconnect()
+
             this.editor = new Editor({
                 element: this.$refs.editorContent,
                 extensions: [
@@ -41,14 +63,15 @@ export default function tiptapEditor(initialContent = '') {
         },
 
         destroy() {
+            this._observer?.disconnect()
             this.editor?.destroy()
         },
 
-        // Toolbar actions
-        toggleBold() { this.editor.chain().focus().toggleBold().run() },
-        toggleItalic() { this.editor.chain().focus().toggleItalic().run() },
-        toggleUnderline() { this.editor.chain().focus().toggleUnderline().run() },
-        toggleStrike() { this.editor.chain().focus().toggleStrike().run() },
+        // Toolbar actions (each ensures editor is initialized first)
+        toggleBold() { this._tryInit(); this.editor?.chain().focus().toggleBold().run() },
+        toggleItalic() { this._tryInit(); this.editor?.chain().focus().toggleItalic().run() },
+        toggleUnderline() { this._tryInit(); this.editor?.chain().focus().toggleUnderline().run() },
+        toggleStrike() { this._tryInit(); this.editor?.chain().focus().toggleStrike().run() },
         toggleHeading(level) { this.editor.chain().focus().toggleHeading({ level }).run() },
         toggleBulletList() { this.editor.chain().focus().toggleBulletList().run() },
         toggleOrderedList() { this.editor.chain().focus().toggleOrderedList().run() },

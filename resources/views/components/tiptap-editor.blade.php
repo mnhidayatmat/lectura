@@ -1,6 +1,6 @@
 @props(['name', 'content' => ''])
 
-<div x-data="tiptapEditor(@js($content))" x-init="init()" x-on:destroy.window="destroy()" class="tiptap-content rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800">
+<div x-data="tiptapEditor(@js($content))" x-init="init(); $nextTick(() => _tryInit())" x-on:destroy.window="destroy()" x-effect="$el.offsetParent !== null && $nextTick(() => _tryInit())" class="tiptap-content rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800">
     {{-- Toolbar --}}
     <div class="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
         {{-- Text formatting --}}
