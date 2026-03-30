@@ -314,6 +314,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/quizzes/{session}/results', [QuizController::class, 'results'])->name('tenant.quizzes.results');
         Route::get('/quizzes/{session}/edit', [QuizController::class, 'edit'])->name('tenant.quizzes.edit');
         Route::put('/quizzes/{session}', [QuizController::class, 'update'])->name('tenant.quizzes.update');
+        Route::post('/quizzes/{session}/replay', [QuizController::class, 'replay'])->name('tenant.quizzes.replay');
         Route::delete('/quizzes/{session}', [QuizController::class, 'destroy'])->name('tenant.quizzes.destroy');
         Route::get('/quizzes/{session}/state', [QuizController::class, 'state'])->name('tenant.quizzes.state');
         // Student quiz

@@ -377,6 +377,65 @@ class QuizController extends Controller
     }
 
     /**
+     * Replay a quiz — create a new session with the same questions.
+     */
+    public function replay(string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+        $session->load('sessionQuestions.question.options');
+
+        $newSession = QuizSession::create([
+            'tenant_id'   => $tenant->id,
+            'section_id'  => $session->section_id,
+            'lecturer_id' => auth()->id(),
+            'title'       => $session->title,
+            'mode'        => $session->mode,
+            'is_anonymous' => $session->is_anonymous,
+            'status'      => 'waiting',
+        ]);
+
+        foreach ($session->sessionQuestions as $sq) {
+            $oldQ = $sq->question;
+
+            $newQ = Question::create([
+                'tenant_id'          => $tenant->id,
+                'created_by'         => auth()->id(),
+                'question_type'      => $oldQ->question_type,
+                'text'               => $oldQ->text,
+                'explanation'        => $oldQ->explanation,
+                'time_limit_seconds' => $oldQ->time_limit_seconds,
+                'points'             => $oldQ->points,
+                'is_bank'            => true,
+            ]);
+
+            foreach ($oldQ->options as $opt) {
+                QuestionOption::create([
+                    'question_id' => $newQ->id,
+                    'label'       => $opt->label,
+                    'text'        => $opt->text,
+                    'is_correct'  => $opt->is_correct,
+                    'sort_order'  => $opt->sort_order,
+                ]);
+            }
+
+            QuizSessionQuestion::create([
+                'quiz_session_id' => $newSession->id,
+                'question_id'     => $newQ->id,
+                'sort_order'      => $sq->sort_order,
+            ]);
+        }
+
+        return redirect()->route('tenant.quizzes.control', [
+            'tenant'  => $tenant->slug,
+            'session' => $newSession->id,
+        ])->with('success', 'Quiz replayed — new session created with the same questions.');
+    }
+
+    /**
      * Results page.
      */
     public function results(string $tenantSlug, QuizSession $session): View
