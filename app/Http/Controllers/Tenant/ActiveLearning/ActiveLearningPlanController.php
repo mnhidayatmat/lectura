@@ -266,12 +266,33 @@ class ActiveLearningPlanController extends Controller
 
         $plan->update([
             'source' => 'ai_generated',
-            'ai_generation_status' => 'pending',
+            'ai_generation_status' => 'processing',
         ]);
 
-        GenerateActiveLearningPlan::dispatch($plan, $lectureNotes ?: null, $studentCount);
+        try {
+            app(\App\Services\AI\AiServiceManager::class)->resetProvider();
+            app(\App\Services\AI\ActiveLearningGeneratorService::class)
+                ->generate($plan, $lectureNotes ?: null, $studentCount);
 
-        return back()->with('success', __('active_learning.ai_generation_started'));
+            $plan->update([
+                'ai_generation_status' => 'draft_review',
+                'ai_generated_at' => now(),
+                'ai_prompt_summary' => mb_substr($lectureNotes ?: 'Generated from topic and CLOs', 0, 500),
+            ]);
+
+            $activityCount = $plan->activities()->where('ai_generated', true)->count();
+
+            return back()->with('success', "AI generated {$activityCount} activities. Review them below and accept or adjust.");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Active learning AI generation failed', [
+                'plan_id' => $plan->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $plan->update(['ai_generation_status' => 'failed']);
+
+            return back()->withErrors(['ai' => 'AI generation failed: ' . $e->getMessage()]);
+        }
     }
 
     public function acceptAiDraft(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse

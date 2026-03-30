@@ -44,18 +44,15 @@
     </x-slot>
 
     <div class="space-y-6" x-data="activeLearningBuilder()" x-init="init()">
-        {{-- AI Generation Status Banner --}}
-        @if($plan->ai_generation_status === 'processing')
-            <div class="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center gap-3"
-                 x-data="aiPoller('{{ route('tenant.active-learning.generation-status', [app('current_tenant')->slug, $course, $plan]) }}')"
-                 x-init="startPolling()">
-                <svg class="w-5 h-5 text-teal-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <span class="text-sm font-medium text-teal-800">{{ __('active_learning.ai_processing') }}</span>
+        @error('ai')
+            <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="text-sm font-medium text-red-800">{{ $message }}</span>
             </div>
-        @elseif($plan->isAiDraftReview())
+        @enderror
+
+        {{-- AI Generation Status Banner --}}
+        @if($plan->isAiDraftReview())
             <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
                 <div class="flex items-start gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -89,11 +86,6 @@
                         </button>
                     </form>
                 </div>
-            </div>
-        @elseif($plan->ai_generation_status === 'failed')
-            <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
-                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span class="text-sm font-medium text-red-800">{{ __('active_learning.ai_failed') }}</span>
             </div>
         @endif
 
@@ -673,23 +665,5 @@
             }
         }
 
-        function aiPoller(url) {
-            return {
-                startPolling() {
-                    const interval = setInterval(async () => {
-                        try {
-                            const res = await fetch(url);
-                            const data = await res.json();
-                            if (data.status === 'completed' || data.status === 'draft_review' || data.status === 'failed') {
-                                clearInterval(interval);
-                                window.location.reload();
-                            }
-                        } catch (e) {
-                            clearInterval(interval);
-                        }
-                    }, 3000);
-                }
-            }
-        }
     </script>
 </x-tenant-layout>
