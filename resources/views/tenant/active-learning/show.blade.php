@@ -133,6 +133,19 @@
                                         </div>
                                     @endif
 
+                                    @if($activity->solution)
+                                        <div class="bg-amber-50 rounded-xl p-4 mb-3 border border-amber-200" x-data="{ showSolution: false }">
+                                            <button @click="showSolution = !showSolution" class="flex items-center gap-2 w-full text-left">
+                                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                <h5 class="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">Working Solution</h5>
+                                                <svg class="w-3.5 h-3.5 text-amber-500 transition-transform ml-auto" :class="showSolution && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            </button>
+                                            <div x-show="showSolution" x-cloak x-transition class="mt-2 pt-2 border-t border-amber-200">
+                                                <div class="prose prose-sm prose-slate max-w-none text-amber-900">{!! clean_html($activity->solution) !!}</div>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     @if(! empty($activity->content_meta['expected_outcomes']))
                                         <div class="mb-3">
                                             <h5 class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Expected Outcomes</h5>

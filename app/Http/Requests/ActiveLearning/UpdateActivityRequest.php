@@ -24,6 +24,7 @@ class UpdateActivityRequest extends FormRequest
             'type' => ['required', Rule::in(ActiveLearningActivity::TYPES)],
             'description' => ['nullable', 'string', 'max:5000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
+            'solution' => ['nullable', 'string', 'max:10000'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:480'],
             'clo_ids' => ['nullable', 'array'],
             'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],

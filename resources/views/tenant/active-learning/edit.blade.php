@@ -190,6 +190,20 @@
                                 </div>
                             @endif
 
+                            {{-- Working Solution (collapsed by default) --}}
+                            @if($activity->solution)
+                                <div class="bg-amber-50 rounded-lg p-3 border border-amber-200" x-data="{ showSolution: false }">
+                                    <button @click="showSolution = !showSolution" class="flex items-center gap-2 w-full text-left">
+                                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <h5 class="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">Working Solution</h5>
+                                        <svg class="w-3 h-3 text-amber-500 transition-transform ml-auto" :class="showSolution && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </button>
+                                    <div x-show="showSolution" x-cloak x-transition class="mt-2 pt-2 border-t border-amber-200">
+                                        <div class="prose prose-sm prose-slate max-w-none text-amber-900">{!! clean_html($activity->solution) !!}</div>
+                                    </div>
+                                </div>
+                            @endif
+
                             {{-- Expected Outcomes --}}
                             @if(! empty($activity->content_meta['expected_outcomes']))
                                 <div>
@@ -330,6 +344,17 @@
                                         <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
                                         <x-tiptap-editor name="instructions" :content="$activity->instructions ?? ''" />
                                     </div>
+                                    <div x-data="{ showSolution: {{ $activity->solution ? 'true' : 'false' }} }">
+                                        <button type="button" @click="showSolution = !showSolution" class="text-xs font-medium text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span x-text="showSolution ? 'Hide Solution' : 'Add Working Solution (optional)'"></span>
+                                        </button>
+                                        <div x-show="showSolution" x-cloak x-transition class="mt-2">
+                                            <label class="text-xs font-medium text-amber-600 mb-1 block">Working Solution / Model Answer</label>
+                                            <textarea name="solution" rows="5" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-amber-50/50 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Enter the working solution or model answer for this activity...">{{ $activity->solution ?? '' }}</textarea>
+                                            <p class="text-[10px] text-slate-400 mt-1">Only visible to lecturers — students will not see this.</p>
+                                        </div>
+                                    </div>
                                     <div class="grid sm:grid-cols-2 gap-3">
                                         <div>
                                             <label class="text-xs font-medium text-slate-500">{{ __('active_learning.duration') }}</label>
@@ -450,6 +475,17 @@
                             <div>
                                 <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
                                 <x-tiptap-editor name="instructions" :content="''" />
+                            </div>
+                            <div x-data="{ showSolution: false }">
+                                <button type="button" @click="showSolution = !showSolution" class="text-xs font-medium text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    <span x-text="showSolution ? 'Hide Solution' : 'Add Working Solution (optional)'"></span>
+                                </button>
+                                <div x-show="showSolution" x-cloak x-transition class="mt-2">
+                                    <label class="text-xs font-medium text-amber-600 mb-1 block">Working Solution / Model Answer</label>
+                                    <textarea name="solution" rows="5" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-amber-50/50 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Enter the working solution or model answer for this activity..."></textarea>
+                                    <p class="text-[10px] text-slate-400 mt-1">Only visible to lecturers — students will not see this.</p>
+                                </div>
                             </div>
                             <div class="grid sm:grid-cols-3 gap-4">
                                 <div>

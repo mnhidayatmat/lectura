@@ -21,6 +21,7 @@ class ActivityService
             'type' => $data['type'],
             'description' => $data['description'] ?? null,
             'instructions' => $data['instructions'] ?? null,
+            'solution' => $data['solution'] ?? null,
             'duration_minutes' => $data['duration_minutes'] ?? null,
             'clo_ids' => $data['clo_ids'] ?? null,
             'materials' => $data['materials'] ?? null,
@@ -54,6 +55,11 @@ class ActivityService
             'response_type' => $data['response_type'] ?? null,
             'poll_config' => $this->buildPollConfig($data),
         ], fn ($v) => $v !== null);
+
+        // Allow clearing the solution field (empty string → null)
+        if (array_key_exists('solution', $data)) {
+            $updateData['solution'] = $data['solution'] ?: null;
+        }
 
         // Always update content_meta when expected_outcomes is provided
         if (array_key_exists('expected_outcomes', $data)) {

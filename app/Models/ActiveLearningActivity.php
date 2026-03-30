@@ -12,7 +12,7 @@ class ActiveLearningActivity extends Model
 {
     protected $fillable = [
         'active_learning_plan_id', 'sort_order', 'title', 'type',
-        'description', 'instructions', 'duration_minutes',
+        'description', 'instructions', 'solution', 'duration_minutes',
         'clo_ids', 'materials', 'grouping_strategy',
         'max_group_size', 'response_mode', 'response_type',
         'poll_config', 'content_meta', 'ai_generated',
