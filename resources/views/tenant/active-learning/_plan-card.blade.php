@@ -32,9 +32,9 @@
             </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0 opacity-60 group-hover:opacity-100 transition">
-            @if($plan->status === 'draft')
+            @if($plan->status !== 'archived')
                 <a href="{{ route('tenant.active-learning.edit', [app('current_tenant')->slug, $course, $plan]) }}" class="px-3.5 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition">
-                    {{ __('active_learning.build') }}
+                    {{ $plan->status === 'published' ? __('active_learning.edit') : __('active_learning.build') }}
                 </a>
             @endif
             <a href="{{ route('tenant.active-learning.show', [app('current_tenant')->slug, $course, $plan]) }}" class="px-3.5 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition">

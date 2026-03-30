@@ -258,7 +258,7 @@
                             @endif
 
                             {{-- Group Arrangement (for group/pair type, when editing) --}}
-                            @if($activity->isGrouped() && $plan->isDraft())
+                            @if($activity->isGrouped())
                                 <div class="border-t border-slate-100 pt-4" x-data="{ showGroupForm: false }">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <button @click="showGroupForm = !showGroupForm" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">
@@ -304,19 +304,17 @@
                             @endif
 
                             {{-- Edit / Delete buttons --}}
-                            @if($plan->isDraft())
-                                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-                                    <button @click="editing = !editing" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">
-                                        {{ __('active_learning.edit') }}
+                            <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                <button @click="editing = !editing" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+                                    {{ __('active_learning.edit') }}
+                                </button>
+                                <form method="POST" action="{{ route('tenant.active-learning.activities.destroy', [app('current_tenant')->slug, $course, $plan, $activity]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" onclick="return confirm('{{ __('active_learning.confirm_delete_activity') }}')" class="text-xs font-medium text-red-600 hover:text-red-700">
+                                        {{ __('active_learning.delete') }}
                                     </button>
-                                    <form method="POST" action="{{ route('tenant.active-learning.activities.destroy', [app('current_tenant')->slug, $course, $plan, $activity]) }}" class="inline">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" onclick="return confirm('{{ __('active_learning.confirm_delete_activity') }}')" class="text-xs font-medium text-red-600 hover:text-red-700">
-                                            {{ __('active_learning.delete') }}
-                                        </button>
-                                    </form>
-                                </div>
-                            @endif
+                                </form>
+                            </div>
 
                             {{-- Inline Edit Form --}}
                             <div x-show="editing" x-cloak x-transition class="border-t border-slate-100 pt-4">
@@ -444,7 +442,6 @@
             </div>
 
             {{-- Add Activity Form --}}
-            @if($plan->isDraft())
                 <div class="border-t border-slate-100 p-6" x-data="{ showForm: false }">
                     <button @click="showForm = !showForm" class="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -579,7 +576,6 @@
                         </form>
                     </div>
                 </div>
-            @endif
         </div>
 
         {{-- Delete Plan --}}
