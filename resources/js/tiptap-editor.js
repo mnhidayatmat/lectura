@@ -13,14 +13,17 @@ export default function tiptapEditor(initialContent = '') {
         content: initialContent,
 
         init() {
-            // Wait for Alpine to finish processing refs, then create editor.
-            // ProseMirror attaches to DOM elements even if parent is display:none.
-            // The min-h CSS ensures correct sizing once the element becomes visible.
-            const createEditor = () => {
-                const el = this.$refs.editorContent
-                if (!el || this.editor) return
+            const component = this
+            const el = component.$refs.editorContent
 
-                this.editor = new Editor({
+            if (!el) return
+
+            // Create editor after a microtask to ensure DOM is settled.
+            // Capture refs and context now while Alpine magics are available.
+            Promise.resolve().then(() => {
+                if (component.editor) return
+
+                component.editor = new Editor({
                     element: el,
                     extensions: [
                         StarterKit.configure({
@@ -35,23 +38,16 @@ export default function tiptapEditor(initialContent = '') {
                         TableCell,
                         TableHeader,
                     ],
-                    content: this.content,
+                    content: component.content,
                     editorProps: {
                         attributes: {
                             class: 'focus:outline-none min-h-[120px] px-3 py-2',
                         },
                     },
                     onUpdate: ({ editor }) => {
-                        this.content = editor.getHTML()
+                        component.content = editor.getHTML()
                     },
                 })
-            }
-
-            // Use setTimeout(0) instead of requestAnimationFrame.
-            // rAF never fires for elements inside display:none parents.
-            // setTimeout(0) is guaranteed to fire regardless of visibility.
-            this.$nextTick(() => {
-                setTimeout(createEditor, 0)
             })
         },
 
