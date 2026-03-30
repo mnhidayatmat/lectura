@@ -6,6 +6,10 @@
 .tiptap-editable .ProseMirror { outline: none; min-height: 120px; padding: 0.5rem 0.75rem; }
 .tiptap-editable .ProseMirror .selectedCell { background: #dbeafe; }
 
+/* Empty <p></p> spacers from the editor must render with visible height in both edit and view */
+.prose p:empty { min-height: 1em; }
+.prose p:has(> br:only-child) { min-height: 1em; }
+
 /*
  * Lectura Dark Mode — "Dimmed" Palette
  * Inspired by GitHub Dark Dimmed / Linear / Notion
