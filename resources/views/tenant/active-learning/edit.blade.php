@@ -381,6 +381,19 @@
                                             </div>
                                         </template>
                                     </div>
+                                    {{-- Expected Outcomes --}}
+                                    <div x-data="{ outcomes: {{ json_encode($activity->content_meta['expected_outcomes'] ?? []) }} }">
+                                        <label class="text-xs font-medium text-slate-500 mb-1 block">Expected Outcomes</label>
+                                        <template x-for="(outcome, oi) in outcomes" :key="oi">
+                                            <div class="flex items-center gap-2 mb-1.5">
+                                                <input type="text" :name="'expected_outcomes[' + oi + ']'" x-model="outcomes[oi]" placeholder="e.g. Students can apply..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-sm" />
+                                                <button type="button" @click="outcomes.splice(oi, 1)" class="p-1 text-slate-400 hover:text-red-500">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <button type="button" @click="outcomes.push('')" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ Add outcome</button>
+                                    </div>
                                     {{-- CLO multi-select --}}
                                     <div>
                                         <label class="text-xs font-medium text-slate-500">{{ __('active_learning.clos') }}</label>
@@ -498,6 +511,19 @@
                                         </div>
                                     </div>
                                 </template>
+                            </div>
+                            {{-- Expected Outcomes --}}
+                            <div x-data="{ outcomes: [''] }">
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">Expected Outcomes</label>
+                                <template x-for="(outcome, oi) in outcomes" :key="oi">
+                                    <div class="flex items-center gap-2 mb-1.5">
+                                        <input type="text" :name="'expected_outcomes[' + oi + ']'" x-model="outcomes[oi]" placeholder="e.g. Students can apply..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-sm" />
+                                        <button type="button" @click="outcomes.splice(oi, 1)" class="p-1 text-slate-400 hover:text-red-500" x-show="outcomes.length > 1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                                <button type="button" @click="outcomes.push('')" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ Add outcome</button>
                             </div>
                             {{-- CLO checkboxes --}}
                             @if($course->learningOutcomes->isNotEmpty())

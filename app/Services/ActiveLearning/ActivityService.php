@@ -29,6 +29,7 @@ class ActivityService
             'response_mode' => $data['response_mode'] ?? 'individual',
             'response_type' => $data['response_type'] ?? 'none',
             'poll_config' => $this->buildPollConfig($data),
+            'content_meta' => $this->buildContentMeta($data),
             'ai_generated' => $data['ai_generated'] ?? false,
         ]);
 
@@ -39,7 +40,7 @@ class ActivityService
 
     public function updateActivity(ActiveLearningActivity $activity, array $data): ActiveLearningActivity
     {
-        $activity->update(array_filter([
+        $updateData = array_filter([
             'title' => $data['title'] ?? null,
             'type' => $data['type'] ?? null,
             'description' => $data['description'] ?? null,
@@ -52,7 +53,14 @@ class ActivityService
             'response_mode' => $data['response_mode'] ?? null,
             'response_type' => $data['response_type'] ?? null,
             'poll_config' => $this->buildPollConfig($data),
-        ], fn ($v) => $v !== null));
+        ], fn ($v) => $v !== null);
+
+        // Always update content_meta when expected_outcomes is provided
+        if (array_key_exists('expected_outcomes', $data)) {
+            $updateData['content_meta'] = $this->buildContentMeta($data, $activity->content_meta);
+        }
+
+        $activity->update($updateData);
 
         if (isset($data['poll_options'])) {
             $this->syncPollOptions($activity, $data['poll_options']);
@@ -72,6 +80,20 @@ class ActivityService
         ActiveLearningActivity::where('active_learning_plan_id', $planId)
             ->where('sort_order', '>', $sortOrder)
             ->decrement('sort_order');
+    }
+
+    protected function buildContentMeta(array $data, ?array $existing = null): ?array
+    {
+        $outcomes = array_values(array_filter($data['expected_outcomes'] ?? []));
+        $meta = $existing ?? [];
+
+        if (! empty($outcomes)) {
+            $meta['expected_outcomes'] = $outcomes;
+        } else {
+            unset($meta['expected_outcomes']);
+        }
+
+        return ! empty($meta) ? $meta : null;
     }
 
     protected function buildPollConfig(array $data): ?array

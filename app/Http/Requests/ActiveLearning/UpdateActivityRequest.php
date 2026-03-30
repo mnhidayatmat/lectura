@@ -35,6 +35,8 @@ class UpdateActivityRequest extends FormRequest
             'poll_options.*' => ['required', 'string', 'max:255'],
             'poll_multi_select' => ['nullable', 'boolean'],
             'poll_show_results' => ['nullable', 'boolean'],
+            'expected_outcomes' => ['nullable', 'array', 'max:10'],
+            'expected_outcomes.*' => ['nullable', 'string', 'max:500'],
         ];
     }
 }
