@@ -120,6 +120,12 @@
                                 </div>
                             @endforeach
                         </div>
+                        @if($q->explanation)
+                            <div class="mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                                <p class="text-xs font-semibold text-amber-700 mb-0.5">Explanation</p>
+                                <p class="text-xs text-amber-800">{{ $q->explanation }}</p>
+                            </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

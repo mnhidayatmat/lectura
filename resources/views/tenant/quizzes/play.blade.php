@@ -57,6 +57,12 @@
                      :class="lastCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
                      x-text="lastCorrect ? 'Correct! +' + lastPoints + ' pts' : 'Incorrect'">
                 </div>
+
+                {{-- Explanation --}}
+                <div x-show="answered && explanation" x-cloak class="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <p class="text-xs font-semibold text-amber-700 mb-1">Explanation</p>
+                    <p class="text-sm text-amber-800" x-text="explanation"></p>
+                </div>
             </div>
         </div>
 
@@ -81,6 +87,7 @@
                 selectedId: null,
                 lastCorrect: null,
                 lastPoints: 0,
+                explanation: null,
                 score: 0,
                 polling: null,
 
@@ -102,6 +109,7 @@
                             this.answered = data.answered;
                             this.selectedId = null;
                             this.lastCorrect = null;
+                            this.explanation = null;
                         }
 
                         if (data.status === 'ended') {
@@ -128,6 +136,7 @@
                         this.answered = true;
                         this.lastCorrect = data.is_correct;
                         this.lastPoints = data.points_earned || 0;
+                        this.explanation = data.explanation || null;
                         this.score = parseFloat(this.score) + parseFloat(this.lastPoints);
                         window._quizScore = this.score;
                     } catch (e) {

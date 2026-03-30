@@ -81,6 +81,7 @@ class QuizController extends Controller
             'questions.*.points' => ['nullable', 'numeric', 'min:0'],
             'questions.*.options' => ['nullable', 'array'],
             'questions.*.options.*.text' => ['required_with:questions.*.options', 'string'],
+            'questions.*.explanation' => ['nullable', 'string', 'max:1000'],
             'questions.*.options.*.is_correct' => ['nullable', 'boolean'],
         ]);
 
@@ -102,6 +103,7 @@ class QuizController extends Controller
                 'created_by' => auth()->id(),
                 'question_type' => $qData['type'],
                 'text' => $qData['text'],
+                'explanation' => $qData['explanation'] ?? null,
                 'time_limit_seconds' => $qData['time_limit'] ?? 30,
                 'points' => $qData['points'] ?? 1,
                 'is_bank' => true,
@@ -389,6 +391,7 @@ class QuizController extends Controller
             'message' => 'Answer submitted.',
             'is_correct' => $isCorrect,
             'points_earned' => $points,
+            'explanation' => $question->explanation,
         ]);
     }
 

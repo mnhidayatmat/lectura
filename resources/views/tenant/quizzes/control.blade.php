@@ -90,6 +90,13 @@
                 <div class="p-6">
                     <p class="text-lg font-semibold text-slate-900 mb-6">{{ $q->text }}</p>
 
+                    @if($q->explanation)
+                        <div class="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                            <p class="text-xs font-semibold text-amber-700 mb-1">Explanation</p>
+                            <p class="text-sm text-amber-800">{{ $q->explanation }}</p>
+                        </div>
+                    @endif
+
                     {{-- Answer distribution --}}
                     <div class="space-y-3">
                         @foreach($q->options as $opt)

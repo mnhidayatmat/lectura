@@ -92,6 +92,11 @@
                             </div>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="text-xs text-slate-500">Explanation / Remark (shown after answering)</label>
+                            <textarea :name="'questions['+qi+'][explanation]'" x-model="q.explanation" rows="2" placeholder="Explain why the correct answer is correct..." class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+
                         {{-- Options --}}
                         <div class="space-y-2">
                             <template x-for="(opt, oi) in q.options" :key="oi">
@@ -141,7 +146,7 @@
                     } else {
                         options = labels.map((l, i) => ({ label: l, text: '', is_correct: i === 0 }));
                     }
-                    this.questions.push({ type, text: '', time_limit: 30, points: 1, options });
+                    this.questions.push({ type, text: '', time_limit: 30, points: 1, explanation: '', options });
                 },
                 addOption(qi) {
                     const next = String.fromCharCode(65 + this.questions[qi].options.length);
