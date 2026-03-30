@@ -6,6 +6,8 @@ use Illuminate\Mail\MailManager;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport;
 
+require_once app_path('helpers.php');
+
 class AppServiceProvider extends ServiceProvider
 {
     /**

@@ -186,7 +186,7 @@
                             @if($activity->instructions)
                                 <div>
                                     <h5 class="text-xs font-semibold text-slate-500 uppercase mb-1">{{ __('active_learning.instructions') }}</h5>
-                                    <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3">{!! nl2br(e($activity->instructions)) !!}</div>
+                                    <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 rich-instructions">{!! clean_html($activity->instructions) !!}</div>
                                 </div>
                             @endif
 
@@ -327,8 +327,8 @@
                                         <textarea name="description" rows="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm">{{ $activity->description }}</textarea>
                                     </div>
                                     <div>
-                                        <label class="text-xs font-medium text-slate-500">{{ __('active_learning.instructions') }}</label>
-                                        <textarea name="instructions" rows="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm">{{ $activity->instructions }}</textarea>
+                                        <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
+                                        <x-tiptap-editor name="instructions" :content="$activity->instructions ?? ''" />
                                     </div>
                                     <div class="grid sm:grid-cols-2 gap-3">
                                         <div>

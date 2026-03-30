@@ -1,0 +1,73 @@
+import { Editor } from '@tiptap/core'
+import StarterKit from '@tiptap/starter-kit'
+import { Underline } from '@tiptap/extension-underline'
+import { TextAlign } from '@tiptap/extension-text-align'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableCell } from '@tiptap/extension-table-cell'
+import { TableHeader } from '@tiptap/extension-table-header'
+
+export default function tiptapEditor(initialContent = '') {
+    return {
+        editor: null,
+        content: initialContent,
+
+        init() {
+            this.editor = new Editor({
+                element: this.$refs.editorContent,
+                extensions: [
+                    StarterKit.configure({
+                        heading: { levels: [3, 4] },
+                    }),
+                    Underline,
+                    TextAlign.configure({
+                        types: ['heading', 'paragraph'],
+                    }),
+                    Table.configure({ resizable: false }),
+                    TableRow,
+                    TableCell,
+                    TableHeader,
+                ],
+                content: this.content,
+                editorProps: {
+                    attributes: {
+                        class: 'prose prose-sm max-w-none focus:outline-none min-h-[120px] px-3 py-2',
+                    },
+                },
+                onUpdate: ({ editor }) => {
+                    this.content = editor.getHTML()
+                },
+            })
+        },
+
+        destroy() {
+            this.editor?.destroy()
+        },
+
+        // Toolbar actions
+        toggleBold() { this.editor.chain().focus().toggleBold().run() },
+        toggleItalic() { this.editor.chain().focus().toggleItalic().run() },
+        toggleUnderline() { this.editor.chain().focus().toggleUnderline().run() },
+        toggleStrike() { this.editor.chain().focus().toggleStrike().run() },
+        toggleHeading(level) { this.editor.chain().focus().toggleHeading({ level }).run() },
+        toggleBulletList() { this.editor.chain().focus().toggleBulletList().run() },
+        toggleOrderedList() { this.editor.chain().focus().toggleOrderedList().run() },
+        setTextAlign(align) { this.editor.chain().focus().setTextAlign(align).run() },
+        toggleBlockquote() { this.editor.chain().focus().toggleBlockquote().run() },
+        setHorizontalRule() { this.editor.chain().focus().setHorizontalRule().run() },
+
+        insertTable() {
+            this.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+        },
+        addColumnAfter() { this.editor.chain().focus().addColumnAfter().run() },
+        addRowAfter() { this.editor.chain().focus().addRowAfter().run() },
+        deleteColumn() { this.editor.chain().focus().deleteColumn().run() },
+        deleteRow() { this.editor.chain().focus().deleteRow().run() },
+        deleteTable() { this.editor.chain().focus().deleteTable().run() },
+
+        // Active state checks
+        isActive(name, attrs = {}) {
+            return this.editor?.isActive(name, attrs) ?? false
+        },
+    }
+}

@@ -48,7 +48,7 @@
 
             {{-- Instructions --}}
             <div class="px-5 py-4 bg-indigo-50/50">
-                <p class="text-sm text-slate-700 whitespace-pre-line" x-text="state.current_activity?.instructions || state.current_activity?.description"></p>
+                <div class="text-sm text-slate-700 rich-instructions" x-html="state.current_activity?.instructions || state.current_activity?.description || ''"></div>
             </div>
 
             {{-- Response Area --}}
