@@ -8,4 +8,6 @@ window.Alpine = Alpine;
 window.QRCode = QRCode;
 window.tiptapEditor = tiptapEditor;
 
+Alpine.data('tiptapEditor', tiptapEditor);
+
 Alpine.start();

@@ -435,8 +435,8 @@
                                 <textarea name="description" rows="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
                             </div>
                             <div>
-                                <label class="text-xs font-medium text-slate-500">{{ __('active_learning.instructions') }}</label>
-                                <textarea name="instructions" rows="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="{{ __('active_learning.instructions_placeholder') }}"></textarea>
+                                <label class="text-xs font-medium text-slate-500 mb-1 block">{{ __('active_learning.instructions') }}</label>
+                                <x-tiptap-editor name="instructions" :content="''" />
                             </div>
                             <div class="grid sm:grid-cols-3 gap-4">
                                 <div>
