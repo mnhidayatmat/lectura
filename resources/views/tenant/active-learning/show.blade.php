@@ -117,6 +117,9 @@
                                                 {{ $activity->duration_minutes }} {{ __('active_learning.min') }}
                                             </span>
                                         @endif
+                                        @if($focusBadge = $activity->contentFocusBadge)
+                                            <span class="text-[10px] bg-{{ $focusBadge['color'] }}-50 text-{{ $focusBadge['color'] }}-700 px-1.5 py-0.5 rounded font-medium">{{ $focusBadge['label'] }}</span>
+                                        @endif
                                     </div>
 
                                     @if($activity->description)
@@ -130,9 +133,23 @@
                                         </div>
                                     @endif
 
-                                    @if($activity->clo_ids)
+                                    @if(! empty($activity->content_meta['expected_outcomes']))
+                                        <div class="mb-3">
+                                            <h5 class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Expected Outcomes</h5>
+                                            <ul class="list-disc list-inside text-sm text-slate-600 space-y-0.5">
+                                                @foreach($activity->content_meta['expected_outcomes'] as $outcome)
+                                                    <li>{{ $outcome }}</li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+
+                                    @if(! empty($activity->content_meta['key_concepts']) || $activity->clo_ids)
                                         <div class="flex flex-wrap gap-1.5 mb-3">
-                                            @foreach($course->learningOutcomes->whereIn('id', $activity->clo_ids) as $clo)
+                                            @foreach($activity->content_meta['key_concepts'] ?? [] as $concept)
+                                                <span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded-md font-medium border border-purple-100">{{ $concept }}</span>
+                                            @endforeach
+                                            @foreach($course->learningOutcomes->whereIn('id', $activity->clo_ids ?? []) as $clo)
                                                 <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-medium border border-blue-100" title="{{ $clo->description }}">{{ $clo->code }}</span>
                                             @endforeach
                                         </div>

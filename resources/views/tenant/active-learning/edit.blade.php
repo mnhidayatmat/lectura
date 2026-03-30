@@ -169,6 +169,9 @@
                                         @if($activity->ai_generated)
                                             <span class="text-[10px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded font-medium">AI</span>
                                         @endif
+                                        @if($badge = $activity->contentFocusBadge)
+                                            <span class="text-[10px] bg-{{ $badge['color'] }}-50 text-{{ $badge['color'] }}-700 px-1.5 py-0.5 rounded font-medium">{{ $badge['label'] }}</span>
+                                        @endif
                                     </div>
                                     @if($activity->description)
                                         <p class="text-xs text-slate-500 mt-1 line-clamp-2">{{ $activity->description }}</p>
@@ -187,10 +190,25 @@
                                 </div>
                             @endif
 
-                            {{-- CLO Tags --}}
-                            @if($activity->clo_ids)
+                            {{-- Expected Outcomes --}}
+                            @if(! empty($activity->content_meta['expected_outcomes']))
+                                <div>
+                                    <h5 class="text-xs font-semibold text-slate-500 uppercase mb-1">Expected Outcomes</h5>
+                                    <ul class="list-disc list-inside text-sm text-slate-600 space-y-0.5">
+                                        @foreach($activity->content_meta['expected_outcomes'] as $outcome)
+                                            <li>{{ $outcome }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
+                            {{-- Key Concepts + CLO Tags --}}
+                            @if(! empty($activity->content_meta['key_concepts']) || $activity->clo_ids)
                                 <div class="flex flex-wrap gap-1.5">
-                                    @foreach($course->learningOutcomes->whereIn('id', $activity->clo_ids) as $clo)
+                                    @foreach($activity->content_meta['key_concepts'] ?? [] as $concept)
+                                        <span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded font-medium">{{ $concept }}</span>
+                                    @endforeach
+                                    @foreach($course->learningOutcomes->whereIn('id', $activity->clo_ids ?? []) as $clo)
                                         <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">{{ $clo->code }}</span>
                                     @endforeach
                                 </div>
@@ -565,6 +583,18 @@
                                 class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
                             <p class="text-[10px] text-slate-400 mt-1">Activities will fit within this</p>
                         </div>
+                    </div>
+
+                    {{-- Content Focus --}}
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Content Focus</label>
+                        <select name="content_focus" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                            <option value="mixed" selected>Mixed — Case Studies + Technical Problems</option>
+                            <option value="case_study">Case Study — Realistic scenarios from lecture content</option>
+                            <option value="technical_problem">Technical Problem — Concrete problems to solve</option>
+                            <option value="general">General — Standard pedagogical activities</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">AI will tailor activities to your lecture content based on this focus</p>
                     </div>
 
                     {{-- Teaching preferences --}}

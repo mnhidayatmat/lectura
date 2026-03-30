@@ -206,6 +206,7 @@ class ActiveLearningPlanController extends Controller
             'student_count'       => ['nullable', 'integer', 'min:1', 'max:500'],
             'total_duration'      => ['nullable', 'integer', 'min:5', 'max:480'],
             'teaching_preferences' => ['nullable', 'string', 'max:1000'],
+            'content_focus'       => ['nullable', 'string', 'in:mixed,case_study,technical_problem,general'],
         ]);
 
         // Use user-provided values or fall back to auto-detected
@@ -272,7 +273,7 @@ class ActiveLearningPlanController extends Controller
         try {
             app(\App\Services\AI\AiServiceManager::class)->resetProvider();
             app(\App\Services\AI\ActiveLearningGeneratorService::class)
-                ->generate($plan, $lectureNotes ?: null, $studentCount);
+                ->generate($plan, $lectureNotes ?: null, $studentCount, $request->input('content_focus', 'mixed'));
 
             $plan->update([
                 'ai_generation_status' => 'draft_review',

@@ -15,7 +15,7 @@ class ActiveLearningActivity extends Model
         'description', 'instructions', 'duration_minutes',
         'clo_ids', 'materials', 'grouping_strategy',
         'max_group_size', 'response_mode', 'response_type',
-        'poll_config', 'ai_generated',
+        'poll_config', 'content_meta', 'ai_generated',
     ];
 
     protected function casts(): array
@@ -24,6 +24,7 @@ class ActiveLearningActivity extends Model
             'clo_ids' => 'array',
             'materials' => 'array',
             'poll_config' => 'array',
+            'content_meta' => 'array',
             'ai_generated' => 'boolean',
         ];
     }
@@ -32,6 +33,8 @@ class ActiveLearningActivity extends Model
         'individual', 'pair', 'group', 'discussion',
         'reflection', 'whole_class',
     ];
+
+    public const CONTENT_FOCUS_TYPES = ['general', 'case_study', 'technical_problem', 'mixed'];
 
     public const GROUPING_STRATEGIES = [
         'random', 'attendance_based', 'manual',
@@ -64,6 +67,18 @@ class ActiveLearningActivity extends Model
     public function isGrouped(): bool
     {
         return in_array($this->type, ['pair', 'group']);
+    }
+
+    public function getContentFocusBadgeAttribute(): ?array
+    {
+        $focus = $this->content_meta['content_focus'] ?? null;
+
+        return match ($focus) {
+            'case_study' => ['label' => 'Case Study', 'color' => 'amber'],
+            'technical_problem' => ['label' => 'Technical Problem', 'color' => 'indigo'],
+            'mixed' => ['label' => 'Mixed', 'color' => 'violet'],
+            default => null,
+        };
     }
 
     public function getTypeBadgeAttribute(): array
