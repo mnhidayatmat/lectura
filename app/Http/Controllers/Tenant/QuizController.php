@@ -151,7 +151,24 @@ class QuizController extends Controller
 
         $session->load(['sessionQuestions.question.options', 'section.course']);
 
-        return view('tenant.quizzes.edit', compact('session', 'sections'));
+        $existingQuestions = $session->sessionQuestions->map(function ($sq) {
+            return [
+                'type' => $sq->question->question_type,
+                'text' => $sq->question->text,
+                'time_limit' => $sq->question->time_limit_seconds,
+                'points' => $sq->question->points,
+                'explanation' => $sq->question->explanation ?? '',
+                'options' => $sq->question->options->map(function ($o) {
+                    return [
+                        'label' => $o->label,
+                        'text' => $o->text,
+                        'is_correct' => (bool) $o->is_correct,
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+
+        return view('tenant.quizzes.edit', compact('session', 'sections', 'existingQuestions'));
     }
 
     /**

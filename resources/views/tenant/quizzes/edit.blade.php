@@ -135,18 +135,7 @@
     <script>
         function quizBuilder() {
             return {
-                questions: @json($session->sessionQuestions->map(fn($sq) => [
-                    'type' => $sq->question->question_type,
-                    'text' => $sq->question->text,
-                    'time_limit' => $sq->question->time_limit_seconds,
-                    'points' => $sq->question->points,
-                    'explanation' => $sq->question->explanation ?? '',
-                    'options' => $sq->question->options->map(fn($o) => [
-                        'label' => $o->label,
-                        'text' => $o->text,
-                        'is_correct' => $o->is_correct,
-                    ])->toArray(),
-                ])->toArray()),
+                questions: @json($existingQuestions),
                 addQuestion(type) {
                     const labels = ['A', 'B', 'C', 'D'];
                     let options;
