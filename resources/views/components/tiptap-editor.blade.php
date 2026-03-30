@@ -1,50 +1,50 @@
 @props(['name', 'content' => ''])
 
 <div x-data="tiptapEditor(@js($content))" class="tiptap-content rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-slate-800">
-    {{-- Toolbar --}}
+    {{-- Toolbar — @mousedown.prevent stops buttons from stealing focus/selection from the editor --}}
     <div class="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50">
-        <button type="button" @click="toggleBold()" :class="isActive('bold') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Bold">
+        <button type="button" @mousedown.prevent @click="toggleBold()" :class="isActive('bold') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Bold">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z"/><path d="M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z"/></svg>
         </button>
-        <button type="button" @click="toggleItalic()" :class="isActive('italic') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Italic">
+        <button type="button" @mousedown.prevent @click="toggleItalic()" :class="isActive('italic') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Italic">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
         </button>
-        <button type="button" @click="toggleUnderline()" :class="isActive('underline') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Underline">
+        <button type="button" @mousedown.prevent @click="toggleUnderline()" :class="isActive('underline') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Underline">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 3v7a6 6 0 006 6 6 6 0 006-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
         </button>
-        <button type="button" @click="toggleStrike()" :class="isActive('strike') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Strikethrough">
+        <button type="button" @mousedown.prevent @click="toggleStrike()" :class="isActive('strike') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Strikethrough">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><path d="M17.5 7.5A4.5 4.5 0 009 7.5M6.5 16.5A4.5 4.5 0 0015 16.5"/></svg>
         </button>
 
         <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
 
-        <button type="button" @click="toggleHeading(3)" :class="isActive('heading', {level: 3}) && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="px-1.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition text-[10px] font-bold" title="Heading 3">H3</button>
-        <button type="button" @click="toggleHeading(4)" :class="isActive('heading', {level: 4}) && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="px-1.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition text-[10px] font-bold" title="Heading 4">H4</button>
+        <button type="button" @mousedown.prevent @click="toggleHeading(3)" :class="isActive('heading', {level: 3}) && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="px-1.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition text-[10px] font-bold" title="Heading 3">H3</button>
+        <button type="button" @mousedown.prevent @click="toggleHeading(4)" :class="isActive('heading', {level: 4}) && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="px-1.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition text-[10px] font-bold" title="Heading 4">H4</button>
 
         <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
 
-        <button type="button" @click="toggleBulletList()" :class="isActive('bulletList') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Bullet List">
+        <button type="button" @mousedown.prevent @click="toggleBulletList()" :class="isActive('bulletList') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Bullet List">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="18" r="1" fill="currentColor"/></svg>
         </button>
-        <button type="button" @click="toggleOrderedList()" :class="isActive('orderedList') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Numbered List">
+        <button type="button" @mousedown.prevent @click="toggleOrderedList()" :class="isActive('orderedList') && 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700'" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Numbered List">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><text x="3" y="8" fill="currentColor" font-size="7" font-weight="bold">1</text><text x="3" y="14" fill="currentColor" font-size="7" font-weight="bold">2</text><text x="3" y="20" fill="currentColor" font-size="7" font-weight="bold">3</text></svg>
         </button>
 
         <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
 
-        <button type="button" @click="setTextAlign('left')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Align Left">
+        <button type="button" @mousedown.prevent @click="setTextAlign('left')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Align Left">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
         </button>
-        <button type="button" @click="setTextAlign('center')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Align Center">
+        <button type="button" @mousedown.prevent @click="setTextAlign('center')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Align Center">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
 
         <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
 
-        <button type="button" @click="toggleBlockquote()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Blockquote">
+        <button type="button" @mousedown.prevent @click="toggleBlockquote()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Blockquote">
             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
         </button>
-        <button type="button" @click="setHorizontalRule()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Horizontal Rule">
+        <button type="button" @mousedown.prevent @click="setHorizontalRule()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Horizontal Rule">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/></svg>
         </button>
     </div>

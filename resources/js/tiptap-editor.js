@@ -13,17 +13,20 @@ export default function tiptapEditor(initialContent = '') {
         content: initialContent,
 
         init() {
-            const component = this
-            const el = component.$refs.editorContent
+            // Try to create the editor immediately.
+            // If inside x-show (display:none), the element exists but may have zero dimensions.
+            // ProseMirror still creates the contenteditable — it works once revealed.
+            this._ensureEditor()
+        },
 
-            if (!el) return
+        _ensureEditor() {
+            if (this.editor) return true
 
-            // Create editor after a microtask to ensure DOM is settled.
-            // Capture refs and context now while Alpine magics are available.
-            Promise.resolve().then(() => {
-                if (component.editor) return
+            const el = this.$refs.editorContent
+            if (!el) return false
 
-                component.editor = new Editor({
+            try {
+                this.editor = new Editor({
                     element: el,
                     extensions: [
                         StarterKit.configure({
@@ -38,17 +41,21 @@ export default function tiptapEditor(initialContent = '') {
                         TableCell,
                         TableHeader,
                     ],
-                    content: component.content,
+                    content: this.content,
                     editorProps: {
                         attributes: {
                             class: 'focus:outline-none min-h-[120px] px-3 py-2',
                         },
                     },
                     onUpdate: ({ editor }) => {
-                        component.content = editor.getHTML()
+                        this.content = editor.getHTML()
                     },
                 })
-            })
+                return true
+            } catch (e) {
+                console.warn('Tiptap editor init failed, will retry on interaction:', e)
+                return false
+            }
         },
 
         destroy() {
@@ -56,25 +63,27 @@ export default function tiptapEditor(initialContent = '') {
             this.editor = null
         },
 
-        toggleBold() { this.editor?.chain().focus().toggleBold().run() },
-        toggleItalic() { this.editor?.chain().focus().toggleItalic().run() },
-        toggleUnderline() { this.editor?.chain().focus().toggleUnderline().run() },
-        toggleStrike() { this.editor?.chain().focus().toggleStrike().run() },
-        toggleHeading(level) { this.editor?.chain().focus().toggleHeading({ level }).run() },
-        toggleBulletList() { this.editor?.chain().focus().toggleBulletList().run() },
-        toggleOrderedList() { this.editor?.chain().focus().toggleOrderedList().run() },
-        setTextAlign(align) { this.editor?.chain().focus().setTextAlign(align).run() },
-        toggleBlockquote() { this.editor?.chain().focus().toggleBlockquote().run() },
-        setHorizontalRule() { this.editor?.chain().focus().setHorizontalRule().run() },
+        // Every toolbar action ensures the editor exists first (handles x-show lazy init)
+        toggleBold() { this._ensureEditor(); this.editor?.chain().focus().toggleBold().run() },
+        toggleItalic() { this._ensureEditor(); this.editor?.chain().focus().toggleItalic().run() },
+        toggleUnderline() { this._ensureEditor(); this.editor?.chain().focus().toggleUnderline().run() },
+        toggleStrike() { this._ensureEditor(); this.editor?.chain().focus().toggleStrike().run() },
+        toggleHeading(level) { this._ensureEditor(); this.editor?.chain().focus().toggleHeading({ level }).run() },
+        toggleBulletList() { this._ensureEditor(); this.editor?.chain().focus().toggleBulletList().run() },
+        toggleOrderedList() { this._ensureEditor(); this.editor?.chain().focus().toggleOrderedList().run() },
+        setTextAlign(align) { this._ensureEditor(); this.editor?.chain().focus().setTextAlign(align).run() },
+        toggleBlockquote() { this._ensureEditor(); this.editor?.chain().focus().toggleBlockquote().run() },
+        setHorizontalRule() { this._ensureEditor(); this.editor?.chain().focus().setHorizontalRule().run() },
 
         insertTable() {
+            this._ensureEditor()
             this.editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
         },
-        addColumnAfter() { this.editor?.chain().focus().addColumnAfter().run() },
-        addRowAfter() { this.editor?.chain().focus().addRowAfter().run() },
-        deleteColumn() { this.editor?.chain().focus().deleteColumn().run() },
-        deleteRow() { this.editor?.chain().focus().deleteRow().run() },
-        deleteTable() { this.editor?.chain().focus().deleteTable().run() },
+        addColumnAfter() { this._ensureEditor(); this.editor?.chain().focus().addColumnAfter().run() },
+        addRowAfter() { this._ensureEditor(); this.editor?.chain().focus().addRowAfter().run() },
+        deleteColumn() { this._ensureEditor(); this.editor?.chain().focus().deleteColumn().run() },
+        deleteRow() { this._ensureEditor(); this.editor?.chain().focus().deleteRow().run() },
+        deleteTable() { this._ensureEditor(); this.editor?.chain().focus().deleteTable().run() },
 
         isActive(name, attrs = {}) {
             return this.editor?.isActive(name, attrs) ?? false
