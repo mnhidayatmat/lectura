@@ -186,7 +186,7 @@
                             @if($activity->instructions)
                                 <div>
                                     <h5 class="text-xs font-semibold text-slate-500 uppercase mb-1">{{ __('active_learning.instructions') }}</h5>
-                                    <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 rich-instructions">{!! clean_html($activity->instructions) !!}</div>
+                                    <div class="prose prose-sm prose-slate max-w-none bg-slate-50 rounded-lg p-3">{!! clean_html($activity->instructions) !!}</div>
                                 </div>
                             @endif
 

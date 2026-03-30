@@ -23,19 +23,7 @@
 .tiptap-content .ProseMirror th { background: #f1f5f9; font-weight: 600; }
 .tiptap-content .ProseMirror .selectedCell { background: #dbeafe; }
 
-/* Rendered rich content in show/display views */
-.rich-instructions h3 { font-size: 1.05rem; font-weight: 700; margin: 0.8em 0 0.3em; }
-.rich-instructions h4 { font-size: 0.9rem; font-weight: 600; margin: 0.6em 0 0.2em; }
-.rich-instructions p { margin: 0.3em 0; }
-.rich-instructions ul { list-style: disc; padding-left: 1.5em; margin: 0.4em 0; }
-.rich-instructions ol { list-style: decimal; padding-left: 1.5em; margin: 0.4em 0; }
-.rich-instructions li { margin: 0.15em 0; }
-.rich-instructions blockquote { border-left: 3px solid #cbd5e1; padding-left: 1em; color: #64748b; margin: 0.5em 0; }
-.rich-instructions hr { border: none; border-top: 1px solid #e2e8f0; margin: 0.8em 0; }
-.rich-instructions table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
-.rich-instructions th,
-.rich-instructions td { border: 1px solid #cbd5e1; padding: 0.35em 0.6em; text-align: left; font-size: 0.85rem; }
-.rich-instructions th { background: #f1f5f9; font-weight: 600; }
+/* Rich content display — handled by @tailwindcss/typography (prose classes) */
 
 /*
  * Lectura Dark Mode — "Dimmed" Palette
