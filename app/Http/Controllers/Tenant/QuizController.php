@@ -137,17 +137,12 @@ class QuizController extends Controller
     }
 
     /**
-     * Edit quiz session (only if not yet started).
+     * Edit quiz session.
      */
     public function edit(string $tenantSlug, QuizSession $session): View
     {
         if ($session->lecturer_id !== auth()->id()) {
             abort(403);
-        }
-
-        if ($session->status !== 'waiting') {
-            return redirect()->route('tenant.quizzes.index', $tenantSlug)
-                ->with('error', 'Only quizzes that have not started can be edited.');
         }
 
         $user = auth()->user();
@@ -160,17 +155,12 @@ class QuizController extends Controller
     }
 
     /**
-     * Update quiz session + questions (only if not yet started).
+     * Update quiz session + questions.
      */
     public function update(Request $request, string $tenantSlug, QuizSession $session): RedirectResponse
     {
         if ($session->lecturer_id !== auth()->id()) {
             abort(403);
-        }
-
-        if ($session->status !== 'waiting') {
-            return redirect()->route('tenant.quizzes.index', $tenantSlug)
-                ->with('error', 'Only quizzes that have not started can be edited.');
         }
 
         $request->validate([
@@ -239,7 +229,9 @@ class QuizController extends Controller
             ]);
         }
 
-        return redirect()->route('tenant.quizzes.control', [
+        $route = $session->status === 'ended' ? 'tenant.quizzes.results' : 'tenant.quizzes.control';
+
+        return redirect()->route($route, [
             'tenant' => $tenant->slug,
             'session' => $session->id,
         ])->with('success', 'Quiz updated successfully.');
