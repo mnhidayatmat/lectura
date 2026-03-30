@@ -119,6 +119,11 @@
                         <label class="text-xs font-medium text-slate-500">{{ __('active_learning.description') }}</label>
                         <textarea name="description" rows="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500">{{ $plan->description }}</textarea>
                     </div>
+                    <div>
+                        <label class="text-xs font-medium text-slate-500">{{ __('active_learning.prerequisites') }}</label>
+                        <p class="text-[10px] text-slate-400 mt-0.5">{{ __('active_learning.prerequisites_help') }}</p>
+                        <textarea name="prerequisites" rows="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="{{ __('active_learning.prerequisites_placeholder') }}">{{ $plan->prerequisites }}</textarea>
+                    </div>
                     <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition">{{ __('active_learning.save_changes') }}</button>
                 </form>
             </div>

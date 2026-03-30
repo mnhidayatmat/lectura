@@ -11,6 +11,19 @@
             <p class="text-xs text-slate-400" x-text="'Activity ' + state.current_index + ' of ' + state.total_activities"></p>
         </div>
 
+        {{-- Prerequisites --}}
+        @if($session->plan->prerequisites)
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <div class="flex items-start gap-3">
+                    <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <div>
+                        <h4 class="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">{{ __('active_learning.prerequisites') }}</h4>
+                        <div class="text-sm text-amber-900 leading-relaxed whitespace-pre-line">{{ $session->plan->prerequisites }}</div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Waiting State --}}
         <div x-show="!state.current_activity && state.status === 'active'" class="bg-white rounded-2xl border border-slate-200 p-10 text-center">
             <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4 animate-pulse">

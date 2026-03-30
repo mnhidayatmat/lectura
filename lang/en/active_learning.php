@@ -39,6 +39,9 @@ return [
     'duration' => 'Duration',
     'description' => 'Description / Session Notes',
     'description_placeholder' => 'Context for this session, learning goals, or notes for AI generation...',
+    'prerequisites' => 'Pre-requisites',
+    'prerequisites_help' => 'What students should prepare before attending this session.',
+    'prerequisites_placeholder' => "e.g. Read Chapter 5, bring lecture notes, review last week's quiz, watch the intro video...",
     'create_and_build' => 'Create & Build',
 
     // Activity types

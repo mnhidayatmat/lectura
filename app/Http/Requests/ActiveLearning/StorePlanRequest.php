@@ -20,6 +20,7 @@ class StorePlanRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'prerequisites' => ['nullable', 'string', 'max:5000'],
             'course_topic_id' => ['nullable', 'exists:course_topics,id'],
             'week_number' => ['nullable', 'integer', 'min:1', 'max:52'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],

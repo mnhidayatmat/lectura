@@ -71,6 +71,15 @@
                             class="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 transition"
                             placeholder="{{ __('active_learning.description_placeholder') }}">{{ old('description') }}</textarea>
                     </div>
+
+                    {{-- Prerequisites --}}
+                    <div>
+                        <label for="prerequisites" class="block text-sm font-medium text-slate-700">{{ __('active_learning.prerequisites') }}</label>
+                        <p class="text-xs text-slate-400 mt-0.5 mb-1.5">{{ __('active_learning.prerequisites_help') }}</p>
+                        <textarea name="prerequisites" id="prerequisites" rows="3"
+                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 transition"
+                            placeholder="{{ __('active_learning.prerequisites_placeholder') }}">{{ old('prerequisites') }}</textarea>
+                    </div>
                 </div>
             </div>
 

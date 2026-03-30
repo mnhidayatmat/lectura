@@ -39,6 +39,9 @@ return [
     'duration' => 'Tempoh',
     'description' => 'Penerangan / Nota Sesi',
     'description_placeholder' => 'Konteks untuk sesi ini, matlamat pembelajaran, atau nota untuk penjanaan AI...',
+    'prerequisites' => 'Pra-syarat',
+    'prerequisites_help' => 'Apa yang perlu disediakan pelajar sebelum menghadiri sesi ini.',
+    'prerequisites_placeholder' => "cth. Baca Bab 5, bawa nota kuliah, ulangkaji kuiz minggu lepas, tonton video pengenalan...",
     'create_and_build' => 'Cipta & Bina',
 
     // Activity types

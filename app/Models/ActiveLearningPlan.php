@@ -17,7 +17,7 @@ class ActiveLearningPlan extends Model
 
     protected $fillable = [
         'tenant_id', 'course_id', 'course_topic_id', 'week_number',
-        'title', 'description', 'duration_minutes',
+        'title', 'description', 'prerequisites', 'duration_minutes',
         'status', 'source', 'ai_generation_status',
         'ai_generated_at', 'ai_prompt_summary',
         'created_by', 'published_at',
