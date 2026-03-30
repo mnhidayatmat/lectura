@@ -99,6 +99,7 @@ class CourseController extends Controller
             'topics',
             'sections.activeStudents',
             'activeLearningPlans',
+            'studentGroupSets',
             'faculty',
             'programme',
             'academicTerm',
