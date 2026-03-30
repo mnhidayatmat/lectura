@@ -50,7 +50,7 @@
     </div>
 
     {{-- Editor content area --}}
-    <div x-ref="editorContent" class="tiptap-editable text-sm text-slate-900 dark:text-white" style="min-height: 120px;"></div>
+    <div x-ref="editorContent" class="tiptap-editable prose prose-sm prose-slate max-w-none text-slate-900 dark:text-white" style="min-height: 120px;"></div>
 
     {{-- Hidden input to submit HTML --}}
     <input type="hidden" name="{{ $name }}" :value="content">
