@@ -16,7 +16,7 @@ class Submission extends Model
 
     protected $fillable = [
         'assignment_id', 'user_id', 'submission_number',
-        'notes', 'is_late', 'submitted_at', 'status',
+        'notes', 'text_content', 'is_late', 'submitted_at', 'status',
     ];
 
     protected function casts(): array

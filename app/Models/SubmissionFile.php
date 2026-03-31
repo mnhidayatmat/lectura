@@ -11,7 +11,7 @@ class SubmissionFile extends Model
 {
     protected $fillable = [
         'submission_id', 'file_name', 'file_type',
-        'file_size_bytes', 'storage_path', 'status',
+        'file_size_bytes', 'storage_path', 'drive_file_id', 'status',
     ];
 
     public function submission(): BelongsTo

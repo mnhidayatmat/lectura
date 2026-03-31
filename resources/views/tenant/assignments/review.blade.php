@@ -14,24 +14,44 @@
     <div class="grid lg:grid-cols-2 gap-6">
         {{-- Left: Submission --}}
         <div class="space-y-6">
-            {{-- Files --}}
+            {{-- Submission Content --}}
             <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">Submitted Files</h3>
+                    <h3 class="font-semibold text-slate-900">Submission</h3>
                 </div>
-                <div class="p-4 space-y-2">
-                    @foreach($submission->files as $file)
-                        <div class="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
-                            <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+
+                {{-- Files --}}
+                @if($submission->files->isNotEmpty())
+                    <div class="p-4 space-y-2">
+                        @foreach($submission->files as $file)
+                            <div class="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                                <div class="w-10 h-10 rounded-xl {{ $file->drive_file_id ? 'bg-blue-100' : 'bg-red-100' }} flex items-center justify-center flex-shrink-0">
+                                    @if($file->drive_file_id)
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                                    @else
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    @endif
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-slate-900 truncate">{{ $file->file_name }}</p>
+                                    <p class="text-xs text-slate-400">
+                                        {{ number_format($file->file_size_bytes / 1024, 1) }} KB &middot; {{ $file->file_type }}
+                                        @if($file->drive_file_id) &middot; <span class="text-blue-600">Synced to Drive</span> @endif
+                                    </p>
+                                </div>
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-slate-900 truncate">{{ $file->file_name }}</p>
-                                <p class="text-xs text-slate-400">{{ number_format($file->file_size_bytes / 1024, 1) }} KB &middot; {{ $file->file_type }}</p>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- Text Content --}}
+                @if($submission->text_content)
+                    <div class="px-6 py-4 {{ $submission->files->isNotEmpty() ? 'border-t border-slate-100' : '' }}">
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Written Answer</p>
+                        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-line max-h-96 overflow-y-auto">{{ $submission->text_content }}</div>
+                    </div>
+                @endif
+
                 @if($submission->notes)
                     <div class="px-6 py-3 border-t border-slate-100">
                         <p class="text-xs text-slate-500"><strong>Student notes:</strong> {{ $submission->notes }}</p>

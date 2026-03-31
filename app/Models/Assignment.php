@@ -30,6 +30,7 @@ class Assignment extends Model
         'tenant_id', 'course_id', 'section_id', 'created_by',
         'title', 'description', 'type', 'total_marks', 'deadline',
         'allow_resubmission', 'max_resubmissions', 'marking_mode',
+        'submission_type',
         'answer_scheme', 'answer_scheme_path', 'answer_scheme_filename',
         'status', 'clo_ids',
     ];

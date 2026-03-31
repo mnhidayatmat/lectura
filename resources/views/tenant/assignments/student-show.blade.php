@@ -64,35 +64,82 @@
 
         {{-- Submit --}}
         @if(!$mySubmission)
+            @php $subType = $assignment->submission_type ?? 'file'; @endphp
             <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100">
                     <h3 class="font-semibold text-slate-900">Submit Your Work</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        @if($subType === 'file') Upload files @elseif($subType === 'text') Type your answer @else Upload files and/or type your answer @endif
+                    </p>
                 </div>
                 <div class="p-6">
+                    @if($errors->has('submit'))
+                        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{{ $errors->first('submit') }}</div>
+                    @endif
                     <form method="POST" action="{{ route('tenant.assignments.submit', [app('current_tenant')->slug, $assignment]) }}" enctype="multipart/form-data" class="space-y-4">
                         @csrf
-                        <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
-                            <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="text-sm text-slate-600 mb-2">Upload PDF or image files (max 25MB each)</p>
-                            <input type="file" name="files[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                        </div>
+
+                        {{-- File Upload --}}
+                        @if($subType === 'file' || $subType === 'both')
+                            <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center" x-data="{ fileNames: [] }">
+                                <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                <p class="text-sm text-slate-600 mb-2">Upload PDF or image files (max 25MB each)</p>
+                                <input type="file" name="files[]" multiple {{ $subType === 'file' ? 'required' : '' }} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    @change="fileNames = Array.from($event.target.files).map(f => f.name)"
+                                    class="text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                                <template x-if="fileNames.length > 0">
+                                    <div class="mt-3 space-y-1">
+                                        <template x-for="name in fileNames" :key="name">
+                                            <div class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-lg mr-1.5">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                <span x-text="name"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        @endif
+
+                        {{-- Text Input --}}
+                        @if($subType === 'text' || $subType === 'both')
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Your Answer {{ $subType === 'text' ? '*' : '' }}</label>
+                                <textarea name="text_content" rows="8" {{ $subType === 'text' ? 'required' : '' }}
+                                    placeholder="Type your answer here..."
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('text_content') }}</textarea>
+                            </div>
+                        @endif
+
                         <div>
                             <label class="text-sm font-medium text-slate-700">Notes (optional)</label>
-                            <textarea name="notes" rows="2" placeholder="Any notes for your lecturer..." class="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            <textarea name="notes" rows="2" placeholder="Any notes for your lecturer..." class="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('notes') }}</textarea>
                         </div>
                         <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-sm transition">Submit</button>
                     </form>
                 </div>
             </div>
         @else
-            <div class="bg-white rounded-2xl border border-emerald-200 p-6">
-                <div class="flex items-center gap-3">
-                    <svg class="w-6 h-6 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                    <div>
-                        <p class="text-sm font-medium text-emerald-900">Submitted {{ $mySubmission->submitted_at->format('d M Y, H:i') }}</p>
-                        <p class="text-xs text-slate-500">{{ $mySubmission->files->count() }} file(s) &middot; Status: {{ ucfirst($mySubmission->status) }}</p>
+            <div class="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
+                <div class="p-6">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <div>
+                            <p class="text-sm font-medium text-emerald-900">Submitted {{ $mySubmission->submitted_at->format('d M Y, H:i') }}</p>
+                            <p class="text-xs text-slate-500">
+                                @if($mySubmission->files->count()) {{ $mySubmission->files->count() }} file(s) @endif
+                                @if($mySubmission->files->count() && $mySubmission->text_content) &middot; @endif
+                                @if($mySubmission->text_content) Text answer included @endif
+                                &middot; Status: {{ ucfirst($mySubmission->status) }}
+                            </p>
+                        </div>
                     </div>
                 </div>
+                @if($mySubmission->text_content)
+                    <div class="px-6 py-4 border-t border-emerald-100">
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Your Answer</p>
+                        <div class="bg-emerald-50/50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-line max-h-48 overflow-y-auto">{{ $mySubmission->text_content }}</div>
+                    </div>
+                @endif
             </div>
         @endif
     </div>

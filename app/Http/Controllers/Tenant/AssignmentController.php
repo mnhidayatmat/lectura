@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\Course;
+use App\Services\GoogleDriveService;
 use App\Models\Feedback;
 use App\Models\MarkingSuggestion;
 use App\Models\Rubric;
@@ -78,6 +79,7 @@ class AssignmentController extends Controller
             'deadline' => ['nullable', 'date'],
             'type' => ['required', 'in:individual,group'],
             'marking_mode' => ['required', 'in:manual,ai_assisted'],
+            'submission_type' => ['required', 'in:file,text,both'],
             'answer_scheme' => ['nullable', 'string'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
             'criteria' => ['nullable', 'array'],
@@ -110,6 +112,7 @@ class AssignmentController extends Controller
             'deadline' => $request->deadline,
             'type' => $request->type,
             'marking_mode' => $request->marking_mode,
+            'submission_type' => $request->submission_type,
             'status' => 'draft',
             ...$schemeData,
         ]);
@@ -194,11 +197,30 @@ class AssignmentController extends Controller
      */
     public function submit(Request $request, string $tenantSlug, Assignment $assignment): RedirectResponse
     {
-        $request->validate([
-            'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+        $subType = $assignment->submission_type ?? 'file';
+
+        $rules = [
             'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ];
+
+        if ($subType === 'file') {
+            $rules['files'] = ['required', 'array', 'min:1'];
+            $rules['files.*'] = ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'];
+        } elseif ($subType === 'text') {
+            $rules['text_content'] = ['required', 'string'];
+        } else {
+            // both — at least one must be provided
+            $rules['files'] = ['nullable', 'array'];
+            $rules['files.*'] = ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'];
+            $rules['text_content'] = ['nullable', 'string'];
+        }
+
+        $request->validate($rules);
+
+        // For "both" type, ensure at least one is provided
+        if ($subType === 'both' && !$request->hasFile('files') && !$request->filled('text_content')) {
+            return back()->withErrors(['submit' => 'Please provide either files or text content.'])->withInput();
+        }
 
         $user = auth()->user();
         $isLate = $assignment->deadline && now()->isAfter($assignment->deadline);
@@ -207,21 +229,61 @@ class AssignmentController extends Controller
             'assignment_id' => $assignment->id,
             'user_id' => $user->id,
             'notes' => $request->notes,
+            'text_content' => $request->text_content,
             'is_late' => $isLate,
             'submitted_at' => now(),
             'status' => 'submitted',
         ]);
 
-        foreach ($request->file('files') as $file) {
-            $path = $file->store('submissions/' . $assignment->id, 'local');
+        if ($request->hasFile('files')) {
+            // Check if the course lecturer has Google Drive connected
+            $assignment->load('course');
+            $lecturer = $assignment->course->lecturer;
+            $driveFolderId = null;
 
-            SubmissionFile::create([
-                'submission_id' => $submission->id,
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientMimeType(),
-                'file_size_bytes' => $file->getSize(),
-                'storage_path' => $path,
-            ]);
+            if ($lecturer && $lecturer->isDriveConnected()) {
+                try {
+                    $driveService = app(GoogleDriveService::class);
+                    $courseFolderId = $driveService->findOrCreateFolder(
+                        $lecturer,
+                        "{$assignment->course->code} — {$assignment->course->title}"
+                    );
+                    $submissionsFolderId = $driveService->findOrCreateFolder($lecturer, 'Submissions', $courseFolderId);
+                    $driveFolderId = $driveService->findOrCreateFolder($lecturer, $assignment->title, $submissionsFolderId);
+                } catch (\Throwable) {
+                    // Drive unavailable — continue with local storage only
+                    $driveFolderId = null;
+                }
+            }
+
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('submissions/' . $assignment->id, 'local');
+                $driveFileId = null;
+
+                if ($driveFolderId && $lecturer) {
+                    try {
+                        $result = app(GoogleDriveService::class)->uploadFile(
+                            $lecturer,
+                            $file->getRealPath(),
+                            $user->name . ' — ' . $file->getClientOriginalName(),
+                            $file->getClientMimeType(),
+                            $driveFolderId
+                        );
+                        $driveFileId = $result['id'];
+                    } catch (\Throwable) {
+                        // Drive upload failed — keep local copy
+                    }
+                }
+
+                SubmissionFile::create([
+                    'submission_id' => $submission->id,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_type' => $file->getClientMimeType(),
+                    'file_size_bytes' => $file->getSize(),
+                    'storage_path' => $path,
+                    'drive_file_id' => $driveFileId,
+                ]);
+            }
         }
 
         // Notify lecturer

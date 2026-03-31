@@ -7,7 +7,7 @@
                 </a>
                 <div>
                     <h2 class="text-2xl font-bold text-slate-900">{{ $assignment->title }}</h2>
-                    <p class="text-sm text-slate-500">{{ $assignment->course->code }} &middot; {{ $assignment->total_marks }} marks &middot; {{ $assignment->deadline?->format('d M Y, H:i') ?? 'No deadline' }}</p>
+                    <p class="text-sm text-slate-500">{{ $assignment->course->code }} &middot; {{ $assignment->total_marks }} marks &middot; {{ $assignment->deadline?->format('d M Y, H:i') ?? 'No deadline' }} &middot; {{ ucfirst($assignment->submission_type ?? 'file') }} submission</p>
                 </div>
             </div>
             @if($assignment->status === 'draft')
@@ -74,7 +74,7 @@
                     <table class="w-full text-sm">
                         <thead><tr class="border-b border-slate-100 bg-slate-50/50">
                             <th class="text-left px-6 py-3 font-medium text-slate-500">Student</th>
-                            <th class="text-center px-6 py-3 font-medium text-slate-500">Files</th>
+                            <th class="text-center px-6 py-3 font-medium text-slate-500">Content</th>
                             <th class="text-center px-6 py-3 font-medium text-slate-500">Status</th>
                             <th class="text-center px-6 py-3 font-medium text-slate-500">Late</th>
                             <th class="text-right px-6 py-3 font-medium text-slate-500">Submitted</th>
@@ -89,7 +89,11 @@
                                             <span class="font-medium text-slate-900">{{ $sub->user->name ?? 'Unknown' }}</span>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-3 text-center">{{ $sub->files->count() }}</td>
+                                    <td class="px-6 py-3 text-center">
+                                        @if($sub->files->count()) <span class="text-xs">{{ $sub->files->count() }} file(s)</span> @endif
+                                        @if($sub->files->count() && $sub->text_content) <span class="text-slate-300 mx-0.5">+</span> @endif
+                                        @if($sub->text_content) <span class="text-xs text-indigo-600">Text</span> @endif
+                                    </td>
                                     <td class="px-6 py-3 text-center">
                                         @php
                                             $sc = ['submitted' => 'slate', 'ai_processing' => 'amber', 'ai_completed' => 'teal', 'marking' => 'indigo', 'graded' => 'emerald'];
