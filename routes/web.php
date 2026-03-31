@@ -504,7 +504,7 @@ Route::prefix('{tenant:slug}')
             Route::delete('/{set}/groups/{group}/members/{user}', [StudentGroupController::class, 'removeMember'])->name('tenant.student-groups.members.remove');
             Route::post('/{set}/arrange-random', [StudentGroupController::class, 'arrangeRandom'])->name('tenant.student-groups.arrange-random');
         });
-        Route::get('/my-groups', [StudentGroupController::class, 'studentIndex'])->name('tenant.student-groups.my-index');
+        Route::get('/my-groups', [StudentGroupController::class, 'myGroups'])->name('tenant.student-groups.my-index');
 
         // Tenant AI Settings (Pro)
         Route::get('/admin/ai-settings', [TenantAiSettingsController::class, 'edit'])->name('tenant.admin.ai-settings');

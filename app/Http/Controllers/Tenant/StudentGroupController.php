@@ -21,6 +21,29 @@ class StudentGroupController extends Controller
         protected StudentGroupingService $groupingService,
     ) {}
 
+    public function myGroups(): View
+    {
+        $tenant = app('current_tenant');
+        $user = auth()->user();
+        $role = $user->roleInTenant($tenant->id);
+
+        if (in_array($role, ['lecturer', 'admin', 'coordinator'])) {
+            $courses = Course::where('lecturer_id', $user->id)
+                ->with(['studentGroupSets' => fn ($q) => $q->withCount('groups')->latest(), 'academicTerm'])
+                ->get();
+
+            return view('tenant.student-groups.lecturer-index', compact('tenant', 'courses'));
+        }
+
+        // Student view
+        $memberships = StudentGroupMember::where('user_id', $user->id)
+            ->with('group.groupSet.course')
+            ->get()
+            ->groupBy(fn ($m) => $m->group->groupSet->course_id);
+
+        return view('tenant.student-groups.student-index', compact('tenant', 'memberships'));
+    }
+
     // ── Lecturer ──
 
     public function index(string $tenantSlug, Course $course): View
@@ -71,6 +94,7 @@ class StudentGroupController extends Controller
         $set = StudentGroupSet::create([
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
+            'academic_term_id' => $course->academic_term_id,
             'type' => $request->input('type'),
             'name' => $request->input('name'),
             'description' => $request->input('description'),
@@ -182,18 +206,5 @@ class StudentGroupController extends Controller
             ->with('success', 'Group set deleted.');
     }
 
-    // ── Student ──
-
-    public function studentIndex(): View
-    {
-        $tenant = app('current_tenant');
-        $user = auth()->user();
-
-        $memberships = StudentGroupMember::where('user_id', $user->id)
-            ->with('group.groupSet.course')
-            ->get()
-            ->groupBy(fn ($m) => $m->group->groupSet->course_id);
-
-        return view('tenant.student-groups.student-index', compact('tenant', 'memberships'));
-    }
+    // ── Student (handled by myGroups() above) ──
 }
