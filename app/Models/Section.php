@@ -16,7 +16,7 @@ class Section extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'name', 'code', 'invite_code',
+        'tenant_id', 'course_id', 'academic_term_id', 'name', 'code', 'invite_code',
         'capacity', 'schedule', 'is_active',
     ];
 
@@ -40,6 +40,11 @@ class Section extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
     }
 
     public function sectionStudents(): HasMany

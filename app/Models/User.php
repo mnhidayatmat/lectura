@@ -165,4 +165,14 @@ class User extends Authenticatable
             ->wherePivot('is_active', true)
             ->where('tenants.is_active', true);
     }
+
+    public function attendanceExcuses(): HasMany
+    {
+        return $this->hasMany(AttendanceExcuse::class);
+    }
+
+    public function attendanceWarnings(): HasMany
+    {
+        return $this->hasMany(AttendanceWarning::class);
+    }
 }

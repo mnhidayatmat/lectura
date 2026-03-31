@@ -53,7 +53,7 @@
         </div>
 
         {{-- Quick Actions --}}
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <a href="{{ route('tenant.materials.manage', [$tenant->slug, $course]) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-sm p-4 flex items-center gap-3 transition-all">
                 <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition">
                     <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
@@ -97,6 +97,24 @@
                 <div>
                     <p class="text-sm font-semibold text-slate-900">Groups</p>
                     <p class="text-[11px] text-slate-400">{{ $course->studentGroupSets->count() }} {{ Str::plural('set', $course->studentGroupSets->count()) }}</p>
+                </div>
+            </a>
+            <a href="{{ route('tenant.attendance.report', [$tenant->slug, $course]) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-rose-200 hover:shadow-sm p-4 flex items-center gap-3 transition-all">
+                <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0 group-hover:bg-rose-200 transition">
+                    <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-900">Att. Report</p>
+                    <p class="text-[11px] text-slate-400">PDF & Excel</p>
+                </div>
+            </a>
+            <a href="{{ route('tenant.courses.attendance-policy.edit', [$tenant->slug, $course]) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-cyan-200 hover:shadow-sm p-4 flex items-center gap-3 transition-all">
+                <div class="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-200 transition">
+                    <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-900">Att. Policy</p>
+                    <p class="text-[11px] text-slate-400">Warning rules</p>
                 </div>
             </a>
         </div>
@@ -193,6 +211,12 @@
                                 <input type="text" name="name" placeholder="Section 01" required class="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
                                 <input type="text" name="code" placeholder="SEC01" required class="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
                                 <input type="number" name="capacity" placeholder="Cap" min="1" class="w-14 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
+                                <select name="academic_term_id" class="w-32 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="">Semester</option>
+                                    @foreach($terms as $term)
+                                        <option value="{{ $term->id }}" {{ $term->is_default ? 'selected' : '' }}>{{ $term->name }}</option>
+                                    @endforeach
+                                </select>
                                 <button type="submit" class="px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg">Create</button>
                             </form>
                         </div>
@@ -200,14 +224,24 @@
                 </div>
                 <div class="divide-y divide-slate-50 max-h-80 overflow-y-auto">
                     @forelse($course->sections as $section)
-                        <a href="{{ route('tenant.courses.sections.show', [$tenant->slug, $course, $section]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition group">
+                        <a href="{{ route('tenant.courses.sections.show', [$tenant->slug, $course, $section]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition group {{ !$section->is_active ? 'opacity-50' : '' }}">
                             <div class="flex items-center gap-3 min-w-0">
-                                <div class="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-xs font-bold text-emerald-700">{{ substr($section->name, 0, 2) }}</span>
+                                <div class="w-9 h-9 rounded-xl {{ $section->is_active ? 'bg-emerald-100' : 'bg-slate-100' }} flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold {{ $section->is_active ? 'text-emerald-700' : 'text-slate-400' }}">{{ substr($section->name, 0, 2) }}</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-medium text-slate-900">{{ $section->name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $section->code }} &middot; <code class="bg-slate-100 px-1 rounded text-[10px]">{{ $section->invite_code }}</code></p>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-sm font-medium text-slate-900">{{ $section->name }}</p>
+                                        @unless($section->is_active)
+                                            <span class="bg-red-50 text-red-600 px-1 py-0.5 rounded text-[10px] font-medium">Inactive</span>
+                                        @endunless
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">
+                                        {{ $section->code }} &middot; <code class="bg-slate-100 px-1 rounded text-[10px]">{{ $section->invite_code }}</code>
+                                        @if($section->academicTerm)
+                                            &middot; <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->academicTerm->name }}</span>
+                                        @endif
+                                    </p>
                                     @if($section->schedule)
                                         <div class="flex flex-wrap gap-1 mt-1">
                                             @foreach($section->schedule as $slot)

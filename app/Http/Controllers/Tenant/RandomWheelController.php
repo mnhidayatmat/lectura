@@ -26,7 +26,25 @@ class RandomWheelController extends Controller
         }
         $courses = $query->get();
 
-        return view('tenant.random-wheel.index', compact('tenant', 'courses'));
+        // Find the latest attendance session across the user's courses
+        $courseIds = $courses->pluck('id');
+        $sectionIds = Section::whereIn('course_id', $courseIds)->pluck('id');
+
+        $latestSession = AttendanceSession::whereIn('section_id', $sectionIds)
+            ->orderByDesc('started_at')
+            ->with('section')
+            ->first();
+
+        $latestDefaults = null;
+        if ($latestSession) {
+            $latestDefaults = [
+                'courseId' => (string) $latestSession->section->course_id,
+                'sectionId' => (string) $latestSession->section_id,
+                'sessionId' => (string) $latestSession->id,
+            ];
+        }
+
+        return view('tenant.random-wheel.index', compact('tenant', 'courses', 'latestDefaults'));
     }
 
     public function sessions(Request $request, string $tenantSlug): JsonResponse

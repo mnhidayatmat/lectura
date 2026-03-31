@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicTerm;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
@@ -24,6 +25,7 @@ class SectionController extends Controller
             'name' => ['required', 'string', 'max:50'],
             'code' => ['required', 'string', 'max:20'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
         ]);
 
         $tenant = app('current_tenant');
@@ -31,6 +33,7 @@ class SectionController extends Controller
         Section::create([
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
+            'academic_term_id' => $request->academic_term_id,
             'name' => $request->name,
             'code' => $request->code,
             'capacity' => $request->capacity,
@@ -41,9 +44,33 @@ class SectionController extends Controller
 
     public function show(string $tenantSlug, Course $course, Section $section): View
     {
-        $section->load(['activeStudents', 'course']);
+        $section->load(['activeStudents', 'course', 'academicTerm']);
+        $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        return view('tenant.courses.sections.show', compact('course', 'section'));
+        return view('tenant.courses.sections.show', compact('course', 'section', 'terms'));
+    }
+
+    public function update(Request $request, string $tenantSlug, Course $course, Section $section): RedirectResponse
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:50'],
+            'code' => ['required', 'string', 'max:20'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
+        ]);
+
+        $section->update($request->only('name', 'code', 'capacity', 'academic_term_id'));
+
+        return back()->with('success', 'Section details updated.');
+    }
+
+    public function toggleActive(string $tenantSlug, Course $course, Section $section): RedirectResponse
+    {
+        $section->update(['is_active' => ! $section->is_active]);
+
+        $status = $section->is_active ? 'activated' : 'deactivated';
+
+        return back()->with('success', "Section '{$section->name}' {$status}.");
     }
 
     public function addStudent(Request $request, string $tenantSlug, Course $course, Section $section): RedirectResponse

@@ -5,6 +5,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Tenant\AnalyticsController;
 use App\Http\Controllers\Tenant\AssignmentController;
 use App\Http\Controllers\Tenant\AttendanceController;
+use App\Http\Controllers\Tenant\AttendanceExcuseController;
+use App\Http\Controllers\Tenant\AttendancePolicyController;
+use App\Http\Controllers\Tenant\AttendanceReportController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\StudentGroupController;
 use App\Http\Controllers\Tenant\CloController;
@@ -18,6 +21,7 @@ use App\Http\Controllers\Tenant\ActiveLearning\SessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\StudentSessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\TenantAiSettingsController;
 use App\Http\Controllers\Tenant\NotificationController;
+use App\Http\Controllers\Tenant\StudentAttendanceController;
 use App\Http\Controllers\Tenant\StudentCourseController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
@@ -242,6 +246,7 @@ Route::prefix('{tenant:slug}')
             $courseCount = 0;
             $studentCount = 0;
             $courses = collect();
+            $todaySchedule = collect();
 
             if ($role !== 'student') {
                 $courses = \App\Models\Course::where('lecturer_id', $user->id)
@@ -250,9 +255,32 @@ Route::prefix('{tenant:slug}')
                 $courseCount = $courses->count();
                 $sectionIds = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))->pluck('id');
                 $studentCount = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)->where('is_active', true)->distinct('user_id')->count('user_id');
+
+                // Today's schedule from section schedules
+                $today = strtolower(now()->format('l')); // e.g. "monday"
+                $sections = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))
+                    ->whereNotNull('schedule')
+                    ->where('is_active', true)
+                    ->with('course:id,code,title')
+                    ->get();
+
+                $todaySchedule = $sections->flatMap(function ($section) use ($today) {
+                    $slots = collect($section->schedule ?? [])
+                        ->filter(fn ($slot) => ($slot['day'] ?? '') === $today);
+                    return $slots->map(fn ($slot) => (object) [
+                        'course_code' => $section->course->code,
+                        'course_title' => $section->course->title,
+                        'section_name' => $section->name,
+                        'start_time' => $slot['start_time'],
+                        'end_time' => $slot['end_time'],
+                        'location' => $slot['location'] ?? null,
+                        'type' => $slot['type'] ?? 'lecture',
+                        'course_id' => $section->course_id,
+                    ]);
+                })->sortBy('start_time')->values();
             }
 
-            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'courses'));
+            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'courses', 'todaySchedule'));
         })->name('tenant.dashboard');
 
         // Course Management
@@ -282,6 +310,8 @@ Route::prefix('{tenant:slug}')
         // Sections
         Route::post('/courses/{course}/sections', [SectionController::class, 'store'])->name('tenant.courses.sections.store');
         Route::get('/courses/{course}/sections/{section}', [SectionController::class, 'show'])->name('tenant.courses.sections.show');
+        Route::put('/courses/{course}/sections/{section}', [SectionController::class, 'update'])->name('tenant.courses.sections.update');
+        Route::post('/courses/{course}/sections/{section}/toggle-active', [SectionController::class, 'toggleActive'])->name('tenant.courses.sections.toggle-active');
         Route::post('/courses/{course}/sections/{section}/students', [SectionController::class, 'addStudent'])->name('tenant.courses.sections.students.add');
         Route::post('/courses/{course}/sections/{section}/students/import', [SectionController::class, 'importCsv'])->name('tenant.courses.sections.students.import');
         Route::delete('/courses/{course}/sections/{section}/students/{user}', [SectionController::class, 'removeStudent'])->name('tenant.courses.sections.students.remove');
@@ -304,6 +334,27 @@ Route::prefix('{tenant:slug}')
 
         // Student check-in API
         Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('tenant.attendance.checkin');
+
+        // Attendance Excuses (lecturer review)
+        Route::get('/attendance/excuses', [AttendanceExcuseController::class, 'index'])->name('tenant.attendance.excuses');
+        Route::put('/attendance/excuses/{excuse}/approve', [AttendanceExcuseController::class, 'approve'])->name('tenant.attendance.excuses.approve');
+        Route::put('/attendance/excuses/{excuse}/reject', [AttendanceExcuseController::class, 'reject'])->name('tenant.attendance.excuses.reject');
+        Route::get('/attendance/excuses/{excuse}/attachment', [AttendanceExcuseController::class, 'downloadAttachment'])->name('tenant.attendance.excuses.attachment');
+
+        // Attendance Reports
+        Route::get('/attendance/report/{course}', [AttendanceReportController::class, 'show'])->name('tenant.attendance.report');
+        Route::get('/attendance/report/{course}/pdf', [AttendanceReportController::class, 'downloadPdf'])->name('tenant.attendance.report.pdf');
+        Route::get('/attendance/report/{course}/excel', [AttendanceReportController::class, 'downloadExcel'])->name('tenant.attendance.report.excel');
+        Route::post('/attendance/report/{course}/sync-files', [AttendanceReportController::class, 'syncToCourseFiles'])->name('tenant.attendance.report.sync');
+
+        // Attendance Policy (per-course)
+        Route::get('/courses/{course}/attendance-policy', [AttendancePolicyController::class, 'edit'])->name('tenant.courses.attendance-policy.edit');
+        Route::put('/courses/{course}/attendance-policy', [AttendancePolicyController::class, 'update'])->name('tenant.courses.attendance-policy.update');
+
+        // Student Attendance (student-facing)
+        Route::get('/my-attendance', [StudentAttendanceController::class, 'index'])->name('tenant.my-attendance');
+        Route::get('/my-attendance/course/{course}', [StudentAttendanceController::class, 'course'])->name('tenant.my-attendance.course');
+        Route::post('/my-attendance/excuse/{record}', [StudentAttendanceController::class, 'submitExcuse'])->name('tenant.my-attendance.excuse.submit');
 
         // Live Quizzes
         Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');

@@ -205,6 +205,7 @@
         const COLORS = ['#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e','#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#8b5cf6'];
         const SLUG = '{{ $tenant->slug }}';
         const CSRF = '{{ csrf_token() }}';
+        const LATEST_DEFAULTS = @json($latestDefaults);
 
         return {
             courseId: '',
@@ -224,8 +225,36 @@
             loadingStudents: false,
             currentAngle: 0,
 
-            init() {
-                this.restoreState();
+            async init() {
+                if (LATEST_DEFAULTS) {
+                    // Auto-fill course
+                    this.courseId = LATEST_DEFAULTS.courseId;
+                    const opt = this.$el.querySelector(`select option[value="${this.courseId}"]`);
+                    try {
+                        this.sections = JSON.parse(opt?.dataset?.sections || '[]').map(s => ({...s, id: String(s.id)}));
+                    } catch(e) {
+                        this.sections = [];
+                    }
+
+                    // Auto-fill section and load sessions
+                    this.sectionId = LATEST_DEFAULTS.sectionId;
+                    this.loadingSessions = true;
+                    try {
+                        const res = await fetch(`/${SLUG}/random-wheel/sessions?section_id=${this.sectionId}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.attendanceSessions = data.map(s => ({...s, id: String(s.id)}));
+                        }
+                    } catch(e) {
+                        console.error(e);
+                    } finally {
+                        this.loadingSessions = false;
+                    }
+
+                    // Auto-fill session and load students
+                    this.sessionId = LATEST_DEFAULTS.sessionId;
+                    await this.loadStudents();
+                }
             },
 
             getColor(i) {

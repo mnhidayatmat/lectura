@@ -6,7 +6,13 @@
             </a>
             <div>
                 <h2 class="text-2xl font-bold text-slate-900">{{ $section->name }}</h2>
-                <p class="mt-0.5 text-sm text-slate-500">{{ $course->code }} — {{ $course->title }} &middot; Invite code: <code class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">{{ $section->invite_code }}</code></p>
+                <p class="mt-0.5 text-sm text-slate-500">
+                    {{ $course->code }} — {{ $course->title }}
+                    &middot; Invite code: <code class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">{{ $section->invite_code }}</code>
+                    @if($section->academicTerm)
+                        &middot; <span class="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-xs font-medium">{{ $section->academicTerm->name }}</span>
+                    @endif
+                </p>
             </div>
         </div>
     </x-slot>
@@ -22,10 +28,71 @@
                 <p class="text-2xl font-bold text-slate-900">{{ $section->capacity ?? '∞' }}</p>
                 <p class="text-sm text-slate-500">Capacity</p>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
-                <p class="text-2xl font-bold text-slate-900">{{ $section->is_active ? 'Active' : 'Inactive' }}</p>
-                <p class="text-sm text-slate-500">Status</p>
+            <div class="bg-white rounded-2xl border {{ $section->is_active ? 'border-emerald-200' : 'border-red-200' }} p-5 text-center">
+                <form method="POST" action="{{ route('tenant.courses.sections.toggle-active', [app('current_tenant')->slug, $course, $section]) }}">
+                    @csrf
+                    <button type="submit" class="w-full" onclick="return confirm('{{ $section->is_active ? 'Deactivate' : 'Activate' }} this section?')">
+                        <p class="text-2xl font-bold {{ $section->is_active ? 'text-emerald-600' : 'text-red-600' }}">{{ $section->is_active ? 'Active' : 'Inactive' }}</p>
+                        <p class="text-xs {{ $section->is_active ? 'text-emerald-500' : 'text-red-500' }} mt-0.5">Click to {{ $section->is_active ? 'deactivate' : 'activate' }}</p>
+                    </button>
+                </form>
             </div>
+        </div>
+
+        {{-- Section Details --}}
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+             x-data="sectionEditor({{ json_encode([
+                 'name' => $section->name,
+                 'code' => $section->code,
+                 'capacity' => $section->capacity,
+                 'academic_term_id' => $section->academic_term_id,
+             ]) }})">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <h3 class="font-semibold text-slate-900">Section Details</h3>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('tenant.courses.sections.update', [app('current_tenant')->slug, $course, $section]) }}">
+                @csrf
+                @method('PUT')
+
+                <div class="p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Section Name</label>
+                        <input type="text" name="name" x-model="name" required maxlength="50"
+                               class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Code</label>
+                        <input type="text" name="code" x-model="code" required maxlength="20"
+                               class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Capacity</label>
+                        <input type="number" name="capacity" x-model="capacity" min="1" max="500" placeholder="Unlimited"
+                               class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Semester</label>
+                        <select name="academic_term_id" x-model="academic_term_id"
+                                class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                            <option value="">No semester</option>
+                            @foreach($terms as $term)
+                                <option value="{{ $term->id }}">{{ $term->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div x-show="dirty" x-cloak class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <p class="text-xs text-slate-500">You have unsaved changes.</p>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
         </div>
 
         {{-- Class Schedule --}}
@@ -128,6 +195,32 @@
         </div>
 
         <script>
+            function sectionEditor(initial) {
+                return {
+                    name: initial.name,
+                    code: initial.code,
+                    capacity: initial.capacity,
+                    academic_term_id: initial.academic_term_id ?? '',
+                    original: JSON.stringify(initial),
+                    dirty: false,
+                    checkDirty() {
+                        const current = JSON.stringify({
+                            name: this.name,
+                            code: this.code,
+                            capacity: this.capacity ? Number(this.capacity) : null,
+                            academic_term_id: this.academic_term_id ? Number(this.academic_term_id) : null,
+                        });
+                        this.dirty = current !== this.original;
+                    },
+                    init() {
+                        this.$watch('name', () => this.checkDirty());
+                        this.$watch('code', () => this.checkDirty());
+                        this.$watch('capacity', () => this.checkDirty());
+                        this.$watch('academic_term_id', () => this.checkDirty());
+                    }
+                }
+            }
+
             function scheduleManager(initial) {
                 return {
                     slots: initial || [],

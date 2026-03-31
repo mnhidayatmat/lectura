@@ -98,6 +98,7 @@ class CourseController extends Controller
             'learningOutcomes',
             'topics',
             'sections.activeStudents',
+            'sections.academicTerm',
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',
@@ -105,7 +106,9 @@ class CourseController extends Controller
             'academicTerm',
         ]);
 
-        return view('tenant.courses.show', compact('course'));
+        $terms = AcademicTerm::orderByDesc('start_date')->get();
+
+        return view('tenant.courses.show', compact('course', 'terms'));
     }
 
     public function edit(string $tenantSlug, Course $course): View

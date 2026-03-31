@@ -27,4 +27,9 @@ class AcademicTerm extends Model
     {
         return $this->hasMany(Course::class);
     }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
+    }
 }

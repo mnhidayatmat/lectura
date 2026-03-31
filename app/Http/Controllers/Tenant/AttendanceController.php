@@ -10,6 +10,7 @@ use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
+use App\Services\Attendance\AttendanceWarningService;
 use App\Services\Attendance\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ class AttendanceController extends Controller
 {
     public function __construct(
         protected QrCodeService $qrService,
+        protected AttendanceWarningService $warningService,
     ) {}
 
     /**
@@ -281,6 +283,9 @@ class AttendanceController extends Controller
                 'method' => 'manual',
             ]);
         }
+
+        // Check and issue attendance warnings
+        $this->warningService->checkAndIssueWarnings($section->course);
 
         return redirect()->route('tenant.attendance.index', app('current_tenant')->slug)
             ->with('success', 'Session ended. ' . $enrolledStudents->count() . ' students marked absent.');

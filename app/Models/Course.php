@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -99,6 +100,16 @@ class Course extends Model
     public function activeLearningPlans(): HasMany
     {
         return $this->hasMany(ActiveLearningPlan::class);
+    }
+
+    public function attendancePolicy(): HasOne
+    {
+        return $this->hasOne(AttendancePolicy::class);
+    }
+
+    public function attendanceWarnings(): HasMany
+    {
+        return $this->hasMany(AttendanceWarning::class);
     }
 
     public function totalStudents(): int
