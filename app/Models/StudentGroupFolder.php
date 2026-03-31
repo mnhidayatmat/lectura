@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class StudentGroupFolder extends Model
 {
     protected $fillable = [
-        'student_group_id', 'name', 'created_by',
+        'student_group_id', 'name', 'drive_folder_id', 'created_by',
     ];
 
     public function group(): BelongsTo

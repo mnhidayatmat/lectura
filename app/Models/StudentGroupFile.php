@@ -15,7 +15,13 @@ class StudentGroupFile extends Model
     protected $fillable = [
         'student_group_id', 'folder_id', 'uploaded_by', 'file_name',
         'file_type', 'file_size_bytes', 'storage_path', 'description',
+        'drive_file_id', 'drive_web_link',
     ];
+
+    public function isDriveFile(): bool
+    {
+        return $this->drive_file_id !== null;
+    }
 
     public function group(): BelongsTo
     {

@@ -71,8 +71,10 @@ class WorkspaceController extends Controller
             ->with('members.user')
             ->get();
 
+        $isDriveConnected = $user->isDriveConnected();
+
         return view('tenant.workspace.show', compact(
-            'group', 'myMembership', 'activeVoteRound', 'myPendingSwap', 'otherGroups'
+            'group', 'myMembership', 'activeVoteRound', 'myPendingSwap', 'otherGroups', 'isDriveConnected'
         ));
     }
 
