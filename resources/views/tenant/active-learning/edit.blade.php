@@ -317,7 +317,8 @@
                             </div>
 
                             {{-- Inline Edit Form --}}
-                            <div x-show="editing" x-cloak x-transition class="border-t border-slate-100 pt-4">
+                            <template x-if="editing">
+                            <div class="border-t border-slate-100 pt-4">
                                 <form method="POST" action="{{ route('tenant.active-learning.activities.update', [app('current_tenant')->slug, $course, $plan, $activity]) }}" class="space-y-3">
                                     @csrf @method('PUT')
                                     <div class="grid sm:grid-cols-2 gap-3">
@@ -432,6 +433,7 @@
                                     <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition">{{ __('active_learning.save_activity') }}</button>
                                 </form>
                             </div>
+                            </template>
                         </div>
                     </div>
                 @empty
@@ -448,7 +450,8 @@
                         {{ __('active_learning.add_activity') }}
                     </button>
 
-                    <div x-show="showForm" x-cloak x-transition class="mt-4">
+                    <template x-if="showForm">
+                    <div class="mt-4">
                         <form method="POST" action="{{ route('tenant.active-learning.activities.store', [app('current_tenant')->slug, $course, $plan]) }}" class="space-y-4 bg-slate-50 rounded-xl p-5">
                             @csrf
                             <div class="grid sm:grid-cols-2 gap-4">
@@ -575,6 +578,7 @@
                             <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition">{{ __('active_learning.add_activity') }}</button>
                         </form>
                     </div>
+                    </template>
                 </div>
         </div>
 
