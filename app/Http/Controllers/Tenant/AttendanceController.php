@@ -285,7 +285,7 @@ class AttendanceController extends Controller
         }
 
         // Check and issue attendance warnings
-        $this->warningService->checkAndIssueWarnings($section->course);
+        $this->warningService->checkAndIssueWarnings($session->section->course);
 
         return redirect()->route('tenant.attendance.index', app('current_tenant')->slug)
             ->with('success', 'Session ended. ' . $enrolledStudents->count() . ' students marked absent.');
