@@ -281,26 +281,28 @@
                         </label>
                     </div>
 
-                    {{-- Invite code (students joining existing institution) --}}
-                    <div x-show="role === 'student' && mode === 'select' && tenantId"
+                    {{-- Invite code (students or lecturers joining existing institution) --}}
+                    <div x-show="(role === 'student' || role === 'lecturer') && mode === 'select' && tenantId"
                         x-transition:enter="transition ease-out duration-200"
                         x-transition:enter-start="opacity-0 -translate-y-2"
                         x-transition:enter-end="opacity-100 translate-y-0"
                         class="space-y-2 pt-1">
                         <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            Section Invite Code <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                            <span x-text="role === 'student' ? 'Section Invite Code' : 'Course Invite Code'"></span>
+                            <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
                             </div>
                             <input type="text" name="invite_code" placeholder="e.g. ABC12345" value="{{ old('invite_code') }}"
-                                class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm uppercase tracking-widest font-mono text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
-                                maxlength="8">
+                                class="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm uppercase tracking-widest font-mono text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition"
+                                :class="role === 'student' ? 'focus:ring-2 focus:ring-teal-500 focus:border-teal-500' : 'focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'"
+                                maxlength="20">
                         </div>
                         <p class="text-xs text-slate-400 dark:text-slate-500 flex items-start gap-1.5 px-1">
                             <svg class="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Ask your lecturer for the code to join a specific course section.
+                            <span x-text="role === 'student' ? 'Ask your lecturer for the code to join a specific course section.' : 'Enter the course invite code to claim an existing course.'"></span>
                         </p>
                     </div>
 

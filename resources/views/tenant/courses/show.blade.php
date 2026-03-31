@@ -13,7 +13,11 @@
                         @php $badge = $course->statusBadge; @endphp
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700">{{ $badge['label'] }}</span>
                     </div>
-                    <p class="mt-0.5 text-sm text-slate-500">{{ $course->title }}</p>
+                    <p class="mt-0.5 text-sm text-slate-500">{{ $course->title }}
+                        @if($course->invite_code)
+                            &middot; <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono text-slate-600">{{ $course->invite_code }}</code>
+                        @endif
+                    </p>
                 </div>
             </div>
             <a href="{{ route('tenant.courses.edit', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm transition">
@@ -50,6 +54,12 @@
                 <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">CLOs</p>
                 <p class="text-xl font-bold text-slate-900 mt-1">{{ $course->learningOutcomes->count() }}</p>
             </div>
+            @if($course->invite_code)
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 col-span-2 sm:col-span-1">
+                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Invite Code</p>
+                    <p class="text-lg font-bold text-indigo-700 mt-1 font-mono tracking-wider">{{ $course->invite_code }}</p>
+                </div>
+            @endif
         </div>
 
         {{-- Quick Actions --}}

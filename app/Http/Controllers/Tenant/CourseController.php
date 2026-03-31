@@ -13,6 +13,7 @@ use App\Models\CourseLearningOutcome;
 use App\Models\CourseTopic;
 use App\Models\Faculty;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CourseController extends Controller
@@ -147,6 +148,39 @@ class CourseController extends Controller
 
         return redirect()->route('tenant.courses.index', $tenant->slug)
             ->with('success', 'Course deleted.');
+    }
+
+    public function joinCourse(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'invite_code' => ['required', 'string', 'max:20'],
+        ]);
+
+        $tenant = app('current_tenant');
+        $user = auth()->user();
+
+        if (! $user->hasRoleInTenant($tenant->id, ['lecturer', 'admin'])) {
+            abort(403);
+        }
+
+        $code = strtoupper(trim($request->invite_code));
+
+        $course = Course::where('invite_code', $code)->first();
+
+        if (! $course) {
+            return back()->withErrors(['invite_code' => 'Invalid course invite code. Please check and try again.']);
+        }
+
+        if ($course->lecturer_id === $user->id) {
+            return back()->with('info', 'You are already the lecturer for ' . $course->code . ' — ' . $course->title . '.');
+        }
+
+        $course->update(['lecturer_id' => $user->id]);
+
+        return redirect()->route('tenant.courses.show', [
+            'tenant' => $tenant->slug,
+            'course' => $course->id,
+        ])->with('success', 'Successfully joined course ' . $course->code . ' — ' . $course->title . '!');
     }
 
     protected function authorizeCourse(Course $course): void

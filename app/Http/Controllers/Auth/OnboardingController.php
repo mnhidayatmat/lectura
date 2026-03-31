@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
 use App\Models\Section;
 use App\Models\Tenant;
 use App\Models\TenantUser;
@@ -114,6 +115,29 @@ class OnboardingController extends Controller
             ]);
 
             return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' and enrolled in ' . $section->name . '.');
+        }
+
+        // Lecturers with invite code: also claim the course
+        if ($request->role === 'lecturer' && $request->filled('invite_code')) {
+            $course = Course::where('invite_code', strtoupper(trim($request->invite_code)))
+                ->where('tenant_id', $tenant->id)
+                ->first();
+
+            if (! $course) {
+                return back()->withErrors(['invite_code' => 'Invalid course invite code for this institution.'])->withInput();
+            }
+
+            TenantUser::create([
+                'user_id' => $user->id,
+                'tenant_id' => $tenant->id,
+                'role' => 'lecturer',
+                'is_active' => true,
+                'joined_at' => now(),
+            ]);
+
+            $course->update(['lecturer_id' => $user->id]);
+
+            return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' and claimed course ' . $course->code . ' — ' . $course->title . '.');
         }
 
         // Join with selected role

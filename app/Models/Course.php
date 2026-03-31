@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
@@ -29,9 +30,18 @@ class Course extends Model
     protected $fillable = [
         'tenant_id', 'faculty_id', 'programme_id', 'academic_term_id',
         'lecturer_id', 'code', 'title', 'description', 'credit_hours',
-        'num_weeks', 'teaching_mode', 'format', 'status',
+        'num_weeks', 'teaching_mode', 'format', 'status', 'invite_code',
         'custom_start_date', 'custom_end_date',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Course $course) {
+            if (! $course->invite_code) {
+                $course->invite_code = strtoupper(Str::random(8));
+            }
+        });
+    }
 
     protected function casts(): array
     {

@@ -286,6 +286,7 @@ Route::prefix('{tenant:slug}')
 
         // Course Management
         Route::get('/courses', [CourseController::class, 'index'])->name('tenant.courses.index');
+        Route::post('/courses/join', [CourseController::class, 'joinCourse'])->name('tenant.courses.join');
         Route::get('/courses/create', [CourseController::class, 'create'])->name('tenant.courses.create');
         Route::post('/courses', [CourseController::class, 'store'])->name('tenant.courses.store');
         Route::get('/courses/{course}', [CourseController::class, 'show'])->name('tenant.courses.show');
