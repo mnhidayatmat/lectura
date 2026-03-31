@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
+use App\Models\GroupSleepingPartnerReport;
+use App\Models\GroupSwapRequest;
 use App\Models\StudentGroup;
 use App\Models\StudentGroupMember;
 use App\Models\StudentGroupSet;
@@ -123,7 +125,19 @@ class StudentGroupController extends Controller
         $unassigned = $this->groupingService->getUnassignedStudents($set);
         $enrolledCount = $this->groupingService->getEnrolledStudents($course)->count();
 
-        return view('tenant.student-groups.show', compact('tenant', 'course', 'set', 'unassigned', 'enrolledCount'));
+        $groupIds = $set->groups()->pluck('id');
+
+        $pendingSwaps = GroupSwapRequest::whereIn('from_group_id', $groupIds)
+            ->where('status', GroupSwapRequest::STATUS_PENDING_LECTURER)
+            ->with(['requester', 'targetUser', 'fromGroup', 'toGroup'])
+            ->get();
+
+        $sleepingReports = GroupSleepingPartnerReport::whereIn('student_group_id', $groupIds)
+            ->where('is_reviewed', false)
+            ->with(['group', 'reportedUser'])
+            ->get();
+
+        return view('tenant.student-groups.show', compact('tenant', 'course', 'set', 'unassigned', 'enrolledCount', 'pendingSwaps', 'sleepingReports'));
     }
 
     public function storeGroup(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse

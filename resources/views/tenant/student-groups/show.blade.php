@@ -132,5 +132,62 @@
                 @endforeach
             </div>
         @endif
+
+        {{-- Pending Swap Requests --}}
+        @if($pendingSwaps->count())
+            <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-2xl p-5">
+                <h4 class="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-3">Pending Swap Requests ({{ $pendingSwaps->count() }})</h4>
+                <div class="space-y-3">
+                    @foreach($pendingSwaps as $swap)
+                        <div class="flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl p-3 border border-amber-100 dark:border-amber-800">
+                            <div class="text-sm">
+                                <span class="font-medium text-slate-800 dark:text-slate-200">{{ $swap->requester->name }}</span>
+                                <span class="text-slate-500"> wants to swap with </span>
+                                <span class="font-medium text-slate-800 dark:text-slate-200">{{ $swap->targetUser->name }}</span>
+                                <span class="text-slate-500"> ({{ $swap->fromGroup->name }} ↔ {{ $swap->toGroup->name }})</span>
+                            </div>
+                            <div class="flex gap-2 ml-4 flex-shrink-0">
+                                <form method="POST" action="{{ route('tenant.workspace.swaps.decide', [$tenant->slug, $swap]) }}">
+                                    @csrf
+                                    <input type="hidden" name="action" value="approve">
+                                    <button class="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition">Approve</button>
+                                </form>
+                                <form method="POST" action="{{ route('tenant.workspace.swaps.decide', [$tenant->slug, $swap]) }}">
+                                    @csrf
+                                    <input type="hidden" name="action" value="reject">
+                                    <button class="px-3 py-1.5 text-xs font-medium bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition">Reject</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Anonymous Reports --}}
+        @if($sleepingReports->count())
+            <div class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-700 rounded-2xl p-5">
+                <h4 class="text-sm font-semibold text-red-800 dark:text-red-400 mb-3">Anonymous Reports ({{ $sleepingReports->count() }})</h4>
+                <div class="space-y-2">
+                    @foreach($sleepingReports as $report)
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-red-100 dark:border-red-800">
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                    Reported: <strong>{{ $report->reportedUser->name }}</strong>
+                                    <span class="text-xs text-slate-400 ml-1">({{ $report->group->name }})</span>
+                                </p>
+                                <form method="POST" action="{{ route('tenant.workspace.reports.store', [$tenant->slug, $report->group]) }}" style="display:none">
+                                    {{-- reviewed via inline patch below --}}
+                                </form>
+                                {{-- Mark reviewed button --}}
+                                <form method="POST" action="{{ url($tenant->slug . '/workspace/reports/' . $report->id . '/reviewed') }}" class="hidden"></form>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">{{ $report->description }}</p>
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Reporter identities are not stored.</p>
+            </div>
+        @endif
     </div>
 </x-tenant-layout>

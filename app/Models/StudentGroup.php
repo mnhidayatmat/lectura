@@ -46,4 +46,45 @@ class StudentGroup extends Model
     {
         return $this->students()->wherePivot('role', 'leader')->first();
     }
+
+    public function folders(): HasMany
+    {
+        return $this->hasMany(StudentGroupFolder::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(GroupTask::class)->orderBy('due_date')->orderBy('created_at');
+    }
+
+    public function minutes(): HasMany
+    {
+        return $this->hasMany(GroupMinute::class)->orderByDesc('meeting_date');
+    }
+
+    public function sleepingPartnerReports(): HasMany
+    {
+        return $this->hasMany(GroupSleepingPartnerReport::class);
+    }
+
+    public function voteRounds(): HasMany
+    {
+        return $this->hasMany(GroupVoteRound::class)->latest();
+    }
+
+    public function activeVoteRound(): ?GroupVoteRound
+    {
+        return $this->voteRounds()->where('status', 'open')->first();
+    }
+
+    public function swapRequests(): HasMany
+    {
+        return $this->hasMany(GroupSwapRequest::class, 'from_group_id')
+            ->orWhere('to_group_id', $this->id);
+    }
+
+    public function isMember(int $userId): bool
+    {
+        return $this->members()->where('user_id', $userId)->exists();
+    }
 }

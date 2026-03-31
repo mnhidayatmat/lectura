@@ -13,7 +13,7 @@ class StudentGroupFile extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'student_group_id', 'uploaded_by', 'file_name',
+        'student_group_id', 'folder_id', 'uploaded_by', 'file_name',
         'file_type', 'file_size_bytes', 'storage_path', 'description',
     ];
 
@@ -25,6 +25,11 @@ class StudentGroupFile extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function folder(): BelongsTo
+    {
+        return $this->belongsTo(StudentGroupFolder::class, 'folder_id');
     }
 
     public function formattedSize(): string

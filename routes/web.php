@@ -507,6 +507,47 @@ Route::prefix('{tenant:slug}')
         });
         Route::get('/my-groups', [StudentGroupController::class, 'myGroups'])->name('tenant.student-groups.my-index');
 
+        // Group Workspace
+        Route::prefix('workspace')->name('tenant.workspace.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'index'])->name('index');
+            Route::get('/{group}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'show'])->name('show');
+            Route::post('/{group}/project', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'updateProject'])->name('project.update');
+            Route::post('/{group}/score', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'updateScore'])->name('score.update');
+
+            // Chat
+            Route::get('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'index'])->name('chat.index');
+            Route::post('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'store'])->name('chat.store');
+
+            // Files & Folders
+            Route::post('/{group}/files', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'store'])->name('files.store');
+            Route::delete('/{group}/files/{file}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'destroy'])->name('files.destroy');
+            Route::get('/{group}/files/{file}/download', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'download'])->name('files.download');
+            Route::post('/{group}/folders', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'storeFolder'])->name('folders.store');
+            Route::delete('/{group}/folders/{folder}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'destroyFolder'])->name('folders.destroy');
+
+            // Tasks
+            Route::post('/{group}/tasks', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'store'])->name('tasks.store');
+            Route::patch('/{group}/tasks/{task}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'update'])->name('tasks.update');
+            Route::delete('/{group}/tasks/{task}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'destroy'])->name('tasks.destroy');
+
+            // Minutes
+            Route::post('/{group}/minutes', [\App\Http\Controllers\Tenant\Workspace\WorkspaceMinuteController::class, 'store'])->name('minutes.store');
+            Route::delete('/{group}/minutes/{minute}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceMinuteController::class, 'destroy'])->name('minutes.destroy');
+
+            // Sleeping Partner Reports
+            Route::post('/{group}/reports', [\App\Http\Controllers\Tenant\Workspace\WorkspaceReportController::class, 'store'])->name('reports.store');
+
+            // Voting
+            Route::post('/{group}/votes/start', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'start'])->name('votes.start');
+            Route::post('/{group}/votes/{round}/cast', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'cast'])->name('votes.cast');
+            Route::post('/{group}/votes/{round}/close', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'close'])->name('votes.close');
+
+            // Member Swap
+            Route::post('/{group}/swaps', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'store'])->name('swaps.store');
+            Route::post('/swaps/{swap}/respond', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'respond'])->name('swaps.respond');
+            Route::post('/swaps/{swap}/decide', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'lecturerDecide'])->name('swaps.decide');
+        });
+
         // Tenant AI Settings (Pro)
         Route::get('/admin/ai-settings', [TenantAiSettingsController::class, 'edit'])->name('tenant.admin.ai-settings');
         Route::put('/admin/ai-settings', [TenantAiSettingsController::class, 'update'])->name('tenant.admin.ai-settings.update');
