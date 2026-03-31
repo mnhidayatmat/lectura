@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\AiProviderController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Tenant\AnalyticsController;
+// AnalyticsController removed — analytics routes now redirect to PerformanceController
 use App\Http\Controllers\Tenant\AssignmentController;
 use App\Http\Controllers\Tenant\AttendanceController;
 use App\Http\Controllers\Tenant\AttendanceExcuseController;
@@ -424,9 +424,9 @@ Route::prefix('{tenant:slug}')
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('tenant.notifications.mark-read');
         Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('tenant.notifications.mark-all-read');
 
-        // Analytics
-        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('tenant.analytics.index');
-        Route::get('/analytics/course/{course}', [AnalyticsController::class, 'course'])->name('tenant.analytics.course');
+        // Analytics (redirects to Performance)
+        Route::get('/analytics', fn () => redirect()->route('tenant.performance.index', app('current_tenant')->slug))->name('tenant.analytics.index');
+        Route::get('/analytics/course/{course}', fn (string $t, \App\Models\Course $course) => redirect()->route('tenant.performance.course', [app('current_tenant')->slug, $course]))->name('tenant.analytics.course');
 
         // Performance Tracking (Lecturer)
         Route::get('/performance', [PerformanceController::class, 'lecturerIndex'])->name('tenant.performance.index');
