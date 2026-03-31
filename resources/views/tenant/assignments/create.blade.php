@@ -64,43 +64,41 @@
             {{-- Submission Type --}}
             <div x-data="{ subType: 'file' }">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Submission Type *</label>
+                <input type="hidden" name="submission_type" :value="subType" />
                 <div class="grid sm:grid-cols-3 gap-3">
-                    <label @click="subType = 'file'" class="relative cursor-pointer">
-                        <input type="radio" name="submission_type" value="file" x-model="subType" class="peer sr-only" checked />
-                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-slate-200 hover:border-slate-300">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'file' ? 'bg-indigo-100' : 'bg-slate-100'">
-                                <svg class="w-5 h-5" :class="subType === 'file' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold" :class="subType === 'file' ? 'text-indigo-900' : 'text-slate-700'">File Upload</p>
-                                <p class="text-xs text-slate-500">Students upload files</p>
-                            </div>
+                    <button type="button" @click="subType = 'file'"
+                        :class="subType === 'file' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'file' ? 'bg-indigo-100' : 'bg-slate-100'">
+                            <svg class="w-5 h-5" :class="subType === 'file' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                         </div>
-                    </label>
-                    <label @click="subType = 'text'" class="relative cursor-pointer">
-                        <input type="radio" name="submission_type" value="text" x-model="subType" class="peer sr-only" />
-                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-slate-200 hover:border-slate-300">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'text' ? 'bg-indigo-100' : 'bg-slate-100'">
-                                <svg class="w-5 h-5" :class="subType === 'text' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold" :class="subType === 'text' ? 'text-indigo-900' : 'text-slate-700'">Text Input</p>
-                                <p class="text-xs text-slate-500">Students type their answer</p>
-                            </div>
+                        <div>
+                            <p class="text-sm font-semibold" :class="subType === 'file' ? 'text-indigo-900' : 'text-slate-700'">File Upload</p>
+                            <p class="text-xs text-slate-500">Students upload files</p>
                         </div>
-                    </label>
-                    <label @click="subType = 'both'" class="relative cursor-pointer">
-                        <input type="radio" name="submission_type" value="both" x-model="subType" class="peer sr-only" />
-                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition peer-checked:border-indigo-500 peer-checked:bg-indigo-50 border-slate-200 hover:border-slate-300">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'both' ? 'bg-indigo-100' : 'bg-slate-100'">
-                                <svg class="w-5 h-5" :class="subType === 'both' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold" :class="subType === 'both' ? 'text-indigo-900' : 'text-slate-700'">Both</p>
-                                <p class="text-xs text-slate-500">Files and/or text</p>
-                            </div>
+                    </button>
+                    <button type="button" @click="subType = 'text'"
+                        :class="subType === 'text' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'text' ? 'bg-indigo-100' : 'bg-slate-100'">
+                            <svg class="w-5 h-5" :class="subType === 'text' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </div>
-                    </label>
+                        <div>
+                            <p class="text-sm font-semibold" :class="subType === 'text' ? 'text-indigo-900' : 'text-slate-700'">Text Input</p>
+                            <p class="text-xs text-slate-500">Students type their answer</p>
+                        </div>
+                    </button>
+                    <button type="button" @click="subType = 'both'"
+                        :class="subType === 'both' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'both' ? 'bg-indigo-100' : 'bg-slate-100'">
+                            <svg class="w-5 h-5" :class="subType === 'both' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold" :class="subType === 'both' ? 'text-indigo-900' : 'text-slate-700'">Both</p>
+                            <p class="text-xs text-slate-500">Files and/or text</p>
+                        </div>
+                    </button>
                 </div>
             </div>
 
