@@ -98,6 +98,27 @@ class WorkspaceVoteController extends Controller
         return back()->with('success', 'Voting closed. Results revealed!');
     }
 
+    /**
+     * Delete a closed voting round.
+     */
+    public function destroy(string $tenantSlug, StudentGroup $group, GroupVoteRound $round): RedirectResponse
+    {
+        $user = auth()->user();
+
+        if (! $group->isMember($user->id) || $round->student_group_id !== $group->id) {
+            abort(403);
+        }
+
+        if ($round->isOpen()) {
+            return back()->with('error', 'Cannot delete an active voting round. Close it first.');
+        }
+
+        $round->votes()->delete();
+        $round->delete();
+
+        return back()->with('success', 'Voting round deleted.');
+    }
+
     private function closeRound(GroupVoteRound $round, StudentGroup $group): void
     {
         $votes = $round->votes()->get();
