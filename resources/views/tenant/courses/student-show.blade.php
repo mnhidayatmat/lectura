@@ -78,24 +78,42 @@
             @endif
         </div>
 
-        {{-- Quick Links --}}
-        <div class="grid grid-cols-2 gap-3">
-            <a href="{{ route('tenant.materials.student-course', [$tenant->slug, $course]) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-sm p-4 flex items-center gap-3 transition-all">
-                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition">
-                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        {{-- Quick Actions --}}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <a href="{{ route('tenant.materials.student-course', [$tenant->slug, $course]) }}" class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600 hover:shadow-sm p-4 flex flex-col items-center gap-2 text-center transition-all">
+                <div class="w-11 h-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/60 transition">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-slate-900">Materials</p>
-                    <p class="text-[11px] text-slate-400">Lecture notes & files</p>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Materials</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Notes & files</p>
                 </div>
             </a>
-            <a href="{{ route('tenant.assignments.index', $tenant->slug) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-amber-200 hover:shadow-sm p-4 flex items-center gap-3 transition-all">
-                <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition">
-                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <a href="{{ route('tenant.assignments.index', $tenant->slug) }}" class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-amber-200 dark:hover:border-amber-600 hover:shadow-sm p-4 flex flex-col items-center gap-2 text-center transition-all">
+                <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 dark:group-hover:bg-amber-900/60 transition">
+                    <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold text-slate-900">Assignments</p>
-                    <p class="text-[11px] text-slate-400">Submit & track</p>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Assignments</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Submit & track</p>
+                </div>
+            </a>
+            <a href="{{ route('tenant.my-attendance', $tenant->slug) }}" class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-600 hover:shadow-sm p-4 flex flex-col items-center gap-2 text-center transition-all">
+                <div class="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/60 transition">
+                    <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Attendance</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">View records</p>
+                </div>
+            </a>
+            <a href="{{ route('tenant.live-hub', $tenant->slug) }}" class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-600 hover:shadow-sm p-4 flex flex-col items-center gap-2 text-center transition-all">
+                <div class="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 dark:group-hover:bg-teal-900/60 transition">
+                    <svg class="w-5 h-5 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">Live & Quiz</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Sessions & quizzes</p>
                 </div>
             </a>
         </div>

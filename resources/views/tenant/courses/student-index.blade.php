@@ -51,8 +51,8 @@
             <div class="grid gap-4">
                 @foreach($courses as $item)
                     @php $course = $item->course; @endphp
-                    <a href="{{ route('tenant.my-courses.show', [$tenant->slug, $course]) }}" class="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md transition-all overflow-hidden">
-                        <div class="p-5 flex items-center gap-4">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600 hover:shadow-md transition-all overflow-hidden">
+                        <a href="{{ route('tenant.my-courses.show', [$tenant->slug, $course]) }}" class="group p-5 flex items-center gap-4 block">
                             {{-- Course Icon --}}
                             <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm group-hover:shadow-md transition">
                                 <span class="text-lg font-bold text-white">{{ strtoupper(substr($course->code, 0, 2)) }}</span>
@@ -61,12 +61,12 @@
                             {{-- Course Info --}}
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-0.5">
-                                    <h3 class="text-base font-bold text-slate-900 truncate group-hover:text-indigo-700 transition">{{ $course->code }}</h3>
+                                    <h3 class="text-base font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition">{{ $course->code }}</h3>
                                     @php $badge = $course->statusBadge; @endphp
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700">{{ $badge['label'] }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700 dark:bg-{{ $badge['color'] }}-900/40 dark:text-{{ $badge['color'] }}-300">{{ $badge['label'] }}</span>
                                 </div>
-                                <p class="text-sm text-slate-600 truncate">{{ $course->title }}</p>
-                                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
+                                <p class="text-sm text-slate-600 dark:text-slate-400 truncate">{{ $course->title }}</p>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-400 dark:text-slate-500">
                                     <span class="flex items-center gap-1">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                         {{ $course->lecturer?->name ?? 'Unknown' }}
@@ -83,9 +83,25 @@
                             </div>
 
                             {{-- Arrow --}}
-                            <svg class="w-5 h-5 text-slate-300 group-hover:text-indigo-400 transition flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <svg class="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 transition flex-shrink-0 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+
+                        {{-- Quick Actions --}}
+                        <div class="px-5 pb-4 flex items-center gap-2">
+                            <a href="{{ route('tenant.materials.student-course', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition" title="Course Materials">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                Materials
+                            </a>
+                            <a href="{{ route('tenant.my-attendance.course', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition" title="Attendance">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                                Attendance
+                            </a>
+                            <a href="{{ route('tenant.assignments.index', $tenant->slug) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition" title="Assignments">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                Assignments
+                            </a>
                         </div>
-                    </a>
+                    </div>
                 @endforeach
             </div>
         @endif

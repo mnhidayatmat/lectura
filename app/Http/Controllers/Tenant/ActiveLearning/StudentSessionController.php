@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\SubmitResponseRequest;
 use App\Models\ActiveLearningActivity;
 use App\Models\ActiveLearningSession;
+use App\Models\QuizSession;
+use App\Models\SectionStudent;
 use App\Services\ActiveLearning\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +20,50 @@ class StudentSessionController extends Controller
     public function __construct(
         protected SessionService $sessionService,
     ) {}
+
+    /**
+     * Live hub — shows all active sessions (AL + quizzes) for the student.
+     */
+    public function hub(): View
+    {
+        $user = auth()->user();
+        $tenant = app('current_tenant');
+
+        // Get student's enrolled section IDs
+        $sectionIds = SectionStudent::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->pluck('section_id');
+
+        // Active learning sessions that are currently live
+        $activeSessions = ActiveLearningSession::where('status', ActiveLearningSession::STATUS_ACTIVE)
+            ->whereHas('plan', fn ($q) => $q->whereHas('course', fn ($cq) => $cq->whereHas('sections', fn ($sq) => $sq->whereIn('sections.id', $sectionIds))))
+            ->with(['plan.course'])
+            ->get();
+
+        // Live quiz sessions (waiting/active/reviewing)
+        $liveQuizzes = QuizSession::whereIn('section_id', $sectionIds)
+            ->where('category', 'live')
+            ->whereIn('status', ['waiting', 'active', 'reviewing'])
+            ->with(['section.course'])
+            ->latest()
+            ->get();
+
+        // Offline quizzes that are currently open
+        $offlineQuizzes = QuizSession::whereIn('section_id', $sectionIds)
+            ->where('category', 'offline')
+            ->where('status', '!=', 'ended')
+            ->whereNotNull('available_from')
+            ->whereNotNull('available_until')
+            ->where('available_from', '<=', now())
+            ->where('available_until', '>=', now())
+            ->with(['section.course'])
+            ->latest()
+            ->get();
+
+        return view('tenant.live-hub', compact(
+            'tenant', 'activeSessions', 'liveQuizzes', 'offlineQuizzes'
+        ));
+    }
 
     /**
      * Show join-by-code form.
