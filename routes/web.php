@@ -517,6 +517,7 @@ Route::prefix('{tenant:slug}')
             // Chat
             Route::get('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'index'])->name('chat.index');
             Route::post('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'store'])->name('chat.store');
+            Route::post('/{group}/chat/presence', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'presence'])->name('chat.presence');
 
             // Files & Folders
             Route::post('/{group}/files', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'store'])->name('files.store');

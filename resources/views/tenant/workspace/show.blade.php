@@ -329,74 +329,326 @@
         </div>
 
         {{-- TASKS TAB --}}
-        <div x-show="tab === 'tasks'" x-cloak class="space-y-4">
+        @php
+            $allTasks = $group->tasks;
+            $tasksWithDates = $allTasks->filter(fn($t) => $t->due_date);
+            $ganttTasks = $tasksWithDates->sortBy('start_date');
 
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Task Timeline</h3>
-                <button x-data x-on:click="$dispatch('open-task-modal')"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Add Task
-                </button>
+            // Gantt date range
+            $ganttMin = null;
+            $ganttMax = null;
+            if ($ganttTasks->count()) {
+                $starts = $ganttTasks->map(fn($t) => $t->start_date ?? $t->created_at->toDateString())->sort()->values();
+                $ends   = $ganttTasks->map(fn($t) => $t->due_date->toDateString())->sort()->values();
+                $ganttMin = \Carbon\Carbon::parse($starts->first())->startOfWeek();
+                $ganttMax = \Carbon\Carbon::parse($ends->last())->endOfWeek();
+                // Ensure today is visible
+                if ($ganttMin->gt(now())) $ganttMin = now()->startOfWeek();
+                if ($ganttMax->lt(now())) $ganttMax = now()->addWeeks(2)->endOfWeek();
+            }
+            $ganttDays = $ganttMin && $ganttMax ? $ganttMin->diffInDays($ganttMax) + 1 : 0;
+
+            // Build week headers for Gantt
+            $ganttWeeks = [];
+            if ($ganttMin && $ganttDays > 0) {
+                $cur = $ganttMin->copy();
+                while ($cur->lte($ganttMax)) {
+                    $daysInRange = min(7, $ganttMax->diffInDays($cur) + 1);
+                    $ganttWeeks[] = ['label' => $cur->format('d M'), 'days' => $daysInRange, 'pct' => round($daysInRange / $ganttDays * 100, 2)];
+                    $cur->addDays(7);
+                }
+            }
+
+            $todayPct = $ganttMin ? round($ganttMin->diffInDays(now()) / max($ganttDays, 1) * 100, 2) : null;
+            $statsTotal = $allTasks->count();
+            $statsDone  = $allTasks->where('status', 'done')->count();
+            $statsOverdue = $allTasks->filter(fn($t) => $t->isOverdue())->count();
+            $pctComplete = $statsTotal > 0 ? round($statsDone / $statsTotal * 100) : 0;
+        @endphp
+
+        <div x-show="tab === 'tasks'" x-cloak x-data="{ taskView: 'list' }" class="space-y-4">
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Tasks</h3>
+                    @if($statsTotal > 0)
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {{ $pctComplete }}%"></div>
+                            </div>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">{{ $pctComplete }}%</span>
+                        </div>
+                        @if($statsOverdue > 0)
+                            <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $statsOverdue }} overdue
+                            </span>
+                        @endif
+                    @endif
+                </div>
+                <div class="flex items-center gap-2">
+                    {{-- View toggle --}}
+                    <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+                        <button @click="taskView = 'list'"
+                                :class="taskView === 'list' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'"
+                                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                            List
+                        </button>
+                        <button @click="taskView = 'gantt'"
+                                :class="taskView === 'gantt' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'"
+                                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            Timeline
+                        </button>
+                    </div>
+                    <button x-data x-on:click="$dispatch('open-task-modal')"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Task
+                    </button>
+                </div>
             </div>
 
-            @if($group->tasks->isEmpty())
-                <div class="text-center py-12 text-sm text-slate-400">No tasks yet. Add your first task to get started.</div>
+            @if($allTasks->isEmpty())
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 py-16 text-center">
+                    <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <p class="text-sm text-slate-400">No tasks yet.</p>
+                    <button x-data x-on:click="$dispatch('open-task-modal')" class="mt-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">Add first task</button>
+                </div>
             @else
-                @foreach(['todo' => ['label' => 'To Do', 'color' => 'slate'], 'in_progress' => ['label' => 'In Progress', 'color' => 'indigo'], 'done' => ['label' => 'Done', 'color' => 'emerald']] as $status => $meta)
-                    @php $statusTasks = $group->tasks->where('status', $status); @endphp
-                    @if($statusTasks->count())
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                            <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full {{ $meta['color'] === 'slate' ? 'bg-slate-400' : ($meta['color'] === 'indigo' ? 'bg-indigo-500' : 'bg-emerald-500') }}"></span>
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $meta['label'] }}</span>
-                                <span class="text-xs text-slate-400">({{ $statusTasks->count() }})</span>
-                            </div>
-                            <div class="divide-y divide-slate-100 dark:divide-slate-700">
-                                @foreach($statusTasks as $task)
-                                    <div class="flex items-center justify-between px-5 py-3 {{ $task->isOverdue() ? 'bg-red-50/50 dark:bg-red-900/10' : '' }}">
-                                        <div class="flex items-center gap-3 min-w-0">
-                                            <form method="POST" action="{{ route('tenant.workspace.tasks.update', [$tenant->slug, $group, $task]) }}">
+
+                {{-- ═══ LIST VIEW ═══ --}}
+                <div x-show="taskView === 'list'" class="space-y-3">
+                    @php
+                        $cols = [
+                            'todo'        => ['label' => 'To Do',       'dot' => 'bg-slate-400',   'ring' => 'border-slate-200 dark:border-slate-600',  'badge' => 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'],
+                            'in_progress' => ['label' => 'In Progress',  'dot' => 'bg-indigo-500',  'ring' => 'border-indigo-200 dark:border-indigo-700', 'badge' => 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'],
+                            'done'        => ['label' => 'Done',         'dot' => 'bg-emerald-500', 'ring' => 'border-slate-200 dark:border-slate-600',  'badge' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'],
+                        ];
+                    @endphp
+                    @foreach($cols as $status => $col)
+                        @php $statusTasks = $allTasks->where('status', $status); @endphp
+                        @if($statusTasks->count())
+                            <div class="bg-white dark:bg-slate-800 rounded-2xl border {{ $col['ring'] }} overflow-hidden">
+                                <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full {{ $col['dot'] }}"></span>
+                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ $col['label'] }}</span>
+                                    <span class="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full {{ $col['badge'] }}">{{ $statusTasks->count() }}</span>
+                                </div>
+                                <div class="divide-y divide-slate-50 dark:divide-slate-700/50">
+                                    @foreach($statusTasks as $task)
+                                        @php
+                                            $overdue = $task->isOverdue();
+                                            $nextStatus = $status === 'done' ? 'todo' : ($status === 'todo' ? 'in_progress' : 'done');
+                                        @endphp
+                                        <div class="flex items-center gap-3 px-5 py-3.5 {{ $overdue ? 'bg-red-50/40 dark:bg-red-900/10' : 'hover:bg-slate-50/80 dark:hover:bg-slate-700/30' }} transition group">
+
+                                            {{-- Status toggle button --}}
+                                            <form method="POST" action="{{ route('tenant.workspace.tasks.update', [$tenant->slug, $group, $task]) }}" class="flex-shrink-0">
                                                 @csrf @method('PATCH')
-                                                <input type="hidden" name="status" value="{{ $task->status === 'done' ? 'todo' : ($task->status === 'todo' ? 'in_progress' : 'done') }}">
-                                                <button type="submit" title="Cycle status"
-                                                        class="w-5 h-5 rounded border-2 flex-shrink-0 {{ $task->status === 'done' ? 'bg-emerald-500 border-emerald-500 text-white' : ($task->status === 'in_progress' ? 'border-indigo-500' : 'border-slate-300') }} flex items-center justify-center transition">
-                                                    @if($task->status === 'done')
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                                    @elseif($task->status === 'in_progress')
+                                                <input type="hidden" name="status" value="{{ $nextStatus }}">
+                                                <button type="submit" title="Mark as {{ $nextStatus }}"
+                                                        class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+                                                        {{ $status === 'done'        ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
+                                                          : ($status === 'in_progress' ? 'border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                                          : 'border-slate-300 dark:border-slate-500 hover:border-indigo-400') }}">
+                                                    @if($status === 'done')
+                                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                                    @elseif($status === 'in_progress')
                                                         <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
                                                     @endif
                                                 </button>
                                             </form>
-                                            <div class="min-w-0">
-                                                <p class="text-sm text-slate-800 dark:text-slate-200 {{ $task->status === 'done' ? 'line-through text-slate-400' : '' }} truncate">{{ $task->title }}</p>
-                                                <div class="flex items-center gap-2 mt-0.5">
+
+                                            {{-- Task info --}}
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm font-medium text-slate-800 dark:text-slate-200 {{ $status === 'done' ? 'line-through text-slate-400 dark:text-slate-500' : '' }} truncate">
+                                                    {{ $task->title }}
+                                                </p>
+                                                <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1">
                                                     @if($task->assignee)
-                                                        <span class="text-[11px] text-slate-400">{{ $task->assignee->name }}</span>
+                                                        <span class="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                            {{ $task->assignee->name }}
+                                                        </span>
                                                     @endif
-                                                    @if($task->due_date)
-                                                        <span class="text-[11px] {{ $task->isOverdue() ? 'text-red-500 font-medium' : 'text-slate-400' }}">
-                                                            {{ $task->due_date->format('d M') }}{{ $task->isOverdue() ? ' — overdue' : '' }}
+                                                    @if($task->start_date || $task->due_date)
+                                                        <span class="flex items-center gap-1 text-[11px] {{ $overdue ? 'text-red-500 font-semibold' : 'text-slate-400 dark:text-slate-500' }}">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                            @if($task->start_date && $task->due_date)
+                                                                {{ $task->start_date->format('d M') }} → {{ $task->due_date->format('d M') }}
+                                                            @elseif($task->due_date)
+                                                                Due {{ $task->due_date->format('d M Y') }}
+                                                            @endif
+                                                            @if($overdue) · Overdue @endif
                                                         </span>
                                                     @endif
                                                 </div>
                                             </div>
+
+                                            {{-- Delete --}}
+                                            @if($task->created_by === $user->id || $isLeader)
+                                                <form method="POST" action="{{ route('tenant.workspace.tasks.destroy', [$tenant->slug, $group, $task]) }}"
+                                                      onsubmit="return confirm('Delete task?')"
+                                                      class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                                                    @csrf @method('DELETE')
+                                                    <button class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
-                                        @if($task->created_by === $user->id || $isLeader)
-                                            <form method="POST" action="{{ route('tenant.workspace.tasks.destroy', [$tenant->slug, $group, $task]) }}"
-                                                  onsubmit="return confirm('Delete task?')">
-                                                @csrf @method('DELETE')
-                                                <button class="text-slate-300 hover:text-red-400 transition ml-3">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
-                                @endforeach
+                                    @endforeach
+                                </div>
                             </div>
+                        @endif
+                    @endforeach
+                </div>
+
+                {{-- ═══ GANTT / TIMELINE VIEW ═══ --}}
+                <div x-show="taskView === 'gantt'">
+                    @if($ganttTasks->isEmpty())
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 py-12 text-center">
+                            <p class="text-sm text-slate-400">Add a <strong>due date</strong> to your tasks to see them on the timeline.</p>
+                        </div>
+                    @else
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+
+                            {{-- Legend --}}
+                            <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-4 flex-wrap">
+                                <span class="text-xs text-slate-400">
+                                    {{ $ganttMin->format('d M') }} — {{ $ganttMax->format('d M Y') }}
+                                    &nbsp;·&nbsp; {{ $ganttDays }} days
+                                </span>
+                                <div class="flex items-center gap-3 ml-auto">
+                                    <span class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="w-3 h-2 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block"></span>To Do</span>
+                                    <span class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="w-3 h-2 rounded-sm bg-indigo-400 inline-block"></span>In Progress</span>
+                                    <span class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="w-3 h-2 rounded-sm bg-emerald-400 inline-block"></span>Done</span>
+                                    <span class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="w-3 h-2 rounded-sm bg-red-400 inline-block"></span>Overdue</span>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <div class="min-w-[640px]">
+
+                                    {{-- Week header row --}}
+                                    <div class="flex border-b border-slate-100 dark:border-slate-700">
+                                        {{-- Task label column --}}
+                                        <div class="w-48 flex-shrink-0 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-r border-slate-100 dark:border-slate-700">Task</div>
+                                        {{-- Week labels --}}
+                                        <div class="flex-1 relative flex">
+                                            @foreach($ganttWeeks as $week)
+                                                <div class="border-r border-slate-100 dark:border-slate-700 px-2 py-2 text-[10px] font-medium text-slate-400"
+                                                     style="width: {{ $week['pct'] }}%">
+                                                    {{ $week['label'] }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    {{-- Today marker + task rows --}}
+                                    <div class="relative">
+
+                                        {{-- Today vertical line --}}
+                                        @if($todayPct !== null && $todayPct >= 0 && $todayPct <= 100)
+                                            <div class="absolute top-0 bottom-0 z-10 pointer-events-none flex flex-col items-center"
+                                                 style="left: calc(192px + (100% - 192px) * {{ $todayPct / 100 }})">
+                                                <div class="w-px h-full bg-red-400/60 dark:bg-red-500/50 border-l border-dashed border-red-400"></div>
+                                            </div>
+                                            <div class="absolute z-10 -translate-x-1/2 top-0 text-[9px] font-bold text-red-500 bg-red-50 dark:bg-red-900/30 px-1 rounded-b"
+                                                 style="left: calc(192px + (100% - 192px) * {{ $todayPct / 100 }})">
+                                                Today
+                                            </div>
+                                        @endif
+
+                                        {{-- Grid column lines (week boundaries) --}}
+                                        <div class="absolute inset-0 flex pointer-events-none" style="left: 192px">
+                                            @php $cumPct = 0; @endphp
+                                            @foreach($ganttWeeks as $i => $week)
+                                                @php $cumPct += $week['pct']; @endphp
+                                                @if(!$loop->last)
+                                                    <div class="absolute top-0 bottom-0 w-px bg-slate-100 dark:bg-slate-700/60" style="left: {{ $cumPct }}%"></div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+
+                                        {{-- Task rows --}}
+                                        @foreach($ganttTasks as $task)
+                                            @php
+                                                $taskStart  = $task->start_date ?? $task->created_at->startOfDay();
+                                                $taskEnd    = $task->due_date;
+                                                $leftPct    = max(0, round($ganttMin->diffInDays($taskStart) / max($ganttDays, 1) * 100, 2));
+                                                $widthPct   = max(1, round($taskStart->diffInDays($taskEnd) / max($ganttDays, 1) * 100, 2));
+                                                $widthPct   = min($widthPct, 100 - $leftPct);
+
+                                                $barColor = match(true) {
+                                                    $task->isOverdue() => 'bg-red-400 dark:bg-red-500',
+                                                    $task->status === 'done'        => 'bg-emerald-400 dark:bg-emerald-500',
+                                                    $task->status === 'in_progress' => 'bg-indigo-400 dark:bg-indigo-500',
+                                                    default                         => 'bg-slate-300 dark:bg-slate-600',
+                                                };
+                                                $textColor = match(true) {
+                                                    $task->isOverdue()              => 'text-red-700 dark:text-red-400',
+                                                    $task->status === 'done'        => 'text-emerald-700 dark:text-emerald-400',
+                                                    $task->status === 'in_progress' => 'text-indigo-700 dark:text-indigo-400',
+                                                    default                         => 'text-slate-500 dark:text-slate-400',
+                                                };
+                                            @endphp
+                                            <div class="flex items-center border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition group/row" style="min-height: 44px">
+
+                                                {{-- Task label --}}
+                                                <div class="w-48 flex-shrink-0 px-4 py-2 border-r border-slate-100 dark:border-slate-700">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {{ $task->status === 'done' ? 'bg-emerald-500' : ($task->status === 'in_progress' ? 'bg-indigo-500' : 'bg-slate-400') }}"></span>
+                                                        <p class="text-xs font-medium text-slate-700 dark:text-slate-300 truncate {{ $task->status === 'done' ? 'line-through text-slate-400' : '' }}">{{ $task->title }}</p>
+                                                    </div>
+                                                    @if($task->assignee)
+                                                        <p class="text-[10px] text-slate-400 pl-3.5 mt-0.5 truncate">{{ $task->assignee->name }}</p>
+                                                    @endif
+                                                </div>
+
+                                                {{-- Bar area --}}
+                                                <div class="flex-1 relative px-1 py-3">
+                                                    <div class="absolute inset-y-2 rounded-full {{ $barColor }} flex items-center px-2 overflow-hidden"
+                                                         style="left: calc({{ $leftPct }}% + 4px); width: calc({{ $widthPct }}% - 8px); min-width: 6px;">
+                                                        <span class="text-[10px] font-semibold text-white truncate hidden" style="display: {{ $widthPct > 8 ? 'block' : 'none' }}">
+                                                            {{ $task->due_date->format('d M') }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Due date label + delete --}}
+                                                <div class="w-20 flex-shrink-0 px-3 py-2 text-right">
+                                                    <span class="text-[10px] font-medium {{ $textColor }}">
+                                                        {{ $task->due_date->format('d M') }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Tasks without dates footer --}}
+                            @php $noDateTasks = $allTasks->reject(fn($t) => $t->due_date); @endphp
+                            @if($noDateTasks->count())
+                                <div class="px-5 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-700/20">
+                                    <p class="text-[11px] text-slate-400 mb-1.5">Not on timeline (no due date):</p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach($noDateTasks as $task)
+                                            <span class="text-[11px] px-2 py-0.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-600 dark:text-slate-300">
+                                                {{ $task->title }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     @endif
-                @endforeach
+                </div>
+
             @endif
         </div>
 
@@ -725,8 +977,9 @@
                 <form method="POST" action="{{ route('tenant.workspace.tasks.store', [$tenant->slug, $group]) }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="text-xs font-medium text-slate-700 dark:text-slate-300">Task Title</label>
+                        <label class="text-xs font-medium text-slate-700 dark:text-slate-300">Task Title <span class="text-red-400">*</span></label>
                         <input type="text" name="title" required maxlength="200"
+                               placeholder="e.g. Write literature review"
                                class="mt-1 w-full text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
@@ -738,10 +991,19 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label class="text-xs font-medium text-slate-700 dark:text-slate-300">Due Date</label>
-                        <input type="date" name="due_date" class="mt-1 w-full text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-medium text-slate-700 dark:text-slate-300">Start Date</label>
+                            <input type="date" name="start_date"
+                                   class="mt-1 w-full text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700 dark:text-slate-300">Due Date</label>
+                            <input type="date" name="due_date"
+                                   class="mt-1 w-full text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
                     </div>
+                    <p class="text-[11px] text-slate-400 -mt-2">Set both dates to show this task on the Gantt timeline.</p>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="open = false" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
                         <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">Add Task</button>

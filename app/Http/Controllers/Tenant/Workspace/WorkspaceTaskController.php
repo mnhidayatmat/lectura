@@ -25,13 +25,15 @@ class WorkspaceTaskController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:200'],
             'assigned_to' => ['nullable', 'integer', 'in:' . implode(',', $memberIds)],
-            'due_date' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ]);
 
         GroupTask::create([
             'student_group_id' => $group->id,
             'title' => $request->title,
             'assigned_to' => $request->assigned_to,
+            'start_date' => $request->start_date,
             'due_date' => $request->due_date,
             'status' => 'todo',
             'created_by' => $user->id,

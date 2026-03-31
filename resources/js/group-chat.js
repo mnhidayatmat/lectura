@@ -1,7 +1,10 @@
-export default function groupChat(postUrl, loadUrl, myUserId, channelName) {
+export default function groupChat(postUrl, loadUrl, myUserId, channelName, presenceUrl, members) {
     return {
         messages: [],
         newMessage: '',
+        onlineIds: [],
+        members: members || [],
+        presenceInterval: null,
 
         async init() {
             try {
@@ -20,6 +23,43 @@ export default function groupChat(postUrl, loadUrl, myUserId, channelName) {
                     this.$nextTick(() => this.scrollToBottom());
                 });
             }
+
+            // Start presence heartbeat
+            if (presenceUrl) {
+                this.heartbeat();
+                this.presenceInterval = setInterval(() => this.heartbeat(), 15000);
+            }
+        },
+
+        destroy() {
+            if (this.presenceInterval) clearInterval(this.presenceInterval);
+        },
+
+        async heartbeat() {
+            try {
+                const res = await fetch(presenceUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({}),
+                });
+                this.onlineIds = await res.json();
+            } catch (e) {}
+        },
+
+        isOnline(userId) {
+            return this.onlineIds.includes(userId);
+        },
+
+        get onlineCount() {
+            return this.onlineIds.length;
+        },
+
+        get onlineMembers() {
+            return this.members.filter(m => this.onlineIds.includes(m.id));
         },
 
         async sendMessage() {

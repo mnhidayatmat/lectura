@@ -10,6 +10,7 @@ use App\Models\StudentGroup;
 use App\Models\StudentGroupPost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class WorkspaceChatController extends Controller
 {
@@ -80,5 +81,32 @@ class WorkspaceChatController extends Controller
             'sent_at' => $message->created_at->format('H:i'),
             'is_mine' => true,
         ]);
+    }
+
+    /**
+     * Heartbeat: mark current user as online and return list of online member IDs.
+     */
+    public function presence(string $tenantSlug, StudentGroup $group): JsonResponse
+    {
+        $user = auth()->user();
+
+        if (! $group->isMember($user->id)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        // Mark this user as online for 35 seconds
+        Cache::put("chat_online:{$group->id}:{$user->id}", true, 35);
+
+        // Check which group members are online
+        $memberIds = $group->members()->pluck('user_id');
+        $onlineIds = [];
+
+        foreach ($memberIds as $memberId) {
+            if (Cache::has("chat_online:{$group->id}:{$memberId}")) {
+                $onlineIds[] = $memberId;
+            }
+        }
+
+        return response()->json($onlineIds);
     }
 }
