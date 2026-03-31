@@ -356,7 +356,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/my-attendance/course/{course}', [StudentAttendanceController::class, 'course'])->name('tenant.my-attendance.course');
         Route::post('/my-attendance/excuse/{record}', [StudentAttendanceController::class, 'submitExcuse'])->name('tenant.my-attendance.excuse.submit');
 
-        // Live Quizzes
+        // Quizzes (Live & Offline)
         Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');
         Route::get('/quizzes/create', [QuizController::class, 'create'])->name('tenant.quizzes.create');
         Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
@@ -375,6 +375,8 @@ Route::prefix('{tenant:slug}')
         Route::get('/quiz/{session}/play', [QuizController::class, 'play'])->name('tenant.quizzes.play');
         Route::post('/quiz/{session}/respond', [QuizController::class, 'respond'])->name('tenant.quizzes.respond');
         Route::get('/quiz/{session}/student-state', [QuizController::class, 'studentState'])->name('tenant.quizzes.student-state');
+        Route::post('/quiz/{session}/submit-offline', [QuizController::class, 'submitOffline'])->name('tenant.quizzes.submit-offline');
+        Route::get('/quiz/{session}/offline-result', [QuizController::class, 'offlineResult'])->name('tenant.quizzes.offlineResult');
 
         // Assignments
         Route::get('/assignments', [AssignmentController::class, 'index'])->name('tenant.assignments.index');

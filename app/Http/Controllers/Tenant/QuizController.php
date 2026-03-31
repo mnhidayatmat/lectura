@@ -22,7 +22,7 @@ use Illuminate\View\View;
 class QuizController extends Controller
 {
     /**
-     * Quiz list for lecturer.
+     * Quiz list for lecturer — grouped by course.
      */
     public function index(): View
     {
@@ -33,15 +33,18 @@ class QuizController extends Controller
         $sessions = QuizSession::whereIn('section_id', $sectionIds)
             ->with(['section.course', 'participants'])
             ->latest()
-            ->limit(50)
+            ->limit(100)
             ->get();
 
-        $sections = Section::whereIn('course_id', $courseIds)->with('course')->where('is_active', true)->get();
+        $courses = Course::whereIn('id', $courseIds)
+            ->whereHas('sections', fn ($q) => $q->where('is_active', true))
+            ->orderBy('code')
+            ->get();
 
-        $liveSessions = $sessions->filter(fn($s) => $s->isLive());
-        $pastSessions = $sessions->where('status', 'ended');
+        // Group sessions by course
+        $sessionsByCourse = $sessions->groupBy(fn ($s) => $s->section->course_id);
 
-        return view('tenant.quizzes.index', compact('liveSessions', 'pastSessions', 'sections'));
+        return view('tenant.quizzes.index', compact('courses', 'sessionsByCourse'));
     }
 
     /**
@@ -72,8 +75,11 @@ class QuizController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'section_id' => ['required', 'exists:sections,id'],
+            'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
+            'available_from' => ['required_if:category,offline', 'nullable', 'date'],
+            'available_until' => ['required_if:category,offline', 'nullable', 'date', 'after:available_from'],
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.text' => ['required', 'string'],
             'questions.*.type' => ['required', 'in:mcq,true_false,short_answer'],
@@ -86,15 +92,20 @@ class QuizController extends Controller
         ]);
 
         $tenant = app('current_tenant');
+        $isOffline = $request->category === 'offline';
 
         $session = QuizSession::create([
             'tenant_id' => $tenant->id,
             'section_id' => $request->section_id,
             'lecturer_id' => auth()->id(),
             'title' => $request->title,
+            'category' => $request->category,
             'mode' => $request->mode,
             'is_anonymous' => (bool) $request->is_anonymous,
-            'status' => 'waiting',
+            'status' => $isOffline ? 'active' : 'waiting',
+            'available_from' => $isOffline ? $request->available_from : null,
+            'available_until' => $isOffline ? $request->available_until : null,
+            'started_at' => $isOffline ? now() : null,
         ]);
 
         foreach ($request->questions as $i => $qData) {
@@ -127,7 +138,14 @@ class QuizController extends Controller
                 'quiz_session_id' => $session->id,
                 'question_id' => $question->id,
                 'sort_order' => $i,
+                'status' => $isOffline ? 'active' : 'pending',
+                'opened_at' => $isOffline ? now() : null,
             ]);
+        }
+
+        if ($isOffline) {
+            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+                ->with('success', 'Offline quiz created. Students can access it from '.$session->available_from->format('d M Y H:i').'.');
         }
 
         return redirect()->route('tenant.quizzes.control', [
@@ -183,8 +201,11 @@ class QuizController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'section_id' => ['required', 'exists:sections,id'],
+            'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
+            'available_from' => ['required_if:category,offline', 'nullable', 'date'],
+            'available_until' => ['required_if:category,offline', 'nullable', 'date', 'after:available_from'],
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.text' => ['required', 'string'],
             'questions.*.type' => ['required', 'in:mcq,true_false,short_answer'],
@@ -197,12 +218,16 @@ class QuizController extends Controller
         ]);
 
         $tenant = app('current_tenant');
+        $isOffline = $request->category === 'offline';
 
         $session->update([
             'title' => $request->title,
             'section_id' => $request->section_id,
+            'category' => $request->category,
             'mode' => $request->mode,
             'is_anonymous' => (bool) $request->is_anonymous,
+            'available_from' => $isOffline ? $request->available_from : null,
+            'available_until' => $isOffline ? $request->available_until : null,
         ]);
 
         // Delete old questions and session-question links
@@ -243,7 +268,14 @@ class QuizController extends Controller
                 'quiz_session_id' => $session->id,
                 'question_id' => $question->id,
                 'sort_order' => $i,
+                'status' => $isOffline ? 'active' : 'pending',
+                'opened_at' => $isOffline ? now() : null,
             ]);
+        }
+
+        if ($isOffline) {
+            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+                ->with('success', 'Offline quiz updated successfully.');
         }
 
         $route = $session->status === 'ended' ? 'tenant.quizzes.results' : 'tenant.quizzes.control';
@@ -389,48 +421,59 @@ class QuizController extends Controller
         $session->load('sessionQuestions.question.options');
 
         $newSession = QuizSession::create([
-            'tenant_id'   => $tenant->id,
-            'section_id'  => $session->section_id,
+            'tenant_id' => $tenant->id,
+            'section_id' => $session->section_id,
             'lecturer_id' => auth()->id(),
-            'title'       => $session->title,
-            'mode'        => $session->mode,
+            'title' => $session->title,
+            'category' => $session->category,
+            'mode' => $session->mode,
             'is_anonymous' => $session->is_anonymous,
-            'status'      => 'waiting',
+            'status' => $session->isOffline() ? 'active' : 'waiting',
+            'available_from' => $session->available_from,
+            'available_until' => $session->available_until,
+            'started_at' => $session->isOffline() ? now() : null,
         ]);
 
         foreach ($session->sessionQuestions as $sq) {
             $oldQ = $sq->question;
 
             $newQ = Question::create([
-                'tenant_id'          => $tenant->id,
-                'created_by'         => auth()->id(),
-                'question_type'      => $oldQ->question_type,
-                'text'               => $oldQ->text,
-                'explanation'        => $oldQ->explanation,
+                'tenant_id' => $tenant->id,
+                'created_by' => auth()->id(),
+                'question_type' => $oldQ->question_type,
+                'text' => $oldQ->text,
+                'explanation' => $oldQ->explanation,
                 'time_limit_seconds' => $oldQ->time_limit_seconds,
-                'points'             => $oldQ->points,
-                'is_bank'            => true,
+                'points' => $oldQ->points,
+                'is_bank' => true,
             ]);
 
             foreach ($oldQ->options as $opt) {
                 QuestionOption::create([
                     'question_id' => $newQ->id,
-                    'label'       => $opt->label,
-                    'text'        => $opt->text,
-                    'is_correct'  => $opt->is_correct,
-                    'sort_order'  => $opt->sort_order,
+                    'label' => $opt->label,
+                    'text' => $opt->text,
+                    'is_correct' => $opt->is_correct,
+                    'sort_order' => $opt->sort_order,
                 ]);
             }
 
             QuizSessionQuestion::create([
                 'quiz_session_id' => $newSession->id,
-                'question_id'     => $newQ->id,
-                'sort_order'      => $sq->sort_order,
+                'question_id' => $newQ->id,
+                'sort_order' => $sq->sort_order,
+                'status' => $session->isOffline() ? 'active' : 'pending',
+                'opened_at' => $session->isOffline() ? now() : null,
             ]);
         }
 
+        if ($newSession->isOffline()) {
+            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+                ->with('success', 'Offline quiz replayed — new session created.');
+        }
+
         return redirect()->route('tenant.quizzes.control', [
-            'tenant'  => $tenant->slug,
+            'tenant' => $tenant->slug,
             'session' => $newSession->id,
         ])->with('success', 'Quiz replayed — new session created with the same questions.');
     }
@@ -487,7 +530,7 @@ class QuizController extends Controller
     // ── Student Endpoints ──
 
     /**
-     * Student join page.
+     * Student join page (for live quizzes).
      */
     public function join(Request $request): View|RedirectResponse
     {
@@ -507,22 +550,64 @@ class QuizController extends Controller
     }
 
     /**
-     * Student play — answer questions.
+     * Student play — answer questions (live or offline).
      */
-    public function play(string $tenantSlug, QuizSession $session): View
+    public function play(string $tenantSlug, QuizSession $session): View|RedirectResponse
     {
+        $user = auth()->user();
+
+        // Offline quiz — check availability window and section enrollment
+        if ($session->isOffline()) {
+            if (! $session->isOfflineOpen()) {
+                return redirect()->route('tenant.quizzes.index', $tenantSlug)
+                    ->with('error', 'This quiz is not currently available.');
+            }
+
+            // Verify student is enrolled in the section
+            $enrolled = SectionStudent::where('section_id', $session->section_id)
+                ->where('student_id', $user->id)
+                ->exists();
+
+            if (! $enrolled && $session->lecturer_id !== $user->id) {
+                return redirect()->route('tenant.quizzes.index', $tenantSlug)
+                    ->with('error', 'You are not enrolled in this section.');
+            }
+
+            // Auto-join as participant
+            $participant = QuizParticipant::firstOrCreate(
+                ['quiz_session_id' => $session->id, 'user_id' => $user->id],
+                [
+                    'display_name' => $session->is_anonymous ? 'Player '.rand(100, 999) : $user->name,
+                    'joined_at' => now(),
+                ]
+            );
+
+            // Check if already submitted
+            $answeredCount = QuizResponse::where('quiz_participant_id', $participant->id)->count();
+            $totalQuestions = $session->sessionQuestions()->count();
+            if ($answeredCount >= $totalQuestions && $totalQuestions > 0) {
+                return redirect()->route('tenant.quizzes.offlineResult', [
+                    'tenant' => $tenantSlug,
+                    'session' => $session->id,
+                ])->with('info', 'You have already completed this quiz.');
+            }
+
+            $session->load(['sessionQuestions.question.options']);
+
+            return view('tenant.quizzes.play-offline', compact('session', 'participant'));
+        }
+
+        // Live quiz
         if (! $session->isLive()) {
             return redirect()->route('tenant.quizzes.index', $tenantSlug)
                 ->with('error', 'This quiz has ended.');
         }
 
-        $user = auth()->user();
-
         // Auto-join as participant
         $participant = QuizParticipant::firstOrCreate(
             ['quiz_session_id' => $session->id, 'user_id' => $user->id],
             [
-                'display_name' => $session->is_anonymous ? 'Player ' . rand(100, 999) : $user->name,
+                'display_name' => $session->is_anonymous ? 'Player '.rand(100, 999) : $user->name,
                 'joined_at' => now(),
             ]
         );
@@ -533,7 +618,7 @@ class QuizController extends Controller
     }
 
     /**
-     * API: Student submits answer.
+     * API: Student submits answer (live quiz — single question).
      */
     public function respond(Request $request, string $tenantSlug, QuizSession $session): JsonResponse
     {
@@ -601,7 +686,97 @@ class QuizController extends Controller
     }
 
     /**
-     * API: Get current question state for student (polling).
+     * Submit all answers for an offline quiz.
+     */
+    public function submitOffline(Request $request, string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        if (! $session->isOffline() || ! $session->isOfflineOpen()) {
+            return redirect()->route('tenant.quizzes.index', $tenantSlug)
+                ->with('error', 'This quiz is not currently available.');
+        }
+
+        $request->validate([
+            'answers' => ['required', 'array'],
+            'answers.*' => ['nullable', 'integer'],
+        ]);
+
+        $user = auth()->user();
+
+        $participant = QuizParticipant::where('quiz_session_id', $session->id)
+            ->where('user_id', $user->id)->first();
+
+        if (! $participant) {
+            return redirect()->back()->with('error', 'You have not joined this quiz.');
+        }
+
+        // Check if already submitted
+        $existingCount = QuizResponse::where('quiz_participant_id', $participant->id)->count();
+        if ($existingCount > 0) {
+            return redirect()->route('tenant.quizzes.offlineResult', [
+                'tenant' => $tenantSlug,
+                'session' => $session->id,
+            ])->with('info', 'You have already submitted this quiz.');
+        }
+
+        $session->load('sessionQuestions.question');
+
+        foreach ($session->sessionQuestions as $sq) {
+            $selectedOptionId = $request->input("answers.{$sq->id}");
+
+            $isCorrect = false;
+            $points = 0;
+
+            if ($selectedOptionId) {
+                $option = QuestionOption::find($selectedOptionId);
+                $isCorrect = $option && $option->is_correct;
+                $points = $isCorrect ? (float) $sq->question->points : 0;
+            }
+
+            QuizResponse::create([
+                'quiz_session_question_id' => $sq->id,
+                'quiz_participant_id' => $participant->id,
+                'selected_option_id' => $selectedOptionId,
+                'answer_text' => null,
+                'is_correct' => $isCorrect,
+                'points_earned' => $points,
+                'response_time_ms' => null,
+            ]);
+        }
+
+        // Update participant total
+        $participant->update([
+            'total_score' => QuizResponse::where('quiz_participant_id', $participant->id)->sum('points_earned'),
+        ]);
+
+        return redirect()->route('tenant.quizzes.offlineResult', [
+            'tenant' => $tenantSlug,
+            'session' => $session->id,
+        ])->with('success', 'Quiz submitted successfully!');
+    }
+
+    /**
+     * Show student's offline quiz result.
+     */
+    public function offlineResult(string $tenantSlug, QuizSession $session): View
+    {
+        $user = auth()->user();
+
+        $participant = QuizParticipant::where('quiz_session_id', $session->id)
+            ->where('user_id', $user->id)->firstOrFail();
+
+        $session->load(['sessionQuestions.question.options', 'section.course']);
+
+        $responses = QuizResponse::where('quiz_participant_id', $participant->id)
+            ->get()
+            ->keyBy('quiz_session_question_id');
+
+        $maxScore = $session->sessionQuestions->sum(fn ($sq) => (float) $sq->question->points);
+
+        return view('tenant.quizzes.offline-result', compact('session', 'participant', 'responses', 'maxScore'));
+    }
+
+    /**
+     * API: Get current question state for student (polling — live quiz).
      */
     public function studentState(string $tenantSlug, QuizSession $session): JsonResponse
     {
@@ -626,7 +801,7 @@ class QuizController extends Controller
                 'type' => $q->question_type,
                 'time_limit' => $q->time_limit_seconds,
                 'points' => $q->points,
-                'options' => $q->options->map(fn($o) => [
+                'options' => $q->options->map(fn ($o) => [
                     'id' => $o->id,
                     'label' => $o->label,
                     'text' => $o->text,

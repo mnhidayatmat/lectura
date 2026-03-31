@@ -16,7 +16,8 @@ class QuizSession extends Model
 
     protected $fillable = [
         'tenant_id', 'section_id', 'lecturer_id', 'title', 'join_code',
-        'mode', 'is_anonymous', 'status', 'settings', 'started_at', 'ended_at',
+        'category', 'mode', 'is_anonymous', 'status', 'settings',
+        'available_from', 'available_until', 'started_at', 'ended_at',
     ];
 
     protected function casts(): array
@@ -24,6 +25,8 @@ class QuizSession extends Model
         return [
             'is_anonymous' => 'boolean',
             'settings' => 'array',
+            'available_from' => 'datetime',
+            'available_until' => 'datetime',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
@@ -66,5 +69,25 @@ class QuizSession extends Model
     public function isLive(): bool
     {
         return in_array($this->status, ['waiting', 'active', 'reviewing']);
+    }
+
+    public function isOffline(): bool
+    {
+        return $this->category === 'offline';
+    }
+
+    public function isOfflineOpen(): bool
+    {
+        if (! $this->isOffline()) {
+            return false;
+        }
+
+        $now = now();
+
+        return $this->available_from
+            && $this->available_until
+            && $now->gte($this->available_from)
+            && $now->lte($this->available_until)
+            && $this->status !== 'ended';
     }
 }
