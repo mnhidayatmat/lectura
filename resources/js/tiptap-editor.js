@@ -14,6 +14,23 @@ export default function tiptapEditor(initialContent = '') {
 
         init() {
             this._ensureEditor()
+
+            // Sync hidden input value before form submission
+            const form = this.$el.closest('form')
+            if (form) {
+                form.addEventListener('submit', () => {
+                    this._syncHiddenInput()
+                })
+            }
+        },
+
+        _syncHiddenInput() {
+            if (this.editor) {
+                this.content = this.editor.getHTML()
+            }
+            if (this.$refs.hiddenInput) {
+                this.$refs.hiddenInput.value = this.content
+            }
         },
 
         _ensureEditor() {
@@ -46,6 +63,10 @@ export default function tiptapEditor(initialContent = '') {
                     },
                     onUpdate: ({ editor }) => {
                         this.content = editor.getHTML()
+                        // Directly set hidden input value as well
+                        if (this.$refs.hiddenInput) {
+                            this.$refs.hiddenInput.value = this.content
+                        }
                     },
                 })
                 return true
