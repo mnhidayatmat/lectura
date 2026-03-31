@@ -158,37 +158,77 @@
         {{-- CHAT TAB --}}
         <div x-show="tab === 'chat'" x-cloak
              x-data="groupChat('{{ route('tenant.workspace.chat.store', [$tenant->slug, $group]) }}', '{{ route('tenant.workspace.chat.index', [$tenant->slug, $group]) }}', {{ $user->id }}, 'group.{{ $group->id }}.chat')"
-             class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col" style="height: 600px;">
+             class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" style="height: 600px;">
+
+            {{-- Chat header --}}
+            <div class="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/80">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                    <svg class="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">Group Chat</h3>
+                    <p class="text-[11px] text-slate-400" x-text="messages.length + ' messages'"></p>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Online</span>
+                </div>
+            </div>
 
             {{-- Messages area --}}
-            <div x-ref="messageArea" class="flex-1 overflow-y-auto p-4 space-y-3">
-                <template x-for="msg in messages" :key="msg.id">
-                    <div :class="msg.is_mine ? 'flex-row-reverse' : 'flex-row'" class="flex items-end gap-2">
-                        <div :class="msg.is_mine ? 'bg-indigo-100 dark:bg-indigo-900/30 items-end' : 'bg-slate-100 dark:bg-slate-700 items-start'"
-                             class="flex flex-col gap-0.5 max-w-sm">
-                            <div x-show="!msg.is_mine" class="flex items-center gap-1.5 px-3 pt-2">
-                                <div class="w-5 h-5 rounded-full bg-indigo-200 dark:bg-indigo-800 flex items-center justify-center text-[10px] font-bold text-indigo-700 dark:text-indigo-300" x-text="msg.user_initial"></div>
-                                <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400" x-text="msg.user_name"></span>
-                            </div>
-                            <p class="text-sm text-slate-800 dark:text-slate-200 px-3 py-2" x-text="msg.body"></p>
-                            <p class="text-[10px] text-slate-400 px-3 pb-2" x-text="msg.sent_at"></p>
+            <div x-ref="messageArea" class="flex-1 overflow-y-auto px-4 py-4 space-y-1" style="background-image: radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.4) 1px, transparent 0); background-size: 24px 24px;">
+
+                {{-- Empty state --}}
+                <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center py-12">
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    </div>
+                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No messages yet</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Be the first to say hello!</p>
+                </div>
+
+                {{-- Messages --}}
+                <template x-for="(msg, idx) in messages" :key="msg.id">
+                    <div class="flex flex-col" :class="msg.is_mine ? 'items-end' : 'items-start'">
+                        {{-- Show name if different sender from previous --}}
+                        <div x-show="!msg.is_mine && (idx === 0 || messages[idx-1]?.user_id !== msg.user_id)"
+                             class="flex items-center gap-1.5 mb-1 ml-1">
+                            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+                                 x-text="msg.user_initial"></div>
+                            <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400" x-text="msg.user_name"></span>
+                        </div>
+
+                        {{-- Bubble --}}
+                        <div :class="msg.is_mine
+                                ? 'bg-indigo-600 text-white rounded-2xl rounded-br-md shadow-sm shadow-indigo-200 dark:shadow-none'
+                                : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-md shadow-sm border border-slate-100 dark:border-slate-600'"
+                             class="max-w-[75%] px-3.5 py-2 transition-all">
+                            <p class="text-[13px] leading-relaxed whitespace-pre-wrap break-words" x-text="msg.body"></p>
+                            <p class="text-[10px] mt-0.5 opacity-60 text-right" x-text="msg.sent_at"></p>
                         </div>
                     </div>
                 </template>
-                <div x-show="messages.length === 0" class="text-center py-12 text-sm text-slate-400">No messages yet. Say hello!</div>
             </div>
 
-            {{-- Input --}}
-            <div class="border-t border-slate-100 dark:border-slate-700 p-3 flex gap-2">
-                <input x-model="newMessage"
-                       @keydown.enter.prevent="if(!$event.shiftKey) sendMessage()"
-                       @keydown.shift.enter.prevent="newMessage += '\n'"
-                       placeholder="Type a message… (Enter to send)"
-                       class="flex-1 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white placeholder-slate-400">
-                <button @click="sendMessage()" :disabled="!newMessage.trim()"
-                        class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                </button>
+            {{-- Input area --}}
+            <div class="border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                <div class="flex items-end gap-2">
+                    <div class="flex-1 relative">
+                        <input x-model="newMessage"
+                               @keydown.enter.prevent="if(!$event.shiftKey) sendMessage()"
+                               placeholder="Type a message..."
+                               class="w-full text-sm bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl pl-4 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 outline-none text-slate-900 dark:text-white placeholder-slate-400 transition" />
+                    </div>
+                    <button @click="sendMessage()" :disabled="!newMessage.trim()"
+                            :class="newMessage.trim() ? 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none scale-100' : 'bg-slate-300 dark:bg-slate-600 scale-95'"
+                            class="w-11 h-11 flex items-center justify-center text-white rounded-2xl transition-all duration-200 flex-shrink-0">
+                        <svg class="w-5 h-5 -rotate-45" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 ml-1">Press <kbd class="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px] font-mono">Enter</kbd> to send</p>
             </div>
         </div>
 
