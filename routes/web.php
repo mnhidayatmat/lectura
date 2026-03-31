@@ -536,6 +536,12 @@ Route::prefix('{tenant:slug}')
         Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
         Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
 
+        // Academic Terms (Semesters)
+        Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');
+        Route::post('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'store'])->name('tenant.academic-terms.store');
+        Route::put('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
+        Route::delete('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
+
         // Settings
         Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
         Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
