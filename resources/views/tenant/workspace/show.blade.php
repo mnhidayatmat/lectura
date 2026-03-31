@@ -61,7 +61,7 @@
     @endif
 
     {{-- Tab navigation --}}
-    <div x-data="{ tab: window.location.hash.replace('#','') || 'overview' }" class="space-y-4">
+    <div x-data="{ tab: '{{ session('_tab') }}' || window.location.hash.replace('#','') || 'overview' }" class="space-y-4">
 
         <div class="flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-700 pb-px">
             @foreach(['overview' => 'Overview', 'chat' => 'Chat', 'files' => 'Files', 'tasks' => 'Tasks', 'minutes' => 'Minutes', 'voting' => 'Voting', 'members' => 'Members'] as $key => $label)
@@ -174,8 +174,8 @@
              )"
              class="rounded-2xl overflow-hidden flex flex-col shadow-sm" style="height: 650px;">
 
-            {{-- Header — WhatsApp teal --}}
-            <div class="bg-[#075E54] dark:bg-[#1F2C34] px-4 py-3 flex items-center gap-3">
+            {{-- Header --}}
+            <div class="bg-indigo-600 dark:bg-slate-800 px-4 py-3 flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                 </div>
@@ -193,15 +193,15 @@
             </div>
 
             {{-- Online members strip --}}
-            <div class="bg-[#f0f2f5] dark:bg-[#111B21] border-b border-slate-200/60 dark:border-slate-700 px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto" style="-ms-overflow-style:none;scrollbar-width:none;">
+            <div class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-700 px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto" style="-ms-overflow-style:none;scrollbar-width:none;">
                 <template x-for="member in members" :key="member.id">
                     <div class="flex flex-col items-center gap-1 flex-shrink-0 w-12">
                         <div class="relative">
                             <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-                                 :class="isOnline(member.id) ? 'bg-[#075E54] text-white' : 'bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300'"
+                                 :class="isOnline(member.id) ? 'bg-indigo-500 text-white' : 'bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300'"
                                  x-text="member.initial"></div>
                             <div x-show="isOnline(member.id)"
-                                 class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#25D366] border-2 border-[#f0f2f5] dark:border-[#111B21]"></div>
+                                 class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-100 dark:border-slate-900"></div>
                         </div>
                         <span class="text-[9px] text-slate-500 dark:text-slate-400 truncate w-full text-center leading-tight" x-text="member.name.split(' ')[0]"></span>
                     </div>
@@ -256,7 +256,7 @@
             </div>
 
             {{-- Input bar — WhatsApp style --}}
-            <div class="bg-[#f0f2f5] dark:bg-[#1F2C34] px-3 py-2.5 flex items-end gap-2">
+            <div class="bg-slate-100 dark:bg-slate-800 px-3 py-2.5 flex items-end gap-2">
                 <div class="flex-1">
                     <input x-model="newMessage"
                            @keydown.enter.prevent="if(!$event.shiftKey) sendMessage()"
@@ -264,7 +264,7 @@
                            class="w-full text-[14px] bg-white dark:bg-[#2A3942] border-0 rounded-3xl pl-4 pr-4 py-2.5 focus:ring-0 outline-none text-slate-900 dark:text-white placeholder-slate-400 shadow-sm" />
                 </div>
                 <button @click="sendMessage()" :disabled="!newMessage.trim()"
-                        :class="newMessage.trim() ? 'bg-[#075E54] hover:bg-[#064D44]' : 'bg-[#075E54]/50 cursor-default'"
+                        :class="newMessage.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-600/40 cursor-default'"
                         class="w-11 h-11 flex items-center justify-center text-white rounded-full transition-all flex-shrink-0 shadow-sm">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                 </button>
