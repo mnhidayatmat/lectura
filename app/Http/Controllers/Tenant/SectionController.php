@@ -171,6 +171,27 @@ class SectionController extends Controller
         return back()->with('success', 'Student removed from section.');
     }
 
+    public function updateSchedule(Request $request, string $tenantSlug, Course $course, Section $section): RedirectResponse
+    {
+        $request->validate([
+            'schedule' => ['nullable', 'array', 'max:10'],
+            'schedule.*.day' => ['required', 'string', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
+            'schedule.*.start_time' => ['required', 'date_format:H:i'],
+            'schedule.*.end_time' => ['required', 'date_format:H:i', 'after:schedule.*.start_time'],
+            'schedule.*.location' => ['nullable', 'string', 'max:100'],
+            'schedule.*.type' => ['required', 'string', 'in:lecture,tutorial,lab,other'],
+        ]);
+
+        $schedule = collect($request->input('schedule', []))
+            ->filter(fn ($slot) => !empty($slot['day']) && !empty($slot['start_time']) && !empty($slot['end_time']))
+            ->values()
+            ->toArray();
+
+        $section->update(['schedule' => $schedule ?: null]);
+
+        return back()->with('success', __('Schedule updated successfully.'));
+    }
+
     protected function findColumn(array $header, array $names): ?int
     {
         foreach ($names as $name) {

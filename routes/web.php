@@ -285,6 +285,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/courses/{course}/sections/{section}/students', [SectionController::class, 'addStudent'])->name('tenant.courses.sections.students.add');
         Route::post('/courses/{course}/sections/{section}/students/import', [SectionController::class, 'importCsv'])->name('tenant.courses.sections.students.import');
         Route::delete('/courses/{course}/sections/{section}/students/{user}', [SectionController::class, 'removeStudent'])->name('tenant.courses.sections.students.remove');
+        Route::put('/courses/{course}/sections/{section}/schedule', [SectionController::class, 'updateSchedule'])->name('tenant.courses.sections.schedule.update');
 
         // Random Present Student Wheel
         Route::get('/random-wheel', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'index'])->name('tenant.random-wheel');

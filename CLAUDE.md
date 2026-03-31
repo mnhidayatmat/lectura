@@ -134,6 +134,7 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Plans link to a `Course` and optionally to a `CourseTopic` (week)
 - Each plan contains ordered `ActiveLearningActivity` records (types: individual, pair, group, discussion, reflection, whole_class)
 - Group activities support `ActiveLearningGroup` with members from attendance sessions
+- Published plans remain fully editable: lecturers can add, edit, delete activities and manage groups after publishing. Only the publish button and delete-plan action are hidden for published plans
 - AI generation (Pro): dispatches `GenerateActiveLearningPlan` job, which calls `ActiveLearningGeneratorService` to produce activities from topic + CLOs + optional lecture notes. Edit view polls `generationStatus` endpoint via Alpine.js
 - AI grouping (Pro): dispatches `ArrangeGroupsWithAi` job using `AiGroupingService`
 - Admin AI settings (Pro): tenant admins manage their own API keys at `/{tenant}/admin/ai-settings`

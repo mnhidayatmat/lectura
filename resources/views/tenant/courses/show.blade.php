@@ -201,16 +201,30 @@
                 <div class="divide-y divide-slate-50 max-h-80 overflow-y-auto">
                     @forelse($course->sections as $section)
                         <a href="{{ route('tenant.courses.sections.show', [$tenant->slug, $course, $section]) }}" class="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition group">
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
                                 <div class="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                     <span class="text-xs font-bold text-emerald-700">{{ substr($section->name, 0, 2) }}</span>
                                 </div>
-                                <div>
+                                <div class="min-w-0">
                                     <p class="text-sm font-medium text-slate-900">{{ $section->name }}</p>
                                     <p class="text-[11px] text-slate-400">{{ $section->code }} &middot; <code class="bg-slate-100 px-1 rounded text-[10px]">{{ $section->invite_code }}</code></p>
+                                    @if($section->schedule)
+                                        <div class="flex flex-wrap gap-1 mt-1">
+                                            @foreach($section->schedule as $slot)
+                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium
+                                                    {{ $slot['type'] === 'lecture' ? 'bg-blue-50 text-blue-600' : ($slot['type'] === 'tutorial' ? 'bg-amber-50 text-amber-600' : ($slot['type'] === 'lab' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-500')) }}">
+                                                    {{ ucfirst(substr($slot['day'], 0, 3)) }}
+                                                    {{ $slot['start_time'] }}-{{ $slot['end_time'] }}
+                                                    @if(!empty($slot['location']))
+                                                        &middot; {{ $slot['location'] }}
+                                                    @endif
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 flex-shrink-0">
                                 <div class="text-right">
                                     <p class="text-sm font-bold text-slate-900">{{ $section->activeStudents->count() }}</p>
                                     <p class="text-[10px] text-slate-400">students</p>

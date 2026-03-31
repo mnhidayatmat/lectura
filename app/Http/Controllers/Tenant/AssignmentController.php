@@ -31,7 +31,7 @@ class AssignmentController extends Controller
         $role = $user->roleInTenant(app('current_tenant')->id);
 
         if ($role === 'student') {
-            // Student: show assignments from enrolled courses
+            // Student: show assignments from enrolled courses, grouped by course
             $sectionIds = $user->sections()->pluck('sections.id');
             $courseIds = Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
             $assignments = Assignment::whereIn('course_id', $courseIds)
@@ -40,7 +40,15 @@ class AssignmentController extends Controller
                 ->latest('deadline')
                 ->get();
 
-            return view('tenant.assignments.student-index', compact('assignments'));
+            $assignmentsByCourse = $assignments
+                ->groupBy('course_id')
+                ->map(fn ($items) => [
+                    'course' => $items->first()->course,
+                    'assignments' => $items,
+                ])
+                ->sortBy(fn ($group) => $group['course']->code);
+
+            return view('tenant.assignments.student-index', compact('assignmentsByCourse'));
         }
 
         // Lecturer

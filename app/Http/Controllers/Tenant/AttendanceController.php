@@ -42,7 +42,15 @@ class AttendanceController extends Controller
 
         // Group active sessions
         $activeSessions = $sessions->where('status', 'active');
-        $pastSessions = $sessions->where('status', 'ended');
+
+        // Group past sessions by course
+        $pastSessionsByCourse = $sessions->where('status', 'ended')
+            ->groupBy(fn ($session) => $session->section->course->id)
+            ->map(fn ($sessions) => [
+                'course' => $sessions->first()->section->course,
+                'sessions' => $sessions,
+            ])
+            ->sortBy(fn ($group) => $group['course']->code);
 
         // Get lecturer's sections for starting new session
         $sections = Section::whereIn('course_id', $courseIds)
@@ -50,7 +58,7 @@ class AttendanceController extends Controller
             ->where('is_active', true)
             ->get();
 
-        return view('tenant.attendance.index', compact('activeSessions', 'pastSessions', 'sections'));
+        return view('tenant.attendance.index', compact('activeSessions', 'pastSessionsByCourse', 'sections'));
     }
 
     /**

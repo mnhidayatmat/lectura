@@ -28,6 +28,129 @@
             </div>
         </div>
 
+        {{-- Class Schedule --}}
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+             x-data="scheduleManager({{ json_encode($section->schedule ?? []) }})">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <h3 class="font-semibold text-slate-900">Class Schedule</h3>
+                </div>
+                <button type="button" @click="addSlot()" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Add Slot
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('tenant.courses.sections.schedule.update', [app('current_tenant')->slug, $course, $section]) }}">
+                @csrf
+                @method('PUT')
+
+                <div x-show="slots.length === 0" class="px-6 py-8 text-center">
+                    <div class="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <p class="text-sm text-slate-500">No class schedule set.</p>
+                    <p class="text-xs text-slate-400 mt-1">Add time slots for lectures, tutorials, or labs.</p>
+                </div>
+
+                <div class="divide-y divide-slate-100">
+                    <template x-for="(slot, index) in slots" :key="index">
+                        <div class="px-6 py-4">
+                            <div class="grid grid-cols-12 gap-3 items-end">
+                                {{-- Day --}}
+                                <div class="col-span-12 sm:col-span-3">
+                                    <label class="block text-[11px] font-medium text-slate-500 mb-1">Day</label>
+                                    <select :name="`schedule[${index}][day]`" x-model="slot.day"
+                                            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                        <option value="">Select day...</option>
+                                        <option value="monday">Monday</option>
+                                        <option value="tuesday">Tuesday</option>
+                                        <option value="wednesday">Wednesday</option>
+                                        <option value="thursday">Thursday</option>
+                                        <option value="friday">Friday</option>
+                                        <option value="saturday">Saturday</option>
+                                        <option value="sunday">Sunday</option>
+                                    </select>
+                                </div>
+
+                                {{-- Start Time --}}
+                                <div class="col-span-5 sm:col-span-2">
+                                    <label class="block text-[11px] font-medium text-slate-500 mb-1">Start</label>
+                                    <input type="time" :name="`schedule[${index}][start_time]`" x-model="slot.start_time"
+                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                </div>
+
+                                {{-- End Time --}}
+                                <div class="col-span-5 sm:col-span-2">
+                                    <label class="block text-[11px] font-medium text-slate-500 mb-1">End</label>
+                                    <input type="time" :name="`schedule[${index}][end_time]`" x-model="slot.end_time"
+                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                </div>
+
+                                {{-- Type --}}
+                                <div class="col-span-6 sm:col-span-2">
+                                    <label class="block text-[11px] font-medium text-slate-500 mb-1">Type</label>
+                                    <select :name="`schedule[${index}][type]`" x-model="slot.type"
+                                            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                        <option value="lecture">Lecture</option>
+                                        <option value="tutorial">Tutorial</option>
+                                        <option value="lab">Lab</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                {{-- Location --}}
+                                <div class="col-span-6 sm:col-span-2">
+                                    <label class="block text-[11px] font-medium text-slate-500 mb-1">Location</label>
+                                    <input type="text" :name="`schedule[${index}][location]`" x-model="slot.location" placeholder="e.g. DK1"
+                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                </div>
+
+                                {{-- Remove --}}
+                                <div class="col-span-2 sm:col-span-1 flex justify-end">
+                                    <button type="button" @click="removeSlot(index)" class="p-2 text-slate-400 hover:text-red-500 transition rounded-lg hover:bg-red-50">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="dirty" x-cloak class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <p class="text-xs text-slate-500">You have unsaved changes.</p>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">
+                        Save Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            function scheduleManager(initial) {
+                return {
+                    slots: initial || [],
+                    original: JSON.stringify(initial || []),
+                    dirty: false,
+                    addSlot() {
+                        this.slots.push({ day: '', start_time: '', end_time: '', location: '', type: 'lecture' });
+                        this.checkDirty();
+                    },
+                    removeSlot(index) {
+                        this.slots.splice(index, 1);
+                        this.checkDirty();
+                    },
+                    checkDirty() {
+                        this.dirty = JSON.stringify(this.slots) !== this.original;
+                    },
+                    init() {
+                        this.$watch('slots', () => this.checkDirty(), { deep: true });
+                    }
+                }
+            }
+        </script>
+
         {{-- Add Students --}}
         <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100">
