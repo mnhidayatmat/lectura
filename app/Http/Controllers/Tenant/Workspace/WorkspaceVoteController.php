@@ -60,7 +60,7 @@ class WorkspaceVoteController extends Controller
         $memberIds = $group->members()->pluck('user_id')->toArray();
 
         $request->validate([
-            'nominee_id' => ['required', 'integer', 'in:' . implode(',', $memberIds)],
+            'nominee_id' => ['required', 'integer', 'in:'.implode(',', $memberIds)],
         ]);
 
         GroupVote::create([
