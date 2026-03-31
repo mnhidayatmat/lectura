@@ -62,12 +62,12 @@
             </div>
 
             {{-- Submission Type --}}
-            <div x-data="{ subType: 'file' }">
+            <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Submission Type *</label>
                 <input type="hidden" name="submission_type" :value="subType" />
                 <div class="grid sm:grid-cols-3 gap-3">
                     <button type="button" @click="subType = 'file'"
-                        :class="subType === 'file' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        :class="subType === 'file' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'"
                         class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'file' ? 'bg-indigo-100' : 'bg-slate-100'">
                             <svg class="w-5 h-5" :class="subType === 'file' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -78,7 +78,7 @@
                         </div>
                     </button>
                     <button type="button" @click="subType = 'text'"
-                        :class="subType === 'text' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        :class="subType === 'text' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'"
                         class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'text' ? 'bg-indigo-100' : 'bg-slate-100'">
                             <svg class="w-5 h-5" :class="subType === 'text' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -89,7 +89,7 @@
                         </div>
                     </button>
                     <button type="button" @click="subType = 'both'"
-                        :class="subType === 'both' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'"
+                        :class="subType === 'both' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'"
                         class="flex items-center gap-3 p-4 rounded-xl border-2 transition text-left">
                         <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" :class="subType === 'both' ? 'bg-indigo-100' : 'bg-slate-100'">
                             <svg class="w-5 h-5" :class="subType === 'both' ? 'text-indigo-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -99,6 +99,33 @@
                             <p class="text-xs text-slate-500">Files and/or text</p>
                         </div>
                     </button>
+                </div>
+
+                {{-- Preview: what students will see --}}
+                <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3" x-transition>
+                    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Student submission preview</p>
+
+                    {{-- File upload preview --}}
+                    <div x-show="subType === 'file' || subType === 'both'" x-transition>
+                        <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-white">
+                            <svg class="w-8 h-8 text-indigo-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="text-sm text-slate-600">Students will <span class="font-semibold text-indigo-600">upload files here</span></p>
+                            <p class="text-xs text-slate-400 mt-1">Accepts PDF, JPG, PNG, DOC, DOCX (max 25MB each)</p>
+                        </div>
+                    </div>
+
+                    {{-- Text input preview --}}
+                    <div x-show="subType === 'text' || subType === 'both'" x-transition>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                <p class="text-sm font-medium text-slate-700">Students will type their answer here</p>
+                            </div>
+                            <div class="w-full h-20 rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center">
+                                <p class="text-xs text-slate-400 italic">Text area for student response...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -213,6 +240,7 @@
     <script>
         function assignmentForm() {
             return {
+                subType: 'file',
                 criteria: [],
                 addCriteria() {
                     this.criteria.push({
