@@ -517,6 +517,8 @@ Route::prefix('{tenant:slug}')
             // Chat
             Route::get('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'index'])->name('chat.index');
             Route::post('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'store'])->name('chat.store');
+            Route::patch('/{group}/chat/{message}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'update'])->name('chat.update');
+            Route::delete('/{group}/chat/{message}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'destroy'])->name('chat.destroy');
             Route::post('/{group}/chat/presence', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'presence'])->name('chat.presence');
 
             // Files & Folders

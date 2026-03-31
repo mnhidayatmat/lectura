@@ -226,7 +226,7 @@
 
                 {{-- Messages --}}
                 <template x-for="(msg, idx) in messages" :key="msg.id">
-                    <div class="flex flex-col" :class="msg.is_mine ? 'items-end' : 'items-start'">
+                    <div class="flex flex-col group/row" :class="msg.is_mine ? 'items-end' : 'items-start'">
 
                         {{-- Sender name (only on sender change) --}}
                         <p x-show="!msg.is_mine && (idx === 0 || messages[idx-1]?.user_id !== msg.user_id)"
@@ -234,22 +234,81 @@
                            :style="'color:' + ['#1F7AEB','#D4382C','#6B45BC','#E67E22','#27AE60','#E84393'][msg.user_id % 6]"
                            x-text="msg.user_name"></p>
 
-                        {{-- Bubble --}}
-                        <div :class="msg.is_mine
-                                ? 'bg-[#D9FDD3] dark:bg-[#005C4B] rounded-lg rounded-tr-sm'
-                                : 'bg-white dark:bg-[#202C33] rounded-lg rounded-tl-sm'"
-                             class="relative max-w-[80%] px-2.5 pt-1.5 pb-1 shadow-sm" style="min-width:80px;">
+                        {{-- Bubble container (relative for dropdown positioning) --}}
+                        <div class="relative max-w-[80%]">
 
-                            <p class="text-[13.5px] leading-snug text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words pr-14"
-                               x-text="msg.body"></p>
+                            {{-- Dropdown menu (own messages only) --}}
+                            <template x-if="msg.is_mine && !msg.deleted && activeMenu === msg.id">
+                                <div class="absolute right-0 top-8 z-50 bg-white dark:bg-slate-700 shadow-xl rounded-2xl py-1.5 w-44 border border-slate-100 dark:border-slate-600"
+                                     @click.stop>
+                                    <button @click="startEdit(msg)"
+                                            class="w-full text-left px-4 py-2.5 text-[13px] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600/60 flex items-center gap-2.5 rounded-t-xl">
+                                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                        Edit message
+                                    </button>
+                                    <button @click="deleteMessage(msg)"
+                                            class="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 rounded-b-xl">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                                        Delete message
+                                    </button>
+                                </div>
+                            </template>
 
-                            {{-- Time + double tick --}}
-                            <span class="float-right -mt-3.5 ml-2 flex items-center gap-0.5 select-none">
-                                <span class="text-[10.5px] text-slate-500/70 dark:text-slate-400/60" x-text="msg.sent_at"></span>
-                                <template x-if="msg.is_mine">
-                                    <svg class="w-4 h-4 text-[#53BDEB] -ml-0.5" viewBox="0 0 16 15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88a.32.32 0 01-.484.032l-.358-.325a.32.32 0 00-.484.032l-.378.48a.418.418 0 00.036.54l1.32 1.267a.32.32 0 00.484-.034l6.272-8.048a.366.366 0 00-.064-.512zm-4.1 0l-.478-.372a.365.365 0 00-.51.063L4.566 9.88a.32.32 0 01-.484.032L1.892 7.77a.366.366 0 00-.516.005l-.423.433a.364.364 0 00.006.514l3.255 3.185a.32.32 0 00.484-.033l6.272-8.048a.365.365 0 00-.063-.51z"/></svg>
+                            {{-- Bubble --}}
+                            <div :class="msg.is_mine
+                                    ? 'bg-[#D9FDD3] dark:bg-[#005C4B] rounded-lg rounded-tr-sm'
+                                    : 'bg-white dark:bg-[#202C33] rounded-lg rounded-tl-sm'"
+                                 class="relative px-2.5 pt-1.5 pb-1 shadow-sm" style="min-width:80px;">
+
+                                {{-- Menu trigger — appears on hover for own non-deleted messages --}}
+                                <template x-if="msg.is_mine && !msg.deleted">
+                                    <button @click.stop="toggleMenu(msg.id, $event)"
+                                            class="absolute top-1 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 opacity-0 group-hover/row:opacity-100 transition-opacity hover:bg-black/10">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                    </button>
                                 </template>
-                            </span>
+
+                                {{-- Deleted state --}}
+                                <template x-if="msg.deleted">
+                                    <p class="text-[13px] italic text-slate-400 dark:text-slate-500 flex items-center gap-1.5 pr-2 py-0.5">
+                                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                        This message was deleted
+                                    </p>
+                                </template>
+
+                                {{-- Edit mode --}}
+                                <template x-if="!msg.deleted && editingId === msg.id">
+                                    <div class="min-w-[160px]">
+                                        <textarea x-model="editBody"
+                                                  @keydown.enter.prevent="if(!$event.shiftKey) saveEdit(msg)"
+                                                  @keydown.escape="cancelEdit()"
+                                                  rows="2"
+                                                  class="w-full text-[13.5px] leading-snug bg-transparent border-b-2 border-indigo-400 outline-none resize-none text-slate-900 dark:text-white whitespace-pre-wrap break-words pb-0.5"></textarea>
+                                        <div class="flex justify-end items-center gap-3 mt-1.5 mb-0.5">
+                                            <button @click="cancelEdit()" class="text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">Cancel</button>
+                                            <button @click="saveEdit(msg)" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700">Save</button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                {{-- Normal text --}}
+                                <template x-if="!msg.deleted && editingId !== msg.id">
+                                    <p class="text-[13.5px] leading-snug text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words pr-14"
+                                       x-text="msg.body"></p>
+                                </template>
+
+                                {{-- Time + edited label + double tick --}}
+                                <template x-if="!msg.deleted && editingId !== msg.id">
+                                    <span class="float-right -mt-3.5 ml-2 flex items-center gap-0.5 select-none">
+                                        <span x-show="msg.is_edited" class="text-[10px] italic text-slate-400/80 dark:text-slate-500 mr-0.5">edited</span>
+                                        <span class="text-[10.5px] text-slate-500/70 dark:text-slate-400/60" x-text="msg.sent_at"></span>
+                                        <template x-if="msg.is_mine">
+                                            <svg class="w-4 h-4 text-[#53BDEB] -ml-0.5" viewBox="0 0 16 15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88a.32.32 0 01-.484.032l-.358-.325a.32.32 0 00-.484.032l-.378.48a.418.418 0 00.036.54l1.32 1.267a.32.32 0 00.484-.034l6.272-8.048a.366.366 0 00-.064-.512zm-4.1 0l-.478-.372a.365.365 0 00-.51.063L4.566 9.88a.32.32 0 01-.484.032L1.892 7.77a.366.366 0 00-.516.005l-.423.433a.364.364 0 00.006.514l3.255 3.185a.32.32 0 00.484-.033l6.272-8.048a.365.365 0 00-.063-.51z"/></svg>
+                                        </template>
+                                    </span>
+                                </template>
+
+                            </div>
                         </div>
                     </div>
                 </template>
