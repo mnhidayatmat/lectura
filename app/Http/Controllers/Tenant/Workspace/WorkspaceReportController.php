@@ -37,6 +37,6 @@ class WorkspaceReportController extends Controller
             'description' => $request->description,
         ]);
 
-        return back()->with('success', 'Your report has been submitted anonymously.');
+        return back()->with('success', 'Your report has been submitted anonymously.')->with('_tab', 'members');
     }
 }

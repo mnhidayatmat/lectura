@@ -31,7 +31,7 @@ class WorkspaceSwapController extends Controller
           ->exists();
 
         if ($hasPending) {
-            return back()->with('error', 'You already have a pending swap request.');
+            return back()->with('error', 'You already have a pending swap request.')->with('_tab', 'members');
         }
 
         // Target group must be in same group set
@@ -49,7 +49,7 @@ class WorkspaceSwapController extends Controller
             ->first();
 
         if (! $targetMember) {
-            return back()->with('error', 'Selected member is not in that group.');
+            return back()->with('error', 'Selected member is not in that group.')->with('_tab', 'members');
         }
 
         GroupSwapRequest::create([
@@ -60,7 +60,7 @@ class WorkspaceSwapController extends Controller
             'status' => GroupSwapRequest::STATUS_PENDING_MEMBER,
         ]);
 
-        return back()->with('success', 'Swap request sent. Waiting for the other member to accept.');
+        return back()->with('success', 'Swap request sent. Waiting for the other member to accept.')->with('_tab', 'members');
     }
 
     /**
@@ -84,13 +84,13 @@ class WorkspaceSwapController extends Controller
                 'status' => GroupSwapRequest::STATUS_REJECTED,
                 'reject_reason' => $request->reason,
             ]);
-            return back()->with('success', 'Swap request declined.');
+            return back()->with('success', 'Swap request declined.')->with('_tab', 'members');
         }
 
         // Accept — now awaits lecturer approval
         $swap->update(['status' => GroupSwapRequest::STATUS_PENDING_LECTURER]);
 
-        return back()->with('success', 'You accepted the swap. Waiting for lecturer approval.');
+        return back()->with('success', 'You accepted the swap. Waiting for lecturer approval.')->with('_tab', 'members');
     }
 
     /**
@@ -104,7 +104,7 @@ class WorkspaceSwapController extends Controller
         }
 
         if ($swap->status !== GroupSwapRequest::STATUS_PENDING_LECTURER) {
-            return back()->with('error', 'This swap is not awaiting your decision.');
+            return back()->with('error', 'This swap is not awaiting your decision.')->with('_tab', 'members');
         }
 
         $request->validate([
@@ -118,7 +118,7 @@ class WorkspaceSwapController extends Controller
                 'reject_reason' => $request->reason,
                 'reviewed_by' => auth()->id(),
             ]);
-            return back()->with('success', 'Swap request rejected.');
+            return back()->with('success', 'Swap request rejected.')->with('_tab', 'members');
         }
 
         // Execute the swap atomically
@@ -129,7 +129,7 @@ class WorkspaceSwapController extends Controller
             'reviewed_by' => auth()->id(),
         ]);
 
-        return back()->with('success', 'Swap approved. Members have been moved.');
+        return back()->with('success', 'Swap approved. Members have been moved.')->with('_tab', 'members');
     }
 
     private function executeSwap(GroupSwapRequest $swap): void

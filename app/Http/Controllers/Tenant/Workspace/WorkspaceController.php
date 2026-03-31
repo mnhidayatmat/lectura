@@ -98,7 +98,7 @@ class WorkspaceController extends Controller
 
         $group->update($request->only('project_title', 'project_description', 'project_deadline', 'whatsapp_link'));
 
-        return back()->with('success', 'Project details updated.');
+        return back()->with('success', 'Project details updated.')->with('_tab', 'overview');
     }
 
     /**
@@ -126,6 +126,6 @@ class WorkspaceController extends Controller
             'score_by' => auth()->id(),
         ]);
 
-        return back()->with('success', 'Group score saved.');
+        return back()->with('success', 'Group score saved.')->with('_tab', 'overview');
     }
 }

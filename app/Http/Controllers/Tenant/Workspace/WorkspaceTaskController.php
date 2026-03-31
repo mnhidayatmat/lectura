@@ -39,7 +39,7 @@ class WorkspaceTaskController extends Controller
             'created_by' => $user->id,
         ]);
 
-        return back()->with('success', 'Task added.');
+        return back()->with('success', 'Task added.')->with('_tab', 'tasks');
     }
 
     public function update(Request $request, string $tenantSlug, StudentGroup $group, GroupTask $task): RedirectResponse
@@ -56,7 +56,7 @@ class WorkspaceTaskController extends Controller
 
         $task->update(['status' => $request->status]);
 
-        return back()->with('success', 'Task updated.');
+        return back()->with('success', 'Task updated.')->with('_tab', 'tasks');
     }
 
     public function destroy(string $tenantSlug, StudentGroup $group, GroupTask $task): RedirectResponse
@@ -70,11 +70,11 @@ class WorkspaceTaskController extends Controller
         $isLeader = $group->members()->where('user_id', $user->id)->where('role', 'leader')->exists();
 
         if ($task->created_by !== $user->id && ! $isLeader) {
-            return back()->with('error', 'Only the task creator or group leader can delete tasks.');
+            return back()->with('error', 'Only the task creator or group leader can delete tasks.')->with('_tab', 'tasks');
         }
 
         $task->delete();
 
-        return back()->with('success', 'Task deleted.');
+        return back()->with('success', 'Task deleted.')->with('_tab', 'tasks');
     }
 }

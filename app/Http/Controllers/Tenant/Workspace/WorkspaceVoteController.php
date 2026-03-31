@@ -26,7 +26,7 @@ class WorkspaceVoteController extends Controller
 
         // Only one open round at a time
         if ($group->voteRounds()->where('status', 'open')->exists()) {
-            return back()->with('error', 'A voting round is already in progress.');
+            return back()->with('error', 'A voting round is already in progress.')->with('_tab', 'voting');
         }
 
         GroupVoteRound::create([
@@ -35,7 +35,7 @@ class WorkspaceVoteController extends Controller
             'status' => 'open',
         ]);
 
-        return back()->with('success', 'Voting started! All members can now cast their vote.');
+        return back()->with('success', 'Voting started! All members can now cast their vote.')->with('_tab', 'voting');
     }
 
     /**
@@ -50,11 +50,11 @@ class WorkspaceVoteController extends Controller
         }
 
         if (! $round->isOpen()) {
-            return back()->with('error', 'Voting has already closed.');
+            return back()->with('error', 'Voting has already closed.')->with('_tab', 'voting');
         }
 
         if ($round->hasVoted($user->id)) {
-            return back()->with('error', 'You have already voted.');
+            return back()->with('error', 'You have already voted.')->with('_tab', 'voting');
         }
 
         $memberIds = $group->members()->pluck('user_id')->toArray();
@@ -75,7 +75,7 @@ class WorkspaceVoteController extends Controller
             $this->closeRound($round, $group);
         }
 
-        return back()->with('success', 'Your vote has been cast.');
+        return back()->with('success', 'Your vote has been cast.')->with('_tab', 'voting');
     }
 
     /**
@@ -90,12 +90,12 @@ class WorkspaceVoteController extends Controller
         }
 
         if ($round->started_by !== $user->id) {
-            return back()->with('error', 'Only the member who started voting can close it.');
+            return back()->with('error', 'Only the member who started voting can close it.')->with('_tab', 'voting');
         }
 
         $this->closeRound($round, $group);
 
-        return back()->with('success', 'Voting closed. Results revealed!');
+        return back()->with('success', 'Voting closed. Results revealed!')->with('_tab', 'voting');
     }
 
     /**
@@ -110,13 +110,13 @@ class WorkspaceVoteController extends Controller
         }
 
         if ($round->isOpen()) {
-            return back()->with('error', 'Cannot delete an active voting round. Close it first.');
+            return back()->with('error', 'Cannot delete an active voting round. Close it first.')->with('_tab', 'voting');
         }
 
         $round->votes()->delete();
         $round->delete();
 
-        return back()->with('success', 'Voting round deleted.');
+        return back()->with('success', 'Voting round deleted.')->with('_tab', 'voting');
     }
 
     private function closeRound(GroupVoteRound $round, StudentGroup $group): void

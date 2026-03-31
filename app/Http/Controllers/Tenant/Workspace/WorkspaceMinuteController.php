@@ -47,7 +47,7 @@ class WorkspaceMinuteController extends Controller
             'file_name' => $fileName,
         ]);
 
-        return back()->with('success', 'Minutes recorded.');
+        return back()->with('success', 'Minutes recorded.')->with('_tab', 'minutes');
     }
 
     public function destroy(string $tenantSlug, StudentGroup $group, GroupMinute $minute): RedirectResponse
@@ -61,7 +61,7 @@ class WorkspaceMinuteController extends Controller
         $isLeader = $group->members()->where('user_id', $user->id)->where('role', 'leader')->exists();
 
         if ($minute->user_id !== $user->id && ! $isLeader) {
-            return back()->with('error', 'Only the author or group leader can delete minutes.');
+            return back()->with('error', 'Only the author or group leader can delete minutes.')->with('_tab', 'minutes');
         }
 
         if ($minute->file_path) {
@@ -70,6 +70,6 @@ class WorkspaceMinuteController extends Controller
 
         $minute->delete();
 
-        return back()->with('success', 'Minutes deleted.');
+        return back()->with('success', 'Minutes deleted.')->with('_tab', 'minutes');
     }
 }

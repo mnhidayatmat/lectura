@@ -60,7 +60,7 @@ class WorkspaceFileController extends Controller
             try {
                 [$driveFileId, $driveWebLink] = $this->uploadToDrive($user, $group, $appFolder, $uploadedFile);
             } catch (\Throwable $e) {
-                return back()->with('error', 'Google Drive upload failed: ' . $e->getMessage() . '. Please check your Drive connection.');
+                return back()->with('error', 'Google Drive upload failed: ' . $e->getMessage() . '. Please check your Drive connection.')->with('_tab', 'files');
             }
         } else {
             // ── Local disk fallback ──
@@ -80,7 +80,7 @@ class WorkspaceFileController extends Controller
             'description' => $request->description,
         ]);
 
-        return back()->with('success', 'File uploaded' . ($driveFileId ? ' to Google Drive' : '') . '.');
+        return back()->with('success', 'File uploaded' . ($driveFileId ? ' to Google Drive' : '') . '.')->with('_tab', 'files');
     }
 
     /**
@@ -98,7 +98,7 @@ class WorkspaceFileController extends Controller
         $isLeader = $group->members()->where('user_id', $user->id)->where('role', 'leader')->exists();
 
         if ($file->uploaded_by !== $user->id && ! $isLeader) {
-            return back()->with('error', 'Only the uploader or group leader can delete files.');
+            return back()->with('error', 'Only the uploader or group leader can delete files.')->with('_tab', 'files');
         }
 
         if ($file->isDriveFile()) {
@@ -113,7 +113,7 @@ class WorkspaceFileController extends Controller
 
         $file->delete();
 
-        return back()->with('success', 'File deleted.');
+        return back()->with('success', 'File deleted.')->with('_tab', 'files');
     }
 
     /**
@@ -131,7 +131,7 @@ class WorkspaceFileController extends Controller
 
         if ($file->isDriveFile()) {
             if (! $file->drive_web_link) {
-                return back()->with('error', 'Drive link not available for this file.');
+                return back()->with('error', 'Drive link not available for this file.')->with('_tab', 'files');
             }
             return redirect()->away($file->drive_web_link);
         }
@@ -178,7 +178,7 @@ class WorkspaceFileController extends Controller
             'created_by' => $user->id,
         ]);
 
-        return back()->with('success', 'Folder created.');
+        return back()->with('success', 'Folder created.')->with('_tab', 'files');
     }
 
     /**
@@ -193,12 +193,12 @@ class WorkspaceFileController extends Controller
         }
 
         if ($folder->files()->exists()) {
-            return back()->with('error', 'Delete all files in this folder first.');
+            return back()->with('error', 'Delete all files in this folder first.')->with('_tab', 'files');
         }
 
         $folder->delete();
 
-        return back()->with('success', 'Folder deleted.');
+        return back()->with('success', 'Folder deleted.')->with('_tab', 'files');
     }
 
     // ── Private helpers ──
