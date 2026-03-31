@@ -85,6 +85,13 @@
             {{ __('nav.marks') }} & Feedback
         </a>
 
+        <a href="{{ $prefix }}/my-performance"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/my-performance*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/my-performance*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            {{ __('performance.my_performance') }}
+        </a>
+
         <div class="pt-5 pb-1 px-3">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Assessments</p>
         </div>

@@ -21,6 +21,7 @@ use App\Http\Controllers\Tenant\ActiveLearning\SessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\StudentSessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\TenantAiSettingsController;
 use App\Http\Controllers\Tenant\NotificationController;
+use App\Http\Controllers\Tenant\PerformanceController;
 use App\Http\Controllers\Tenant\StudentAttendanceController;
 use App\Http\Controllers\Tenant\StudentCourseController;
 use App\Http\Controllers\Tenant\SectionController;
@@ -426,6 +427,17 @@ Route::prefix('{tenant:slug}')
         // Analytics
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('tenant.analytics.index');
         Route::get('/analytics/course/{course}', [AnalyticsController::class, 'course'])->name('tenant.analytics.course');
+
+        // Performance Tracking (Lecturer)
+        Route::get('/performance', [PerformanceController::class, 'lecturerIndex'])->name('tenant.performance.index');
+        Route::get('/performance/course/{course}', [PerformanceController::class, 'lecturerCourse'])->name('tenant.performance.course');
+        Route::get('/performance/course/{course}/student/{student}', [PerformanceController::class, 'lecturerStudent'])->name('tenant.performance.student');
+        Route::post('/performance/course/{course}/ai-suggestions', [PerformanceController::class, 'generateAiSuggestions'])->name('tenant.performance.ai-generate');
+        Route::get('/performance/course/{course}/ai-status', [PerformanceController::class, 'aiSuggestionStatus'])->name('tenant.performance.ai-status');
+
+        // Performance Tracking (Student)
+        Route::get('/my-performance', [PerformanceController::class, 'studentIndex'])->name('tenant.my-performance');
+        Route::get('/my-performance/course/{course}', [PerformanceController::class, 'studentCourse'])->name('tenant.my-performance.course');
 
         // Active Learning — standalone listing (all courses)
         Route::get('/active-learning', [ActiveLearningPlanController::class, 'all'])->name('tenant.active-learning.all');
