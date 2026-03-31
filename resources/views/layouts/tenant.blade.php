@@ -15,6 +15,7 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
+        @stack('styles')
 
         <style>
             body { font-family: 'Plus Jakarta Sans', sans-serif; }
