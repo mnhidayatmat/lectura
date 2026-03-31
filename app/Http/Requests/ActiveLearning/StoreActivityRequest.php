@@ -23,7 +23,7 @@ class StoreActivityRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(ActiveLearningActivity::TYPES)],
             'description' => ['nullable', 'string', 'max:5000'],
-            'instructions' => ['nullable', 'string', 'max:5000'],
+            'instructions' => ['nullable', 'string', 'max:65535'],
             'solution' => ['nullable', 'string', 'max:10000'],
             'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:480'],
             'clo_ids' => ['nullable', 'array'],

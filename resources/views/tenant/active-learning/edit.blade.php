@@ -153,7 +153,7 @@
 
             <div class="divide-y divide-slate-100">
                 @forelse($plan->activities as $activity)
-                    <div class="p-6" x-data="{ expanded: false, editing: false }">
+                    <div class="p-6" x-data="{ expanded: {{ $errors->any() ? 'true' : 'false' }}, editing: {{ $errors->any() ? 'true' : 'false' }} }">
                         <div class="flex items-start justify-between cursor-pointer" @click="expanded = !expanded">
                             <div class="flex items-start gap-3">
                                 @php $typeBadge = $activity->typeBadge; @endphp
@@ -321,6 +321,15 @@
                             <div class="border-t border-slate-100 pt-4">
                                 <form method="POST" action="{{ route('tenant.active-learning.activities.update', [app('current_tenant')->slug, $course, $plan, $activity]) }}" class="space-y-3">
                                     @csrf @method('PUT')
+                                    @if($errors->any())
+                                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                                            <ul class="list-disc list-inside space-y-0.5">
+                                                @foreach($errors->all() as $error)
+                                                    <li>{{ $error }}</li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
                                     <div class="grid sm:grid-cols-2 gap-3">
                                         <div>
                                             <label class="text-xs font-medium text-slate-500">{{ __('active_learning.activity_title') }}</label>

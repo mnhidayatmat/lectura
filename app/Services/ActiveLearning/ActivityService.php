@@ -41,25 +41,16 @@ class ActivityService
 
     public function updateActivity(ActiveLearningActivity $activity, array $data): ActiveLearningActivity
     {
-        $updateData = array_filter([
-            'title' => $data['title'] ?? null,
-            'type' => $data['type'] ?? null,
-            'description' => $data['description'] ?? null,
-            'instructions' => $data['instructions'] ?? null,
-            'duration_minutes' => $data['duration_minutes'] ?? null,
-            'clo_ids' => $data['clo_ids'] ?? null,
-            'materials' => $data['materials'] ?? null,
-            'grouping_strategy' => $data['grouping_strategy'] ?? null,
-            'max_group_size' => $data['max_group_size'] ?? null,
-            'response_mode' => $data['response_mode'] ?? null,
-            'response_type' => $data['response_type'] ?? null,
-            'poll_config' => $this->buildPollConfig($data),
-        ], fn ($v) => $v !== null);
+        $updateData = [];
 
-        // Allow clearing the solution field (empty string → null)
-        if (array_key_exists('solution', $data)) {
-            $updateData['solution'] = $data['solution'] ?: null;
+        // Always update fields present in the validated data
+        foreach (['title', 'type', 'description', 'instructions', 'solution', 'duration_minutes', 'clo_ids', 'materials', 'grouping_strategy', 'max_group_size', 'response_mode', 'response_type'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $updateData[$field] = $data[$field];
+            }
         }
+
+        $updateData['poll_config'] = $this->buildPollConfig($data);
 
         // Always update content_meta when expected_outcomes is provided
         if (array_key_exists('expected_outcomes', $data)) {
