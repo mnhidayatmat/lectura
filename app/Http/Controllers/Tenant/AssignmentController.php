@@ -370,6 +370,30 @@ class AssignmentController extends Controller
         ])->with('success', "Marks finalized for {$submission->user->name}.");
     }
 
+    public function destroy(string $tenantSlug, Assignment $assignment): RedirectResponse
+    {
+        $tenant = app('current_tenant');
+
+        // Clean up local submission files
+        foreach ($assignment->submissions as $submission) {
+            foreach ($submission->files as $file) {
+                if ($file->storage_path && \Storage::disk('local')->exists($file->storage_path)) {
+                    \Storage::disk('local')->delete($file->storage_path);
+                }
+            }
+        }
+
+        // Clean up answer scheme file
+        if ($assignment->answer_scheme_path && \Storage::disk('local')->exists($assignment->answer_scheme_path)) {
+            \Storage::disk('local')->delete($assignment->answer_scheme_path);
+        }
+
+        $assignment->delete();
+
+        return redirect()->route('tenant.assignments.index', $tenant->slug)
+            ->with('success', "Assignment \"{$assignment->title}\" deleted.");
+    }
+
     /**
      * Trigger AI marking (stub — generates mock suggestions).
      */

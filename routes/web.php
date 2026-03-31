@@ -384,6 +384,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/assignments', [AssignmentController::class, 'store'])->name('tenant.assignments.store');
         Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('tenant.assignments.show');
         Route::post('/assignments/{assignment}/publish', [AssignmentController::class, 'publish'])->name('tenant.assignments.publish');
+        Route::delete('/assignments/{assignment}', [AssignmentController::class, 'destroy'])->name('tenant.assignments.destroy');
         Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit'])->name('tenant.assignments.submit');
         Route::get('/assignments/{assignment}/submissions/{submission}', [AssignmentController::class, 'review'])->name('tenant.assignments.review');
         Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
@@ -470,6 +471,7 @@ Route::prefix('{tenant:slug}')
         });
 
         // Student Live Session Routes
+        Route::get('/live', [StudentSessionController::class, 'hub'])->name('tenant.live-hub');
         Route::get('/session/join', [StudentSessionController::class, 'joinForm'])->name('tenant.session.join');
         Route::post('/session/join', [StudentSessionController::class, 'joinByCode'])->name('tenant.session.join.process');
         Route::get('/session/{session}/live', [StudentSessionController::class, 'live'])->name('tenant.session.live');
