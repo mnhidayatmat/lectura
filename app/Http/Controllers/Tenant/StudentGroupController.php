@@ -35,10 +35,11 @@ class StudentGroupController extends Controller
             return view('tenant.student-groups.lecturer-index', compact('tenant', 'courses'));
         }
 
-        // Student view
+        // Student view — filter out memberships with missing relationships
         $memberships = StudentGroupMember::where('user_id', $user->id)
             ->with('group.groupSet.course')
             ->get()
+            ->filter(fn ($m) => $m->group && $m->group->groupSet && $m->group->groupSet->course)
             ->groupBy(fn ($m) => $m->group->groupSet->course_id);
 
         return view('tenant.student-groups.student-index', compact('tenant', 'memberships'));

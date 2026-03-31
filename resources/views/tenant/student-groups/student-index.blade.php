@@ -14,14 +14,23 @@
     @else
         <div class="space-y-6">
             @foreach($memberships as $courseId => $members)
-                @php $course = $members->first()->group->groupSet->course; @endphp
+                @php
+                    $firstMember = $members->first();
+                    $course = $firstMember?->group?->groupSet?->course;
+                @endphp
+                @if(!$course)
+                    @continue
+                @endif
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
                         <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ $course->code }} — {{ $course->title }}</h3>
                     </div>
                     <div class="divide-y divide-slate-100 dark:divide-slate-700">
                         @foreach($members as $membership)
-                            @php $group = $membership->group; $gs = $group->groupSet; @endphp
+                            @php $group = $membership->group; $gs = $group?->groupSet; @endphp
+                            @if(!$group || !$gs)
+                                @continue
+                            @endif
                             <div class="px-5 py-3 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
                                     @if($group->color_tag)
@@ -33,9 +42,9 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full {{ match($gs->type) { 'lecture' => 'bg-blue-100 text-blue-700', 'lab' => 'bg-emerald-100 text-emerald-700', 'tutorial' => 'bg-amber-100 text-amber-700' } }}">{{ ucfirst($gs->type) }}</span>
+                                    <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full {{ match($gs->type) { 'lecture' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', 'lab' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', 'tutorial' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', default => 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300' } }}">{{ ucfirst($gs->type) }}</span>
                                     @if($membership->role === 'leader')
-                                        <span class="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Leader</span>
+                                        <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Leader</span>
                                     @endif
                                 </div>
                             </div>
