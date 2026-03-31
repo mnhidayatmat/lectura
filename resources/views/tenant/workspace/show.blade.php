@@ -155,80 +155,119 @@
             </div>
         </div>
 
-        {{-- CHAT TAB --}}
+        {{-- CHAT TAB — WhatsApp style --}}
+        @php
+            $chatMembers = $group->members->map(fn($m) => [
+                'id' => $m->user_id,
+                'name' => $m->user->name,
+                'initial' => strtoupper(substr($m->user->name, 0, 1)),
+            ])->values()->toJson();
+        @endphp
         <div x-show="tab === 'chat'" x-cloak
-             x-data="groupChat('{{ route('tenant.workspace.chat.store', [$tenant->slug, $group]) }}', '{{ route('tenant.workspace.chat.index', [$tenant->slug, $group]) }}', {{ $user->id }}, 'group.{{ $group->id }}.chat')"
-             class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" style="height: 600px;">
+             x-data="groupChat(
+                '{{ route('tenant.workspace.chat.store', [$tenant->slug, $group]) }}',
+                '{{ route('tenant.workspace.chat.index', [$tenant->slug, $group]) }}',
+                {{ $user->id }},
+                'group.{{ $group->id }}.chat',
+                '{{ route('tenant.workspace.chat.presence', [$tenant->slug, $group]) }}',
+                {{ $chatMembers }}
+             )"
+             class="rounded-2xl overflow-hidden flex flex-col shadow-sm" style="height: 650px;">
 
-            {{-- Chat header --}}
-            <div class="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/80">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                    <svg class="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            {{-- Header — WhatsApp teal --}}
+            <div class="bg-[#075E54] dark:bg-[#1F2C34] px-4 py-3 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">Group Chat</h3>
-                    <p class="text-[11px] text-slate-400" x-text="messages.length + ' messages'"></p>
-                </div>
-                <div class="flex items-center gap-1">
-                    <span class="relative flex h-2.5 w-2.5">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Online</span>
+                    <h3 class="text-sm font-semibold text-white truncate">{{ $group->name }}</h3>
+                    <p class="text-[11px] text-emerald-200 truncate">
+                        <template x-if="onlineCount > 0">
+                            <span x-text="onlineCount + ' online'"></span>
+                        </template>
+                        <template x-if="onlineCount === 0">
+                            <span>{{ $group->members->count() }} members</span>
+                        </template>
+                    </p>
                 </div>
             </div>
 
-            {{-- Messages area --}}
-            <div x-ref="messageArea" class="flex-1 overflow-y-auto px-4 py-4 space-y-1" style="background-image: radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.4) 1px, transparent 0); background-size: 24px 24px;">
+            {{-- Online members strip --}}
+            <div class="bg-[#f0f2f5] dark:bg-[#111B21] border-b border-slate-200/60 dark:border-slate-700 px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto" style="-ms-overflow-style:none;scrollbar-width:none;">
+                <template x-for="member in members" :key="member.id">
+                    <div class="flex flex-col items-center gap-1 flex-shrink-0 w-12">
+                        <div class="relative">
+                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
+                                 :class="isOnline(member.id) ? 'bg-[#075E54] text-white' : 'bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300'"
+                                 x-text="member.initial"></div>
+                            <div x-show="isOnline(member.id)"
+                                 class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#25D366] border-2 border-[#f0f2f5] dark:border-[#111B21]"></div>
+                        </div>
+                        <span class="text-[9px] text-slate-500 dark:text-slate-400 truncate w-full text-center leading-tight" x-text="member.name.split(' ')[0]"></span>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Messages area — WhatsApp wallpaper --}}
+            <div x-ref="messageArea"
+                 class="flex-1 overflow-y-auto px-3 py-3 space-y-0.5"
+                 style="background-color: #ECE5DD; background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='1' fill='rgba(0,0,0,0.03)'/%3E%3C/svg%3E&quot;);">
 
                 {{-- Empty state --}}
-                <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center py-12">
-                    <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
-                        <svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full">
+                    <div class="bg-white dark:bg-[#202C33] rounded-xl px-6 py-5 shadow-sm max-w-xs text-center">
+                        <div class="w-14 h-14 rounded-full bg-[#25D366]/10 flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-7 h-7 text-[#25D366]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">No messages yet</p>
+                        <p class="text-xs text-slate-400 mt-1">Send a message to start the conversation</p>
                     </div>
-                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No messages yet</p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Be the first to say hello!</p>
                 </div>
 
                 {{-- Messages --}}
                 <template x-for="(msg, idx) in messages" :key="msg.id">
                     <div class="flex flex-col" :class="msg.is_mine ? 'items-end' : 'items-start'">
-                        {{-- Show name if different sender from previous --}}
-                        <div x-show="!msg.is_mine && (idx === 0 || messages[idx-1]?.user_id !== msg.user_id)"
-                             class="flex items-center gap-1.5 mb-1 ml-1">
-                            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
-                                 x-text="msg.user_initial"></div>
-                            <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400" x-text="msg.user_name"></span>
-                        </div>
+
+                        {{-- Sender name (only on sender change) --}}
+                        <p x-show="!msg.is_mine && (idx === 0 || messages[idx-1]?.user_id !== msg.user_id)"
+                           class="text-[11px] font-bold ml-2 mb-0.5 mt-2"
+                           :style="'color:' + ['#1F7AEB','#D4382C','#6B45BC','#E67E22','#27AE60','#E84393'][msg.user_id % 6]"
+                           x-text="msg.user_name"></p>
 
                         {{-- Bubble --}}
                         <div :class="msg.is_mine
-                                ? 'bg-indigo-600 text-white rounded-2xl rounded-br-md shadow-sm shadow-indigo-200 dark:shadow-none'
-                                : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-2xl rounded-bl-md shadow-sm border border-slate-100 dark:border-slate-600'"
-                             class="max-w-[75%] px-3.5 py-2 transition-all">
-                            <p class="text-[13px] leading-relaxed whitespace-pre-wrap break-words" x-text="msg.body"></p>
-                            <p class="text-[10px] mt-0.5 opacity-60 text-right" x-text="msg.sent_at"></p>
+                                ? 'bg-[#D9FDD3] dark:bg-[#005C4B] rounded-lg rounded-tr-sm'
+                                : 'bg-white dark:bg-[#202C33] rounded-lg rounded-tl-sm'"
+                             class="relative max-w-[80%] px-2.5 pt-1.5 pb-1 shadow-sm" style="min-width:80px;">
+
+                            <p class="text-[13.5px] leading-snug text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words pr-14"
+                               x-text="msg.body"></p>
+
+                            {{-- Time + double tick --}}
+                            <span class="float-right -mt-3.5 ml-2 flex items-center gap-0.5 select-none">
+                                <span class="text-[10.5px] text-slate-500/70 dark:text-slate-400/60" x-text="msg.sent_at"></span>
+                                <template x-if="msg.is_mine">
+                                    <svg class="w-4 h-4 text-[#53BDEB] -ml-0.5" viewBox="0 0 16 15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88a.32.32 0 01-.484.032l-.358-.325a.32.32 0 00-.484.032l-.378.48a.418.418 0 00.036.54l1.32 1.267a.32.32 0 00.484-.034l6.272-8.048a.366.366 0 00-.064-.512zm-4.1 0l-.478-.372a.365.365 0 00-.51.063L4.566 9.88a.32.32 0 01-.484.032L1.892 7.77a.366.366 0 00-.516.005l-.423.433a.364.364 0 00.006.514l3.255 3.185a.32.32 0 00.484-.033l6.272-8.048a.365.365 0 00-.063-.51z"/></svg>
+                                </template>
+                            </span>
                         </div>
                     </div>
                 </template>
             </div>
 
-            {{-- Input area --}}
-            <div class="border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                <div class="flex items-end gap-2">
-                    <div class="flex-1 relative">
-                        <input x-model="newMessage"
-                               @keydown.enter.prevent="if(!$event.shiftKey) sendMessage()"
-                               placeholder="Type a message..."
-                               class="w-full text-sm bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl pl-4 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 outline-none text-slate-900 dark:text-white placeholder-slate-400 transition" />
-                    </div>
-                    <button @click="sendMessage()" :disabled="!newMessage.trim()"
-                            :class="newMessage.trim() ? 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none scale-100' : 'bg-slate-300 dark:bg-slate-600 scale-95'"
-                            class="w-11 h-11 flex items-center justify-center text-white rounded-2xl transition-all duration-200 flex-shrink-0">
-                        <svg class="w-5 h-5 -rotate-45" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                    </button>
+            {{-- Input bar — WhatsApp style --}}
+            <div class="bg-[#f0f2f5] dark:bg-[#1F2C34] px-3 py-2.5 flex items-end gap-2">
+                <div class="flex-1">
+                    <input x-model="newMessage"
+                           @keydown.enter.prevent="if(!$event.shiftKey) sendMessage()"
+                           placeholder="Type a message"
+                           class="w-full text-[14px] bg-white dark:bg-[#2A3942] border-0 rounded-3xl pl-4 pr-4 py-2.5 focus:ring-0 outline-none text-slate-900 dark:text-white placeholder-slate-400 shadow-sm" />
                 </div>
-                <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 ml-1">Press <kbd class="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px] font-mono">Enter</kbd> to send</p>
+                <button @click="sendMessage()" :disabled="!newMessage.trim()"
+                        :class="newMessage.trim() ? 'bg-[#075E54] hover:bg-[#064D44]' : 'bg-[#075E54]/50 cursor-default'"
+                        class="w-11 h-11 flex items-center justify-center text-white rounded-full transition-all flex-shrink-0 shadow-sm">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
             </div>
         </div>
 
@@ -346,7 +385,7 @@
                 if ($ganttMin->gt(now())) $ganttMin = now()->startOfWeek();
                 if ($ganttMax->lt(now())) $ganttMax = now()->addWeeks(2)->endOfWeek();
             }
-            $ganttDays = $ganttMin && $ganttMax ? $ganttMin->diffInDays($ganttMax) + 1 : 0;
+            $ganttDays = $ganttMin && $ganttMax ? (int) $ganttMin->copy()->startOfDay()->diffInDays($ganttMax->copy()->startOfDay()) + 1 : 0;
 
             // Build week headers for Gantt
             $ganttWeeks = [];
@@ -520,7 +559,7 @@
                             <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-4 flex-wrap">
                                 <span class="text-xs text-slate-400">
                                     {{ $ganttMin->format('d M') }} — {{ $ganttMax->format('d M Y') }}
-                                    &nbsp;·&nbsp; {{ $ganttDays }} days
+                                    &nbsp;·&nbsp; {{ (int) $ganttDays }} days
                                 </span>
                                 <div class="flex items-center gap-3 ml-auto">
                                     <span class="flex items-center gap-1.5 text-[11px] text-slate-500"><span class="w-3 h-2 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block"></span>To Do</span>

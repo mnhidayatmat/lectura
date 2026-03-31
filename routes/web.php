@@ -542,6 +542,7 @@ Route::prefix('{tenant:slug}')
             Route::post('/{group}/votes/start', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'start'])->name('votes.start');
             Route::post('/{group}/votes/{round}/cast', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'cast'])->name('votes.cast');
             Route::post('/{group}/votes/{round}/close', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'close'])->name('votes.close');
+            Route::delete('/{group}/votes/{round}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'destroy'])->name('votes.destroy');
 
             // Member Swap
             Route::post('/{group}/swaps', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'store'])->name('swaps.store');
