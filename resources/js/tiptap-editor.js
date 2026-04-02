@@ -147,18 +147,15 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                // Bypass tiptap command system entirely — it has state lineage
-                // checks that fail after async operations. Manipulate ProseMirror
-                // view directly with a guaranteed-fresh transaction.
-                const view = this.editor.view
-                view.focus()
-                const { schema } = view.state
-                const imgNode = schema.nodes.image.create({ src })
-                const pos = view.state.selection.anchor
-                const tr = view.state.tr.replaceSelectionWith(imgNode)
-                view.dispatch(tr)
-                // Sync content
-                this.content = this.editor.getHTML()
+                // Tiptap v3 validates state lineage on ALL dispatch paths
+                // (commands, view.dispatch, etc). After async operations the
+                // state is always stale. Only safe approach: grab current HTML,
+                // destroy editor, recreate with image appended.
+                const html = this.editor.getHTML() + `<img src="${src}">`
+                this.editor.destroy()
+                this.editor = null
+                this.content = html
+                this._ensureEditor()
                 if (this.$refs.hiddenInput) {
                     this.$refs.hiddenInput.value = this.content
                 }
