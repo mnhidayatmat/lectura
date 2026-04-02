@@ -7,6 +7,7 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { Image } from '@tiptap/extension-image'
+import { MathInline, MathBlock } from './tiptap-math'
 
 export default function tiptapEditor(initialContent = '') {
     return {
@@ -102,6 +103,8 @@ export default function tiptapEditor(initialContent = '') {
                             inline: false,
                             allowBase64: true,
                         }),
+                        MathInline,
+                        MathBlock,
                     ],
                     content: this.content,
                     editorProps: {
@@ -224,6 +227,22 @@ export default function tiptapEditor(initialContent = '') {
         deleteColumn()   { this._ensureEditor(); this.editor?.chain().focus().deleteColumn().run() },
         deleteRow()      { this._ensureEditor(); this.editor?.chain().focus().deleteRow().run() },
         deleteTable()    { this._ensureEditor(); this.editor?.chain().focus().deleteTable().run() },
+
+        insertMath(latex, displayMode) {
+            this._ensureEditor()
+            if (!this.editor) return
+            if (displayMode) {
+                this.editor.chain().focus().insertContent({
+                    type: 'mathBlock',
+                    attrs: { latex },
+                }).run()
+            } else {
+                this.editor.chain().focus().insertContent({
+                    type: 'mathInline',
+                    attrs: { latex },
+                }).run()
+            }
+        },
 
         isActive(name, attrs = {}) {
             return this.editor?.isActive(name, attrs) ?? false

@@ -54,6 +54,12 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
         <span x-show="uploading" x-cloak class="text-[10px] text-indigo-500 animate-pulse">Uploading...</span>
+
+        <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
+
+        <button type="button" @mousedown.prevent @click="$dispatch('open-math', { callback: (l,d) => insertMath(l,d), block: false })" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Insert Math Formula">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="2" y="17" font-size="14" font-style="italic" font-family="serif" fill="currentColor" stroke="none">fx</text></svg>
+        </button>
     </div>
 
     {{-- Editor content area --}}

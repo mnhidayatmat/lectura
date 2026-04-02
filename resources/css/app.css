@@ -12,6 +12,27 @@
 .prose p:empty { min-height: 1em; }
 .prose p:has(> br:only-child) { min-height: 1em; }
 
+/* Math formulas — inline and block */
+.math-inline {
+    display: inline;
+    padding: 0 2px;
+    cursor: default;
+    user-select: all;
+}
+.math-block {
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 0;
+    margin: 0.5rem 0;
+    cursor: default;
+    user-select: all;
+}
+/* In the editor, show a subtle bg so math nodes are visible as atoms */
+.tiptap-editable .math-inline { background: rgba(99, 102, 241, 0.08); border-radius: 3px; padding: 1px 4px; }
+.tiptap-editable .math-block { background: rgba(99, 102, 241, 0.05); border-radius: 0.5rem; }
+.tiptap-editable .math-inline.ProseMirror-selectednode { background: rgba(99, 102, 241, 0.2); outline: 2px solid rgba(99, 102, 241, 0.4); outline-offset: 1px; border-radius: 4px; }
+.tiptap-editable .math-block.ProseMirror-selectednode { outline: 2px solid rgba(99, 102, 241, 0.4); outline-offset: 2px; }
+
 /*
  * Lectura Dark Mode — "Dimmed" Palette
  * Inspired by GitHub Dark Dimmed / Linear / Notion

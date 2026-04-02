@@ -137,6 +137,8 @@
             @endif
         </div>
 
+        <x-math-modal />
+
         @livewireScriptConfig
         @stack('scripts')
     </body>

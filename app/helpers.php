@@ -20,7 +20,13 @@ if (! function_exists('clean_html')) {
 
         $allowed = '<h3><h4><p><br><strong><b><em><i><u><s><ul><ol><li><blockquote><hr><table><thead><tbody><tr><th><td><span><div><img>';
 
-        return strip_tags($html, $allowed);
+        $clean = strip_tags($html, $allowed);
+
+        // Preserve data-math-* and data-latex attributes for KaTeX rendering
+        // (strip_tags removes attributes from non-whitelisted tags but keeps
+        //  whitelisted tags — we just need to keep their attributes intact,
+        //  which strip_tags already does.)
+        return $clean;
     }
 }
 
