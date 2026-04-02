@@ -142,7 +142,6 @@ export default function tiptapEditor(initialContent = '') {
                 src = data.url
             } catch (e) {
                 console.warn('Server upload failed, using base64:', e.message)
-                // Fallback to base64
                 src = await new Promise((resolve) => {
                     const reader = new FileReader()
                     reader.onload = () => resolve(reader.result)
@@ -150,9 +149,16 @@ export default function tiptapEditor(initialContent = '') {
                 })
             }
 
-            // Insert using tiptap command API (editor is idle now, no conflicting transactions)
             if (src && this.editor) {
-                this.editor.commands.setImage({ src })
+                // Append image HTML to current content and reset editor
+                // This avoids all ProseMirror transaction conflicts
+                const currentHtml = this.editor.getHTML()
+                const imgHtml = `<img src="${src}">`
+                this.editor.commands.setContent(currentHtml + imgHtml)
+                this.content = this.editor.getHTML()
+                if (this.$refs.hiddenInput) {
+                    this.$refs.hiddenInput.value = this.content
+                }
             }
 
             this.uploading = false
