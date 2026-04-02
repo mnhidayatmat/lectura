@@ -13,9 +13,41 @@ export default function tiptapEditor(initialContent = '') {
         editor: null,
         content: initialContent,
         uploading: false,
-        _pendingImage: null,
 
         init() {
+            // Attach paste/drop listeners on the WRAPPER div (capture phase)
+            // BEFORE the editor is created, so we intercept images before
+            // ProseMirror ever sees the event
+            const wrapper = this.$refs.editorContent
+            if (wrapper) {
+                wrapper.addEventListener('paste', (e) => {
+                    const items = e.clipboardData?.items
+                    if (!items) return
+                    for (const item of items) {
+                        if (item.type.startsWith('image/')) {
+                            e.preventDefault()
+                            e.stopImmediatePropagation()
+                            const file = item.getAsFile()
+                            if (file) this._uploadAndInsert(file)
+                            return
+                        }
+                    }
+                }, true) // capture phase = runs before ProseMirror
+
+                wrapper.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer?.files
+                    if (!files) return
+                    for (const file of files) {
+                        if (file.type.startsWith('image/')) {
+                            e.preventDefault()
+                            e.stopImmediatePropagation()
+                            this._uploadAndInsert(file)
+                            return
+                        }
+                    }
+                }, true)
+            }
+
             this._ensureEditor()
 
             const form = this.$el.closest('form')
@@ -41,8 +73,6 @@ export default function tiptapEditor(initialContent = '') {
             const el = this.$refs.editorContent
             if (!el) return false
 
-            const self = this
-
             try {
                 this.editor = new Editor({
                     element: el,
@@ -67,49 +97,6 @@ export default function tiptapEditor(initialContent = '') {
                     editorProps: {
                         attributes: {
                             class: 'focus:outline-none min-h-[120px] px-3 py-2',
-                        },
-                        // Intercept paste at ProseMirror level — extract image file,
-                        // block the paste, then upload async
-                        handlePaste(view, event) {
-                            const items = event.clipboardData?.items
-                            if (!items) return false
-
-                            for (const item of items) {
-                                if (item.type.startsWith('image/')) {
-                                    const file = item.getAsFile()
-                                    if (file) {
-                                        // Store file for async processing — do NOT
-                                        // try to insert here (causes transaction mismatch)
-                                        self._pendingImage = file
-                                        // Schedule upload on next tick (after paste finishes)
-                                        setTimeout(() => {
-                                            const f = self._pendingImage
-                                            self._pendingImage = null
-                                            if (f) self._uploadAndInsert(f)
-                                        }, 0)
-                                    }
-                                    // Return true = "handled, don't process further"
-                                    return true
-                                }
-                            }
-                            return false
-                        },
-                        handleDrop(view, event) {
-                            const files = event.dataTransfer?.files
-                            if (!files) return false
-
-                            for (const file of files) {
-                                if (file.type.startsWith('image/')) {
-                                    self._pendingImage = file
-                                    setTimeout(() => {
-                                        const f = self._pendingImage
-                                        self._pendingImage = null
-                                        if (f) self._uploadAndInsert(f)
-                                    }, 0)
-                                    return true
-                                }
-                            }
-                            return false
                         },
                     },
                     onUpdate: ({ editor }) => {
