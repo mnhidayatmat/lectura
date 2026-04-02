@@ -130,10 +130,11 @@ export default function tiptapEditor(initialContent = '') {
 
         _insertImageSrc(src) {
             if (!this.editor) return
-            const { state: { tr, selection }, view } = this.editor
+            // Get fresh state at the moment of insert (not stale from paste time)
+            const { view } = this.editor
+            const pos = view.state.selection.anchor
             const node = this.editor.schema.nodes.image.create({ src })
-            const transaction = tr.insert(selection.anchor, node)
-            view.dispatch(transaction)
+            view.dispatch(view.state.tr.insert(pos, node))
         },
 
         async _uploadImage(file) {
