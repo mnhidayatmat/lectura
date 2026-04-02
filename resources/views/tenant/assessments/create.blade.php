@@ -11,30 +11,59 @@
         </div>
     </x-slot>
 
-    <div class="max-w-2xl">
+    <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}' }">
         <form method="POST" action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}" class="space-y-6">
             @csrf
 
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
-                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Assessment Details</h3>
+            {{-- Assessment Type Cards --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">Assessment Type</h3>
+                <input type="hidden" name="type" :value="selectedType">
+                @php
+                    $typeCards = [
+                        'quiz' => ['label' => 'Quiz', 'icon' => 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 'color' => 'amber'],
+                        'assignment' => ['label' => 'Assignment', 'icon' => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 'color' => 'blue'],
+                        'test' => ['label' => 'Test', 'icon' => 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', 'color' => 'indigo'],
+                        'project' => ['label' => 'Project', 'icon' => 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10', 'color' => 'purple'],
+                        'presentation' => ['label' => 'Presentation', 'icon' => 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z', 'color' => 'rose'],
+                        'lab' => ['label' => 'Lab', 'icon' => 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z', 'color' => 'teal'],
+                        'final_exam' => ['label' => 'Final Exam', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', 'color' => 'red'],
+                        'other' => ['label' => 'Other', 'icon' => 'M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z', 'color' => 'slate'],
+                    ];
+                @endphp
+                <div class="grid grid-cols-4 gap-2">
+                    @foreach($typeCards as $key => $card)
+                        <button type="button" @click="selectedType = '{{ $key }}'"
+                            :class="selectedType === '{{ $key }}' ? 'border-{{ $card['color'] }}-500 bg-{{ $card['color'] }}-50 dark:bg-{{ $card['color'] }}-900/20 ring-2 ring-{{ $card['color'] }}-200' : 'border-slate-200 dark:border-slate-600 hover:border-{{ $card['color'] }}-300'"
+                            class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center">
+                            <svg class="w-5 h-5 text-{{ $card['color'] }}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $card['icon'] }}"/></svg>
+                            <span class="text-[11px] font-medium text-slate-700 dark:text-slate-300">{{ $card['label'] }}</span>
+                        </button>
+                    @endforeach
+                </div>
+                @error('type') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
 
-                {{-- Title --}}
+            {{-- Details --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Details</h3>
+
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
                     <input type="text" name="title" value="{{ old('title') }}" required placeholder="e.g. Quiz 1, Assignment 2, Final Exam" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
                     @error('title') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- Type & Method --}}
-                <div class="grid sm:grid-cols-2 gap-4">
+                <div class="grid sm:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Type *</label>
-                        <select name="type" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
-                            @foreach(\App\Models\Assessment::TYPES as $type)
-                                <option value="{{ $type }}" {{ old('type') === $type ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
-                            @endforeach
-                        </select>
-                        @error('type') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Weightage (%) *</label>
+                        <input type="number" name="weightage" value="{{ old('weightage', 10) }}" required min="0" max="100" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                        @error('weightage') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Total Marks *</label>
+                        <input type="number" name="total_marks" value="{{ old('total_marks', 100) }}" required min="1" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                        @error('total_marks') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Method</label>
@@ -47,55 +76,56 @@
                     </div>
                 </div>
 
-                {{-- Weightage & Marks --}}
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Weightage (%) *</label>
-                        <input type="number" name="weightage" value="{{ old('weightage', 10) }}" required min="0" max="100" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
-                        @error('weightage') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Total Marks *</label>
-                        <input type="number" name="total_marks" value="{{ old('total_marks', 100) }}" required min="1" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
-                        @error('total_marks') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-
-                {{-- Bloom Level --}}
+                {{-- Bloom's Taxonomy visual selector --}}
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bloom's Taxonomy Level</label>
-                    <select name="bloom_level" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
-                        <option value="">— Select —</option>
-                        @foreach(\App\Models\Assessment::BLOOM_LEVELS as $level)
-                            <option value="{{ $level }}" {{ old('bloom_level') === $level ? 'selected' : '' }}>{{ ucfirst($level) }}</option>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Bloom's Taxonomy Level</label>
+                    @php
+                        $bloomData = [
+                            'remember' => ['label' => 'Remember', 'desc' => 'Recall facts', 'color' => 'slate'],
+                            'understand' => ['label' => 'Understand', 'desc' => 'Explain ideas', 'color' => 'sky'],
+                            'apply' => ['label' => 'Apply', 'desc' => 'Use in new situations', 'color' => 'emerald'],
+                            'analyze' => ['label' => 'Analyze', 'desc' => 'Draw connections', 'color' => 'amber'],
+                            'evaluate' => ['label' => 'Evaluate', 'desc' => 'Justify decisions', 'color' => 'orange'],
+                            'create' => ['label' => 'Create', 'desc' => 'Produce new work', 'color' => 'rose'],
+                        ];
+                    @endphp
+                    <div class="grid grid-cols-6 gap-1.5" x-data="{ bloom: '{{ old('bloom_level', '') }}' }">
+                        <input type="hidden" name="bloom_level" :value="bloom">
+                        @foreach($bloomData as $key => $b)
+                            <button type="button" @click="bloom = bloom === '{{ $key }}' ? '' : '{{ $key }}'"
+                                :class="bloom === '{{ $key }}' ? 'border-{{ $b['color'] }}-500 bg-{{ $b['color'] }}-50 dark:bg-{{ $b['color'] }}-900/20 ring-1 ring-{{ $b['color'] }}-300' : 'border-slate-200 dark:border-slate-600'"
+                                class="flex flex-col items-center p-2 rounded-xl border-2 transition text-center">
+                                <span class="text-[11px] font-semibold text-{{ $b['color'] }}-600 dark:text-{{ $b['color'] }}-400">{{ $b['label'] }}</span>
+                                <span class="text-[8px] text-slate-400 leading-tight mt-0.5">{{ $b['desc'] }}</span>
+                            </button>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
 
-                {{-- CLO Mapping --}}
-                @if($course->learningOutcomes->isNotEmpty())
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Map to CLOs</label>
-                        <div class="space-y-2">
-                            @foreach($course->learningOutcomes as $clo)
-                                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition cursor-pointer">
-                                    <input type="checkbox" name="clo_ids[]" value="{{ $clo->id }}" {{ in_array($clo->id, old('clo_ids', [])) ? 'checked' : '' }} class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                                    <div>
-                                        <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">{{ $clo->code }}</span>
-                                        <p class="text-xs text-slate-600 dark:text-slate-300">{{ $clo->description }}</p>
-                                    </div>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                {{-- Description --}}
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description <span class="text-slate-400">(optional)</span></label>
                     <textarea name="description" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition" placeholder="Additional notes about this assessment...">{{ old('description') }}</textarea>
                 </div>
             </div>
+
+            {{-- CLO Mapping --}}
+            @if($course->learningOutcomes->isNotEmpty())
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Map to CLOs</h3>
+                    <p class="text-xs text-slate-400 mb-3">Select which Course Learning Outcomes this assessment measures.</p>
+                    <div class="space-y-2">
+                        @foreach($course->learningOutcomes as $clo)
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-600 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 hover:border-indigo-200 dark:hover:border-indigo-800 transition cursor-pointer has-[:checked]:bg-indigo-50 dark:has-[:checked]:bg-indigo-900/20 has-[:checked]:border-indigo-300 dark:has-[:checked]:border-indigo-700">
+                                <input type="checkbox" name="clo_ids[]" value="{{ $clo->id }}" {{ in_array($clo->id, old('clo_ids', [])) ? 'checked' : '' }} class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <div>
+                                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">{{ $clo->code }}</span>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300">{{ $clo->description }}</p>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             <div class="flex items-center gap-3">
                 <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
