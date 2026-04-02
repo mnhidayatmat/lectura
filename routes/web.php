@@ -330,6 +330,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/attendance/{session}/qr', [AttendanceController::class, 'qr'])->name('tenant.attendance.qr');
         Route::get('/attendance/{session}/token', [AttendanceController::class, 'refreshToken'])->name('tenant.attendance.token');
         Route::post('/attendance/{session}/end', [AttendanceController::class, 'end'])->name('tenant.attendance.end');
+        Route::post('/attendance/{session}/reopen', [AttendanceController::class, 'reopen'])->name('tenant.attendance.reopen');
         Route::get('/attendance/{session}', [AttendanceController::class, 'show'])->name('tenant.attendance.show');
         Route::put('/attendance/{session}/records/{record}', [AttendanceController::class, 'override'])->name('tenant.attendance.override');
         Route::delete('/attendance/{session}', [AttendanceController::class, 'destroy'])->name('tenant.attendance.destroy');

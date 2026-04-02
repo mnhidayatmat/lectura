@@ -292,6 +292,38 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Reopen an ended session so late students can check in again.
+     */
+    public function reopen(string $tenantSlug, AttendanceSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($session->status !== 'ended') {
+            return back()->with('error', 'Only ended sessions can be reopened.');
+        }
+
+        // Remove auto-generated absent records (so late students can re-scan).
+        // Keep records that were manually overridden by the lecturer (override_by IS NOT NULL)
+        // or that have a checked_in_at (i.e. the student actually scanned).
+        $session->records()
+            ->where('status', 'absent')
+            ->where('method', 'manual')
+            ->whereNull('checked_in_at')
+            ->whereNull('override_by')
+            ->delete();
+
+        $session->update([
+            'status' => 'active',
+            'ended_at' => null,
+        ]);
+
+        return redirect()->route('tenant.attendance.qr', [$tenantSlug, $session])
+            ->with('success', 'Session reopened. Students can now scan again.');
+    }
+
+    /**
      * Manual override — update student status.
      */
     public function override(Request $request, string $tenantSlug, AttendanceSession $session, AttendanceRecord $record): RedirectResponse
