@@ -5,7 +5,7 @@ return [
     'courses' => 'Kursus',
     'teaching' => 'Pengajaran',
     'attendance' => 'Kehadiran',
-    'quizzes' => 'Kuiz Langsung',
+    'quizzes' => 'Kuiz',
     'assignments' => 'Tugasan',
     'active_learning' => 'Pembelajaran Aktif',
     'live_session' => 'Sesi Langsung',

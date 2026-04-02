@@ -5,7 +5,7 @@ return [
     'courses' => 'Courses',
     'teaching' => 'Teaching',
     'attendance' => 'Attendance',
-    'quizzes' => 'Live Quizzes',
+    'quizzes' => 'Quizzes',
     'assignments' => 'Assignments',
     'active_learning' => 'Active Learning',
     'live_session' => 'Live Session',
