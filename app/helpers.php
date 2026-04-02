@@ -27,7 +27,8 @@ if (! function_exists('clean_html')) {
 if (! function_exists('nl2br_structured')) {
     /**
      * Convert plain text with line breaks into structured HTML.
-     * Detects numbered lists, bullet points, and paragraphs.
+     * Groups consecutive non-empty lines into paragraphs,
+     * detects numbered lists and bullet points.
      */
     function nl2br_structured(?string $text): string
     {
@@ -39,11 +40,23 @@ if (! function_exists('nl2br_structured')) {
         $html = '';
         $inOl = false;
         $inUl = false;
+        $paragraphLines = [];
+
+        $flushParagraph = function () use (&$html, &$paragraphLines) {
+            if (empty($paragraphLines)) {
+                return;
+            }
+            $escaped = implode('<br>', array_map(fn ($l) => e($l), $paragraphLines));
+            $html .= '<p>' . $escaped . '</p>';
+            $paragraphLines = [];
+        };
 
         foreach ($lines as $line) {
             $trimmed = trim($line);
 
             if ($trimmed === '') {
+                // Flush any buffered paragraph lines
+                $flushParagraph();
                 // Close any open list
                 if ($inOl) { $html .= '</ol>'; $inOl = false; }
                 if ($inUl) { $html .= '</ul>'; $inUl = false; }
@@ -52,6 +65,7 @@ if (! function_exists('nl2br_structured')) {
 
             // Numbered list: "1. ", "2) ", etc.
             if (preg_match('/^\d+[\.\)]\s+(.+)$/', $trimmed, $m)) {
+                $flushParagraph();
                 if ($inUl) { $html .= '</ul>'; $inUl = false; }
                 if (! $inOl) { $html .= '<ol>'; $inOl = true; }
                 $html .= '<li>' . e($m[1]) . '</li>';
@@ -60,23 +74,21 @@ if (! function_exists('nl2br_structured')) {
 
             // Bullet list: "- ", "• ", "* "
             if (preg_match('/^[\-\•\*]\s+(.+)$/', $trimmed, $m)) {
+                $flushParagraph();
                 if ($inOl) { $html .= '</ol>'; $inOl = false; }
                 if (! $inUl) { $html .= '<ul>'; $inUl = true; }
                 $html .= '<li>' . e($m[1]) . '</li>';
                 continue;
             }
 
-            // Close any open list before a paragraph
+            // Close any open list before paragraph content
             if ($inOl) { $html .= '</ol>'; $inOl = false; }
             if ($inUl) { $html .= '</ul>'; $inUl = false; }
 
-            // Bold markers: **text**
-            $escaped = e($trimmed);
-            $escaped = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $escaped);
-
-            $html .= '<p>' . $escaped . '</p>';
+            $paragraphLines[] = $trimmed;
         }
 
+        $flushParagraph();
         if ($inOl) { $html .= '</ol>'; }
         if ($inUl) { $html .= '</ul>'; }
 
