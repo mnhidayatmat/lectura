@@ -128,13 +128,14 @@ export default function tiptapEditor(initialContent = '') {
             if (this.uploading) return
             this.uploading = true
 
-            // Insert a placeholder at the current cursor position BEFORE the
-            // async upload starts (editor state is still valid here).
-            const placeholder = `__IMG_PLACEHOLDER_${Date.now()}__`
-            if (this.editor) {
-                // Insert placeholder text at cursor synchronously
-                this.editor.chain().focus().insertContent(placeholder).run()
-            }
+            // ── DO NOT call chain()/dispatch() before OR after the await ──
+            // ProseMirror validates transaction lineage: any dispatch after an
+            // async gap (or after focus-triggered state updates) throws
+            // "mismatched transaction". The only safe path is:
+            //   1. Read current HTML (no state mutation)
+            //   2. Await the upload
+            //   3. Destroy + recreate the editor with the new HTML
+            const htmlBefore = this.editor ? this.editor.getHTML() : this.content
 
             let src = null
 
@@ -164,17 +165,23 @@ export default function tiptapEditor(initialContent = '') {
                 })
             }
 
-            if (src && this.editor) {
-                // Replace placeholder with actual image in the HTML, then
-                // recreate editor (avoids stale transaction errors).
-                const html = this.editor.getHTML().replace(placeholder, `<img src="${src}">`)
-                this.editor.destroy()
-                this.editor = null
-                this.content = html
-                this._ensureEditor()
-                if (this.$refs.hiddenInput) {
-                    this.$refs.hiddenInput.value = this.content
+            if (src) {
+                const newHtml = htmlBefore + `<img src="${src}">`
+
+                // Tear down the current editor (no dispatch, just destroy).
+                if (this.editor) {
+                    this.editor.destroy()
+                    this.editor = null
                 }
+
+                this.content = newHtml
+                if (this.$refs.hiddenInput) {
+                    this.$refs.hiddenInput.value = newHtml
+                }
+
+                // $nextTick ensures the DOM has settled before ProseMirror
+                // attaches to the element again.
+                this.$nextTick(() => this._ensureEditor())
             }
 
             this.uploading = false
