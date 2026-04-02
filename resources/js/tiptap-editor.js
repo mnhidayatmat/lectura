@@ -128,6 +128,14 @@ export default function tiptapEditor(initialContent = '') {
             if (this.uploading) return
             this.uploading = true
 
+            // Insert a placeholder at the current cursor position BEFORE the
+            // async upload starts (editor state is still valid here).
+            const placeholder = `__IMG_PLACEHOLDER_${Date.now()}__`
+            if (this.editor) {
+                // Insert placeholder text at cursor synchronously
+                this.editor.chain().focus().insertContent(placeholder).run()
+            }
+
             let src = null
 
             try {
@@ -157,11 +165,9 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                // Tiptap v3 validates state lineage on ALL dispatch paths
-                // (commands, view.dispatch, etc). After async operations the
-                // state is always stale. Only safe approach: grab current HTML,
-                // destroy editor, recreate with image appended.
-                const html = this.editor.getHTML() + `<img src="${src}">`
+                // Replace placeholder with actual image in the HTML, then
+                // recreate editor (avoids stale transaction errors).
+                const html = this.editor.getHTML().replace(placeholder, `<img src="${src}">`)
                 this.editor.destroy()
                 this.editor = null
                 this.content = html
