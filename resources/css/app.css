@@ -5,6 +5,8 @@
 /* Tiptap Editor — only editor-specific overrides, prose handles all typography */
 .tiptap-editable .ProseMirror { outline: none; min-height: 120px; padding: 0.5rem 0.75rem; }
 .tiptap-editable .ProseMirror .selectedCell { background: #dbeafe; }
+.tiptap-editable .ProseMirror img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 0.5rem 0; }
+.prose img { max-width: 100%; height: auto; border-radius: 0.5rem; }
 
 /* Empty <p></p> spacers from the editor must render with visible height in both edit and view */
 .prose p:empty { min-height: 1em; }

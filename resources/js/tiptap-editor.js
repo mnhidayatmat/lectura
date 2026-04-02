@@ -1,4 +1,4 @@
-import { Editor } from '@tiptap/core'
+import { Editor, Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Underline } from '@tiptap/extension-underline'
 import { TextAlign } from '@tiptap/extension-text-align'
@@ -7,6 +7,50 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { Image } from '@tiptap/extension-image'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+
+function createImageUploadPlugin(uploadFn) {
+    return Extension.create({
+        name: 'imageUpload',
+        addProseMirrorPlugins() {
+            return [
+                new Plugin({
+                    key: new PluginKey('imageUpload'),
+                    props: {
+                        handlePaste(view, event) {
+                            const items = event.clipboardData?.items
+                            if (!items) return false
+
+                            for (const item of items) {
+                                if (item.type.startsWith('image/')) {
+                                    event.preventDefault()
+                                    const file = item.getAsFile()
+                                    if (file) uploadFn(file)
+                                    return true
+                                }
+                            }
+                            return false
+                        },
+                        handleDrop(view, event) {
+                            const hasFiles = event.dataTransfer?.files?.length > 0
+                            if (!hasFiles) return false
+
+                            const files = event.dataTransfer.files
+                            for (const file of files) {
+                                if (file.type.startsWith('image/')) {
+                                    event.preventDefault()
+                                    uploadFn(file)
+                                    return true
+                                }
+                            }
+                            return false
+                        },
+                    },
+                }),
+            ]
+        },
+    })
+}
 
 export default function tiptapEditor(initialContent = '') {
     return {
@@ -62,43 +106,16 @@ export default function tiptapEditor(initialContent = '') {
                             inline: false,
                             allowBase64: true,
                         }),
+                        createImageUploadPlugin((file) => self._uploadImage(file)),
                     ],
                     content: this.content,
                     editorProps: {
                         attributes: {
                             class: 'focus:outline-none min-h-[120px] px-3 py-2',
                         },
-                        handlePaste(view, event) {
-                            const items = event.clipboardData?.items
-                            if (!items) return false
-
-                            for (const item of items) {
-                                if (item.type.startsWith('image/')) {
-                                    event.preventDefault()
-                                    const file = item.getAsFile()
-                                    if (file) self._uploadImage(file)
-                                    return true
-                                }
-                            }
-                            return false
-                        },
-                        handleDrop(view, event) {
-                            const files = event.dataTransfer?.files
-                            if (!files || files.length === 0) return false
-
-                            for (const file of files) {
-                                if (file.type.startsWith('image/')) {
-                                    event.preventDefault()
-                                    self._uploadImage(file)
-                                    return true
-                                }
-                            }
-                            return false
-                        },
                     },
                     onUpdate: ({ editor }) => {
                         this.content = editor.getHTML()
-                        // Directly set hidden input value as well
                         if (this.$refs.hiddenInput) {
                             this.$refs.hiddenInput.value = this.content
                         }
@@ -129,12 +146,15 @@ export default function tiptapEditor(initialContent = '') {
                     body: formData,
                 })
 
-                if (!response.ok) throw new Error('Upload failed')
+                if (!response.ok) {
+                    const text = await response.text()
+                    throw new Error('Upload failed: ' + response.status + ' ' + text)
+                }
 
                 const data = await response.json()
                 this.editor?.chain().focus().setImage({ src: data.url }).run()
             } catch (e) {
-                console.error('Image upload failed:', e)
+                console.error('Image upload failed, using base64 fallback:', e)
                 // Fallback: insert as base64
                 const reader = new FileReader()
                 reader.onload = () => {
@@ -147,6 +167,7 @@ export default function tiptapEditor(initialContent = '') {
         },
 
         insertImageFromFile() {
+            this._ensureEditor()
             const input = document.createElement('input')
             input.type = 'file'
             input.accept = 'image/*'
