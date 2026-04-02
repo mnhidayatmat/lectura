@@ -366,6 +366,11 @@ Route::prefix('{tenant:slug}')
         Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');
         Route::get('/quizzes/create', [QuizController::class, 'create'])->name('tenant.quizzes.create');
         Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
+        // Quiz Folders
+        Route::post('/quizzes/folders', [QuizController::class, 'storeFolder'])->name('tenant.quizzes.folders.store');
+        Route::put('/quizzes/folders/{folder}', [QuizController::class, 'updateFolder'])->name('tenant.quizzes.folders.update');
+        Route::delete('/quizzes/folders/{folder}', [QuizController::class, 'destroyFolder'])->name('tenant.quizzes.folders.destroy');
+        Route::post('/quizzes/{session}/move', [QuizController::class, 'moveToFolder'])->name('tenant.quizzes.move');
         Route::get('/quizzes/{session}/control', [QuizController::class, 'control'])->name('tenant.quizzes.control');
         Route::post('/quizzes/{session}/start', [QuizController::class, 'start'])->name('tenant.quizzes.start');
         Route::post('/quizzes/{session}/close', [QuizController::class, 'closeQuestion'])->name('tenant.quizzes.close');

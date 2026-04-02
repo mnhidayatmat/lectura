@@ -15,7 +15,7 @@ class QuizSession extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'section_id', 'lecturer_id', 'title', 'join_code',
+        'tenant_id', 'section_id', 'lecturer_id', 'quiz_folder_id', 'title', 'join_code',
         'category', 'mode', 'is_anonymous', 'status', 'settings',
         'available_from', 'available_until', 'started_at', 'ended_at',
     ];
@@ -39,6 +39,11 @@ class QuizSession extends Model
                 $session->join_code = strtoupper(Str::random(6));
             }
         });
+    }
+
+    public function folder(): BelongsTo
+    {
+        return $this->belongsTo(QuizFolder::class, 'quiz_folder_id');
     }
 
     public function section(): BelongsTo

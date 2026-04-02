@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionOption;
+use App\Models\QuizFolder;
 use App\Models\QuizParticipant;
 use App\Models\QuizResponse;
 use App\Models\QuizSession;
@@ -23,7 +24,7 @@ use Illuminate\View\View;
 class QuizController extends Controller
 {
     /**
-     * Quiz list for lecturer — grouped by course.
+     * Quiz list for lecturer — grouped by folder then course.
      */
     public function index(): View
     {
@@ -31,10 +32,15 @@ class QuizController extends Controller
         $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
         $sectionIds = Section::whereIn('course_id', $courseIds)->pluck('id');
 
-        $sessions = QuizSession::whereIn('section_id', $sectionIds)
+        $folders = QuizFolder::where('lecturer_id', $user->id)
+            ->with(['sessions' => fn ($q) => $q->with(['section.course', 'participants'])->latest()])
+            ->orderBy('name')
+            ->get();
+
+        $unfoldered = QuizSession::whereIn('section_id', $sectionIds)
+            ->whereNull('quiz_folder_id')
             ->with(['section.course', 'participants'])
             ->latest()
-            ->limit(100)
             ->get();
 
         $courses = Course::whereIn('id', $courseIds)
@@ -42,10 +48,68 @@ class QuizController extends Controller
             ->orderBy('code')
             ->get();
 
-        // Group sessions by course
-        $sessionsByCourse = $sessions->groupBy(fn ($s) => $s->section->course_id);
+        return view('tenant.quizzes.index', compact('courses', 'folders', 'unfoldered'));
+    }
 
-        return view('tenant.quizzes.index', compact('courses', 'sessionsByCourse'));
+    /** Store a new folder */
+    public function storeFolder(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'color' => ['required', 'in:indigo,emerald,amber,rose,teal,purple,slate'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $tenant = app('current_tenant');
+        QuizFolder::create([
+            'tenant_id' => $tenant->id,
+            'lecturer_id' => auth()->id(),
+            'name' => $request->name,
+            'color' => $request->color,
+            'description' => $request->description,
+        ]);
+
+        return back()->with('success', 'Folder "' . $request->name . '" created.');
+    }
+
+    /** Update folder name/color */
+    public function updateFolder(Request $request, string $tenantSlug, QuizFolder $folder): RedirectResponse
+    {
+        abort_if($folder->lecturer_id !== auth()->id(), 403);
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'color' => ['required', 'in:indigo,emerald,amber,rose,teal,purple,slate'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $folder->update($request->only('name', 'color', 'description'));
+
+        return back()->with('success', 'Folder updated.');
+    }
+
+    /** Delete folder (quizzes become unfoldered) */
+    public function destroyFolder(string $tenantSlug, QuizFolder $folder): RedirectResponse
+    {
+        abort_if($folder->lecturer_id !== auth()->id(), 403);
+        $name = $folder->name;
+        $folder->delete();
+
+        return back()->with('success', 'Folder "' . $name . '" deleted. Quizzes moved to uncategorized.');
+    }
+
+    /** Move a quiz session into (or out of) a folder */
+    public function moveToFolder(Request $request, string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        abort_if($session->lecturer_id !== auth()->id(), 403);
+
+        $request->validate([
+            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
+        ]);
+
+        $session->update(['quiz_folder_id' => $request->quiz_folder_id ?: null]);
+
+        return back()->with('success', 'Quiz moved.');
     }
 
     /**
@@ -57,6 +121,8 @@ class QuizController extends Controller
         $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
         $sections = Section::whereIn('course_id', $courseIds)->with('course')->where('is_active', true)->get();
 
+        $folders = QuizFolder::where('lecturer_id', $user->id)->orderBy('name')->get();
+
         // Load question bank for this lecturer
         $bankQuestions = Question::where('created_by', $user->id)
             ->where('is_bank', true)
@@ -65,7 +131,7 @@ class QuizController extends Controller
             ->limit(100)
             ->get();
 
-        return view('tenant.quizzes.create', compact('sections', 'bankQuestions'));
+        return view('tenant.quizzes.create', compact('sections', 'bankQuestions', 'folders'));
     }
 
     /**
@@ -76,6 +142,7 @@ class QuizController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'section_id' => ['required', 'exists:sections,id'],
+            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
             'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
@@ -99,6 +166,7 @@ class QuizController extends Controller
             'tenant_id' => $tenant->id,
             'section_id' => $request->section_id,
             'lecturer_id' => auth()->id(),
+            'quiz_folder_id' => $request->quiz_folder_id ?: null,
             'title' => $request->title,
             'category' => $request->category,
             'mode' => $request->mode,
@@ -167,6 +235,7 @@ class QuizController extends Controller
         $user = auth()->user();
         $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
         $sections = Section::whereIn('course_id', $courseIds)->with('course')->where('is_active', true)->get();
+        $folders = QuizFolder::where('lecturer_id', $user->id)->orderBy('name')->get();
 
         $session->load(['sessionQuestions.question.options', 'section.course']);
 
@@ -187,7 +256,7 @@ class QuizController extends Controller
             ];
         })->toArray();
 
-        return view('tenant.quizzes.edit', compact('session', 'sections', 'existingQuestions'));
+        return view('tenant.quizzes.edit', compact('session', 'sections', 'existingQuestions', 'folders'));
     }
 
     /**
@@ -202,6 +271,7 @@ class QuizController extends Controller
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'section_id' => ['required', 'exists:sections,id'],
+            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
             'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
@@ -224,6 +294,7 @@ class QuizController extends Controller
         $session->update([
             'title' => $request->title,
             'section_id' => $request->section_id,
+            'quiz_folder_id' => $request->quiz_folder_id ?: null,
             'category' => $request->category,
             'mode' => $request->mode,
             'is_anonymous' => (bool) $request->is_anonymous,
