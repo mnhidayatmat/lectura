@@ -1,6 +1,5 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { Underline } from '@tiptap/extension-underline'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
@@ -80,7 +79,6 @@ export default function tiptapEditor(initialContent = '') {
                         StarterKit.configure({
                             heading: { levels: [3, 4] },
                         }),
-                        Underline,
                         TextAlign.configure({
                             types: ['heading', 'paragraph'],
                         }),
