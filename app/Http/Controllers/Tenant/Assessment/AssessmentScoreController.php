@@ -1,0 +1,108 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Tenant\Assessment;
+
+use App\Http\Controllers\Controller;
+use App\Models\Assessment;
+use App\Models\AssessmentScore;
+use App\Models\Course;
+use App\Services\Assessment\AssessmentScoreService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class AssessmentScoreController extends Controller
+{
+    public function __construct(
+        protected AssessmentScoreService $scoreService,
+    ) {}
+
+    public function index(string $tenantSlug, Course $course, Assessment $assessment): View
+    {
+        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+        $scores = $assessment->scores()->with('user')->orderBy('percentage', 'desc')->get();
+
+        return view('tenant.assessments.scores.index', compact('tenant', 'course', 'assessment', 'scores'));
+    }
+
+    public function compute(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $count = $this->scoreService->computeScores($assessment);
+
+        return back()->with('success', "Scores computed for {$count} students.");
+    }
+
+    public function manualEntry(string $tenantSlug, Course $course, Assessment $assessment): View
+    {
+        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $tenant = app('current_tenant');
+
+        // Get all enrolled students
+        $studentIds = \App\Models\SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+            ->where('is_active', true)
+            ->distinct()
+            ->pluck('user_id');
+        $students = \App\Models\User::whereIn('id', $studentIds)->orderBy('name')->get();
+
+        // Existing scores
+        $existingScores = $assessment->scores()->pluck('raw_marks', 'user_id');
+
+        return view('tenant.assessments.scores.manual', compact('tenant', 'course', 'assessment', 'students', 'existingScores'));
+    }
+
+    public function storeManual(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
+    {
+        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'marks' => ['required', 'array'],
+            'marks.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $tenant = app('current_tenant');
+        $count = 0;
+
+        foreach ($request->marks as $userId => $rawMarks) {
+            if ($rawMarks === null || $rawMarks === '') {
+                continue;
+            }
+
+            $rawMarks = (float) $rawMarks;
+            $percentage = $assessment->total_marks > 0
+                ? ($rawMarks / $assessment->total_marks) * 100
+                : 0;
+            $weightedMarks = $rawMarks * ($assessment->weightage / 100);
+
+            AssessmentScore::updateOrCreate(
+                ['assessment_id' => $assessment->id, 'user_id' => $userId],
+                [
+                    'tenant_id' => $tenant->id,
+                    'raw_marks' => round($rawMarks, 2),
+                    'max_marks' => $assessment->total_marks,
+                    'weighted_marks' => round($weightedMarks, 2),
+                    'percentage' => round($percentage, 2),
+                    'is_computed' => false,
+                ]
+            );
+            $count++;
+        }
+
+        return redirect()->route('tenant.assessments.scores.index', [$tenant->slug, $course, $assessment])
+            ->with('success', "Marks saved for {$count} students.");
+    }
+}

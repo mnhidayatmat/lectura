@@ -17,6 +17,9 @@ use App\Http\Controllers\Tenant\CourseMaterialController;
 use App\Http\Controllers\Tenant\Assessment\AssessmentPlanController;
 use App\Http\Controllers\Tenant\Assessment\AssessmentItemController;
 use App\Http\Controllers\Tenant\Assessment\AssessmentReportController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentScoreController;
+use App\Http\Controllers\Tenant\Assessment\PloController;
+use App\Http\Controllers\Tenant\Assessment\CloPlOMapController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningActivityController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningGroupController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningPlanController;
@@ -417,10 +420,26 @@ Route::prefix('{tenant:slug}')
 
             Route::post('/{assessment}/items', [AssessmentItemController::class, 'store'])->name('tenant.assessments.items.store');
             Route::delete('/{assessment}/items/{item}', [AssessmentItemController::class, 'destroy'])->name('tenant.assessments.items.destroy');
+
+            // Scores
+            Route::get('/{assessment}/scores', [AssessmentScoreController::class, 'index'])->name('tenant.assessments.scores.index');
+            Route::post('/{assessment}/scores/compute', [AssessmentScoreController::class, 'compute'])->name('tenant.assessments.scores.compute');
+            Route::get('/{assessment}/scores/manual', [AssessmentScoreController::class, 'manualEntry'])->name('tenant.assessments.scores.manual');
+            Route::post('/{assessment}/scores/manual', [AssessmentScoreController::class, 'storeManual'])->name('tenant.assessments.scores.store-manual');
         });
 
         // Assessment Reports
         Route::get('/courses/{course}/assessment-reports', [AssessmentReportController::class, 'courseReport'])->name('tenant.assessment-reports.course');
+
+        // PLO Management
+        Route::get('/programmes/{programme}/plos', [PloController::class, 'index'])->name('tenant.plos.index');
+        Route::post('/programmes/{programme}/plos', [PloController::class, 'store'])->name('tenant.plos.store');
+        Route::put('/programmes/{programme}/plos/{plo}', [PloController::class, 'update'])->name('tenant.plos.update');
+        Route::delete('/programmes/{programme}/plos/{plo}', [PloController::class, 'destroy'])->name('tenant.plos.destroy');
+
+        // CLO-PLO Mapping
+        Route::get('/courses/{course}/clo-plo', [CloPlOMapController::class, 'edit'])->name('tenant.clo-plo.edit');
+        Route::put('/courses/{course}/clo-plo', [CloPlOMapController::class, 'update'])->name('tenant.clo-plo.update');
 
         // Course Files
         Route::get('/files', [CourseFileController::class, 'index'])->name('tenant.files.index');
