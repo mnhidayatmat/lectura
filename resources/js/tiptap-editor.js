@@ -1,4 +1,4 @@
-import { Editor, Extension } from '@tiptap/core'
+import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Underline } from '@tiptap/extension-underline'
 import { TextAlign } from '@tiptap/extension-text-align'
@@ -7,50 +7,6 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { Image } from '@tiptap/extension-image'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-
-function createImageUploadPlugin(uploadFn) {
-    return Extension.create({
-        name: 'imageUpload',
-        addProseMirrorPlugins() {
-            return [
-                new Plugin({
-                    key: new PluginKey('imageUpload'),
-                    props: {
-                        handlePaste(view, event) {
-                            const items = event.clipboardData?.items
-                            if (!items) return false
-
-                            for (const item of items) {
-                                if (item.type.startsWith('image/')) {
-                                    event.preventDefault()
-                                    const file = item.getAsFile()
-                                    if (file) uploadFn(file)
-                                    return true
-                                }
-                            }
-                            return false
-                        },
-                        handleDrop(view, event) {
-                            const hasFiles = event.dataTransfer?.files?.length > 0
-                            if (!hasFiles) return false
-
-                            const files = event.dataTransfer.files
-                            for (const file of files) {
-                                if (file.type.startsWith('image/')) {
-                                    event.preventDefault()
-                                    uploadFn(file)
-                                    return true
-                                }
-                            }
-                            return false
-                        },
-                    },
-                }),
-            ]
-        },
-    })
-}
 
 export default function tiptapEditor(initialContent = '') {
     return {
@@ -85,8 +41,6 @@ export default function tiptapEditor(initialContent = '') {
             const el = this.$refs.editorContent
             if (!el) return false
 
-            const self = this
-
             try {
                 this.editor = new Editor({
                     element: el,
@@ -106,7 +60,6 @@ export default function tiptapEditor(initialContent = '') {
                             inline: false,
                             allowBase64: true,
                         }),
-                        createImageUploadPlugin((file) => self._uploadImage(file)),
                     ],
                     content: this.content,
                     editorProps: {
@@ -121,6 +74,12 @@ export default function tiptapEditor(initialContent = '') {
                         }
                     },
                 })
+
+                // Use DOM events for image paste/drop (avoids ProseMirror transaction conflicts)
+                const editorDom = el.querySelector('.ProseMirror') || el
+                editorDom.addEventListener('paste', (e) => this._handleImagePaste(e))
+                editorDom.addEventListener('drop', (e) => this._handleImageDrop(e))
+
                 return true
             } catch (e) {
                 console.warn('Tiptap editor init failed, will retry on interaction:', e)
@@ -128,30 +87,45 @@ export default function tiptapEditor(initialContent = '') {
             }
         },
 
-        _insertImageSrc(src) {
-            if (!this.editor) return
-            // Get fresh state at the moment of insert (not stale from paste time)
-            const { view } = this.editor
-            const pos = view.state.selection.anchor
-            const node = this.editor.schema.nodes.image.create({ src })
-            view.dispatch(view.state.tr.insert(pos, node))
+        _handleImagePaste(e) {
+            const items = e.clipboardData?.items
+            if (!items) return
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const file = item.getAsFile()
+                    if (file) this._uploadImage(file)
+                    return
+                }
+            }
+        },
+
+        _handleImageDrop(e) {
+            const files = e.dataTransfer?.files
+            if (!files) return
+
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    this._uploadImage(file)
+                    return
+                }
+            }
         },
 
         async _uploadImage(file) {
             if (this.uploading) return
             this.uploading = true
 
-            // Read base64 immediately as fallback (before editor state changes)
-            const base64Promise = new Promise((resolve) => {
-                const reader = new FileReader()
-                reader.onload = () => resolve(reader.result)
-                reader.readAsDataURL(file)
-            })
+            let src = null
 
-            const formData = new FormData()
-            formData.append('image', file)
-
+            // Try server upload first
             try {
+                const formData = new FormData()
+                formData.append('image', file)
                 const token = document.querySelector('meta[name="csrf-token"]')?.content
                 const response = await fetch('/editor/upload-image', {
                     method: 'POST',
@@ -162,20 +136,26 @@ export default function tiptapEditor(initialContent = '') {
                     body: formData,
                 })
 
-                if (!response.ok) {
-                    const text = await response.text()
-                    throw new Error('Upload failed: ' + response.status + ' ' + text)
-                }
+                if (!response.ok) throw new Error('Upload failed: ' + response.status)
 
                 const data = await response.json()
-                this._insertImageSrc(data.url)
+                src = data.url
             } catch (e) {
-                console.error('Image upload failed, using base64 fallback:', e)
-                const base64 = await base64Promise
-                this._insertImageSrc(base64)
-            } finally {
-                this.uploading = false
+                console.warn('Server upload failed, using base64:', e.message)
+                // Fallback to base64
+                src = await new Promise((resolve) => {
+                    const reader = new FileReader()
+                    reader.onload = () => resolve(reader.result)
+                    reader.readAsDataURL(file)
+                })
             }
+
+            // Insert using tiptap command API (editor is idle now, no conflicting transactions)
+            if (src && this.editor) {
+                this.editor.commands.setImage({ src })
+            }
+
+            this.uploading = false
         },
 
         insertImageFromFile() {
