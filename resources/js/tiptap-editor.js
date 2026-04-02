@@ -1,5 +1,6 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import { Underline } from '@tiptap/extension-underline'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
@@ -14,41 +15,51 @@ export default function tiptapEditor(initialContent = '') {
         uploading: false,
 
         init() {
-            // Attach paste/drop listeners on the WRAPPER div (capture phase)
-            // BEFORE the editor is created, so we intercept images before
-            // ProseMirror ever sees the event
-            const wrapper = this.$refs.editorContent
-            if (wrapper) {
-                wrapper.addEventListener('paste', (e) => {
-                    const items = e.clipboardData?.items
-                    if (!items) return
-                    for (const item of items) {
-                        if (item.type.startsWith('image/')) {
-                            e.preventDefault()
-                            e.stopImmediatePropagation()
-                            const file = item.getAsFile()
-                            if (file) this._uploadAndInsert(file)
-                            return
+            // Defer all setup to the next tick so the browser has rendered the
+            // element before ProseMirror attaches.  This is critical when the
+            // editor lives inside x-if — Alpine calls init() synchronously
+            // before the element has layout, so new Editor() fails silently
+            // inside _ensureEditor's try/catch, leaving this.editor = null and
+            // making every toolbar button a no-op via optional chaining.
+            this.$nextTick(() => {
+                // Attach paste/drop listeners on the WRAPPER div (capture phase)
+                // BEFORE the editor is created, so we intercept images before
+                // ProseMirror ever sees the event.
+                const wrapper = this.$refs.editorContent
+                if (wrapper) {
+                    wrapper.addEventListener('paste', (e) => {
+                        const items = e.clipboardData?.items
+                        if (!items) return
+                        for (const item of items) {
+                            if (item.type.startsWith('image/')) {
+                                e.preventDefault()
+                                e.stopImmediatePropagation()
+                                const file = item.getAsFile()
+                                if (file) this._uploadAndInsert(file)
+                                return
+                            }
                         }
-                    }
-                }, true) // capture phase = runs before ProseMirror
+                    }, true) // capture phase = runs before ProseMirror
 
-                wrapper.addEventListener('drop', (e) => {
-                    const files = e.dataTransfer?.files
-                    if (!files) return
-                    for (const file of files) {
-                        if (file.type.startsWith('image/')) {
-                            e.preventDefault()
-                            e.stopImmediatePropagation()
-                            this._uploadAndInsert(file)
-                            return
+                    wrapper.addEventListener('drop', (e) => {
+                        const files = e.dataTransfer?.files
+                        if (!files) return
+                        for (const file of files) {
+                            if (file.type.startsWith('image/')) {
+                                e.preventDefault()
+                                e.stopImmediatePropagation()
+                                this._uploadAndInsert(file)
+                                return
+                            }
                         }
-                    }
-                }, true)
-            }
+                    }, true)
+                }
 
-            this._ensureEditor()
+                this._ensureEditor()
+            })
 
+            // Form submit listener can be attached immediately — this.$el is
+            // in the DOM regardless of x-if timing.
             const form = this.$el.closest('form')
             if (form) {
                 form.addEventListener('submit', () => {
@@ -79,6 +90,7 @@ export default function tiptapEditor(initialContent = '') {
                         StarterKit.configure({
                             heading: { levels: [3, 4] },
                         }),
+                        Underline,
                         TextAlign.configure({
                             types: ['heading', 'paragraph'],
                         }),
@@ -107,7 +119,7 @@ export default function tiptapEditor(initialContent = '') {
 
                 return true
             } catch (e) {
-                console.warn('Tiptap editor init failed, will retry on interaction:', e)
+                console.warn('Tiptap editor init failed:', e)
                 return false
             }
         },
@@ -179,15 +191,15 @@ export default function tiptapEditor(initialContent = '') {
             this.editor = null
         },
 
-        toggleBold() { this._ensureEditor(); this.editor?.chain().focus().toggleBold().run() },
-        toggleItalic() { this._ensureEditor(); this.editor?.chain().focus().toggleItalic().run() },
-        toggleUnderline() { this._ensureEditor(); this.editor?.chain().focus().toggleUnderline().run() },
-        toggleStrike() { this._ensureEditor(); this.editor?.chain().focus().toggleStrike().run() },
-        toggleHeading(level) { this._ensureEditor(); this.editor?.chain().focus().toggleHeading({ level }).run() },
-        toggleBulletList() { this._ensureEditor(); this.editor?.chain().focus().toggleBulletList().run() },
+        toggleBold()        { this._ensureEditor(); this.editor?.chain().focus().toggleBold().run() },
+        toggleItalic()      { this._ensureEditor(); this.editor?.chain().focus().toggleItalic().run() },
+        toggleUnderline()   { this._ensureEditor(); this.editor?.chain().focus().toggleUnderline().run() },
+        toggleStrike()      { this._ensureEditor(); this.editor?.chain().focus().toggleStrike().run() },
+        toggleHeading(level){ this._ensureEditor(); this.editor?.chain().focus().toggleHeading({ level }).run() },
+        toggleBulletList()  { this._ensureEditor(); this.editor?.chain().focus().toggleBulletList().run() },
         toggleOrderedList() { this._ensureEditor(); this.editor?.chain().focus().toggleOrderedList().run() },
         setTextAlign(align) { this._ensureEditor(); this.editor?.chain().focus().setTextAlign(align).run() },
-        toggleBlockquote() { this._ensureEditor(); this.editor?.chain().focus().toggleBlockquote().run() },
+        toggleBlockquote()  { this._ensureEditor(); this.editor?.chain().focus().toggleBlockquote().run() },
         setHorizontalRule() { this._ensureEditor(); this.editor?.chain().focus().setHorizontalRule().run() },
 
         insertTable() {
@@ -195,10 +207,10 @@ export default function tiptapEditor(initialContent = '') {
             this.editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
         },
         addColumnAfter() { this._ensureEditor(); this.editor?.chain().focus().addColumnAfter().run() },
-        addRowAfter() { this._ensureEditor(); this.editor?.chain().focus().addRowAfter().run() },
-        deleteColumn() { this._ensureEditor(); this.editor?.chain().focus().deleteColumn().run() },
-        deleteRow() { this._ensureEditor(); this.editor?.chain().focus().deleteRow().run() },
-        deleteTable() { this._ensureEditor(); this.editor?.chain().focus().deleteTable().run() },
+        addRowAfter()    { this._ensureEditor(); this.editor?.chain().focus().addRowAfter().run() },
+        deleteColumn()   { this._ensureEditor(); this.editor?.chain().focus().deleteColumn().run() },
+        deleteRow()      { this._ensureEditor(); this.editor?.chain().focus().deleteRow().run() },
+        deleteTable()    { this._ensureEditor(); this.editor?.chain().focus().deleteTable().run() },
 
         isActive(name, attrs = {}) {
             return this.editor?.isActive(name, attrs) ?? false
