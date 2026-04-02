@@ -128,9 +128,24 @@ export default function tiptapEditor(initialContent = '') {
             }
         },
 
+        _insertImageSrc(src) {
+            if (!this.editor) return
+            const { state: { tr, selection }, view } = this.editor
+            const node = this.editor.schema.nodes.image.create({ src })
+            const transaction = tr.insert(selection.anchor, node)
+            view.dispatch(transaction)
+        },
+
         async _uploadImage(file) {
             if (this.uploading) return
             this.uploading = true
+
+            // Read base64 immediately as fallback (before editor state changes)
+            const base64Promise = new Promise((resolve) => {
+                const reader = new FileReader()
+                reader.onload = () => resolve(reader.result)
+                reader.readAsDataURL(file)
+            })
 
             const formData = new FormData()
             formData.append('image', file)
@@ -152,15 +167,11 @@ export default function tiptapEditor(initialContent = '') {
                 }
 
                 const data = await response.json()
-                this.editor?.chain().focus().setImage({ src: data.url }).run()
+                this._insertImageSrc(data.url)
             } catch (e) {
                 console.error('Image upload failed, using base64 fallback:', e)
-                // Fallback: insert as base64
-                const reader = new FileReader()
-                reader.onload = () => {
-                    this.editor?.chain().focus().setImage({ src: reader.result }).run()
-                }
-                reader.readAsDataURL(file)
+                const base64 = await base64Promise
+                this._insertImageSrc(base64)
             } finally {
                 this.uploading = false
             }
