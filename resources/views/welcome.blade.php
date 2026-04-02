@@ -25,40 +25,10 @@
     {{-- ═══════════════════════════════════════════════════ --}}
     {{-- NAVIGATION --}}
     {{-- ═══════════════════════════════════════════════════ --}}
-    <div x-data="{ scrolled: false, mobileNav: false }" x-init="window.addEventListener('scroll', () => scrolled = window.scrollY > 50)">
+    <div x-data="{ mobileNav: false }">
 
-    {{-- Transparent navbar (hero) — hides on scroll --}}
-    <nav x-show="!scrolled" class="fixed top-0 inset-x-0 z-50 bg-slate-900/40 backdrop-blur-md border-b border-white/10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16 lg:h-20">
-                <a href="/" class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                    </div>
-                    <span class="text-xl font-bold text-white">Lectura</span>
-                </a>
-                <div class="hidden lg:flex items-center gap-8">
-                    <a href="#features" class="text-sm font-semibold text-white/90 hover:text-white transition">Features</a>
-                    <a href="#how-it-works" class="text-sm font-semibold text-white/90 hover:text-white transition">How It Works</a>
-                    <a href="#pricing" class="text-sm font-semibold text-white/90 hover:text-white transition">Pricing</a>
-                </div>
-                <div class="hidden lg:flex items-center gap-3">
-                    @auth
-                        <a href="{{ route('dashboard') }}" class="text-sm font-bold text-white px-5 py-2.5 rounded-lg bg-white/20 border border-white/30 hover:bg-white/30 transition backdrop-blur-sm">Dashboard</a>
-                    @else
-                        <a href="{{ route('login') }}" class="text-sm font-bold text-white px-5 py-2.5 rounded-lg bg-white/20 border border-white/30 hover:bg-white/30 transition backdrop-blur-sm">Log In</a>
-                        <a href="{{ route('register') }}" class="text-sm font-bold px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition shadow-lg shadow-amber-500/30">Get Started Free</a>
-                    @endauth
-                </div>
-                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-white hover:bg-white/20 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    {{-- Solid navbar — appears on scroll --}}
-    <nav x-show="scrolled" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200">
+    {{-- Always-white navbar --}}
+    <nav class="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 lg:h-20">
                 <a href="/" class="flex items-center gap-2">
