@@ -24,7 +24,7 @@ use Illuminate\View\View;
 class QuizController extends Controller
 {
     /**
-     * Quiz list for lecturer — grouped by folder then course.
+     * Quiz list for lecturer — grouped by course, then by folder.
      */
     public function index(): View
     {
@@ -48,7 +48,15 @@ class QuizController extends Controller
             ->orderBy('code')
             ->get();
 
-        return view('tenant.quizzes.index', compact('courses', 'folders', 'unfoldered'));
+        // Group all sessions by course_id for course-tab view
+        $allSessions = QuizSession::whereIn('section_id', $sectionIds)
+            ->with(['section.course', 'participants', 'folder', 'sessionQuestions'])
+            ->latest()
+            ->get();
+
+        $sessionsByCourse = $allSessions->groupBy(fn ($s) => $s->section?->course_id);
+
+        return view('tenant.quizzes.index', compact('courses', 'folders', 'unfoldered', 'sessionsByCourse'));
     }
 
     /** Store a new folder */
