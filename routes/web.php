@@ -14,6 +14,9 @@ use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
 use App\Http\Controllers\Tenant\CourseMaterialController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentPlanController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentItemController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentReportController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningActivityController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningGroupController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningPlanController;
@@ -401,6 +404,23 @@ Route::prefix('{tenant:slug}')
         Route::get('/assignments/{assignment}/submissions/{submission}', [AssignmentController::class, 'review'])->name('tenant.assignments.review');
         Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
         Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
+
+        // Assessment (Course Assessment Plan)
+        Route::get('/assessments', [AssessmentPlanController::class, 'overview'])->name('tenant.assessments.overview');
+        Route::prefix('courses/{course}/assessments')->group(function () {
+            Route::get('/', [AssessmentPlanController::class, 'index'])->name('tenant.assessments.index');
+            Route::get('/create', [AssessmentPlanController::class, 'create'])->name('tenant.assessments.create');
+            Route::post('/', [AssessmentPlanController::class, 'store'])->name('tenant.assessments.store');
+            Route::get('/{assessment}/edit', [AssessmentPlanController::class, 'edit'])->name('tenant.assessments.edit');
+            Route::put('/{assessment}', [AssessmentPlanController::class, 'update'])->name('tenant.assessments.update');
+            Route::delete('/{assessment}', [AssessmentPlanController::class, 'destroy'])->name('tenant.assessments.destroy');
+
+            Route::post('/{assessment}/items', [AssessmentItemController::class, 'store'])->name('tenant.assessments.items.store');
+            Route::delete('/{assessment}/items/{item}', [AssessmentItemController::class, 'destroy'])->name('tenant.assessments.items.destroy');
+        });
+
+        // Assessment Reports
+        Route::get('/courses/{course}/assessment-reports', [AssessmentReportController::class, 'courseReport'])->name('tenant.assessment-reports.course');
 
         // Course Files
         Route::get('/files', [CourseFileController::class, 'index'])->name('tenant.files.index');

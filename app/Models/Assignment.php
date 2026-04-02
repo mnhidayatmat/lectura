@@ -74,6 +74,11 @@ class Assignment extends Model
         return $this->hasMany(StudentMark::class);
     }
 
+    public function assessmentItems(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(AssessmentItem::class, 'assessable');
+    }
+
     public function getStatusBadgeAttribute(): array
     {
         return match ($this->status) {

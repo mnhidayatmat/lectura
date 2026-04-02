@@ -81,6 +81,11 @@ class QuizSession extends Model
         return $this->category === 'offline';
     }
 
+    public function assessmentItems(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(AssessmentItem::class, 'assessable');
+    }
+
     public function isOfflineOpen(): bool
     {
         if (! $this->isOffline()) {

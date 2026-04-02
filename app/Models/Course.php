@@ -112,6 +112,11 @@ class Course extends Model
         return $this->hasMany(ActiveLearningPlan::class);
     }
 
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(Assessment::class)->orderBy('sort_order');
+    }
+
     public function attendancePolicy(): HasOne
     {
         return $this->hasOne(AttendancePolicy::class);

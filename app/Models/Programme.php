@@ -24,4 +24,9 @@ class Programme extends Model
     {
         return $this->hasMany(Course::class);
     }
+
+    public function learningOutcomes(): HasMany
+    {
+        return $this->hasMany(ProgrammeLearningOutcome::class)->orderBy('sort_order');
+    }
 }
