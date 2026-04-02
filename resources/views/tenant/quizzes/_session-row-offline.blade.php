@@ -28,9 +28,38 @@
         <a href="{{ route('tenant.quizzes.edit', [app('current_tenant')->slug, $session]) }}" class="p-2 text-slate-400 hover:text-teal-600 transition" title="Edit">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </a>
+        @if(isset($folders) && $folders->isNotEmpty())
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" class="p-2 text-slate-400 hover:text-amber-500 transition" title="Move to folder">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+                </button>
+                <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-1 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 z-20 py-1 text-sm">
+                    @if($session->quiz_folder_id)
+                        <form method="POST" action="{{ route('tenant.quizzes.move', [app('current_tenant')->slug, $session]) }}">
+                            @csrf
+                            <input type="hidden" name="quiz_folder_id" value="">
+                            <button type="submit" class="w-full text-left px-4 py-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 italic">Remove from folder</button>
+                        </form>
+                        <hr class="my-1 border-slate-100 dark:border-slate-700">
+                    @endif
+                    @foreach($folders as $f)
+                        @if($f->id !== $session->quiz_folder_id)
+                            <form method="POST" action="{{ route('tenant.quizzes.move', [app('current_tenant')->slug, $session]) }}">
+                                @csrf
+                                <input type="hidden" name="quiz_folder_id" value="{{ $f->id }}">
+                                <button type="submit" class="w-full text-left px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
+                                    @php $dot = ['indigo'=>'bg-indigo-500','emerald'=>'bg-emerald-500','amber'=>'bg-amber-500','rose'=>'bg-red-500','teal'=>'bg-teal-500','purple'=>'bg-purple-500','slate'=>'bg-slate-400']; @endphp
+                                    <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ $dot[$f->color] ?? 'bg-slate-400' }}"></span>
+                                    {{ $f->name }}
+                                </button>
+                            </form>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        @endif
         <form method="POST" action="{{ route('tenant.quizzes.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this quiz?')">
-            @csrf
-            @method('DELETE')
+            @csrf @method('DELETE')
             <button type="submit" class="p-2 text-slate-400 hover:text-red-500 transition" title="Delete">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
