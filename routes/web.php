@@ -61,6 +61,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Editor image upload (tiptap paste/drop)
+    Route::post('/editor/upload-image', [\App\Http\Controllers\EditorImageController::class, 'upload'])->name('editor.upload-image');
+
     // Google Drive OAuth callback (outside tenant prefix since Google redirects here directly)
     Route::get('/settings/drive/callback', [\App\Http\Controllers\Tenant\SettingsController::class, 'driveCallback'])->name('settings.drive.callback');
 });

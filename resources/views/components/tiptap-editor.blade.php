@@ -47,6 +47,13 @@
         <button type="button" @mousedown.prevent @click="setHorizontalRule()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Horizontal Rule">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/></svg>
         </button>
+
+        <span class="w-px h-5 bg-slate-300 dark:bg-slate-500 mx-1"></span>
+
+        <button type="button" @mousedown.prevent @click="insertImageFromFile()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition" :class="uploading && 'opacity-50 pointer-events-none'" title="Insert Image (or paste/drop)">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+        <span x-show="uploading" x-cloak class="text-[10px] text-indigo-500 animate-pulse">Uploading...</span>
     </div>
 
     {{-- Editor content area --}}

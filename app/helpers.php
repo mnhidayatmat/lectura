@@ -18,7 +18,7 @@ if (! function_exists('clean_html')) {
             return nl2br_structured($html);
         }
 
-        $allowed = '<h3><h4><p><br><strong><b><em><i><u><s><ul><ol><li><blockquote><hr><table><thead><tbody><tr><th><td><span><div>';
+        $allowed = '<h3><h4><p><br><strong><b><em><i><u><s><ul><ol><li><blockquote><hr><table><thead><tbody><tr><th><td><span><div><img>';
 
         return strip_tags($html, $allowed);
     }
