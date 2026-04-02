@@ -92,7 +92,7 @@
                         {{-- Members --}}
                         <div class="p-4 space-y-1.5">
                             @forelse($group->members as $member)
-                                <div class="flex items-center justify-between group/member">
+                                <div class="flex items-center justify-between py-0.5">
                                     <div class="flex items-center gap-2">
                                         <span class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-300">{{ strtoupper(substr($member->user->name, 0, 2)) }}</span>
                                         <div>
@@ -102,9 +102,9 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <form method="POST" action="{{ route('tenant.student-groups.members.remove', [$tenant->slug, $course, $set, $group, $member->user]) }}" class="opacity-0 group-hover/member:opacity-100 transition">
+                                    <form method="POST" action="{{ route('tenant.student-groups.members.remove', [$tenant->slug, $course, $set, $group, $member->user]) }}">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-slate-300 hover:text-red-500 transition" title="Remove">
+                                        <button type="submit" class="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 transition rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remove {{ $member->user->name }}">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
                                     </form>
