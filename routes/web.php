@@ -365,6 +365,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
         Route::get('/quizzes/{session}/control', [QuizController::class, 'control'])->name('tenant.quizzes.control');
         Route::post('/quizzes/{session}/start', [QuizController::class, 'start'])->name('tenant.quizzes.start');
+        Route::post('/quizzes/{session}/close', [QuizController::class, 'closeQuestion'])->name('tenant.quizzes.close');
         Route::post('/quizzes/{session}/next', [QuizController::class, 'nextQuestion'])->name('tenant.quizzes.next');
         Route::post('/quizzes/{session}/end', [QuizController::class, 'end'])->name('tenant.quizzes.end');
         Route::get('/quizzes/{session}/results', [QuizController::class, 'results'])->name('tenant.quizzes.results');

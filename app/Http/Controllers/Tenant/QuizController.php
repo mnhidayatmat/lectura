@@ -330,11 +330,32 @@ class QuizController extends Controller
         $session->load([
             'section.course',
             'sessionQuestions.question.options',
-            'sessionQuestions.responses.participant',
+            'sessionQuestions.responses',
             'participants.user',
         ]);
 
-        return view('tenant.quizzes.control', compact('session'));
+        $questions = $session->sessionQuestions;
+        $activeQ   = $session->activeQuestion();
+
+        // Determine phase and the question to display
+        $phase       = 'answering';
+        $revealQ     = null;
+        $revealIndex = -1;
+        $currentIndex = $activeQ ? $questions->search(fn ($q) => $q->id === $activeQ->id) : -1;
+        $responseCount = $activeQ ? $activeQ->responses->count() : 0;
+
+        if (! $activeQ && $session->status === 'active') {
+            $revealQ = $questions->where('status', 'closed')->sortByDesc('closed_at')->first();
+            if ($revealQ) {
+                $phase = 'reveal';
+                $revealIndex = $questions->search(fn ($q) => $q->id === $revealQ->id);
+                $responseCount = $revealQ->responses->count();
+            }
+        }
+
+        return view('tenant.quizzes.control', compact(
+            'session', 'questions', 'activeQ', 'phase', 'revealQ', 'revealIndex', 'currentIndex', 'responseCount'
+        ));
     }
 
     /**
@@ -359,18 +380,32 @@ class QuizController extends Controller
     }
 
     /**
-     * API: Advance to next question.
+     * Close the current active question — enters the reveal phase.
+     * Students see results + leaderboard. Lecturer sees correct-answer distribution.
      */
-    public function nextQuestion(string $tenantSlug, QuizSession $session): RedirectResponse
+    public function closeQuestion(string $tenantSlug, QuizSession $session): RedirectResponse
     {
         if ($session->lecturer_id !== auth()->id()) {
             abort(403);
         }
 
-        // Close current active question
         $current = $session->activeQuestion();
         if ($current) {
             $current->update(['status' => 'closed', 'closed_at' => now()]);
+        }
+
+        Cache::forget("quiz_session_{$session->id}_state");
+
+        return back();
+    }
+
+    /**
+     * Advance to the next question (only callable during reveal phase, after closeQuestion).
+     */
+    public function nextQuestion(string $tenantSlug, QuizSession $session): RedirectResponse
+    {
+        if ($session->lecturer_id !== auth()->id()) {
+            abort(403);
         }
 
         // Open next pending question
@@ -508,27 +543,46 @@ class QuizController extends Controller
 
     /**
      * API: Get quiz state (polled by lecturer control panel).
+     *
+     * Phase 'answering' — active question is open, correct answer NOT included.
+     * Phase 'reveal'    — question is closed, correct answer included for display.
      */
     public function state(string $tenantSlug, QuizSession $session): JsonResponse
     {
         $activeQ = $session->activeQuestion();
 
+        // Determine phase
+        $phase = 'answering';
+        $questionForState = $activeQ;
+
+        if (! $activeQ && $session->status === 'active') {
+            // Reveal phase: show the most-recently-closed question
+            $questionForState = $session->sessionQuestions()
+                ->where('status', 'closed')
+                ->latest('closed_at')
+                ->first();
+            $phase = $questionForState ? 'reveal' : 'answering';
+        }
+
         $responseCount = 0;
         $distribution = [];
+        $correctLabel = null;
 
-        if ($activeQ) {
-            $responseCount = QuizResponse::where('quiz_session_question_id', $activeQ->id)->count();
+        if ($questionForState) {
+            $responseCount = QuizResponse::where('quiz_session_question_id', $questionForState->id)->count();
 
-            // SQL GROUP BY instead of loading all rows into memory
-            $countsByOption = QuizResponse::where('quiz_session_question_id', $activeQ->id)
+            $countsByOption = QuizResponse::where('quiz_session_question_id', $questionForState->id)
                 ->whereNotNull('selected_option_id')
                 ->selectRaw('selected_option_id, COUNT(*) as cnt')
                 ->groupBy('selected_option_id')
                 ->pluck('cnt', 'selected_option_id');
 
-            $question = $activeQ->question()->with('options')->first();
+            $question = $questionForState->question()->with('options')->first();
             foreach ($question->options as $opt) {
                 $distribution[$opt->label] = $countsByOption[$opt->id] ?? 0;
+                if ($phase === 'reveal' && $opt->is_correct) {
+                    $correctLabel = $opt->label;
+                }
             }
         }
 
@@ -536,9 +590,11 @@ class QuizController extends Controller
 
         return response()->json([
             'status' => $session->status,
+            'phase' => $phase,
             'participants' => $participantCount,
             'responses' => $responseCount,
             'distribution' => $distribution,
+            'correct_label' => $correctLabel,  // null during answering phase
             'active_question_id' => $activeQ?->id,
         ]);
     }
@@ -802,19 +858,58 @@ class QuizController extends Controller
     {
         $user = auth()->user();
 
-        // Shared cache: same active question for every student — busted by start/next/end
+        // Shared cache: same active question and phase for every student — busted on lecturer action
         $shared = Cache::remember("quiz_session_{$session->id}_state", 3, function () use ($session) {
             $activeQ = $session->activeQuestion();
 
+            // Reveal phase: no active question but session still running
+            if (! $activeQ && $session->status === 'active') {
+                $closedQ = $session->sessionQuestions()
+                    ->where('status', 'closed')
+                    ->latest('closed_at')
+                    ->first();
+
+                if ($closedQ) {
+                    $q = $closedQ->question()->with('options')->first();
+                    $correctOptionId = $q->options->where('is_correct', true)->first()?->id;
+
+                    // Leaderboard is stable during reveal (no new answers possible)
+                    $leaderboard = QuizParticipant::where('quiz_session_id', $session->id)
+                        ->with('user:id,name')
+                        ->orderByDesc('total_score')
+                        ->take(10)
+                        ->get()
+                        ->values()
+                        ->map(fn ($p, $i) => [
+                            'rank' => $i + 1,
+                            'name' => $session->is_anonymous ? $p->display_name : $p->user->name,
+                            'score' => (float) $p->total_score,
+                        ]);
+
+                    return [
+                        'status' => $session->status,
+                        'phase' => 'reveal',
+                        'active_q_id' => null,
+                        'closed_q_id' => $closedQ->id,
+                        'correct_option_id' => $correctOptionId,
+                        'question' => null,
+                        'leaderboard' => $leaderboard,
+                    ];
+                }
+            }
+
             if (! $activeQ) {
-                return ['status' => $session->status, 'active_q_id' => null, 'question' => null];
+                return ['status' => $session->status, 'phase' => 'done', 'active_q_id' => null, 'closed_q_id' => null, 'question' => null, 'leaderboard' => null];
             }
 
             $q = $activeQ->question()->with('options')->first();
 
             return [
                 'status' => $session->status,
+                'phase' => 'answering',
                 'active_q_id' => $activeQ->id,
+                'closed_q_id' => null,
+                'correct_option_id' => null,
                 'question' => [
                     'session_question_id' => $activeQ->id,
                     'text' => $q->text,
@@ -827,6 +922,7 @@ class QuizController extends Controller
                         'text' => $o->text,
                     ])->toArray(),
                 ],
+                'leaderboard' => null,
             ];
         });
 
@@ -837,17 +933,43 @@ class QuizController extends Controller
             ->first();
 
         $answered = false;
-        if ($shared['active_q_id'] && $participant) {
+        $myAnswer = null;   // selected_option_id during reveal
+        $isCorrect = null;  // bool during reveal
+        $myRank = null;     // int during reveal
+
+        if ($shared['phase'] === 'answering' && $shared['active_q_id'] && $participant) {
             $answered = QuizResponse::where('quiz_session_question_id', $shared['active_q_id'])
                 ->where('quiz_participant_id', $participant->id)
                 ->exists();
         }
 
+        if ($shared['phase'] === 'reveal' && $shared['closed_q_id'] && $participant) {
+            $myResponse = QuizResponse::where('quiz_session_question_id', $shared['closed_q_id'])
+                ->where('quiz_participant_id', $participant->id)
+                ->select(['selected_option_id', 'is_correct'])
+                ->first();
+
+            $myAnswer = $myResponse?->selected_option_id;
+            $isCorrect = $myResponse?->is_correct;
+
+            // Rank = number of participants scoring higher + 1
+            $myRank = QuizParticipant::where('quiz_session_id', $session->id)
+                ->where('total_score', '>', $participant->total_score)
+                ->count() + 1;
+        }
+
         return response()->json([
             'status' => $shared['status'],
+            'phase' => $shared['phase'],
             'question' => $shared['question'],
             'answered' => $answered,
             'score' => $participant?->total_score ?? 0,
+            // Reveal-phase fields
+            'correct_option_id' => $shared['correct_option_id'] ?? null,
+            'my_answer' => $myAnswer,
+            'is_correct' => $isCorrect,
+            'my_rank' => $myRank,
+            'leaderboard' => $shared['leaderboard'],
         ]);
     }
 }
