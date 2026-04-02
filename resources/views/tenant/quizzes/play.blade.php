@@ -81,7 +81,7 @@
 
                 startPolling() {
                     this.fetchState();
-                    this.polling = setInterval(() => this.fetchState(), 2000);
+                    this.polling = setInterval(() => this.fetchState(), 3000);
                 },
 
                 async fetchState() {

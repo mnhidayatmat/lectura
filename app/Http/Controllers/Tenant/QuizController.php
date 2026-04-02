@@ -17,6 +17,7 @@ use App\Models\SectionStudent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class QuizController extends Controller
@@ -352,6 +353,8 @@ class QuizController extends Controller
             $firstQ->update(['status' => 'active', 'opened_at' => now()]);
         }
 
+        Cache::forget("quiz_session_{$session->id}_state");
+
         return back();
     }
 
@@ -379,6 +382,8 @@ class QuizController extends Controller
             $session->update(['status' => 'reviewing']);
         }
 
+        Cache::forget("quiz_session_{$session->id}_state");
+
         return back();
     }
 
@@ -401,6 +406,8 @@ class QuizController extends Controller
         }
 
         $session->update(['status' => 'ended', 'ended_at' => now()]);
+
+        Cache::forget("quiz_session_{$session->id}_state");
 
         return redirect()->route('tenant.quizzes.results', [
             'tenant' => app('current_tenant')->slug,
@@ -504,24 +511,33 @@ class QuizController extends Controller
      */
     public function state(string $tenantSlug, QuizSession $session): JsonResponse
     {
-        $session->load(['sessionQuestions.responses', 'participants']);
-
         $activeQ = $session->activeQuestion();
-        $responses = $activeQ ? $activeQ->responses()->with('selectedOption')->get() : collect();
 
-        // Build distribution for MCQ
+        $responseCount = 0;
         $distribution = [];
+
         if ($activeQ) {
+            $responseCount = QuizResponse::where('quiz_session_question_id', $activeQ->id)->count();
+
+            // SQL GROUP BY instead of loading all rows into memory
+            $countsByOption = QuizResponse::where('quiz_session_question_id', $activeQ->id)
+                ->whereNotNull('selected_option_id')
+                ->selectRaw('selected_option_id, COUNT(*) as cnt')
+                ->groupBy('selected_option_id')
+                ->pluck('cnt', 'selected_option_id');
+
             $question = $activeQ->question()->with('options')->first();
             foreach ($question->options as $opt) {
-                $distribution[$opt->label] = $responses->where('selected_option_id', $opt->id)->count();
+                $distribution[$opt->label] = $countsByOption[$opt->id] ?? 0;
             }
         }
 
+        $participantCount = QuizParticipant::where('quiz_session_id', $session->id)->count();
+
         return response()->json([
             'status' => $session->status,
-            'participants' => $session->participants->count(),
-            'responses' => $responses->count(),
+            'participants' => $participantCount,
+            'responses' => $responseCount,
             'distribution' => $distribution,
             'active_question_id' => $activeQ?->id,
         ]);
@@ -675,10 +691,10 @@ class QuizController extends Controller
             'response_time_ms' => $request->response_time_ms,
         ]);
 
-        // Update participant total
-        $participant->update([
-            'total_score' => QuizResponse::where('quiz_participant_id', $participant->id)->sum('points_earned'),
-        ]);
+        // Increment score in-place — avoids a SUM recalculation across all responses
+        if ($points > 0) {
+            $participant->increment('total_score', $points);
+        }
 
         return response()->json([
             'message' => 'Answer submitted.',
@@ -777,41 +793,59 @@ class QuizController extends Controller
 
     /**
      * API: Get current question state for student (polling — live quiz).
+     *
+     * The active question and session status are cached for 3 seconds and shared
+     * across all students in the session. Only per-student data (answered/score)
+     * is queried individually, keeping DB load flat regardless of participant count.
      */
     public function studentState(string $tenantSlug, QuizSession $session): JsonResponse
     {
         $user = auth()->user();
-        $participant = QuizParticipant::where('quiz_session_id', $session->id)
-            ->where('user_id', $user->id)->first();
 
-        $activeQ = $session->activeQuestion();
-        $answered = false;
+        // Shared cache: same active question for every student — busted by start/next/end
+        $shared = Cache::remember("quiz_session_{$session->id}_state", 3, function () use ($session) {
+            $activeQ = $session->activeQuestion();
 
-        if ($activeQ && $participant) {
-            $answered = QuizResponse::where('quiz_session_question_id', $activeQ->id)
-                ->where('quiz_participant_id', $participant->id)->exists();
-        }
+            if (! $activeQ) {
+                return ['status' => $session->status, 'active_q_id' => null, 'question' => null];
+            }
 
-        $questionData = null;
-        if ($activeQ) {
             $q = $activeQ->question()->with('options')->first();
-            $questionData = [
-                'session_question_id' => $activeQ->id,
-                'text' => $q->text,
-                'type' => $q->question_type,
-                'time_limit' => $q->time_limit_seconds,
-                'points' => $q->points,
-                'options' => $q->options->map(fn ($o) => [
-                    'id' => $o->id,
-                    'label' => $o->label,
-                    'text' => $o->text,
-                ])->toArray(),
+
+            return [
+                'status' => $session->status,
+                'active_q_id' => $activeQ->id,
+                'question' => [
+                    'session_question_id' => $activeQ->id,
+                    'text' => $q->text,
+                    'type' => $q->question_type,
+                    'time_limit' => $q->time_limit_seconds,
+                    'points' => $q->points,
+                    'options' => $q->options->map(fn ($o) => [
+                        'id' => $o->id,
+                        'label' => $o->label,
+                        'text' => $o->text,
+                    ])->toArray(),
+                ],
             ];
+        });
+
+        // Per-student queries (fast: uses unique index on quiz_participants + quiz_responses)
+        $participant = QuizParticipant::where('quiz_session_id', $session->id)
+            ->where('user_id', $user->id)
+            ->select(['id', 'total_score'])
+            ->first();
+
+        $answered = false;
+        if ($shared['active_q_id'] && $participant) {
+            $answered = QuizResponse::where('quiz_session_question_id', $shared['active_q_id'])
+                ->where('quiz_participant_id', $participant->id)
+                ->exists();
         }
 
         return response()->json([
-            'status' => $session->fresh()->status,
-            'question' => $questionData,
+            'status' => $shared['status'],
+            'question' => $shared['question'],
             'answered' => $answered,
             'score' => $participant?->total_score ?? 0,
         ]);
