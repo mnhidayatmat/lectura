@@ -147,7 +147,8 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                this.editor.chain().focus().setImage({ src }).run()
+                this.editor.commands.focus()
+                this.editor.commands.setImage({ src })
             }
 
             this.uploading = false
