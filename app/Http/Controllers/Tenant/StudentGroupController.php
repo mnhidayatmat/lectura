@@ -59,7 +59,7 @@ class StudentGroupController extends Controller
 
         $sets = $course->studentGroupSets()
             ->withCount('groups')
-            ->with('creator')
+            ->with(['creator', 'section'])
             ->latest()
             ->get();
 
@@ -73,9 +73,9 @@ class StudentGroupController extends Controller
         }
 
         $tenant = app('current_tenant');
-        $studentCount = $this->groupingService->getEnrolledStudents($course)->count();
+        $sections = $course->sections()->withCount(['activeStudents'])->get();
 
-        return view('tenant.student-groups.create', compact('tenant', 'course', 'studentCount'));
+        return view('tenant.student-groups.create', compact('tenant', 'course', 'sections'));
     }
 
     public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
@@ -86,6 +86,7 @@ class StudentGroupController extends Controller
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'section_id' => ['required', 'integer', 'exists:sections,id'],
             'type' => ['required', 'string', 'in:lecture,lab,tutorial'],
             'description' => ['nullable', 'string', 'max:1000'],
             'creation_method' => ['required', 'string', 'in:manual,random'],
@@ -97,6 +98,7 @@ class StudentGroupController extends Controller
         $set = StudentGroupSet::create([
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
+            'section_id' => $request->integer('section_id'),
             'academic_term_id' => $course->academic_term_id,
             'type' => $request->input('type'),
             'name' => $request->input('name'),
@@ -120,10 +122,10 @@ class StudentGroupController extends Controller
         }
 
         $tenant = app('current_tenant');
-        $set->load('groups.members.user');
+        $set->load(['groups.members.user', 'section']);
 
         $unassigned = $this->groupingService->getUnassignedStudents($set);
-        $enrolledCount = $this->groupingService->getEnrolledStudents($course)->count();
+        $enrolledCount = $this->groupingService->getEnrolledStudents($course, $set->section)->count();
 
         $groupIds = $set->groups()->pluck('id');
 

@@ -58,6 +58,9 @@
                                 <span class="text-[10px] text-slate-400">{{ $set->creation_method === 'random' ? 'Random' : 'Manual' }}</span>
                             </div>
                             <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">{{ $set->name }}</h3>
+                            @if($set->section)
+                                <p class="text-[10px] text-indigo-500 dark:text-indigo-400 font-medium mb-1">{{ $set->section->name }}</p>
+                            @endif
                             @if($set->description)
                                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{{ $set->description }}</p>
                             @endif

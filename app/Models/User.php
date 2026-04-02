@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,6 +27,13 @@ class User extends Authenticatable
             ->logOnlyDirty()
             ->useLogName('user')
             ->setDescriptionForEvent(fn (string $event) => "User {$this->name} was {$event}");
+    }
+
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $value ? mb_convert_case($value, MB_CASE_TITLE, 'UTF-8') : $value,
+        );
     }
 
     protected $fillable = [

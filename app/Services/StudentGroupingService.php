@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Course;
+use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\StudentGroup;
 use App\Models\StudentGroupMember;
@@ -14,12 +15,18 @@ use Illuminate\Support\Collection;
 
 class StudentGroupingService
 {
-    public function getEnrolledStudents(Course $course): Collection
+    public function getEnrolledStudents(Course $course, ?Section $section = null): Collection
     {
-        $userIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
-            ->where('is_active', true)
-            ->distinct()
-            ->pluck('user_id');
+        if ($section) {
+            $userIds = SectionStudent::where('section_id', $section->id)
+                ->where('is_active', true)
+                ->pluck('user_id');
+        } else {
+            $userIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+                ->where('is_active', true)
+                ->distinct()
+                ->pluck('user_id');
+        }
 
         return User::whereIn('id', $userIds)->orderBy('name')->get();
     }
@@ -31,14 +38,14 @@ class StudentGroupingService
             $set->groups()->pluck('id')
         )->pluck('user_id');
 
-        $allStudents = $this->getEnrolledStudents($set->course);
+        $allStudents = $this->getEnrolledStudents($set->course, $set->section);
 
         return $allStudents->reject(fn (User $u) => $assignedIds->contains($u->id));
     }
 
     public function arrangeRandom(StudentGroupSet $set, int $groupSize): void
     {
-        $students = $this->getEnrolledStudents($set->course)->shuffle();
+        $students = $this->getEnrolledStudents($set->course, $set->section)->shuffle();
 
         if ($students->isEmpty() || $groupSize < 1) {
             return;

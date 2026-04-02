@@ -16,7 +16,7 @@ class StudentGroupSet extends Model
     use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'academic_term_id', 'type', 'name', 'description',
+        'tenant_id', 'course_id', 'section_id', 'academic_term_id', 'type', 'name', 'description',
         'creation_method', 'max_group_size', 'is_active', 'created_by',
     ];
 
@@ -34,6 +34,11 @@ class StudentGroupSet extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
     }
 
     public function academicTerm(): BelongsTo
