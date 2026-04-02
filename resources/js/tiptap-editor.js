@@ -13,6 +13,7 @@ export default function tiptapEditor(initialContent = '') {
         editor: null,
         content: initialContent,
         uploading: false,
+        _pendingImage: null,
 
         init() {
             this._ensureEditor()
@@ -40,6 +41,8 @@ export default function tiptapEditor(initialContent = '') {
             const el = this.$refs.editorContent
             if (!el) return false
 
+            const self = this
+
             try {
                 this.editor = new Editor({
                     element: el,
@@ -65,6 +68,49 @@ export default function tiptapEditor(initialContent = '') {
                         attributes: {
                             class: 'focus:outline-none min-h-[120px] px-3 py-2',
                         },
+                        // Intercept paste at ProseMirror level — extract image file,
+                        // block the paste, then upload async
+                        handlePaste(view, event) {
+                            const items = event.clipboardData?.items
+                            if (!items) return false
+
+                            for (const item of items) {
+                                if (item.type.startsWith('image/')) {
+                                    const file = item.getAsFile()
+                                    if (file) {
+                                        // Store file for async processing — do NOT
+                                        // try to insert here (causes transaction mismatch)
+                                        self._pendingImage = file
+                                        // Schedule upload on next tick (after paste finishes)
+                                        setTimeout(() => {
+                                            const f = self._pendingImage
+                                            self._pendingImage = null
+                                            if (f) self._uploadAndInsert(f)
+                                        }, 0)
+                                    }
+                                    // Return true = "handled, don't process further"
+                                    return true
+                                }
+                            }
+                            return false
+                        },
+                        handleDrop(view, event) {
+                            const files = event.dataTransfer?.files
+                            if (!files) return false
+
+                            for (const file of files) {
+                                if (file.type.startsWith('image/')) {
+                                    self._pendingImage = file
+                                    setTimeout(() => {
+                                        const f = self._pendingImage
+                                        self._pendingImage = null
+                                        if (f) self._uploadAndInsert(f)
+                                    }, 0)
+                                    return true
+                                }
+                            }
+                            return false
+                        },
                     },
                     onUpdate: ({ editor }) => {
                         this.content = editor.getHTML()
@@ -74,11 +120,6 @@ export default function tiptapEditor(initialContent = '') {
                     },
                 })
 
-                // Use DOM events on the editor element for image paste/drop
-                const editorDom = el.querySelector('.ProseMirror') || el
-                editorDom.addEventListener('paste', (e) => this._handleImagePaste(e), true)
-                editorDom.addEventListener('drop', (e) => this._handleImageDrop(e), true)
-
                 return true
             } catch (e) {
                 console.warn('Tiptap editor init failed, will retry on interaction:', e)
@@ -86,36 +127,7 @@ export default function tiptapEditor(initialContent = '') {
             }
         },
 
-        _handleImagePaste(e) {
-            const items = e.clipboardData?.items
-            if (!items) return
-
-            for (const item of items) {
-                if (item.type.startsWith('image/')) {
-                    e.preventDefault()
-                    e.stopImmediatePropagation()
-                    const file = item.getAsFile()
-                    if (file) this._uploadImage(file)
-                    return
-                }
-            }
-        },
-
-        _handleImageDrop(e) {
-            const files = e.dataTransfer?.files
-            if (!files) return
-
-            for (const file of files) {
-                if (file.type.startsWith('image/')) {
-                    e.preventDefault()
-                    e.stopImmediatePropagation()
-                    this._uploadImage(file)
-                    return
-                }
-            }
-        },
-
-        async _uploadImage(file) {
+        async _uploadAndInsert(file) {
             if (this.uploading) return
             this.uploading = true
 
@@ -148,36 +160,10 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                // Use setTimeout to ensure ProseMirror has fully finished any pending
-                // event processing before we touch the editor state
-                setTimeout(() => {
-                    try {
-                        this.editor.chain().focus().setImage({ src }).run()
-                    } catch (e1) {
-                        // If chain fails, fall back to setContent
-                        try {
-                            const html = this.editor.getHTML()
-                            this.editor.commands.setContent(html + `<img src="${src}">`)
-                        } catch (e2) {
-                            // Last resort: inject into DOM directly
-                            const proseMirror = this.$refs.editorContent?.querySelector('.ProseMirror')
-                            if (proseMirror) {
-                                const img = document.createElement('img')
-                                img.src = src
-                                proseMirror.appendChild(img)
-                                // Sync content
-                                this.content = this.editor.getHTML()
-                                if (this.$refs.hiddenInput) {
-                                    this.$refs.hiddenInput.value = this.content
-                                }
-                            }
-                        }
-                    }
-                    this.uploading = false
-                }, 50)
-            } else {
-                this.uploading = false
+                this.editor.chain().focus().setImage({ src }).run()
             }
+
+            this.uploading = false
         },
 
         insertImageFromFile() {
@@ -187,7 +173,7 @@ export default function tiptapEditor(initialContent = '') {
             input.accept = 'image/*'
             input.onchange = () => {
                 const file = input.files?.[0]
-                if (file) this._uploadImage(file)
+                if (file) this._uploadAndInsert(file)
             }
             input.click()
         },
