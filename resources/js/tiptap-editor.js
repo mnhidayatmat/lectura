@@ -147,8 +147,21 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                this.editor.commands.focus()
-                this.editor.commands.setImage({ src })
+                // Bypass tiptap command system entirely — it has state lineage
+                // checks that fail after async operations. Manipulate ProseMirror
+                // view directly with a guaranteed-fresh transaction.
+                const view = this.editor.view
+                view.focus()
+                const { schema } = view.state
+                const imgNode = schema.nodes.image.create({ src })
+                const pos = view.state.selection.anchor
+                const tr = view.state.tr.replaceSelectionWith(imgNode)
+                view.dispatch(tr)
+                // Sync content
+                this.content = this.editor.getHTML()
+                if (this.$refs.hiddenInput) {
+                    this.$refs.hiddenInput.value = this.content
+                }
             }
 
             this.uploading = false
