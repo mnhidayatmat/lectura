@@ -61,6 +61,33 @@
                     Select your answer above
                 </div>
             </div>
+
+            {{-- Current standings (persisted from last reveal, shown while waiting after answering) --}}
+            <template x-if="answered && leaderboard && leaderboard.length > 0">
+                <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h3 class="font-semibold text-slate-900">Current Standings</h3>
+                        <span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">After last question</span>
+                    </div>
+                    <div class="divide-y divide-slate-100">
+                        <template x-for="(entry, i) in leaderboard" :key="i">
+                            <div class="px-4 py-2.5 flex items-center justify-between"
+                                 :class="entry.rank === myRank ? 'bg-indigo-50 border-l-4 border-indigo-400' : ''">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                                          :class="entry.rank === 1 ? 'bg-amber-100 text-amber-700' : (entry.rank === 2 ? 'bg-slate-200 text-slate-600' : (entry.rank === 3 ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'))"
+                                          x-text="entry.rank === 1 ? '🥇' : (entry.rank === 2 ? '🥈' : (entry.rank === 3 ? '🥉' : entry.rank))"></span>
+                                    <span class="text-sm font-medium" :class="entry.rank === myRank ? 'text-indigo-700 font-semibold' : 'text-slate-900'" x-text="entry.name"></span>
+                                    <template x-if="entry.rank === myRank">
+                                        <span class="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-medium">You</span>
+                                    </template>
+                                </div>
+                                <span class="text-sm font-bold" :class="entry.rank === myRank ? 'text-indigo-600' : 'text-slate-600'" x-text="entry.score.toFixed(1) + ' pts'"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
 
         {{-- REVEAL PHASE: leaderboard + correct/wrong result --}}
@@ -109,26 +136,32 @@
 
             {{-- Leaderboard --}}
             <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">Leaderboard</h3>
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900">Rankings</h3>
+                    <span class="text-xs text-slate-400">Top 10</span>
                 </div>
                 <div class="divide-y divide-slate-100">
                     <template x-for="(entry, i) in leaderboard || []" :key="i">
-                        <div class="px-6 py-3 flex items-center justify-between"
-                             :class="entry.name === '{{ $participant->display_name ?? ($session->is_anonymous ? '' : auth()->user()->name) }}' ? 'bg-indigo-50' : ''">
+                        <div class="px-4 py-3 flex items-center justify-between transition-colors"
+                             :class="entry.rank === myRank ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''">
                             <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                                      :class="entry.rank === 1 ? 'bg-amber-100 text-amber-700' : (entry.rank === 2 ? 'bg-slate-200 text-slate-700' : (entry.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'))"
-                                      x-text="entry.rank"></span>
-                                <span class="text-sm font-medium text-slate-900" x-text="entry.name"></span>
+                                <span class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
+                                      :class="entry.rank === 1 ? 'bg-amber-400 text-white text-base' : (entry.rank === 2 ? 'bg-slate-300 text-slate-700' : (entry.rank === 3 ? 'bg-orange-300 text-white' : 'bg-slate-100 text-slate-500'))"
+                                      x-text="entry.rank === 1 ? '🥇' : (entry.rank === 2 ? '🥈' : (entry.rank === 3 ? '🥉' : entry.rank))"></span>
+                                <div>
+                                    <span class="text-sm font-medium block" :class="entry.rank === myRank ? 'text-indigo-700 font-semibold' : 'text-slate-900'" x-text="entry.name"></span>
+                                    <template x-if="entry.rank === myRank">
+                                        <span class="text-xs text-indigo-500 font-medium">← You</span>
+                                    </template>
+                                </div>
                             </div>
-                            <span class="text-sm font-bold text-indigo-600" x-text="entry.score.toFixed(1) + ' pts'"></span>
+                            <span class="text-sm font-bold" :class="entry.rank === myRank ? 'text-indigo-600' : 'text-slate-600'" x-text="entry.score.toFixed(1) + ' pts'"></span>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 animate-pulse">Waiting for next question...</p>
+            <p class="text-center text-xs text-slate-400 animate-pulse pb-4">Waiting for next question...</p>
         </div>
 
         {{-- Reviewing / Ended --}}
@@ -180,14 +213,14 @@
                         window._quizScore = this.score;
 
                         if (this.phase === 'answering' && data.question) {
-                            // New question arrived — reset answer state
+                            // New question arrived — reset answer state but keep leaderboard/rank
+                            // so "Current Standings" remains visible while the student answers
                             if (!this.question || this.question.session_question_id !== data.question.session_question_id) {
                                 this.question   = data.question;
                                 this.answered   = data.answered;
                                 this.selectedId = null;
                                 this.isCorrect  = null;
-                                this.myRank     = null;
-                                this.leaderboard = [];
+                                // leaderboard & myRank intentionally kept from last reveal
                             } else {
                                 this.answered = data.answered;
                             }
