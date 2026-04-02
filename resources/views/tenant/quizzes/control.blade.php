@@ -63,7 +63,14 @@
                 <p class="text-xs text-slate-500">Participants</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
-                <p class="text-2xl font-bold text-slate-900">{{ $currentIndex >= 0 ? ($currentIndex + 1) : ($phase === 'reveal' ? $revealIndex + 1 : 0) }} / {{ $questions->count() }}</p>
+                @php
+                    $displayNum = $currentIndex >= 0
+                        ? $currentIndex + 1
+                        : ($phase === 'reveal'
+                            ? $revealIndex + 1
+                            : ($session->status === 'waiting' ? 1 : $questions->count()));
+                @endphp
+                <p class="text-2xl font-bold text-slate-900">{{ $displayNum }} / {{ $questions->count() }}</p>
                 <p class="text-xs text-slate-500">Question</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
