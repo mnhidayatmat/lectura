@@ -17,7 +17,6 @@ export default function tiptapEditor(initialContent = '') {
         init() {
             this._ensureEditor()
 
-            // Sync hidden input value before form submission
             const form = this.$el.closest('form')
             if (form) {
                 form.addEventListener('submit', () => {
@@ -75,10 +74,10 @@ export default function tiptapEditor(initialContent = '') {
                     },
                 })
 
-                // Use DOM events for image paste/drop (avoids ProseMirror transaction conflicts)
+                // Use DOM events on the editor element for image paste/drop
                 const editorDom = el.querySelector('.ProseMirror') || el
-                editorDom.addEventListener('paste', (e) => this._handleImagePaste(e))
-                editorDom.addEventListener('drop', (e) => this._handleImageDrop(e))
+                editorDom.addEventListener('paste', (e) => this._handleImagePaste(e), true)
+                editorDom.addEventListener('drop', (e) => this._handleImageDrop(e), true)
 
                 return true
             } catch (e) {
@@ -94,7 +93,7 @@ export default function tiptapEditor(initialContent = '') {
             for (const item of items) {
                 if (item.type.startsWith('image/')) {
                     e.preventDefault()
-                    e.stopPropagation()
+                    e.stopImmediatePropagation()
                     const file = item.getAsFile()
                     if (file) this._uploadImage(file)
                     return
@@ -109,7 +108,7 @@ export default function tiptapEditor(initialContent = '') {
             for (const file of files) {
                 if (file.type.startsWith('image/')) {
                     e.preventDefault()
-                    e.stopPropagation()
+                    e.stopImmediatePropagation()
                     this._uploadImage(file)
                     return
                 }
@@ -122,7 +121,6 @@ export default function tiptapEditor(initialContent = '') {
 
             let src = null
 
-            // Try server upload first
             try {
                 const formData = new FormData()
                 formData.append('image', file)
@@ -150,18 +148,36 @@ export default function tiptapEditor(initialContent = '') {
             }
 
             if (src && this.editor) {
-                // Append image HTML to current content and reset editor
-                // This avoids all ProseMirror transaction conflicts
-                const currentHtml = this.editor.getHTML()
-                const imgHtml = `<img src="${src}">`
-                this.editor.commands.setContent(currentHtml + imgHtml)
-                this.content = this.editor.getHTML()
-                if (this.$refs.hiddenInput) {
-                    this.$refs.hiddenInput.value = this.content
-                }
+                // Use setTimeout to ensure ProseMirror has fully finished any pending
+                // event processing before we touch the editor state
+                setTimeout(() => {
+                    try {
+                        this.editor.chain().focus().setImage({ src }).run()
+                    } catch (e1) {
+                        // If chain fails, fall back to setContent
+                        try {
+                            const html = this.editor.getHTML()
+                            this.editor.commands.setContent(html + `<img src="${src}">`)
+                        } catch (e2) {
+                            // Last resort: inject into DOM directly
+                            const proseMirror = this.$refs.editorContent?.querySelector('.ProseMirror')
+                            if (proseMirror) {
+                                const img = document.createElement('img')
+                                img.src = src
+                                proseMirror.appendChild(img)
+                                // Sync content
+                                this.content = this.editor.getHTML()
+                                if (this.$refs.hiddenInput) {
+                                    this.$refs.hiddenInput.value = this.content
+                                }
+                            }
+                        }
+                    }
+                    this.uploading = false
+                }, 50)
+            } else {
+                this.uploading = false
             }
-
-            this.uploading = false
         },
 
         insertImageFromFile() {
@@ -181,7 +197,6 @@ export default function tiptapEditor(initialContent = '') {
             this.editor = null
         },
 
-        // Every toolbar action ensures the editor exists first (handles x-show lazy init)
         toggleBold() { this._ensureEditor(); this.editor?.chain().focus().toggleBold().run() },
         toggleItalic() { this._ensureEditor(); this.editor?.chain().focus().toggleItalic().run() },
         toggleUnderline() { this._ensureEditor(); this.editor?.chain().focus().toggleUnderline().run() },
