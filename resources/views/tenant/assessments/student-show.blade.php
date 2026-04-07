@@ -106,10 +106,10 @@
             </div>
         @elseif($assessment->requires_submission && $assessment->status === 'active')
             {{-- Submission form --}}
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ files: [] }">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ files: [], uploading: false }">
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Submit Your Work</h3>
 
-                <form method="POST" action="{{ route('tenant.my-assessments.submit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4" x-data="{ uploading: false }" @submit="uploading = true">
+                <form method="POST" action="{{ route('tenant.my-assessments.submit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4" @submit="uploading = true">
                     @csrf
 
                     <div>
