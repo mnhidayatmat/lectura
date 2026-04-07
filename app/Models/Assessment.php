@@ -19,6 +19,7 @@ class Assessment extends Model
         'tenant_id', 'course_id', 'parent_id', 'title', 'type', 'method',
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
         'status', 'description', 'requires_submission', 'due_date',
+        'instruction_file_path', 'instruction_file_name',
     ];
 
     protected function casts(): array

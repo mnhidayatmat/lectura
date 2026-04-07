@@ -20,7 +20,7 @@
     <div class="grid lg:grid-cols-3 gap-6" x-data="{ requiresSubmission: {{ old('requires_submission', $assessment->requires_submission) ? 'true' : 'false' }} }">
         {{-- Left: Assessment form --}}
         <div class="lg:col-span-2">
-            <form method="POST" action="{{ route('tenant.assessments.update', [$tenant->slug, $course, $assessment]) }}" class="space-y-6">
+            <form method="POST" action="{{ route('tenant.assessments.update', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-6">
                 @csrf @method('PUT')
 
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
@@ -125,6 +125,74 @@
                             @error('due_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
+                </div>
+
+                {{-- Instruction File --}}
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5"
+                     x-data="{
+                         hasExisting: {{ $assessment->instruction_file_path ? 'true' : 'false' }},
+                         removing: false,
+                         hasNewFile: false,
+                         fileName: ''
+                     }">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Instruction / Task File</h3>
+                    <p class="text-xs text-slate-400 mb-4">File students see when they open this assessment.</p>
+
+                    {{-- Existing file row --}}
+                    <div x-show="hasExisting && !removing && !hasNewFile"
+                         class="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 mb-3">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        </div>
+                        <span class="flex-1 text-sm font-medium text-indigo-800 dark:text-indigo-200 truncate">{{ $assessment->instruction_file_name }}</span>
+                        <a href="{{ $assessment->instruction_file_path ? route('tenant.assessments.instruction.download', [$tenant->slug, $course, $assessment]) : '#' }}"
+                           class="p-1.5 text-indigo-500 hover:text-indigo-700 transition flex-shrink-0" title="Download">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        </a>
+                        <button type="button" @click="removing = true"
+                                class="p-1.5 text-slate-400 hover:text-red-500 transition flex-shrink-0" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+
+                    {{-- Removal warning --}}
+                    <div x-show="removing && !hasNewFile"
+                         class="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 mb-3">
+                        <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span class="flex-1 text-xs text-red-700 dark:text-red-400">File will be removed when you save.</span>
+                        <button type="button" @click="removing = false" class="text-xs text-slate-500 hover:text-slate-700 transition">Undo</button>
+                        <input type="hidden" name="remove_instruction" value="1">
+                    </div>
+
+                    {{-- Drop zone: visible when no existing, or user is replacing/removing --}}
+                    <div x-show="(!hasExisting || removing) && !hasNewFile">
+                        <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-5 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer"
+                             @click="$refs.instrFile.click()">
+                            <svg class="w-7 h-7 mx-auto text-slate-400 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $assessment->instruction_file_path ? 'Click to replace with a new file' : 'Click to upload' }}</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">PDF, Word, PPT, Excel, ZIP — max 25 MB</p>
+                        </div>
+                        <input type="file" name="instruction_file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"
+                               x-ref="instrFile" class="hidden"
+                               @change="if($event.target.files.length){ hasNewFile=true; fileName=$event.target.files[0].name; removing=false; }">
+                    </div>
+
+                    {{-- New file selected preview --}}
+                    <div x-show="hasNewFile" class="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-emerald-800 dark:text-emerald-200 truncate" x-text="fileName"></p>
+                            <p class="text-[10px] text-emerald-600 dark:text-emerald-400">Will replace existing file on save</p>
+                        </div>
+                        <button type="button" @click="hasNewFile=false; fileName=''; $refs.instrFile.value=''"
+                                class="text-slate-400 hover:text-red-500 transition flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    @error('instruction_file') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Save Changes</button>

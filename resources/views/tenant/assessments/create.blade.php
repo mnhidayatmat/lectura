@@ -51,7 +51,7 @@
     @endif
 
     <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}', requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' }} }">
-        <form method="POST" action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}" class="space-y-6">
+        <form method="POST" action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @if($parent)
                 <input type="hidden" name="parent_id" value="{{ $parent->id }}" />
@@ -180,6 +180,37 @@
                         @error('due_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
+            </div>
+
+            {{-- Instruction File --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ hasFile: false, fileName: '' }">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Instruction / Task File</h3>
+                <p class="text-xs text-slate-400 mb-4">Upload a PDF or document that students will see when viewing this assessment (e.g. question paper, task brief).</p>
+
+                <div x-show="!hasFile">
+                    <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer"
+                         @click="$refs.instructionFile.click()">
+                        <svg class="w-8 h-8 mx-auto text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">Click to select a file</p>
+                        <p class="text-xs text-slate-400 mt-1">PDF, Word, PowerPoint, Excel, ZIP — max 25 MB</p>
+                    </div>
+                    <input type="file" name="instruction_file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip"
+                           x-ref="instructionFile" class="hidden"
+                           @change="hasFile = $event.target.files.length > 0; fileName = $event.target.files[0]?.name ?? ''">
+                </div>
+
+                <div x-show="hasFile" class="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
+                    <div class="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <span class="flex-1 text-sm font-medium text-indigo-800 dark:text-indigo-200 truncate" x-text="fileName"></span>
+                    <button type="button" @click="hasFile = false; fileName = ''; $refs.instructionFile.value = ''"
+                            class="text-slate-400 hover:text-red-500 transition flex-shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                @error('instruction_file') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
 
             {{-- CLO Mapping --}}

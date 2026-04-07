@@ -449,6 +449,7 @@ Route::prefix('{tenant:slug}')
             Route::get('/{parent}/child/create', [AssessmentPlanController::class, 'create'])->name('tenant.assessments.child.create');
             Route::post('/', [AssessmentPlanController::class, 'store'])->name('tenant.assessments.store');
             Route::get('/{assessment}/edit', [AssessmentPlanController::class, 'edit'])->name('tenant.assessments.edit');
+            Route::get('/{assessment}/instruction', [AssessmentPlanController::class, 'downloadInstruction'])->name('tenant.assessments.instruction.download');
             Route::put('/{assessment}', [AssessmentPlanController::class, 'update'])->name('tenant.assessments.update');
             Route::delete('/{assessment}', [AssessmentPlanController::class, 'destroy'])->name('tenant.assessments.destroy');
 

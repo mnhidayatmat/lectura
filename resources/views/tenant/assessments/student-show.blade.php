@@ -36,6 +36,40 @@
             @endif
         </div>
 
+        {{-- Instruction File --}}
+        @if($assessment->instruction_file_path)
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-indigo-200 dark:border-indigo-700 p-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Assignment Instructions</h3>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
+                    @php
+                        $ext = strtolower(pathinfo($assessment->instruction_file_name ?? '', PATHINFO_EXTENSION));
+                        $isPdf = $ext === 'pdf';
+                        $isWord = in_array($ext, ['doc', 'docx']);
+                        $isPpt = in_array($ext, ['ppt', 'pptx']);
+                        $iconColor = $isPdf ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30'
+                                   : ($isWord ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30'
+                                   : ($isPpt ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30'
+                                   : 'text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30'));
+                    @endphp
+                    <div class="w-10 h-10 rounded-xl {{ $iconColor }} flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{{ $assessment->instruction_file_name }}</p>
+                        <p class="text-[11px] text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{{ strtoupper($ext) }} file</p>
+                    </div>
+                    <a href="{{ route('tenant.assessments.instruction.download', [$tenant->slug, $course, $assessment]) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition flex-shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download
+                    </a>
+                </div>
+            </div>
+        @endif
+
         {{-- Released Marks --}}
         @if($score)
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-emerald-200 dark:border-emerald-700 p-6">
