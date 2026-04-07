@@ -139,7 +139,28 @@ class PerformanceAggregatorService
 
         $coursePerformance = [];
         foreach ($courses as $course) {
-            $coursePerformance[] = $this->getStudentCoursePerformance($student, $course);
+            try {
+                $coursePerformance[] = $this->getStudentCoursePerformance($student, $course);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Performance aggregation failed for course', [
+                    'course_id' => $course->id,
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile() . ':' . $e->getLine(),
+                ]);
+                $coursePerformance[] = [
+                    'course' => $course,
+                    'avg_mark' => null,
+                    'attendance_rate' => null,
+                    'avg_quiz' => null,
+                    'al_responses' => 0,
+                    'marks' => collect(),
+                    'quiz_participations' => collect(),
+                    'attendance_timeline' => collect(),
+                    'clo_attainment' => [],
+                    'composite_score' => null,
+                ];
+            }
         }
 
         return [
