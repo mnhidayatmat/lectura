@@ -67,21 +67,36 @@
 
                     {{-- ── Assessment Type ── --}}
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Assessment Type</h3>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Choose the format that best describes this assessment.</p>
+                        <div class="flex items-start justify-between mb-5">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Assessment Type</h3>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Choose the format that best describes this assessment.</p>
+                            </div>
+                            <span x-show="selectedType"
+                                  class="hidden sm:inline-flex items-center px-2.5 py-1 text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-full capitalize"
+                                  x-text="selectedType.replace('_', ' ')">
+                            </span>
+                        </div>
 
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 
                             {{-- Quiz --}}
                             <button type="button" @click="selectedType = 'quiz'"
                                 :class="selectedType === 'quiz'
                                     ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-200 dark:ring-amber-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-amber-300 dark:hover:border-amber-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'quiz' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Quiz</p>
-                                    <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Question-based timed test</p>
+                                    <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Question-based test</p>
+                                </div>
+                                <div x-show="selectedType === 'quiz'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -90,11 +105,18 @@
                                 :class="selectedType === 'assignment'
                                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'assignment' ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Assignment</p>
-                                    <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Student file submission</p>
+                                    <p class="text-[10px] text-slate-400 leading-tight mt-0.5">File submission</p>
+                                </div>
+                                <div x-show="selectedType === 'assignment'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -103,11 +125,18 @@
                                 :class="selectedType === 'test'
                                     ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-2 ring-indigo-200 dark:ring-indigo-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-indigo-300 dark:hover:border-indigo-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'test' ? 'bg-indigo-100 dark:bg-indigo-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Test</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Written or practical exam</p>
+                                </div>
+                                <div x-show="selectedType === 'test'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -116,11 +145,18 @@
                                 :class="selectedType === 'project'
                                     ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-200 dark:ring-purple-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-purple-300 dark:hover:border-purple-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'project' ? 'bg-purple-100 dark:bg-purple-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Project</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Extended research work</p>
+                                </div>
+                                <div x-show="selectedType === 'project'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -129,11 +165,18 @@
                                 :class="selectedType === 'presentation'
                                     ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 ring-2 ring-rose-200 dark:ring-rose-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-rose-300 dark:hover:border-rose-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'presentation' ? 'bg-rose-100 dark:bg-rose-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Presentation</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Oral or visual delivery</p>
+                                </div>
+                                <div x-show="selectedType === 'presentation'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -142,11 +185,18 @@
                                 :class="selectedType === 'lab'
                                     ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 ring-2 ring-teal-200 dark:ring-teal-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-teal-300 dark:hover:border-teal-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'lab' ? 'bg-teal-100 dark:bg-teal-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Lab</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Practical laboratory work</p>
+                                </div>
+                                <div x-show="selectedType === 'lab'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -155,11 +205,18 @@
                                 :class="selectedType === 'final_exam'
                                     ? 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-2 ring-red-200 dark:ring-red-800'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-red-300 dark:hover:border-red-700'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'final_exam' ? 'bg-red-100 dark:bg-red-900/40' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Final Exam</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Summative end-of-term</p>
+                                </div>
+                                <div x-show="selectedType === 'final_exam'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -168,11 +225,18 @@
                                 :class="selectedType === 'other'
                                     ? 'border-slate-500 bg-slate-100 dark:bg-slate-700/60 ring-2 ring-slate-300 dark:ring-slate-600'
                                     : 'border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'"
-                                class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                <svg class="w-7 h-7 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                class="relative flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition text-center cursor-pointer">
+                                <div :class="selectedType === 'other' ? 'bg-slate-200 dark:bg-slate-600' : 'bg-slate-100 dark:bg-slate-700'"
+                                     class="w-10 h-10 rounded-xl flex items-center justify-center transition flex-shrink-0">
+                                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                </div>
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Other</p>
                                     <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Custom assessment</p>
+                                </div>
+                                <div x-show="selectedType === 'other'"
+                                     class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                 </div>
                             </button>
 
@@ -184,7 +248,9 @@
 
                     {{-- ── Details ── --}}
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Details</h3>
+                        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Details</h3>
+                        </div>
 
                         {{-- Title --}}
                         <div>
@@ -292,70 +358,106 @@
                             </label>
                             <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
 
-                                {{-- Remember --}}
+                                {{-- Remember (L1) --}}
                                 <button type="button" @click="bloom = bloom === 'remember' ? '' : 'remember'"
                                     :class="bloom === 'remember'
-                                        ? 'border-slate-500 bg-slate-100 dark:bg-slate-700 ring-1 ring-slate-400'
+                                        ? 'border-slate-500 bg-slate-50 dark:bg-slate-700/60 ring-1 ring-slate-400 dark:ring-slate-500'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-slate-400'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🔵</span>
-                                    <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Remember</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Recall facts</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[11px] font-bold text-slate-600 dark:text-slate-200 flex-shrink-0">L1</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">Remember</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Recall facts</span>
+                                    </div>
+                                    <div x-show="bloom === 'remember'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
-                                {{-- Understand --}}
+                                {{-- Understand (L2) --}}
                                 <button type="button" @click="bloom = bloom === 'understand' ? '' : 'understand'"
                                     :class="bloom === 'understand'
                                         ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20 ring-1 ring-sky-300 dark:ring-sky-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-sky-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🟦</span>
-                                    <span class="text-[11px] font-semibold text-sky-700 dark:text-sky-400">Understand</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Explain ideas</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-[11px] font-bold text-sky-600 dark:text-sky-300 flex-shrink-0">L2</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-sky-700 dark:text-sky-400 block">Understand</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Explain ideas</span>
+                                    </div>
+                                    <div x-show="bloom === 'understand'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-sky-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
-                                {{-- Apply --}}
+                                {{-- Apply (L3) --}}
                                 <button type="button" @click="bloom = bloom === 'apply' ? '' : 'apply'"
                                     :class="bloom === 'apply'
                                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-300 dark:ring-emerald-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🟩</span>
-                                    <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Apply</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Use in new ways</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex-shrink-0">L3</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block">Apply</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Use in new ways</span>
+                                    </div>
+                                    <div x-show="bloom === 'apply'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
-                                {{-- Analyze --}}
+                                {{-- Analyze (L4) --}}
                                 <button type="button" @click="bloom = bloom === 'analyze' ? '' : 'analyze'"
                                     :class="bloom === 'analyze'
                                         ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-amber-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🟨</span>
-                                    <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Analyze</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Draw connections</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-[11px] font-bold text-amber-700 dark:text-amber-300 flex-shrink-0">L4</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400 block">Analyze</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Draw connections</span>
+                                    </div>
+                                    <div x-show="bloom === 'analyze'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
-                                {{-- Evaluate --}}
+                                {{-- Evaluate (L5) --}}
                                 <button type="button" @click="bloom = bloom === 'evaluate' ? '' : 'evaluate'"
                                     :class="bloom === 'evaluate'
                                         ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-300 dark:ring-orange-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-orange-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🟧</span>
-                                    <span class="text-[11px] font-semibold text-orange-700 dark:text-orange-400">Evaluate</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Justify decisions</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-[11px] font-bold text-orange-700 dark:text-orange-300 flex-shrink-0">L5</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-orange-700 dark:text-orange-400 block">Evaluate</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Justify decisions</span>
+                                    </div>
+                                    <div x-show="bloom === 'evaluate'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
-                                {{-- Create --}}
+                                {{-- Create (L6) --}}
                                 <button type="button" @click="bloom = bloom === 'create' ? '' : 'create'"
                                     :class="bloom === 'create'
                                         ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 ring-1 ring-rose-300 dark:ring-rose-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-rose-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
-                                    <span class="text-base">🟥</span>
-                                    <span class="text-[11px] font-semibold text-rose-700 dark:text-rose-400">Create</span>
-                                    <span class="text-[9px] text-slate-400 leading-tight">Produce new work</span>
+                                    class="relative flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
+                                    <span class="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center text-[11px] font-bold text-rose-700 dark:text-rose-300 flex-shrink-0">L6</span>
+                                    <div>
+                                        <span class="text-[11px] font-semibold text-rose-700 dark:text-rose-400 block">Create</span>
+                                        <span class="text-[9px] text-slate-400 leading-tight block mt-0.5">Produce new work</span>
+                                    </div>
+                                    <div x-show="bloom === 'create'"
+                                         class="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 flex items-center justify-center">
+                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
                                 </button>
 
                             </div>
@@ -367,7 +469,7 @@
                                 Description
                                 <span class="ml-1 text-xs font-normal text-slate-400">(optional)</span>
                             </label>
-                            <textarea id="description" name="description" rows="3"
+                            <textarea id="description" name="description" rows="4"
                                       placeholder="Additional notes or instructions for this assessment..."
                                       class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition placeholder:text-slate-400 resize-none">{{ old('description') }}</textarea>
                             @error('description')
@@ -431,8 +533,16 @@
 
                     {{-- ── Instruction File ── --}}
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Instruction / Task File</h3>
-                        <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Upload a document students will see when viewing this assessment — e.g. question paper, task brief, rubric.</p>
+                        <div class="flex items-start justify-between mb-5">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Instruction / Task File</h3>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Upload a document students will see — e.g. question paper, task brief, rubric.</p>
+                            </div>
+                            <span class="hidden sm:flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 flex-shrink-0 ml-3">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Optional
+                            </span>
+                        </div>
 
                         {{-- Drop zone (hidden once file chosen) --}}
                         <div x-show="!hasFile"
@@ -512,9 +622,9 @@
                     @endif
 
                     {{-- ── Submit Footer ── --}}
-                    <div class="flex items-center gap-3 pt-2 pb-4">
+                    <div class="flex items-center gap-4 pt-6 pb-4 border-t border-slate-200 dark:border-slate-700">
                         <button type="submit"
-                                class="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+                                class="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             {{ $parent ? 'Add Child Assessment' : 'Add Assessment' }}
                         </button>
