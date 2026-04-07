@@ -133,8 +133,10 @@ class AssessmentSubmissionController extends Controller
                 ->where('id', $request->integer('next_id'))
                 ->firstOrFail();
 
+            $nextName = $next->user->name ?? '';
+
             return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $next])
-                ->with('success', "Graded {$submission->user->name}. Up next: {$next->user->name ?? ''}.");
+                ->with('success', "Graded {$submission->user->name}. Up next: {$nextName}.");
         }
 
         return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $submission])
