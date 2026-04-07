@@ -31,9 +31,35 @@ class AssessmentScoreController extends Controller
         }
 
         $tenant = app('current_tenant');
-        $scores = $assessment->scores()->with('user')->orderBy('percentage', 'desc')->get();
 
-        return view('tenant.assessments.scores.index', compact('tenant', 'course', 'assessment', 'scores'));
+        // All enrolled students across sections taught by this lecturer
+        $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+            ->where('is_active', true)
+            ->distinct()
+            ->pluck('user_id');
+
+        $students = User::whereIn('id', $studentIds)->orderBy('name')->get();
+
+        // Scores & submissions keyed by user_id
+        $scores      = $assessment->scores()->get()->keyBy('user_id');
+        $submissions = $assessment->requires_submission
+            ? $assessment->submissions()->get()->keyBy('user_id')
+            : collect();
+
+        // Summary stats
+        $gradedScores = $scores->whereNotNull('finalized_at');
+        $stats = [
+            'total'     => $students->count(),
+            'submitted' => $submissions->count(),
+            'graded'    => $gradedScores->count(),
+            'released'  => $scores->where('is_released', true)->count(),
+            'avg'       => $gradedScores->avg('percentage'),
+            'passing'   => $gradedScores->where('percentage', '>=', 50)->count(),
+        ];
+
+        return view('tenant.assessments.scores.index', compact(
+            'tenant', 'course', 'assessment', 'students', 'scores', 'submissions', 'stats'
+        ));
     }
 
     public function compute(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse

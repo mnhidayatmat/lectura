@@ -24,8 +24,10 @@ class AssessmentScoreService
         $assessment->load(['items.assessable', 'clos']);
         $tenant = app('current_tenant');
 
+        // No linked items — re-normalise any existing manual/submission scores
+        // (handles cases where total_marks or weightage was changed after marking)
         if ($assessment->items->isEmpty()) {
-            return 0;
+            return $this->renormaliseExistingScores($assessment);
         }
 
         // Collect raw scores from all linked items per student
@@ -119,6 +121,34 @@ class AssessmentScoreService
                 );
             }
         }
+    }
+
+    /**
+     * Re-calculate percentage and weighted_marks for all existing scores on this assessment.
+     * Useful after total_marks or weightage is edited without changing the raw marks.
+     */
+    protected function renormaliseExistingScores(Assessment $assessment): int
+    {
+        $scores = $assessment->scores()->get();
+        $count  = 0;
+
+        foreach ($scores as $score) {
+            if ($score->max_marks <= 0) {
+                continue;
+            }
+
+            $percentage    = round(($score->raw_marks / $score->max_marks) * 100, 2);
+            $weightedMarks = round($score->raw_marks * ($assessment->weightage / 100), 2);
+
+            $score->update([
+                'percentage'    => $percentage,
+                'weighted_marks' => $weightedMarks,
+            ]);
+
+            $count++;
+        }
+
+        return $count;
     }
 
     /**
