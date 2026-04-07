@@ -233,7 +233,7 @@
                 {{-- Grading form --}}
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5"
                      x-data="{
-                         marks: {{ old('raw_marks', $submission->score?->raw_marks ?? '') !== '' ? (float) old('raw_marks', $submission->score?->raw_marks ?? 0) : 0 }},
+                         marks: {{ json_encode(old('raw_marks', $submission->score?->raw_marks) !== null ? (float) old('raw_marks', $submission->score?->raw_marks) : '') }},
                          maxMarks: {{ (float) $assessment->total_marks }},
                          get percentage() {
                              if (this.maxMarks <= 0) return 0;
@@ -266,7 +266,6 @@
                                 <input type="number"
                                        name="raw_marks"
                                        x-model="marks"
-                                       value="{{ old('raw_marks', $submission->score?->raw_marks) }}"
                                        required min="0" max="{{ $assessment->total_marks }}" step="0.5"
                                        class="w-28 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xl font-bold text-center focus:ring-2 focus:ring-indigo-500 transition">
                                 <div>

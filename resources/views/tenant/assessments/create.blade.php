@@ -56,7 +56,7 @@
                 <form method="POST"
                       action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}"
                       enctype="multipart/form-data"
-                      class="space-y-5">
+                      class="space-y-6">
                     @csrf
                     @if($parent)
                         <input type="hidden" name="parent_id" value="{{ $parent->id }}">
@@ -183,7 +183,7 @@
                     </div>
 
                     {{-- ── Details ── --}}
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
                         <h3 class="text-sm font-bold text-slate-900 dark:text-white">Details</h3>
 
                         {{-- Title --}}
@@ -290,14 +290,14 @@
                                 Bloom's Taxonomy Level
                                 <span class="ml-1 text-xs font-normal text-slate-400">(optional — click to select, click again to deselect)</span>
                             </label>
-                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
 
                                 {{-- Remember --}}
                                 <button type="button" @click="bloom = bloom === 'remember' ? '' : 'remember'"
                                     :class="bloom === 'remember'
                                         ? 'border-slate-500 bg-slate-100 dark:bg-slate-700 ring-1 ring-slate-400'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-slate-400'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🔵</span>
                                     <span class="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Remember</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Recall facts</span>
@@ -308,7 +308,7 @@
                                     :class="bloom === 'understand'
                                         ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20 ring-1 ring-sky-300 dark:ring-sky-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-sky-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🟦</span>
                                     <span class="text-[11px] font-semibold text-sky-700 dark:text-sky-400">Understand</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Explain ideas</span>
@@ -319,7 +319,7 @@
                                     :class="bloom === 'apply'
                                         ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-300 dark:ring-emerald-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🟩</span>
                                     <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Apply</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Use in new ways</span>
@@ -330,7 +330,7 @@
                                     :class="bloom === 'analyze'
                                         ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-amber-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🟨</span>
                                     <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Analyze</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Draw connections</span>
@@ -341,7 +341,7 @@
                                     :class="bloom === 'evaluate'
                                         ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-300 dark:ring-orange-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-orange-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🟧</span>
                                     <span class="text-[11px] font-semibold text-orange-700 dark:text-orange-400">Evaluate</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Justify decisions</span>
@@ -352,7 +352,7 @@
                                     :class="bloom === 'create'
                                         ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 ring-1 ring-rose-300 dark:ring-rose-700'
                                         : 'border-slate-200 dark:border-slate-600 hover:border-rose-300'"
-                                    class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition text-center cursor-pointer">
+                                    class="flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition text-center cursor-pointer">
                                     <span class="text-base">🟥</span>
                                     <span class="text-[11px] font-semibold text-rose-700 dark:text-rose-400">Create</span>
                                     <span class="text-[9px] text-slate-400 leading-tight">Produce new work</span>
@@ -406,7 +406,7 @@
 
                         {{-- Collapsible body --}}
                         <div x-show="requiresSubmission" x-collapse>
-                            <div class="px-6 pb-6 pt-1 border-t border-slate-100 dark:border-slate-700 space-y-4">
+                            <div class="px-6 pb-6 pt-5 border-t border-slate-100 dark:border-slate-700 space-y-4">
                                 <div>
                                     <label for="due_date" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                                         Due Date
@@ -512,7 +512,7 @@
                     @endif
 
                     {{-- ── Submit Footer ── --}}
-                    <div class="flex items-center gap-3 py-1">
+                    <div class="flex items-center gap-3 pt-2 pb-4">
                         <button type="submit"
                                 class="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -540,8 +540,8 @@
 
                     @if($parent)
                         {{-- ── CHILD: Parent Assessment card ── --}}
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
-                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Parent Assessment</h4>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">Parent Assessment</h4>
 
                             {{-- Parent info --}}
                             <div class="flex items-start gap-3 mb-4">
@@ -566,7 +566,7 @@
                                 $siblings = $parent->children;
                                 $siblingColors = ['bg-indigo-400', 'bg-violet-400', 'bg-sky-400', 'bg-teal-400', 'bg-amber-400', 'bg-rose-400'];
                             @endphp
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <div class="flex items-center justify-between mb-1.5">
                                     <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400">Portion allocation</span>
                                     <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
@@ -609,7 +609,7 @@
                             </div>
 
                             {{-- Live calculation summary --}}
-                            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
+                            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-2">
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs text-slate-500 dark:text-slate-400">This part equals</span>
                                     <span class="text-xs font-bold text-slate-800 dark:text-slate-200" x-text="allocatedMarks + ' / {{ number_format($parent->total_marks, 0) }} marks'"></span>
@@ -632,17 +632,17 @@
 
                         {{-- Existing siblings list --}}
                         @if($siblings->isNotEmpty())
-                            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
-                                <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
+                            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                                <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">
                                     Existing Parts ({{ $siblings->count() }})
                                 </h4>
-                                <div class="space-y-2">
+                                <div class="space-y-3">
                                     @foreach($siblings as $i => $sibling)
-                                        <div class="flex items-center gap-2.5">
-                                            <span class="w-2.5 h-2.5 rounded-full {{ $siblingColors[$i % count($siblingColors)] }} flex-shrink-0"></span>
+                                        <div class="flex items-center gap-3 py-0.5">
+                                            <span class="w-2.5 h-2.5 rounded-full {{ $siblingColors[$i % count($siblingColors)] }} flex-shrink-0 mt-0.5"></span>
                                             <div class="flex-1 min-w-0">
                                                 <p class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">{{ $sibling->title }}</p>
-                                                <p class="text-[10px] text-slate-400">{{ number_format($sibling->weightage, 0) }}% · {{ number_format($sibling->total_marks, 0) }} marks</p>
+                                                <p class="text-[10px] text-slate-400 mt-0.5">{{ number_format($sibling->weightage, 0) }}% · {{ number_format($sibling->total_marks, 0) }} marks</p>
                                             </div>
                                             @php $badge = $sibling->status_badge; @endphp
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-{{ $badge['color'] }}-100 dark:bg-{{ $badge['color'] }}-900/30 text-{{ $badge['color'] }}-700 dark:text-{{ $badge['color'] }}-400 flex-shrink-0">
@@ -656,7 +656,7 @@
 
                         {{-- Over-allocation warning --}}
                         <div x-show="childWeightage > {{ $remainingPct }}"
-                             class="flex items-start gap-2.5 px-4 py-3 bg-red-50 dark:bg-red-900/15 border border-red-200 dark:border-red-800 rounded-xl">
+                             class="flex items-start gap-2.5 px-5 py-4 bg-red-50 dark:bg-red-900/15 border border-red-200 dark:border-red-800 rounded-xl">
                             <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                             <p class="text-xs text-red-700 dark:text-red-300">
                                 Weightage exceeds the remaining <strong>{{ number_format($remainingPct, 0) }}%</strong> available in this parent. Total would exceed 100%.
@@ -665,8 +665,8 @@
 
                     @else
                         {{-- ── TOP-LEVEL: Course Plan Status card ── --}}
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
-                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Course</h4>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">Course</h4>
                             <div class="flex items-start gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
@@ -679,7 +679,7 @@
                         </div>
 
                         {{-- Tip card --}}
-                        <div class="bg-indigo-50 dark:bg-indigo-900/15 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-5">
+                        <div class="bg-indigo-50 dark:bg-indigo-900/15 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-6">
                             <div class="flex items-start gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
@@ -696,8 +696,8 @@
                         </div>
 
                         {{-- Top-level type guidance --}}
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
-                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Quick Guide</h4>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4">Quick Guide</h4>
                             <div class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
                                 <div class="flex items-start gap-2">
                                     <svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
