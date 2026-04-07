@@ -109,7 +109,7 @@
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ files: [] }">
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Submit Your Work</h3>
 
-                <form method="POST" action="{{ route('tenant.my-assessments.submit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('tenant.my-assessments.submit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4" x-data="{ uploading: false }" @submit="uploading = true">
                     @csrf
 
                     <div>
@@ -142,8 +142,15 @@
                         <textarea name="notes" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition" placeholder="Any additional notes for the lecturer...">{{ old('notes') }}</textarea>
                     </div>
 
-                    <button type="submit" class="w-full px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
-                        Submit
+                    <button type="submit" :disabled="uploading" class="w-full px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-sm transition">
+                        <span x-show="!uploading">Submit Assignment</span>
+                        <span x-show="uploading" class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Uploading…
+                        </span>
                     </button>
 
                     @if($assessment->due_date && now()->isAfter($assessment->due_date))

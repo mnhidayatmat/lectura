@@ -298,12 +298,29 @@ class AssessmentSubmissionController extends Controller
         if ($lecturer && $lecturer->isDriveConnected()) {
             try {
                 $driveService = app(GoogleDriveService::class);
+
+                // Level 1: Course folder
                 $courseFolderId = $driveService->findOrCreateFolder(
                     $lecturer,
                     "{$assessment->course->code} — {$assessment->course->title}"
                 );
-                $submissionsFolderId = $driveService->findOrCreateFolder($lecturer, 'Assessment Submissions', $courseFolderId);
-                $driveFolderId = $driveService->findOrCreateFolder($lecturer, $assessment->title, $submissionsFolderId);
+
+                // Level 2: Submissions folder inside course
+                $submissionsFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, 'Submissions', $courseFolderId
+                );
+
+                // Level 3: Per-assessment folder with type label
+                $typeLabel = ucfirst($assessment->type ?? 'Assessment');
+                $assessmentFolderName = "[{$typeLabel}] {$assessment->title}";
+                $assessmentFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, $assessmentFolderName, $submissionsFolderId
+                );
+
+                // Level 4: Per-student folder
+                $driveFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, $user->name, $assessmentFolderId
+                );
             } catch (\Throwable) {
                 $driveFolderId = null;
             }
@@ -315,10 +332,15 @@ class AssessmentSubmissionController extends Controller
 
             if ($driveFolderId && $lecturer) {
                 try {
+                    // Sanitize filename and add date prefix
+                    $datePrefix = now()->format('Y-m-d');
+                    $safeName   = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                    $driveName  = "[{$datePrefix}] {$safeName}";
+
                     $result = app(GoogleDriveService::class)->uploadFile(
                         $lecturer,
                         $file->getRealPath(),
-                        $user->name . ' — ' . $file->getClientOriginalName(),
+                        $driveName,
                         $file->getClientMimeType(),
                         $driveFolderId
                     );
