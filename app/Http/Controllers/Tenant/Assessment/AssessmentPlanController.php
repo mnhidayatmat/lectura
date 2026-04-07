@@ -137,6 +137,13 @@ class AssessmentPlanController extends Controller
                 ->with('success', 'Child assessment added.');
         }
 
+        // For submission-based assessments, land on the submissions page so the lecturer
+        // can see who has submitted (and share the assessment with students right away).
+        if ($assessment->requires_submission) {
+            return redirect()->route('tenant.assessments.submissions.index', [$tenant->slug, $course, $assessment])
+                ->with('success', 'Assessment created. Students can now submit their work.');
+        }
+
         return redirect()->route('tenant.assessments.index', [$tenant->slug, $course])
             ->with('success', 'Assessment added to course plan.');
     }
