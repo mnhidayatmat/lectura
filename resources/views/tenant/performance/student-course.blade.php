@@ -81,77 +81,123 @@
             </div>
         @endif
 
-        <div class="grid lg:grid-cols-2 gap-6">
-            {{-- Assignment Marks Table --}}
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">{{ __('performance.assignment_marks') }}</h3>
-                </div>
-                @if($data['marks']->isEmpty())
-                    <div class="p-8 text-center text-sm text-slate-400">{{ __('performance.no_marks') }}</div>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-100 bg-slate-50/50">
-                                    <th class="text-left px-6 py-3 font-medium text-slate-500">{{ __('performance.assignment') }}</th>
-                                    <th class="text-center px-6 py-3 font-medium text-slate-500">{{ __('performance.marks') }}</th>
-                                    <th class="text-center px-6 py-3 font-medium text-slate-500">%</th>
-                                    <th class="text-center px-6 py-3 font-medium text-slate-500">{{ __('performance.grade') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach($data['marks'] as $mark)
-                                    <tr>
-                                        <td class="px-6 py-3 font-medium text-slate-900">{{ $mark->assignment->title }}</td>
-                                        <td class="px-6 py-3 text-center text-slate-600">{{ $mark->total_marks }}/{{ $mark->max_marks }}</td>
-                                        <td class="px-6 py-3 text-center font-bold {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}">
-                                            {{ number_format($mark->percentage, 1) }}%
-                                        </td>
-                                        <td class="px-6 py-3 text-center">
-                                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                                {{ $mark->percentage >= 70 ? 'bg-emerald-100 text-emerald-700' : ($mark->percentage >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700') }}">
-                                                {{ $mark->grade }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
+        {{-- Marks & Feedback (Expandable) --}}
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-900">{{ __('nav.marks') }} & Feedback</h3>
             </div>
 
-            {{-- Quiz Scores Table --}}
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">{{ __('performance.quiz_scores') }}</h3>
+            @if($data['marks']->isEmpty())
+                <div class="p-8 text-center text-sm text-slate-400">{{ __('performance.no_marks') }}</div>
+            @else
+                <div class="space-y-2 p-4" x-data="{ expanded: {} }">
+                    @foreach($data['marks'] as $mark)
+                        @php
+                            $assignment = $mark->assignment;
+                            $feedback = null;
+                            // Try to get feedback from submission if exists
+                            if ($assignment->submissions && $assignment->submissions->count() > 0) {
+                                $submission = $assignment->submissions->first();
+                                if ($submission->feedback && $submission->feedback->is_released) {
+                                    $feedback = $submission->feedback;
+                                }
+                            }
+                        @endphp
+                        <div class="border border-slate-200 rounded-xl hover:border-slate-300 transition overflow-hidden"
+                             x-data="{ open: false }">
+                            {{-- Header (clickable) --}}
+                            <button @click="open = !open"
+                                    class="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50/50 transition text-left">
+                                <div class="flex items-center gap-3 min-w-0 flex-1">
+                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 {{ $mark->percentage >= 70 ? 'bg-emerald-100' : ($mark->percentage >= 40 ? 'bg-amber-100' : 'bg-red-100') }}">
+                                        <svg class="w-5 h-5 {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-semibold text-slate-900">{{ $assignment->title }}</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">{{ ucfirst($assignment->type) }} • Due {{ $assignment->deadline?->format('d M Y') ?? 'N/A' }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                                    <div class="text-right">
+                                        <p class="font-bold {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}">
+                                            {{ number_format($mark->percentage, 0) }}%
+                                        </p>
+                                        <p class="text-[10px] text-slate-400">{{ $mark->total_marks }}/{{ $mark->max_marks }}</p>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                                </div>
+                            </button>
+
+                            {{-- Expandable Content --}}
+                            <div x-show="open" x-transition class="border-t border-slate-100 bg-slate-50/50 px-5 py-4 space-y-4">
+                                {{-- Grade & Marks Details --}}
+                                <div class="grid sm:grid-cols-3 gap-3">
+                                    <div class="bg-white rounded-lg p-3 border border-slate-200">
+                                        <p class="text-xs font-semibold text-slate-500 uppercase">Total Marks</p>
+                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->total_marks }}/{{ $mark->max_marks }}</p>
+                                    </div>
+                                    <div class="bg-white rounded-lg p-3 border border-slate-200">
+                                        <p class="text-xs font-semibold text-slate-500 uppercase">Percentage</p>
+                                        <p class="text-lg font-bold {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }} mt-1">{{ number_format($mark->percentage, 1) }}%</p>
+                                    </div>
+                                    <div class="bg-white rounded-lg p-3 border border-slate-200">
+                                        <p class="text-xs font-semibold text-slate-500 uppercase">Grade</p>
+                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->grade }}</p>
+                                    </div>
+                                </div>
+
+                                {{-- Feedback Section --}}
+                                @if($feedback)
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd"/></svg>
+                                            <h4 class="font-semibold text-slate-900 text-sm">Feedback from Lecturer</h4>
+                                        </div>
+
+                                        {{-- Strengths --}}
+                                        @if($feedback->strengths)
+                                            <div class="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                                                <p class="text-xs font-semibold text-emerald-700 flex items-center gap-1 mb-1">
+                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                                    Strengths
+                                                </p>
+                                                <p class="text-sm text-emerald-800">{{ $feedback->strengths }}</p>
+                                            </div>
+                                        @endif
+
+                                        {{-- Improvements --}}
+                                        @if($feedback->improvements)
+                                            <div class="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                                                <p class="text-xs font-semibold text-amber-700 flex items-center gap-1 mb-1">
+                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                                    Areas for Improvement
+                                                </p>
+                                                <p class="text-sm text-amber-800">{{ $feedback->improvements }}</p>
+                                            </div>
+                                        @endif
+
+                                        {{-- Missing Points --}}
+                                        @if($feedback->missing_points)
+                                            <div class="bg-red-50 rounded-lg p-3 border border-red-200">
+                                                <p class="text-xs font-semibold text-red-700 flex items-center gap-1 mb-1">
+                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                                    Missing Points
+                                                </p>
+                                                <p class="text-sm text-red-800">{{ $feedback->missing_points }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <div class="text-sm text-slate-500 italic">
+                                        Feedback not yet released by lecturer.
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
-                @if($data['quiz_participations']->isEmpty())
-                    <div class="p-8 text-center text-sm text-slate-400">{{ __('performance.no_quizzes') }}</div>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-100 bg-slate-50/50">
-                                    <th class="text-left px-6 py-3 font-medium text-slate-500">{{ __('performance.quiz') }}</th>
-                                    <th class="text-center px-6 py-3 font-medium text-slate-500">{{ __('performance.score') }}</th>
-                                    <th class="text-center px-6 py-3 font-medium text-slate-500">{{ __('performance.date') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach($data['quiz_participations'] as $participation)
-                                    <tr>
-                                        <td class="px-6 py-3 font-medium text-slate-900">{{ $participation->quizSession->title }}</td>
-                                        <td class="px-6 py-3 text-center font-bold text-violet-600">{{ $participation->total_score }}</td>
-                                        <td class="px-6 py-3 text-center text-slate-500">{{ $participation->quizSession->started_at->format('d M Y') }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
+            @endif
         </div>
 
         {{-- Attendance Timeline --}}

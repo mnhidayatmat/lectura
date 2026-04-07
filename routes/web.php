@@ -65,6 +65,10 @@ Route::post('/mcp', [McpController::class, 'handle'])
 
 // ── Public ──
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
     return view('welcome');
 });
 
