@@ -70,8 +70,22 @@ class AssessmentSubmissionController extends Controller
         $tenant = app('current_tenant');
         $submission->load(['user', 'files', 'score']);
 
+        // Ordered list: ungraded first, then by submission time — for prev/next navigation
+        $orderedIds = $assessment->submissions()
+            ->orderByRaw("CASE WHEN status = 'graded' THEN 1 ELSE 0 END")
+            ->orderBy('submitted_at')
+            ->pluck('id');
+
+        $pos  = $orderedIds->search($submission->id);
+        $prev = $pos > 0                        ? AssessmentSubmission::find($orderedIds[$pos - 1]) : null;
+        $next = $pos < $orderedIds->count() - 1 ? AssessmentSubmission::find($orderedIds[$pos + 1]) : null;
+
+        $gradedCount = $assessment->submissions()->where('status', 'graded')->count();
+        $totalCount  = $orderedIds->count();
+
         return view('tenant.assessments.submissions.show', compact(
-            'tenant', 'course', 'assessment', 'submission'
+            'tenant', 'course', 'assessment', 'submission',
+            'prev', 'next', 'gradedCount', 'totalCount'
         ));
     }
 
@@ -113,8 +127,18 @@ class AssessmentSubmissionController extends Controller
 
         $submission->update(['status' => 'graded']);
 
-        return redirect()->route('tenant.assessments.submissions.index', [$tenantSlug, $course, $assessment])
-            ->with('success', "Marks saved for {$submission->user->name}.");
+        // "Save & Next" button sends next_id; "Save Grade" stays on this submission.
+        if ($request->filled('next_id')) {
+            $next = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('id', $request->integer('next_id'))
+                ->firstOrFail();
+
+            return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $next])
+                ->with('success', "Graded {$submission->user->name}. Up next: {$next->user->name ?? ''}.");
+        }
+
+        return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $submission])
+            ->with('success', "Grade saved for {$submission->user->name}.");
     }
 
     public function release(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
