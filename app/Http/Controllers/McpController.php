@@ -12,6 +12,27 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class McpController extends Controller
 {
+    /**
+     * GET /mcp — discovery endpoint.
+     * Claude Code probes this before POSTing; also shows server info.
+     */
+    public function discover(): \Illuminate\Http\JsonResponse
+    {
+        $base = rtrim(config('app.url'), '/');
+
+        return response()->json([
+            'name'              => 'lectura-mcp',
+            'version'           => '1.0.0',
+            'transport'         => 'streamable-http',
+            'endpoint'          => "{$base}/mcp",
+            'oauth_metadata'    => "{$base}/.well-known/oauth-authorization-server",
+            'auth'              => 'Bearer token — use MCP_SECRET or obtain via /oauth/token',
+        ], 200, [
+            'Access-Control-Allow-Origin'  => '*',
+            'Access-Control-Allow-Headers' => 'Authorization, Content-Type',
+        ]);
+    }
+
     public function handle(Request $request, McpServer $server): Response|StreamedResponse
     {
         // ── Auth — accepts static secret OR an OAuth access token ────────────

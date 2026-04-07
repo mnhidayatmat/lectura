@@ -46,6 +46,7 @@ Route::post('/oauth/token', [McpOAuthController::class, 'token'])
     ->name('mcp.oauth.token');
 
 // ── MCP Server (Bearer-token authenticated, no CSRF) ──────────────────────────
+Route::get('/mcp', [McpController::class, 'discover'])->name('mcp.discover');
 Route::options('/mcp', [McpController::class, 'preflight']);
 Route::post('/mcp', [McpController::class, 'handle'])
     ->middleware('throttle:120,1')

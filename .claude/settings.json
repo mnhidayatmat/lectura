@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lectura": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer dc3b8ac13c0b7ea3e8272478ab3ccc507260ef68da2b464b5bef47440bebf3ee"
+      }
+    }
+  }
+}
