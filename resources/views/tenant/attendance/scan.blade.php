@@ -37,6 +37,16 @@
                     Start Camera
                 </button>
 
+                {{-- PWA standalone warning --}}
+                <div x-show="isStandalonePwa() && !cameraActive && !result" x-cloak class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
+                    <p class="text-sm text-blue-800 dark:text-blue-300">
+                        <span class="font-semibold">Tip:</span> If the camera doesn't work, open this page in
+                        <span x-show="/iPhone|iPad/.test(navigator.userAgent)">Safari</span>
+                        <span x-show="!/iPhone|iPad/.test(navigator.userAgent)">Chrome</span>
+                        instead of the installed app.
+                    </p>
+                </div>
+
                 {{-- Error message for camera issues --}}
                 <div x-show="cameraError" x-cloak class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
                     <p class="text-sm text-amber-800 dark:text-amber-300" x-text="cameraError"></p>
@@ -84,9 +94,26 @@
                     }
                 },
 
+                isStandalonePwa() {
+                    return window.navigator.standalone === true
+                        || window.matchMedia('(display-mode: standalone)').matches;
+                },
+
                 async startCamera() {
                     this.result = null;
                     this.cameraError = null;
+
+                    // Check if camera API is available
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        if (this.isStandalonePwa()) {
+                            this.cameraError = 'Camera is not available in the installed app. Please open this page in Safari or Chrome instead. Tap the share button ↗ and select "Open in Safari".';
+                        } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                            this.cameraError = 'Camera requires a secure (HTTPS) connection. Please contact your lecturer.';
+                        } else {
+                            this.cameraError = 'Camera is not supported on this browser. Please try Safari or Chrome.';
+                        }
+                        return;
+                    }
 
                     if (this.scanner) {
                         try { await this.scanner.stop(); } catch(e) {}
