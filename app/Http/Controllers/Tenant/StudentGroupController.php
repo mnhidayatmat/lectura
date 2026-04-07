@@ -62,22 +62,14 @@ class StudentGroupController extends Controller
         $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
-        $user = auth()->user();
-        $isOwner = $this->isCourseOwner($course);
+        $mySectionIds = $this->lecturerSectionIds($course);
 
-        $setsQuery = $course->studentGroupSets()
+        $sets = $course->studentGroupSets()
+            ->whereIn('section_id', $mySectionIds)
             ->withCount('groups')
             ->with(['creator', 'section'])
-            ->latest();
-
-        if (! $isOwner) {
-            $mySectionIds = Section::where('course_id', $course->id)
-                ->where('lecturer_id', $user->id)
-                ->pluck('id');
-            $setsQuery->whereIn('section_id', $mySectionIds);
-        }
-
-        $sets = $setsQuery->get();
+            ->latest()
+            ->get();
 
         return view('tenant.student-groups.index', compact('tenant', 'course', 'sets'));
     }
@@ -87,14 +79,7 @@ class StudentGroupController extends Controller
         $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
-        $user = auth()->user();
-        $isOwner = $this->isCourseOwner($course);
-
-        $sectionsQuery = $course->sections()->withCount(['activeStudents']);
-        if (! $isOwner) {
-            $sectionsQuery->where('lecturer_id', $user->id);
-        }
-        $sections = $sectionsQuery->get();
+        $sections = $this->lecturerSections($course)->withCount(['activeStudents'])->get();
 
         return view('tenant.student-groups.create', compact('tenant', 'course', 'sections'));
     }

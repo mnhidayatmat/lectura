@@ -25,7 +25,11 @@ trait AuthorizesCourseAccess
             abort(404);
         }
 
-        if ($user->id === $course->lecturer_id || $user->hasRoleInTenant($tenant->id, ['admin'])) {
+        if ($user->hasRoleInTenant($tenant->id, ['admin'])) {
+            return;
+        }
+
+        if ($user->id === $course->lecturer_id) {
             return;
         }
 
@@ -39,28 +43,47 @@ trait AuthorizesCourseAccess
     }
 
     /**
+     * Returns true when the user is a tenant admin.
+     */
+    protected function isTenantAdmin(): bool
+    {
+        return auth()->user()->hasRoleInTenant(app('current_tenant')->id, ['admin']);
+    }
+
+    /**
      * Returns true when the user owns the course entirely (primary lecturer or admin),
      * false when they are a section-assigned lecturer only.
      */
     protected function isCourseOwner(Course $course): bool
     {
-        $tenant = app('current_tenant');
-        $user = auth()->user();
-
-        return $user->id === $course->lecturer_id
-            || $user->hasRoleInTenant($tenant->id, ['admin']);
+        return auth()->id() === $course->lecturer_id || $this->isTenantAdmin();
     }
 
     /**
      * Get the sections of a course that the current user may access.
-     * Course owners / admins see all sections; section-assigned lecturers see only theirs.
+     *
+     * - Admins see all sections.
+     * - Course owner sees sections assigned to them OR unassigned (lecturer_id IS NULL).
+     * - Section-assigned lecturer sees only sections assigned to them.
      */
     protected function lecturerSections(Course $course): Builder
     {
         $query = $course->sections();
+        $userId = auth()->id();
 
-        if (! $this->isCourseOwner($course)) {
-            $query->where('lecturer_id', auth()->id());
+        if ($this->isTenantAdmin()) {
+            return $query;
+        }
+
+        if ($userId === $course->lecturer_id) {
+            // Course owner: own sections + unassigned sections
+            $query->where(function ($q) use ($userId) {
+                $q->where('lecturer_id', $userId)
+                  ->orWhereNull('lecturer_id');
+            });
+        } else {
+            // Section-assigned lecturer: only their sections
+            $query->where('lecturer_id', $userId);
         }
 
         return $query;
@@ -72,6 +95,29 @@ trait AuthorizesCourseAccess
     protected function lecturerSectionIds(Course $course): Collection
     {
         return $this->lecturerSections($course)->pluck('id');
+    }
+
+    /**
+     * Get all section IDs the current user may access across all courses.
+     */
+    protected function allAccessibleSectionIds(): Collection
+    {
+        $userId = auth()->id();
+
+        if ($this->isTenantAdmin()) {
+            return Section::pluck('id');
+        }
+
+        // Sections explicitly assigned to user
+        $assignedSectionIds = Section::where('lecturer_id', $userId)->pluck('id');
+
+        // Unassigned sections in courses the user owns
+        $ownedCourseIds = Course::where('lecturer_id', $userId)->pluck('id');
+        $unassignedSectionIds = Section::whereIn('course_id', $ownedCourseIds)
+            ->whereNull('lecturer_id')
+            ->pluck('id');
+
+        return $assignedSectionIds->merge($unassignedSectionIds)->unique();
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -20,6 +21,8 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected QrCodeService $qrService,
         protected AttendanceWarningService $warningService,
@@ -33,11 +36,7 @@ class AttendanceController extends Controller
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sectionIds = Section::where(function ($q) use ($courseIds, $user) {
-            $q->whereIn('course_id', $courseIds)
-                ->orWhere('lecturer_id', $user->id);
-        })->pluck('id');
+        $sectionIds = $this->allAccessibleSectionIds();
 
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->with(['section.course', 'records'])

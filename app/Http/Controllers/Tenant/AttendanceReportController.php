@@ -37,11 +37,7 @@ class AttendanceReportController extends Controller
 
         $report = $this->reportService->generateCourseReport($course, $section);
 
-        $sectionsQuery = $course->sections();
-        if (! $this->isCourseOwner($course)) {
-            $sectionsQuery->where('lecturer_id', auth()->id());
-        }
-        $sections = $sectionsQuery->get();
+        $sections = $this->lecturerSections($course)->get();
 
         return view('tenant.attendance.report.show', compact('course', 'report', 'sections', 'section'));
     }

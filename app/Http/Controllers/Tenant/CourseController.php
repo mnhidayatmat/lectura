@@ -117,18 +117,18 @@ class CourseController extends Controller
         $course->load([
             'learningOutcomes',
             'topics',
-            'sections' => function ($q) use ($isOwner, $userId) {
-                if (! $isOwner) {
-                    $q->where('lecturer_id', $userId);
-                }
-                $q->with(['activeStudents', 'academicTerm', 'lecturer']);
-            },
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',
             'programme',
             'academicTerm',
         ]);
+
+        // Load only sections this lecturer can access
+        $course->setRelation(
+            'sections',
+            $this->lecturerSections($course)->with(['activeStudents', 'academicTerm', 'lecturer'])->get()
+        );
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 

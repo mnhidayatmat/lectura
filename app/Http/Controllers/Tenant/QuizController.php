@@ -32,12 +32,7 @@ class QuizController extends Controller
     {
         $user = auth()->user();
         $courseIds = $this->accessibleCourseIds();
-        // Sections: owned-course sections + directly assigned sections
-        $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sectionIds = Section::where(function ($q) use ($ownedCourseIds, $user) {
-            $q->whereIn('course_id', $ownedCourseIds)
-              ->orWhere('lecturer_id', $user->id);
-        })->pluck('id');
+        $sectionIds = $this->allAccessibleSectionIds();
 
         $folders = QuizFolder::where('lecturer_id', $user->id)
             ->with(['sessions' => fn ($q) => $q->with(['section.course', 'participants'])->latest()])
@@ -133,12 +128,11 @@ class QuizController extends Controller
     public function create(Request $request): View
     {
         $user = auth()->user();
-        $courseIds = $this->accessibleCourseIds();
-        $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sections = Section::where(function ($q) use ($ownedCourseIds, $user) {
-            $q->whereIn('course_id', $ownedCourseIds)
-              ->orWhere('lecturer_id', $user->id);
-        })->with('course')->where('is_active', true)->get();
+        $sectionIds = $this->allAccessibleSectionIds();
+        $sections = Section::whereIn('id', $sectionIds)
+            ->with('course')
+            ->where('is_active', true)
+            ->get();
 
         $folders = QuizFolder::where('lecturer_id', $user->id)->orderBy('name')->get();
 
@@ -252,11 +246,11 @@ class QuizController extends Controller
         }
 
         $user = auth()->user();
-        $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sections = Section::where(function ($q) use ($ownedCourseIds, $user) {
-            $q->whereIn('course_id', $ownedCourseIds)
-              ->orWhere('lecturer_id', $user->id);
-        })->with('course')->where('is_active', true)->get();
+        $sectionIds = $this->allAccessibleSectionIds();
+        $sections = Section::whereIn('id', $sectionIds)
+            ->with('course')
+            ->where('is_active', true)
+            ->get();
         $folders = QuizFolder::where('lecturer_id', $user->id)->orderBy('name')->get();
 
         $session->load(['sessionQuestions.question.options', 'section.course']);
