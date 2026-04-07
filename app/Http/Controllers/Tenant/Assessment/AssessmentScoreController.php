@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\Course;
+use App\Models\SectionStudent;
+use App\Models\User;
 use App\Services\Assessment\AssessmentScoreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,11 +53,11 @@ class AssessmentScoreController extends Controller
         $tenant = app('current_tenant');
 
         // Get all enrolled students
-        $studentIds = \App\Models\SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+        $studentIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('is_active', true)
             ->distinct()
             ->pluck('user_id');
-        $students = \App\Models\User::whereIn('id', $studentIds)->orderBy('name')->get();
+        $students = User::whereIn('id', $studentIds)->orderBy('name')->get();
 
         // Existing scores
         $existingScores = $assessment->scores()->pluck('raw_marks', 'user_id');
@@ -97,6 +99,8 @@ class AssessmentScoreController extends Controller
                     'weighted_marks' => round($weightedMarks, 2),
                     'percentage' => round($percentage, 2),
                     'is_computed' => false,
+                    'finalized_by' => auth()->id(),
+                    'finalized_at' => now(),
                 ]
             );
             $count++;

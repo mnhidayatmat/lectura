@@ -59,6 +59,7 @@
                             <th class="text-center px-3 py-3 font-medium text-slate-500 dark:text-slate-400">Percentage</th>
                             <th class="text-center px-3 py-3 font-medium text-slate-500 dark:text-slate-400">Weighted</th>
                             <th class="text-center px-3 py-3 font-medium text-slate-500 dark:text-slate-400">Source</th>
+                            <th class="text-center px-3 py-3 font-medium text-slate-500 dark:text-slate-400">Released</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
@@ -75,6 +76,13 @@
                                     <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {{ $score->is_computed ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' }}">
                                         {{ $score->is_computed ? 'Auto' : 'Manual' }}
                                     </span>
+                                </td>
+                                <td class="px-3 py-3 text-center">
+                                    @if($score->is_released)
+                                        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Released</span>
+                                    @else
+                                        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">Hidden</span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
