@@ -25,7 +25,7 @@ class AssessmentPlanController extends Controller
             ->withCount('assessments')
             ->get()
             ->map(function ($course) {
-                $totalWeightage = $course->assessments->sum('weightage');
+                $totalWeightage = $course->assessments->whereNull('parent_id')->sum('weightage');
                 $closCovered = $course->assessments->flatMap(fn ($a) => $a->clos->pluck('id'))->unique()->count();
                 $course->cap_weightage = $totalWeightage;
                 $course->clos_covered = $closCovered;
@@ -49,9 +49,8 @@ class AssessmentPlanController extends Controller
             ->with(['children', 'clos', 'items.assessable'])
             ->get();
 
-        $totalWeightage = $assessments->sum(function ($a) {
-            return $a->weightage + $a->children->sum('weightage');
-        });
+        // Only top-level assessments contribute to the course total; children are sub-divisions of their parent.
+        $totalWeightage = $assessments->sum('weightage');
         $coveredCloIds = $assessments->flatMap(fn ($a) => $a->clos->pluck('id'))
             ->merge($assessments->flatMap(fn ($a) => $a->children->flatMap(fn ($c) => $c->clos->pluck('id'))))
             ->unique();
@@ -119,6 +118,12 @@ class AssessmentPlanController extends Controller
 
         if ($request->clo_ids) {
             $assessment->clos()->attach($request->clo_ids);
+        }
+
+        // Redirect child assessments back to the parent's edit page, not the index.
+        if ($request->filled('parent_id') && isset($parent)) {
+            return redirect()->route('tenant.assessments.edit', [$tenant->slug, $course, $parent])
+                ->with('success', 'Child assessment added.');
         }
 
         return redirect()->route('tenant.assessments.index', [$tenant->slug, $course])

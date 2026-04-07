@@ -178,7 +178,7 @@
                                             {{-- Weightage --}}
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-lg text-[11px] font-bold">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                                                {{ number_format($assessment->weightage, 0) }}%
+                                                {{ number_format($assessment->weightage, 0) }}% course
                                             </span>
 
                                             {{-- Marks --}}
@@ -237,10 +237,14 @@
                                 {{-- Child Assessments --}}
                                 @if($hasChildren)
                                     <div x-show="expanded" x-collapse class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                                        @php $childWeightageUsed = $assessment->children->sum('weightage'); @endphp
                                         @foreach($assessment->children as $child)
                                             @php
                                                 $childCfg   = $typeConfig[$child->type] ?? $typeConfig['other'];
                                                 $childBadge = $child->status_badge;
+                                                $childMarksPortion = $assessment->total_marks > 0
+                                                    ? round(($child->weightage / 100) * $assessment->total_marks, 1)
+                                                    : $child->total_marks;
                                             @endphp
                                             <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 border-l-4 border-l-indigo-400">
                                                 <div class="w-8 h-8 rounded-lg {{ $childCfg['bg'] }} flex items-center justify-center flex-shrink-0">
@@ -251,10 +255,12 @@
                                                         <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{{ $child->title }}</p>
                                                         <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-{{ $childBadge['color'] }}-100 dark:bg-{{ $childBadge['color'] }}-900/30 text-{{ $childBadge['color'] }}-700 dark:text-{{ $childBadge['color'] }}-400">{{ $childBadge['label'] }}</span>
                                                     </div>
-                                                    <div class="flex items-center gap-2 mt-1">
-                                                        <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">{{ $child->weightage }}%</span>
+                                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                                        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">{{ $child->weightage }}% of parent</span>
                                                         <span class="text-[10px] text-slate-400">&middot;</span>
-                                                        <span class="text-[10px] text-slate-500 dark:text-slate-400">{{ $child->total_marks }} marks</span>
+                                                        <span class="text-[10px] text-slate-500 dark:text-slate-400">{{ number_format($childMarksPortion, 1) }} / {{ number_format($assessment->total_marks, 0) }} marks</span>
+                                                        <span class="text-[10px] text-slate-400">&middot;</span>
+                                                        <span class="text-[10px] text-slate-400">≈ {{ number_format(($child->weightage / 100) * $assessment->weightage, 1) }}% course</span>
                                                     </div>
                                                 </div>
                                                 <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $child]) }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-600 text-slate-400 hover:text-indigo-500 transition flex-shrink-0">
@@ -262,6 +268,18 @@
                                                 </a>
                                             </div>
                                         @endforeach
+                                        {{-- Child allocation progress --}}
+                                        @if($assessment->children->count() > 0)
+                                            <div class="px-1 pt-1">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="text-[10px] text-slate-400">Parent portion allocated</span>
+                                                    <span class="text-[10px] font-semibold {{ $childWeightageUsed > 100 ? 'text-red-500' : ($childWeightageUsed == 100 ? 'text-emerald-600' : 'text-amber-600') }}">{{ number_format($childWeightageUsed, 0) }}%</span>
+                                                </div>
+                                                <div class="h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                                    <div class="h-full rounded-full {{ $childWeightageUsed > 100 ? 'bg-red-500' : ($childWeightageUsed == 100 ? 'bg-emerald-500' : 'bg-amber-400') }}" style="width: {{ min($childWeightageUsed, 100) }}%"></div>
+                                                </div>
+                                            </div>
+                                        @endif
 
                                         <a href="{{ route('tenant.assessments.child.create', [$tenant->slug, $course, $assessment]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>

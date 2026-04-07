@@ -18,14 +18,35 @@
     </x-slot>
 
     @if($parent)
-        <div class="mb-6 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
-                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <div class="mb-6 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-indigo-900 dark:text-indigo-100">Child of <span class="text-indigo-600 dark:text-indigo-400">{{ $parent->title }}</span></p>
+                    <p class="text-xs text-indigo-700 dark:text-indigo-300 mt-1">
+                        The parent carries <strong>{{ number_format($parent->weightage, 0) }}%</strong> of the course grade and <strong>{{ number_format($parent->total_marks, 0) }} marks</strong>.
+                        This child's weightage defines its <strong>proportion of those marks</strong> — it does <strong>not</strong> add to the overall course total.
+                    </p>
+                </div>
+                <div class="flex-shrink-0 text-right">
+                    <p class="text-xl font-bold text-indigo-600 dark:text-indigo-400">{{ number_format($parent->weightage, 0) }}%</p>
+                    <p class="text-[10px] text-indigo-500 dark:text-indigo-400">course weight</p>
+                </div>
             </div>
-            <div>
-                <p class="text-sm font-medium text-indigo-900 dark:text-indigo-100">Creating child assessment for <strong>{{ $parent->title }}</strong></p>
-                <p class="text-xs text-indigo-600 dark:text-indigo-300">This will be a part that contributes to the parent assessment's total weightage and marks.</p>
-            </div>
+            @if($parent->children->isNotEmpty())
+                @php $usedWeightage = $parent->children->sum('weightage'); @endphp
+                <div class="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700/50">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Parent portion allocated</span>
+                        <span class="text-[11px] font-bold {{ $usedWeightage >= 100 ? 'text-red-600' : 'text-indigo-700 dark:text-indigo-300' }}">{{ number_format($usedWeightage, 0) }}% used</span>
+                    </div>
+                    <div class="h-1.5 bg-indigo-100 dark:bg-indigo-900/50 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full {{ $usedWeightage >= 100 ? 'bg-red-500' : 'bg-indigo-500' }}" style="width: {{ min($usedWeightage, 100) }}%"></div>
+                    </div>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -77,8 +98,17 @@
 
                 <div class="grid sm:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Weightage (%) *</label>
-                        <input type="number" name="weightage" value="{{ old('weightage', 10) }}" required min="0" max="100" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                        @if($parent)
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                Portion of Parent (%)
+                                <span class="ml-1 text-[10px] font-normal text-indigo-500 dark:text-indigo-400">within {{ $parent->weightage }}% course weight</span>
+                            </label>
+                            <input type="number" name="weightage" value="{{ old('weightage', 50) }}" required min="0" max="100" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                            <p class="mt-1 text-[10px] text-slate-400">e.g. 50% means this part is worth {{ number_format($parent->total_marks * 0.5, 0) }} of {{ number_format($parent->total_marks, 0) }} marks</p>
+                        @else
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Weightage (%) *</label>
+                            <input type="number" name="weightage" value="{{ old('weightage', 10) }}" required min="0" max="100" step="0.5" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                        @endif
                         @error('weightage') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
