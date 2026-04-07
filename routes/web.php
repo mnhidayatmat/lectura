@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\McpController;
+use App\Http\Controllers\McpOAuthController;
 use App\Http\Controllers\Admin\AiProviderController;
 use App\Http\Controllers\ProfileController;
 // AnalyticsController removed — analytics routes now redirect to PerformanceController
@@ -35,6 +36,14 @@ use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
 use Illuminate\Support\Facades\Route;
+
+// ── MCP OAuth 2.0 endpoints (no CSRF, no auth middleware) ────────────────────
+Route::get('/.well-known/oauth-authorization-server', [McpOAuthController::class, 'metadata'])
+    ->name('mcp.oauth.metadata');
+Route::options('/oauth/token', [McpOAuthController::class, 'preflight']);
+Route::post('/oauth/token', [McpOAuthController::class, 'token'])
+    ->middleware('throttle:20,1')
+    ->name('mcp.oauth.token');
 
 // ── MCP Server (Bearer-token authenticated, no CSRF) ──────────────────────────
 Route::options('/mcp', [McpController::class, 'preflight']);

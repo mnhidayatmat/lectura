@@ -7,16 +7,20 @@ namespace App\Http\Controllers;
 use App\Services\Mcp\McpServer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class McpController extends Controller
 {
     public function handle(Request $request, McpServer $server): Response|StreamedResponse
     {
-        // ── Auth ──────────────────────────────────────────────────────────────
-        $secret = config('mcp.secret');
-        if (empty($secret) || $request->bearerToken() !== $secret) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        // ── Auth — accepts static secret OR an OAuth access token ────────────
+        if (!$this->authenticate($request)) {
+            return response()->json(
+                ['error' => 'Unauthorized'],
+                401,
+                ['WWW-Authenticate' => 'Bearer realm="mcp", error="invalid_token"']
+            );
         }
 
         // ── Parse body ────────────────────────────────────────────────────────
@@ -58,6 +62,27 @@ class McpController extends Controller
             'Access-Control-Allow-Origin'  => '*',
             'Access-Control-Allow-Headers' => 'Authorization, Content-Type',
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Auth helper
+    // -------------------------------------------------------------------------
+
+    private function authenticate(Request $request): bool
+    {
+        $token = $request->bearerToken();
+        if (empty($token)) {
+            return false;
+        }
+
+        // 1. Static secret (simple setup)
+        $secret = config('mcp.secret');
+        if (!empty($secret) && hash_equals($secret, $token)) {
+            return true;
+        }
+
+        // 2. OAuth 2.0 access token issued by /oauth/token
+        return Cache::has("mcp_oauth_token:{$token}");
     }
 
     /** Handle pre-flight CORS requests */

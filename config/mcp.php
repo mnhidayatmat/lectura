@@ -12,6 +12,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OAuth 2.0 Client Credentials
+    |--------------------------------------------------------------------------
+    | Used by the /oauth/token endpoint (client_credentials grant).
+    | Set MCP_OAUTH_CLIENT_ID and MCP_OAUTH_CLIENT_SECRET in .env.
+    | MCP_OAUTH_TOKEN_TTL controls how long (seconds) an issued token lives.
+    |
+    | Leave blank to disable OAuth — the static MCP_SECRET will still work.
+    */
+    'oauth' => [
+        'client_id'     => env('MCP_OAUTH_CLIENT_ID'),
+        'client_secret' => env('MCP_OAUTH_CLIENT_SECRET'),
+        'token_ttl'     => (int) env('MCP_OAUTH_TOKEN_TTL', 3600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Allowed Artisan Commands
     |--------------------------------------------------------------------------
     | Only these commands (prefix-matched) can be run via the run_artisan tool.

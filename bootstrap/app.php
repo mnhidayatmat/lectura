@@ -17,8 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'locale' => \App\Http\Middleware\SetLocale::class,
         ]);
 
-        // MCP endpoint uses Bearer token auth — no CSRF cookie needed
-        $middleware->validateCsrfTokens(except: ['/mcp', '/mcp/*']);
+        // MCP endpoints use Bearer token / OAuth — no CSRF cookie needed
+        $middleware->validateCsrfTokens(except: [
+            '/mcp',
+            '/mcp/*',
+            '/oauth/token',
+            '/.well-known/oauth-authorization-server',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
