@@ -45,14 +45,18 @@ class StudentGroupController extends Controller
             return view('tenant.student-groups.lecturer-index', compact('tenant', 'courses'));
         }
 
-        // Student view — filter out memberships with missing relationships
-        $memberships = StudentGroupMember::where('user_id', $user->id)
-            ->with('group.groupSet.course')
+        // Student view — query from tenant-scoped StudentGroupSet downward
+        // to avoid eager-loading scope issues when going up from StudentGroupMember
+        $sets = StudentGroupSet::whereHas('groups.members', fn ($q) => $q->where('user_id', $user->id))
+            ->with([
+                'course',
+                'groups' => fn ($q) => $q->whereHas('members', fn ($mq) => $mq->where('user_id', $user->id))
+                    ->with(['members' => fn ($mq) => $mq->where('user_id', $user->id)]),
+            ])
             ->get()
-            ->filter(fn ($m) => $m->group && $m->group->groupSet && $m->group->groupSet->course)
-            ->groupBy(fn ($m) => $m->group->groupSet->course_id);
+            ->groupBy('course_id');
 
-        return view('tenant.student-groups.student-index', compact('tenant', 'memberships'));
+        return view('tenant.student-groups.student-index', compact('tenant', 'sets'));
     }
 
     // ── Lecturer ──
@@ -65,7 +69,7 @@ class StudentGroupController extends Controller
         $mySectionIds = $this->lecturerSectionIds($course);
 
         $sets = $course->studentGroupSets()
-            ->whereIn('section_id', $mySectionIds)
+            ->where(fn ($q) => $q->whereIn('section_id', $mySectionIds)->orWhereNull('section_id'))
             ->withCount('groups')
             ->with(['creator', 'section'])
             ->latest()
