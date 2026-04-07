@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -15,20 +16,22 @@ use Illuminate\View\View;
 
 class RandomWheelController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function index(): View
     {
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        $query = Course::with('sections');
-        if (! $user->is_super_admin) {
-            $query->where('lecturer_id', $user->id);
-        }
-        $courses = $query->get();
+        $courseIds = $this->accessibleCourseIds();
+        $courses = Course::whereIn('id', $courseIds)->get();
 
-        // Find the latest attendance session across the user's courses
-        $courseIds = $courses->pluck('id');
-        $sectionIds = Section::whereIn('course_id', $courseIds)->pluck('id');
+        // Load only sections this lecturer can access per course
+        foreach ($courses as $course) {
+            $course->setRelation('sections', $this->lecturerSections($course)->get());
+        }
+
+        $sectionIds = $this->allAccessibleSectionIds();
 
         $latestSession = AttendanceSession::whereIn('section_id', $sectionIds)
             ->orderByDesc('started_at')
@@ -54,7 +57,7 @@ class RandomWheelController extends Controller
         ]);
 
         $section = Section::findOrFail($request->section_id);
-        $this->authorizeCourse($section->course);
+        $this->authorizeSection($section);
 
         $sessions = AttendanceSession::where('section_id', $section->id)
             ->orderByDesc('started_at')
@@ -80,7 +83,7 @@ class RandomWheelController extends Controller
         ]);
 
         $session = AttendanceSession::with('section.course')->findOrFail($request->session_id);
-        $this->authorizeCourse($session->section->course);
+        $this->authorizeCourseAccess($session->section->course);
 
         $statuses = ['present'];
         if ($request->input('include_late') === '1' || $request->input('include_late') === 'true') {
@@ -111,11 +114,8 @@ class RandomWheelController extends Controller
         ]);
     }
 
-    private function authorizeCourse(Course $course): void
+    private function authorizeSection(Section $section): void
     {
-        $user = auth()->user();
-        if (! $user->is_super_admin && $course->lecturer_id !== $user->id) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($section->course);
     }
 }
