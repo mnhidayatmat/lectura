@@ -18,8 +18,16 @@ class Assessment extends Model
     protected $fillable = [
         'tenant_id', 'course_id', 'title', 'type', 'method',
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
-        'status', 'description',
+        'status', 'description', 'requires_submission', 'due_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'requires_submission' => 'boolean',
+            'due_date' => 'datetime',
+        ];
+    }
 
     public const TYPES = [
         'quiz', 'assignment', 'test', 'project',
@@ -61,6 +69,11 @@ class Assessment extends Model
     public function cloScores(): HasMany
     {
         return $this->hasMany(AssessmentCloScore::class);
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(AssessmentSubmission::class);
     }
 
     public function getStatusBadgeAttribute(): array

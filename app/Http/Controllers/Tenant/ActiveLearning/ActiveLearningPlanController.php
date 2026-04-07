@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\StorePlanRequest;
 use App\Http\Requests\ActiveLearning\UpdatePlanRequest;
@@ -12,6 +13,7 @@ use App\Models\ActiveLearningPlan;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\CourseFile;
+use App\Models\Section;
 use App\Services\ActiveLearning\ActiveLearningPlanService;
 use App\Services\ActiveLearning\TierGateService;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +23,8 @@ use Illuminate\View\View;
 
 class ActiveLearningPlanController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected ActiveLearningPlanService $planService,
         protected TierGateService $tierGate,
@@ -31,9 +35,13 @@ class ActiveLearningPlanController extends Controller
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        $courses = Course::where('lecturer_id', $user->id)->latest()->get();
+        $ownedIds = Course::where('lecturer_id', $user->id)->pluck('id');
+        $sectionIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+        $courseIds = $ownedIds->merge($sectionIds)->unique();
 
-        $plans = ActiveLearningPlan::whereIn('course_id', $courses->pluck('id'))
+        $courses = Course::whereIn('id', $courseIds)->latest()->get();
+
+        $plans = ActiveLearningPlan::whereIn('course_id', $courseIds)
             ->withCount('activities')
             ->with(['course', 'topic'])
             ->latest()
@@ -44,9 +52,7 @@ class ActiveLearningPlanController extends Controller
 
     public function index(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $plans = ActiveLearningPlan::forCourse($course->id)
             ->withCount('activities')
@@ -61,9 +67,7 @@ class ActiveLearningPlanController extends Controller
 
     public function create(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $course->load(['topics', 'learningOutcomes']);
         $tenant = app('current_tenant');
@@ -73,9 +77,7 @@ class ActiveLearningPlanController extends Controller
 
     public function store(StorePlanRequest $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $plan = $this->planService->createPlan($course, $request->user(), $request->validated());
@@ -89,9 +91,7 @@ class ActiveLearningPlanController extends Controller
 
     public function show(string $tenantSlug, Course $course, ActiveLearningPlan $plan): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
@@ -104,9 +104,7 @@ class ActiveLearningPlanController extends Controller
 
     public function edit(string $tenantSlug, Course $course, ActiveLearningPlan $plan): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
@@ -138,9 +136,7 @@ class ActiveLearningPlanController extends Controller
 
     public function update(UpdatePlanRequest $request, string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->assertPlanBelongsToCourse($plan, $course);
         $this->planService->updatePlan($plan, $request->validated());
@@ -156,9 +152,7 @@ class ActiveLearningPlanController extends Controller
 
     public function destroy(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->assertPlanBelongsToCourse($plan, $course);
         $this->planService->deletePlan($plan);
@@ -173,9 +167,7 @@ class ActiveLearningPlanController extends Controller
 
     public function publish(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->assertPlanBelongsToCourse($plan, $course);
         $this->planService->publishPlan($plan);
@@ -185,9 +177,7 @@ class ActiveLearningPlanController extends Controller
 
     public function generateAi(Request $request, string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $this->tierGate->assertProFeature(auth()->user(), __('active_learning.ai_generation'));
@@ -298,9 +288,7 @@ class ActiveLearningPlanController extends Controller
 
     public function acceptAiDraft(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
         $this->assertPlanBelongsToCourse($plan, $course);
 
         $plan->update(['ai_generation_status' => 'completed']);
@@ -310,9 +298,7 @@ class ActiveLearningPlanController extends Controller
 
     public function discardAiDraft(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
         $this->assertPlanBelongsToCourse($plan, $course);
 
         $plan->activities()->where('ai_generated', true)->delete();

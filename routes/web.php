@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\McpController;
 use App\Http\Controllers\Admin\AiProviderController;
 use App\Http\Controllers\ProfileController;
 // AnalyticsController removed — analytics routes now redirect to PerformanceController
@@ -34,6 +35,12 @@ use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
 use Illuminate\Support\Facades\Route;
+
+// ── MCP Server (Bearer-token authenticated, no CSRF) ──────────────────────────
+Route::options('/mcp', [McpController::class, 'preflight']);
+Route::post('/mcp', [McpController::class, 'handle'])
+    ->middleware('throttle:120,1')
+    ->name('mcp.handle');
 
 // ── Public ──
 Route::get('/', function () {
@@ -426,6 +433,14 @@ Route::prefix('{tenant:slug}')
             Route::post('/{assessment}/scores/compute', [AssessmentScoreController::class, 'compute'])->name('tenant.assessments.scores.compute');
             Route::get('/{assessment}/scores/manual', [AssessmentScoreController::class, 'manualEntry'])->name('tenant.assessments.scores.manual');
             Route::post('/{assessment}/scores/manual', [AssessmentScoreController::class, 'storeManual'])->name('tenant.assessments.scores.store-manual');
+
+            // Submissions
+            Route::get('/{assessment}/submissions', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'index'])->name('tenant.assessments.submissions.index');
+            Route::get('/{assessment}/submissions/{submission}', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'show'])->name('tenant.assessments.submissions.show');
+            Route::post('/{assessment}/submissions/{submission}/mark', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'storeMark'])->name('tenant.assessments.submissions.mark');
+            Route::post('/{assessment}/scores/release', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'release'])->name('tenant.assessments.scores.release');
+            Route::post('/{assessment}/scores/{score}/unrelease', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'unrelease'])->name('tenant.assessments.scores.unrelease');
+            Route::get('/{assessment}/submissions/files/{file}/download', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'downloadFile'])->name('tenant.assessments.submissions.download');
         });
 
         // Assessment Reports
@@ -630,6 +645,11 @@ Route::prefix('{tenant:slug}')
 
         Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
         Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
+
+        // Student Assessments (submission)
+        Route::get('/my-assessments', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentIndex'])->name('tenant.my-assessments');
+        Route::get('/courses/{course}/assessments/{assessment}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentShow'])->name('tenant.my-assessments.show');
+        Route::post('/courses/{course}/assessments/{assessment}/submit', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentSubmit'])->name('tenant.my-assessments.submit');
 
         // Academic Terms (Semesters)
         Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');

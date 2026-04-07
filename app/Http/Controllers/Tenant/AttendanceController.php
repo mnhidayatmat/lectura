@@ -34,7 +34,10 @@ class AttendanceController extends Controller
         $user = auth()->user();
 
         $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sectionIds = Section::whereIn('course_id', $courseIds)->pluck('id');
+        $sectionIds = Section::where(function ($q) use ($courseIds, $user) {
+            $q->whereIn('course_id', $courseIds)
+                ->orWhere('lecturer_id', $user->id);
+        })->pluck('id');
 
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->with(['section.course', 'records'])
@@ -55,7 +58,7 @@ class AttendanceController extends Controller
             ->sortBy(fn ($group) => $group['course']->code);
 
         // Get lecturer's sections for starting new session
-        $sections = Section::whereIn('course_id', $courseIds)
+        $sections = Section::whereIn('id', $sectionIds)
             ->with('course')
             ->where('is_active', true)
             ->get();
@@ -75,11 +78,16 @@ class AttendanceController extends Controller
         ]);
 
         $tenant = app('current_tenant');
+        $user = auth()->user();
         $section = Section::findOrFail($request->section_id);
-
-        // Verify section belongs to lecturer's course
         $course = $section->course;
-        if ($course->lecturer_id !== auth()->id()) {
+
+        // Verify user owns this section (as section lecturer or course owner or admin)
+        $canAccess = $section->lecturer_id === $user->id
+            || $course->lecturer_id === $user->id
+            || $user->hasRoleInTenant($tenant->id, ['admin']);
+
+        if (! $canAccess) {
             abort(403);
         }
 

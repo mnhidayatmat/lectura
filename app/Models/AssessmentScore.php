@@ -14,14 +14,19 @@ class AssessmentScore extends Model
 
     protected $fillable = [
         'tenant_id', 'assessment_id', 'user_id',
-        'raw_marks', 'max_marks', 'weighted_marks',
-        'percentage', 'is_computed',
+        'assessment_submission_id', 'raw_marks', 'max_marks',
+        'weighted_marks', 'percentage', 'is_computed',
+        'is_released', 'released_at', 'feedback',
+        'finalized_by', 'finalized_at',
     ];
 
     protected function casts(): array
     {
         return [
             'is_computed' => 'boolean',
+            'is_released' => 'boolean',
+            'released_at' => 'datetime',
+            'finalized_at' => 'datetime',
         ];
     }
 
@@ -33,5 +38,15 @@ class AssessmentScore extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function submission(): BelongsTo
+    {
+        return $this->belongsTo(AssessmentSubmission::class, 'assessment_submission_id');
+    }
+
+    public function finalizer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'finalized_by');
     }
 }

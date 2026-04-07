@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\AttendancePolicy;
 use App\Models\Course;
@@ -13,6 +14,7 @@ use Illuminate\View\View;
 
 class AttendancePolicyController extends Controller
 {
+    use AuthorizesCourseAccess;
     /**
      * Show policy edit form.
      */
@@ -85,8 +87,6 @@ class AttendancePolicyController extends Controller
 
     protected function authorizeCourse(Course $course): void
     {
-        if ($course->lecturer_id !== auth()->id() && ! auth()->user()->is_super_admin) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
     }
 }

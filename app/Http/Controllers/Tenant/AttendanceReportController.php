@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Exports\CourseAttendanceExport;
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Section;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class AttendanceReportController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected AttendanceReportService $reportService,
     ) {}
@@ -34,7 +37,11 @@ class AttendanceReportController extends Controller
 
         $report = $this->reportService->generateCourseReport($course, $section);
 
-        $sections = $course->sections;
+        $sectionsQuery = $course->sections();
+        if (! $this->isCourseOwner($course)) {
+            $sectionsQuery->where('lecturer_id', auth()->id());
+        }
+        $sections = $sectionsQuery->get();
 
         return view('tenant.attendance.report.show', compact('course', 'report', 'sections', 'section'));
     }
@@ -89,8 +96,6 @@ class AttendanceReportController extends Controller
 
     protected function authorizeCourse(Course $course): void
     {
-        if ($course->lecturer_id !== auth()->id() && ! auth()->user()->is_super_admin) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
     }
 }

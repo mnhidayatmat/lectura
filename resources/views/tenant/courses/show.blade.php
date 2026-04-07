@@ -209,28 +209,43 @@
                     <div class="flex items-center gap-2">
                         <h3 class="font-semibold text-slate-900 text-sm">Sections</h3>
                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">{{ $course->sections->count() }}</span>
+                        @if(!$isOwner)
+                            <span class="text-[10px] text-slate-400 italic">(your sections)</span>
+                        @endif
                     </div>
+                    @if($isOwner)
                     <div x-data="{ open: false }">
                         <button @click="open = !open" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add
                         </button>
-                        <div x-show="open" x-cloak x-transition class="absolute right-6 mt-2 z-10">
-                            <form method="POST" action="{{ route('tenant.courses.sections.store', [$tenant->slug, $course]) }}" class="flex items-center gap-2 bg-white rounded-xl border border-slate-200 shadow-lg p-3">
+                        <div x-show="open" x-cloak x-transition class="absolute right-6 mt-2 z-20">
+                            <form method="POST" action="{{ route('tenant.courses.sections.store', [$tenant->slug, $course]) }}" class="bg-white rounded-xl border border-slate-200 shadow-lg p-4 space-y-3 w-80">
                                 @csrf
-                                <input type="text" name="name" placeholder="Section 01" required class="w-28 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
-                                <input type="text" name="code" placeholder="SEC01" required class="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
-                                <input type="number" name="capacity" placeholder="Cap" min="1" class="w-14 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
-                                <select name="academic_term_id" class="w-32 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
-                                    <option value="">Semester</option>
-                                    @foreach($terms as $term)
-                                        <option value="{{ $term->id }}" {{ $term->is_default ? 'selected' : '' }}>{{ $term->name }}</option>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="text" name="name" placeholder="Section 01" required class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
+                                    <input type="text" name="code" placeholder="SEC01" required class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" name="capacity" placeholder="Capacity" min="1" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500" />
+                                    <select name="academic_term_id" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+                                        <option value="">Semester</option>
+                                        @foreach($terms as $term)
+                                            <option value="{{ $term->id }}" {{ $term->is_default ? 'selected' : '' }}>{{ $term->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <select name="lecturer_id" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="">Assign lecturer (optional)</option>
+                                    @foreach($lecturers as $lecturer)
+                                        <option value="{{ $lecturer->id }}" {{ $lecturer->id === $course->lecturer_id ? 'selected' : '' }}>{{ $lecturer->name }}</option>
                                     @endforeach
                                 </select>
-                                <button type="submit" class="px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg">Create</button>
+                                <button type="submit" class="w-full px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg">Create Section</button>
                             </form>
                         </div>
                     </div>
+                    @endif
                 </div>
                 <div class="divide-y divide-slate-50 max-h-80 overflow-y-auto">
                     @forelse($course->sections as $section)
@@ -250,6 +265,9 @@
                                         {{ $section->code }} &middot; <code class="bg-slate-100 px-1 rounded text-[10px]">{{ $section->invite_code }}</code>
                                         @if($section->academicTerm)
                                             &middot; <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->academicTerm->name }}</span>
+                                        @endif
+                                        @if($isOwner && $section->lecturer)
+                                            &middot; <span class="bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->lecturer->name }}</span>
                                         @endif
                                     </p>
                                     @if($section->schedule)

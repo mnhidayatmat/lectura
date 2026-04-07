@@ -78,6 +78,8 @@ class AssessmentPlanController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'clo_ids' => ['nullable', 'array'],
             'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
+            'requires_submission' => ['nullable', 'boolean'],
+            'due_date' => ['nullable', 'date'],
         ]);
 
         $tenant = app('current_tenant');
@@ -92,6 +94,8 @@ class AssessmentPlanController extends Controller
             'total_marks' => $request->total_marks,
             'bloom_level' => $request->bloom_level,
             'description' => $request->description,
+            'requires_submission' => $request->boolean('requires_submission'),
+            'due_date' => $request->due_date,
             'sort_order' => $course->assessments()->count(),
             'status' => 'draft',
         ]);
@@ -139,12 +143,17 @@ class AssessmentPlanController extends Controller
             'status' => ['nullable', 'string', 'in:' . implode(',', Assessment::STATUSES)],
             'clo_ids' => ['nullable', 'array'],
             'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
+            'requires_submission' => ['nullable', 'boolean'],
+            'due_date' => ['nullable', 'date'],
         ]);
 
-        $assessment->update($request->only([
-            'title', 'type', 'method', 'weightage', 'total_marks',
-            'bloom_level', 'description', 'status',
-        ]));
+        $assessment->update(array_merge(
+            $request->only([
+                'title', 'type', 'method', 'weightage', 'total_marks',
+                'bloom_level', 'description', 'status', 'due_date',
+            ]),
+            ['requires_submission' => $request->boolean('requires_submission')]
+        ));
 
         $assessment->clos()->sync($request->clo_ids ?? []);
 

@@ -26,6 +26,7 @@ class SectionController extends Controller
             'code' => ['required', 'string', 'max:20'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
+            'lecturer_id' => ['nullable', 'exists:users,id'],
         ]);
 
         $tenant = app('current_tenant');
@@ -34,6 +35,7 @@ class SectionController extends Controller
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
             'academic_term_id' => $request->academic_term_id,
+            'lecturer_id' => $request->lecturer_id ?: null,
             'name' => $request->name,
             'code' => $request->code,
             'capacity' => $request->capacity,
@@ -44,10 +46,21 @@ class SectionController extends Controller
 
     public function show(string $tenantSlug, Course $course, Section $section): View
     {
-        $section->load(['activeStudents', 'course', 'academicTerm']);
+        $section->load(['activeStudents', 'course', 'academicTerm', 'lecturer']);
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        return view('tenant.courses.sections.show', compact('course', 'section', 'terms'));
+        $tenant = app('current_tenant');
+        $lecturers = \App\Models\TenantUser::where('tenant_id', $tenant->id)
+            ->whereIn('role', ['lecturer', 'admin', 'coordinator'])
+            ->where('is_active', true)
+            ->with('user:id,name,email')
+            ->get()
+            ->map(fn ($tu) => $tu->user)
+            ->filter()
+            ->sortBy('name')
+            ->values();
+
+        return view('tenant.courses.sections.show', compact('course', 'section', 'terms', 'lecturers'));
     }
 
     public function update(Request $request, string $tenantSlug, Course $course, Section $section): RedirectResponse
@@ -57,9 +70,10 @@ class SectionController extends Controller
             'code' => ['required', 'string', 'max:20'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
+            'lecturer_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        $section->update($request->only('name', 'code', 'capacity', 'academic_term_id'));
+        $section->update($request->only('name', 'code', 'capacity', 'academic_term_id', 'lecturer_id'));
 
         return back()->with('success', 'Section details updated.');
     }

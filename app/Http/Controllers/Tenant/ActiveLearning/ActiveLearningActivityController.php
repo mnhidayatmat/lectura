@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\StoreActivityRequest;
 use App\Http\Requests\ActiveLearning\UpdateActivityRequest;
@@ -18,6 +19,7 @@ use Illuminate\Http\Request;
 
 class ActiveLearningActivityController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function __construct(
         protected ActivityService $activityService,
         protected ActiveLearningPlanService $planService,
@@ -68,9 +70,7 @@ class ActiveLearningActivityController extends Controller
 
     protected function authorizeAndValidate(Course $course, ActiveLearningPlan $plan): void
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         if ($plan->course_id !== $course->id) {
             abort(404);

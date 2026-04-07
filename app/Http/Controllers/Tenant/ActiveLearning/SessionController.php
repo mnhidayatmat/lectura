@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\ActiveLearningPlan;
 use App\Models\ActiveLearningSession;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class SessionController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected SessionService $sessionService,
     ) {}
@@ -24,9 +27,7 @@ class SessionController extends Controller
      */
     public function start(string $tenantSlug, Course $course, ActiveLearningPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $session = $this->sessionService->startSession($plan, auth()->user());
 

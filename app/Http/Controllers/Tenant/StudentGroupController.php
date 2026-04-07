@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\GroupSleepingPartnerReport;
 use App\Models\GroupSwapRequest;
+use App\Models\Section;
 use App\Models\StudentGroup;
 use App\Models\StudentGroupMember;
 use App\Models\StudentGroupSet;
@@ -19,6 +21,8 @@ use Illuminate\View\View;
 
 class StudentGroupController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected StudentGroupingService $groupingService,
     ) {}
@@ -30,7 +34,11 @@ class StudentGroupController extends Controller
         $role = $user->roleInTenant($tenant->id);
 
         if (in_array($role, ['lecturer', 'admin', 'coordinator'])) {
-            $courses = Course::where('lecturer_id', $user->id)
+            $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
+            $sectionCourseIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+            $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
+
+            $courses = Course::whereIn('id', $allCourseIds)
                 ->with(['studentGroupSets' => fn ($q) => $q->withCount('groups')->latest(), 'academicTerm'])
                 ->get();
 
@@ -51,38 +59,49 @@ class StudentGroupController extends Controller
 
     public function index(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
+        $user = auth()->user();
+        $isOwner = $this->isCourseOwner($course);
 
-        $sets = $course->studentGroupSets()
+        $setsQuery = $course->studentGroupSets()
             ->withCount('groups')
             ->with(['creator', 'section'])
-            ->latest()
-            ->get();
+            ->latest();
+
+        if (! $isOwner) {
+            $mySectionIds = Section::where('course_id', $course->id)
+                ->where('lecturer_id', $user->id)
+                ->pluck('id');
+            $setsQuery->whereIn('section_id', $mySectionIds);
+        }
+
+        $sets = $setsQuery->get();
 
         return view('tenant.student-groups.index', compact('tenant', 'course', 'sets'));
     }
 
     public function create(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
-        $sections = $course->sections()->withCount(['activeStudents'])->get();
+        $user = auth()->user();
+        $isOwner = $this->isCourseOwner($course);
+
+        $sectionsQuery = $course->sections()->withCount(['activeStudents']);
+        if (! $isOwner) {
+            $sectionsQuery->where('lecturer_id', $user->id);
+        }
+        $sections = $sectionsQuery->get();
 
         return view('tenant.student-groups.create', compact('tenant', 'course', 'sections'));
     }
 
     public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -117,7 +136,8 @@ class StudentGroupController extends Controller
 
     public function show(string $tenantSlug, Course $course, StudentGroupSet $set): View
     {
-        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($set->course_id !== $course->id) {
             abort(403);
         }
 
@@ -144,7 +164,8 @@ class StudentGroupController extends Controller
 
     public function storeGroup(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($set->course_id !== $course->id) {
             abort(403);
         }
 
@@ -161,7 +182,8 @@ class StudentGroupController extends Controller
 
     public function destroyGroup(string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id || $group->student_group_set_id !== $set->id) {
+        $this->authorizeCourseAccess($course);
+        if ($set->course_id !== $course->id || $group->student_group_set_id !== $set->id) {
             abort(403);
         }
 
@@ -172,7 +194,8 @@ class StudentGroupController extends Controller
 
     public function addMember(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $group->student_group_set_id !== $set->id) {
+        $this->authorizeCourseAccess($course);
+        if ($group->student_group_set_id !== $set->id) {
             abort(403);
         }
 
@@ -189,7 +212,8 @@ class StudentGroupController extends Controller
 
     public function removeMember(string $tenantSlug, Course $course, StudentGroupSet $set, StudentGroup $group, User $user): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $group->student_group_set_id !== $set->id) {
+        $this->authorizeCourseAccess($course);
+        if ($group->student_group_set_id !== $set->id) {
             abort(403);
         }
 
@@ -200,7 +224,8 @@ class StudentGroupController extends Controller
 
     public function arrangeRandom(Request $request, string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($set->course_id !== $course->id) {
             abort(403);
         }
 
@@ -213,7 +238,8 @@ class StudentGroupController extends Controller
 
     public function destroy(string $tenantSlug, Course $course, StudentGroupSet $set): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $set->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($set->course_id !== $course->id) {
             abort(403);
         }
 

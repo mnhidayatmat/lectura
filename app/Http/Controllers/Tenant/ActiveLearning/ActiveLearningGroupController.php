@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\StoreGroupRequest;
 use App\Models\ActiveLearningActivity;
@@ -19,6 +20,7 @@ use Illuminate\Http\Request;
 
 class ActiveLearningGroupController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function __construct(
         protected GroupingService $groupingService,
         protected TierGateService $tierGate,
@@ -163,9 +165,7 @@ class ActiveLearningGroupController extends Controller
 
     protected function authorizeAndValidate(Course $course, ActiveLearningPlan $plan, ActiveLearningActivity $activity): void
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         if ($plan->course_id !== $course->id) {
             abort(404);

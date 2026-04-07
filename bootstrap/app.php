@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.access' => \App\Http\Middleware\EnsureTenantAccess::class,
             'locale' => \App\Http\Middleware\SetLocale::class,
         ]);
+
+        // MCP endpoint uses Bearer token auth — no CSRF cookie needed
+        $middleware->validateCsrfTokens(except: ['/mcp', '/mcp/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Course\StoreCourseRequest;
 use App\Http\Requests\Course\UpdateCourseRequest;
@@ -12,15 +13,29 @@ use App\Models\Course;
 use App\Models\CourseLearningOutcome;
 use App\Models\CourseTopic;
 use App\Models\Faculty;
+use App\Models\Section;
+use App\Models\TenantUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CourseController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function index(): View
     {
-        $courses = Course::where('lecturer_id', auth()->id())
+        $user = auth()->user();
+
+        // Courses the user owns as primary lecturer
+        $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
+
+        // Courses where the user is assigned as a section lecturer
+        $sectionCourseIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+
+        $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
+
+        $courses = Course::whereIn('id', $allCourseIds)
             ->withCount('sections')
             ->with(['academicTerm', 'faculty'])
             ->latest()
@@ -95,11 +110,19 @@ class CourseController extends Controller
     {
         $this->authorizeCourse($course);
 
+        $tenant = app('current_tenant');
+        $isOwner = $this->isCourseOwner($course);
+        $userId = auth()->id();
+
         $course->load([
             'learningOutcomes',
             'topics',
-            'sections.activeStudents',
-            'sections.academicTerm',
+            'sections' => function ($q) use ($isOwner, $userId) {
+                if (! $isOwner) {
+                    $q->where('lecturer_id', $userId);
+                }
+                $q->with(['activeStudents', 'academicTerm', 'lecturer']);
+            },
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',
@@ -109,7 +132,18 @@ class CourseController extends Controller
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        return view('tenant.courses.show', compact('course', 'terms'));
+        // Lecturers in this tenant for the section assignment dropdown
+        $lecturers = TenantUser::where('tenant_id', $tenant->id)
+            ->whereIn('role', ['lecturer', 'admin', 'coordinator'])
+            ->where('is_active', true)
+            ->with('user:id,name,email')
+            ->get()
+            ->map(fn ($tu) => $tu->user)
+            ->filter()
+            ->sortBy('name')
+            ->values();
+
+        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner'));
     }
 
     public function edit(string $tenantSlug, Course $course): View
@@ -185,15 +219,6 @@ class CourseController extends Controller
 
     protected function authorizeCourse(Course $course): void
     {
-        $tenant = app('current_tenant');
-        $user = auth()->user();
-
-        if ($course->tenant_id !== $tenant->id) {
-            abort(404);
-        }
-
-        if ($user->id !== $course->lecturer_id && ! $user->hasRoleInTenant($tenant->id, ['admin'])) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
     }
 }

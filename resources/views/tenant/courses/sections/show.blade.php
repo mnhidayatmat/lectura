@@ -46,6 +46,7 @@
                  'code' => $section->code,
                  'capacity' => $section->capacity,
                  'academic_term_id' => $section->academic_term_id,
+                 'lecturer_id' => $section->lecturer_id,
              ]) }})">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -81,6 +82,16 @@
                             <option value="">No semester</option>
                             @foreach($terms as $term)
                                 <option value="{{ $term->id }}">{{ $term->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-4">
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Assigned Lecturer</label>
+                        <select name="lecturer_id" x-model="lecturer_id"
+                                class="w-full sm:w-64 px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                            <option value="">No lecturer assigned</option>
+                            @foreach($lecturers as $lecturer)
+                                <option value="{{ $lecturer->id }}">{{ $lecturer->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -201,6 +212,7 @@
                     code: initial.code,
                     capacity: initial.capacity,
                     academic_term_id: initial.academic_term_id ?? '',
+                    lecturer_id: initial.lecturer_id ?? '',
                     original: JSON.stringify(initial),
                     dirty: false,
                     checkDirty() {
@@ -209,6 +221,7 @@
                             code: this.code,
                             capacity: this.capacity ? Number(this.capacity) : null,
                             academic_term_id: this.academic_term_id ? Number(this.academic_term_id) : null,
+                            lecturer_id: this.lecturer_id ? Number(this.lecturer_id) : null,
                         });
                         this.dirty = current !== this.original;
                     },
@@ -217,6 +230,7 @@
                         this.$watch('code', () => this.checkDirty());
                         this.$watch('capacity', () => this.checkDirty());
                         this.$watch('academic_term_id', () => this.checkDirty());
+                        this.$watch('lecturer_id', () => this.checkDirty());
                     }
                 }
             }

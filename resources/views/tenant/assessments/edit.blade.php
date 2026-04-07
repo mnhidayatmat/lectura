@@ -17,7 +17,7 @@
         </div>
     @endif
 
-    <div class="grid lg:grid-cols-3 gap-6">
+    <div class="grid lg:grid-cols-3 gap-6" x-data="{ requiresSubmission: {{ old('requires_submission', $assessment->requires_submission) ? 'true' : 'false' }} }">
         {{-- Left: Assessment form --}}
         <div class="lg:col-span-2">
             <form method="POST" action="{{ route('tenant.assessments.update', [$tenant->slug, $course, $assessment]) }}" class="space-y-6">
@@ -101,6 +101,29 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
                         <textarea name="description" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">{{ old('description', $assessment->description) }}</textarea>
+                    </div>
+                </div>
+
+                {{-- Student Submission --}}
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Student Submission</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Require students to submit files for this assessment</p>
+                        </div>
+                        <button type="button" @click="requiresSubmission = !requiresSubmission" :class="requiresSubmission ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'" class="relative w-11 h-6 rounded-full transition-colors">
+                            <span :class="requiresSubmission ? 'translate-x-5' : 'translate-x-0.5'" class="inline-block w-5 h-5 bg-white rounded-full shadow transform transition-transform"></span>
+                        </button>
+                        <input type="hidden" name="requires_submission" :value="requiresSubmission ? 1 : 0">
+                    </div>
+
+                    <div x-show="requiresSubmission" x-collapse>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Due Date <span class="text-slate-400">(optional)</span></label>
+                            <input type="datetime-local" name="due_date" value="{{ old('due_date', $assessment->due_date?->format('Y-m-d\TH:i')) }}" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                            <p class="mt-1 text-xs text-slate-400">Students can still submit after due date, but it will be marked as late.</p>
+                            @error('due_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
                     </div>
                 </div>
 
