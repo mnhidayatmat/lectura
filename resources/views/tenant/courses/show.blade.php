@@ -209,9 +209,6 @@
                     <div class="flex items-center gap-2">
                         <h3 class="font-semibold text-slate-900 text-sm">Sections</h3>
                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">{{ $course->sections->count() }}</span>
-                        @if(!$isOwner)
-                            <span class="text-[10px] text-slate-400 italic">(your sections)</span>
-                        @endif
                     </div>
                     @if($isOwner)
                     <div x-data="{ open: false }">
@@ -266,8 +263,10 @@
                                         @if($section->academicTerm)
                                             &middot; <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->academicTerm->name }}</span>
                                         @endif
-                                        @if($isOwner && $section->lecturer)
+                                        @if($section->lecturer)
                                             &middot; <span class="bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->lecturer->name }}</span>
+                                        @elseif($isOwner)
+                                            &middot; <span class="bg-slate-50 text-slate-400 px-1 py-0.5 rounded text-[10px] font-medium italic">Unassigned</span>
                                         @endif
                                     </p>
                                     @if($section->schedule)

@@ -117,18 +117,15 @@ class CourseController extends Controller
         $course->load([
             'learningOutcomes',
             'topics',
+            'sections.activeStudents',
+            'sections.academicTerm',
+            'sections.lecturer',
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',
             'programme',
             'academicTerm',
         ]);
-
-        // Load only sections this lecturer can access
-        $course->setRelation(
-            'sections',
-            $this->lecturerSections($course)->with(['activeStudents', 'academicTerm', 'lecturer'])->get()
-        );
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
