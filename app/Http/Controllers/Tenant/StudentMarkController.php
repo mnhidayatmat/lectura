@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssessmentScore;
 use App\Models\Assignment;
 use App\Models\SectionStudent;
 use App\Models\StudentMark;
@@ -44,6 +45,13 @@ class StudentMarkController extends Controller
             ->get()
             ->keyBy('assignment_id');
 
+        // Released assessment scores
+        $assessmentScores = AssessmentScore::where('user_id', $user->id)
+            ->where('is_released', true)
+            ->whereHas('assessment', fn ($q) => $q->whereIn('course_id', $courseIds))
+            ->with(['assessment.course'])
+            ->get();
+
         // Stats
         $totalAssignments = $assignments->count();
         $gradedCount = $marks->where('is_final', true)->count();
@@ -52,7 +60,8 @@ class StudentMarkController extends Controller
 
         return view('tenant.marks.index', compact(
             'tenant', 'assignments', 'marks', 'submissions',
-            'totalAssignments', 'gradedCount', 'avgPercentage', 'pendingCount'
+            'totalAssignments', 'gradedCount', 'avgPercentage', 'pendingCount',
+            'assessmentScores'
         ));
     }
 

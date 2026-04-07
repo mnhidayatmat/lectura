@@ -195,4 +195,65 @@
             @endforeach
         </div>
     @endif
+
+    {{-- Assessment Marks (released scores) --}}
+    @if(isset($assessmentScores) && $assessmentScores->isNotEmpty())
+        <div class="mt-10">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Assessment Marks</h2>
+            @foreach($assessmentScores->groupBy(fn($s) => $s->assessment->course_id) as $courseId => $courseScores)
+                @php $acourse = $courseScores->first()->assessment->course; @endphp
+                <div class="mb-6">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                            <span class="text-[10px] font-bold text-white">{{ strtoupper(substr($acourse->code, 0, 2)) }}</span>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ $acourse->code }} — {{ $acourse->title }}</h3>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        @foreach($courseScores as $aScore)
+                            @php $asmt = $aScore->assessment; @endphp
+                            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="flex items-start gap-3 min-w-0 flex-1">
+                                        <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h4 class="text-sm font-semibold text-slate-900 dark:text-white">{{ $asmt->title }}</h4>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="text-xs text-slate-400">{{ ucfirst(str_replace('_', ' ', $asmt->type)) }}</span>
+                                                <span class="text-slate-300">&middot;</span>
+                                                <span class="text-xs text-slate-400">{{ $asmt->weightage }}% weight</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-lg font-bold {{ $aScore->percentage >= 70 ? 'text-emerald-600' : ($aScore->percentage >= 40 ? 'text-amber-600' : 'text-red-500') }}">
+                                            {{ number_format($aScore->percentage, 1) }}%
+                                        </p>
+                                        <p class="text-[11px] text-slate-400">{{ $aScore->raw_marks }}/{{ $aScore->max_marks }}</p>
+                                    </div>
+                                </div>
+                                @if($aScore->feedback)
+                                    <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700" x-data="{ show: false }">
+                                        <button @click="show = !show" class="flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                                            View Feedback
+                                            <svg class="w-3 h-3 transition-transform" :class="show && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        </button>
+                                        <div x-show="show" x-cloak x-transition class="mt-3">
+                                            <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">{{ $aScore->feedback }}</p>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
 </x-tenant-layout>
