@@ -263,7 +263,7 @@
                                             </div>
                                         @endforeach
 
-                                        <a href="{{ route('tenant.assessments.create', [$tenant->slug, $course]) }}?parent_id={{ $assessment->id }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition">
+                                        <a href="{{ route('tenant.assessments.child.create', [$tenant->slug, $course, $assessment]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                             Add part
                                         </a>

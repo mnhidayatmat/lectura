@@ -446,7 +446,7 @@ Route::prefix('{tenant:slug}')
         Route::prefix('courses/{course}/assessments')->group(function () {
             Route::get('/', [AssessmentPlanController::class, 'index'])->name('tenant.assessments.index');
             Route::get('/create', [AssessmentPlanController::class, 'create'])->name('tenant.assessments.create');
-            Route::get('/{assessment}/child/create', [AssessmentPlanController::class, 'create'])->name('tenant.assessments.child.create');
+            Route::get('/{parent}/child/create', [AssessmentPlanController::class, 'create'])->name('tenant.assessments.child.create');
             Route::post('/', [AssessmentPlanController::class, 'store'])->name('tenant.assessments.store');
             Route::get('/{assessment}/edit', [AssessmentPlanController::class, 'edit'])->name('tenant.assessments.edit');
             Route::put('/{assessment}', [AssessmentPlanController::class, 'update'])->name('tenant.assessments.update');

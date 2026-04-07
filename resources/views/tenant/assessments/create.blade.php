@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}', requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' } }">
+    <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}', requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' }} }">
         <form method="POST" action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}" class="space-y-6">
             @csrf
             @if($parent)
