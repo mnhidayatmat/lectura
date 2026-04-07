@@ -37,13 +37,24 @@ use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
 use Illuminate\Support\Facades\Route;
 
-// ── MCP OAuth 2.0 endpoints (no CSRF, no auth middleware) ────────────────────
+// ── MCP OAuth 2.0 discovery (RFC 9728 + RFC 8414) ──────────────────────────────
+Route::get('/.well-known/oauth-protected-resource', [McpOAuthController::class, 'protectedResourceMetadata']);
+Route::get('/.well-known/oauth-protected-resource/{path}', [McpOAuthController::class, 'protectedResourceMetadata'])
+    ->where('path', '.*');
 Route::get('/.well-known/oauth-authorization-server', [McpOAuthController::class, 'metadata'])
     ->name('mcp.oauth.metadata');
+
+// ── MCP OAuth 2.0 endpoints (no CSRF, no auth middleware) ────────────────────
+Route::get('/authorize', [McpOAuthController::class, 'authorize'])->name('mcp.oauth.authorize');
+Route::options('/authorize', [McpOAuthController::class, 'preflight']);
 Route::options('/oauth/token', [McpOAuthController::class, 'preflight']);
 Route::post('/oauth/token', [McpOAuthController::class, 'token'])
     ->middleware('throttle:20,1')
     ->name('mcp.oauth.token');
+Route::options('/oauth/register', [McpOAuthController::class, 'preflight']);
+Route::post('/oauth/register', [McpOAuthController::class, 'register'])
+    ->middleware('throttle:10,1')
+    ->name('mcp.oauth.register');
 
 // ── MCP Server (Bearer-token authenticated, no CSRF) ──────────────────────────
 Route::get('/mcp', [McpController::class, 'discover'])->name('mcp.discover');
