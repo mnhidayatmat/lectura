@@ -22,13 +22,15 @@ class PerformanceAggregatorService
     /**
      * Get full course performance data for lecturer dashboard.
      */
-    public function getCoursePerformance(Course $course, ?Section $section = null): array
+    public function getCoursePerformance(Course $course, ?Section $section = null, ?Collection $allowedSections = null): array
     {
-        $course->load(['sections', 'learningOutcomes']);
+        $course->load(['learningOutcomes']);
+
+        $sections = $allowedSections ?? $course->sections()->get();
 
         $sectionIds = $section
             ? collect([$section->id])
-            : $course->sections->pluck('id');
+            : $sections->pluck('id');
 
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
             ->where('is_active', true)
@@ -118,7 +120,7 @@ class PerformanceAggregatorService
             'quiz_stats' => $quizStats,
             'attendance_sessions' => $attendanceSessions,
             'clo_attainment' => $cloAttainment,
-            'sections' => $course->sections,
+            'sections' => $sections,
         ];
     }
 

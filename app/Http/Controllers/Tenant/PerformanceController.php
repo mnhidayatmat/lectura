@@ -30,9 +30,12 @@ class PerformanceController extends Controller
 
     public function lecturerIndex(): View
     {
-        $courses = Course::whereIn('id', $this->accessibleCourseIds())
-            ->with('sections.activeStudents')
-            ->get();
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())->get();
+
+        // Load only accessible sections per course
+        foreach ($courses as $course) {
+            $course->setRelation('sections', $this->lecturerSections($course)->with('activeStudents')->get());
+        }
 
         return view('tenant.performance.lecturer-index', compact('courses'));
     }
@@ -41,10 +44,11 @@ class PerformanceController extends Controller
     {
         $this->authorizeLecturer($course);
 
+        $mySections = $this->lecturerSections($course)->get();
         $sectionId = $request->query('section');
-        $section = $sectionId ? $this->lecturerSections($course)->find($sectionId) : null;
+        $section = $sectionId ? $mySections->firstWhere('id', (int) $sectionId) : null;
 
-        $data = $this->aggregator->getCoursePerformance($course, $section);
+        $data = $this->aggregator->getCoursePerformance($course, $section, $mySections);
 
         $latestSuggestion = PerformanceAiSuggestion::where('course_id', $course->id)
             ->where('suggestion_type', 'course_overview')
