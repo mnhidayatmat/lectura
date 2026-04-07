@@ -127,9 +127,7 @@ class AttendanceController extends Controller
      */
     public function qr(string $tenantSlug, AttendanceSession $session): View
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSession($session);
 
         $session->load(['section.course', 'section.activeStudents', 'records.user']);
 
@@ -144,7 +142,9 @@ class AttendanceController extends Controller
      */
     public function refreshToken(string $tenantSlug, AttendanceSession $session): JsonResponse
     {
-        if (! auth()->user()->is_super_admin && $session->lecturer_id !== auth()->id()) {
+        try {
+            $this->authorizeSession($session);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         if (! $session->isActive()) {
@@ -266,9 +266,7 @@ class AttendanceController extends Controller
      */
     public function end(string $tenantSlug, AttendanceSession $session): RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSession($session);
 
         $session->update([
             'status' => 'ended',
@@ -303,9 +301,7 @@ class AttendanceController extends Controller
      */
     public function reopen(string $tenantSlug, AttendanceSession $session): RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSession($session);
 
         if ($session->status !== 'ended') {
             return back()->with('error', 'Only ended sessions can be reopened.');
@@ -354,9 +350,7 @@ class AttendanceController extends Controller
      */
     public function show(string $tenantSlug, AttendanceSession $session): View
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSession($session);
 
         $session->load(['section.course', 'records.user']);
 
@@ -368,9 +362,7 @@ class AttendanceController extends Controller
      */
     public function destroy(string $tenantSlug, AttendanceSession $session): RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSession($session);
 
         // Don't allow deleting active sessions — end them first
         if ($session->status === 'active') {
@@ -382,5 +374,30 @@ class AttendanceController extends Controller
 
         return redirect()->route('tenant.attendance.index', $tenantSlug)
             ->with('success', 'Attendance session deleted.');
+    }
+
+    /**
+     * Authorize that the current user can access this attendance session.
+     * Allows: session creator, section lecturers, course owner, tenant admins.
+     */
+    protected function authorizeSession(AttendanceSession $session): void
+    {
+        $user = auth()->user();
+
+        if ($session->lecturer_id === $user->id) {
+            return;
+        }
+
+        $session->loadMissing('section.course');
+        $section = $session->section;
+        $course = $section?->course;
+
+        $canAccess = ($section && $section->lecturers->contains('id', $user->id))
+            || ($course && $course->lecturer_id === $user->id)
+            || $user->hasRoleInTenant(app('current_tenant')->id, ['admin']);
+
+        if (! $canAccess) {
+            abort(403);
+        }
     }
 }
