@@ -46,7 +46,7 @@
                  'code' => $section->code,
                  'capacity' => $section->capacity,
                  'academic_term_id' => $section->academic_term_id,
-                 'lecturer_id' => $section->lecturer_id,
+                 'lecturer_ids' => $section->lecturers->pluck('id')->toArray(),
              ]) }})">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -86,14 +86,19 @@
                         </select>
                     </div>
                     <div class="sm:col-span-2 lg:col-span-4">
-                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Assigned Lecturer</label>
-                        <select name="lecturer_id" x-model="lecturer_id"
-                                class="w-full sm:w-64 px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white">
-                            <option value="">No lecturer assigned</option>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Assigned Lecturers</label>
+                        <div class="flex flex-wrap gap-2 border border-slate-300 rounded-xl p-3 bg-white max-h-36 overflow-y-auto">
                             @foreach($lecturers as $lecturer)
-                                <option value="{{ $lecturer->id }}">{{ $lecturer->name }}</option>
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition text-sm"
+                                       :class="lecturer_ids.includes({{ $lecturer->id }}) ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">
+                                    <input type="checkbox" name="lecturer_ids[]" value="{{ $lecturer->id }}"
+                                           x-model.number="lecturer_ids"
+                                           class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
+                                    {{ $lecturer->name }}
+                                </label>
                             @endforeach
-                        </select>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1" x-show="lecturer_ids.length === 0">No lecturers assigned</p>
                     </div>
                 </div>
 
@@ -212,7 +217,7 @@
                     code: initial.code,
                     capacity: initial.capacity,
                     academic_term_id: initial.academic_term_id ?? '',
-                    lecturer_id: initial.lecturer_id ?? '',
+                    lecturer_ids: initial.lecturer_ids ?? [],
                     original: JSON.stringify(initial),
                     dirty: false,
                     checkDirty() {
@@ -221,16 +226,18 @@
                             code: this.code,
                             capacity: this.capacity ? Number(this.capacity) : null,
                             academic_term_id: this.academic_term_id ? Number(this.academic_term_id) : null,
-                            lecturer_id: this.lecturer_id ? Number(this.lecturer_id) : null,
+                            lecturer_ids: [...this.lecturer_ids].sort(),
                         });
-                        this.dirty = current !== this.original;
+                        const orig = JSON.parse(this.original);
+                        orig.lecturer_ids = (orig.lecturer_ids || []).sort();
+                        this.dirty = current !== JSON.stringify(orig);
                     },
                     init() {
                         this.$watch('name', () => this.checkDirty());
                         this.$watch('code', () => this.checkDirty());
                         this.$watch('capacity', () => this.checkDirty());
                         this.$watch('academic_term_id', () => this.checkDirty());
-                        this.$watch('lecturer_id', () => this.checkDirty());
+                        this.$watch('lecturer_ids', () => this.checkDirty());
                     }
                 }
             }

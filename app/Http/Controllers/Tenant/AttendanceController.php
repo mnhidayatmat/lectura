@@ -82,7 +82,7 @@ class AttendanceController extends Controller
         $course = $section->course;
 
         // Verify user owns this section (as section lecturer or course owner or admin)
-        $canAccess = $section->lecturer_id === $user->id
+        $canAccess = $section->lecturers->contains('id', $user->id)
             || $course->lecturer_id === $user->id
             || $user->hasRoleInTenant($tenant->id, ['admin']);
 

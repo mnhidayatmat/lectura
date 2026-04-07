@@ -31,7 +31,7 @@ class CourseController extends Controller
         $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
 
         // Courses where the user is assigned as a section lecturer
-        $sectionCourseIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+        $sectionCourseIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
 
         $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
 
@@ -116,7 +116,7 @@ class CourseController extends Controller
         $course->load([
             'learningOutcomes',
             'topics',
-            'sections' => fn ($q) => $q->with(['activeStudents', 'academicTerm', 'lecturer']),
+            'sections' => fn ($q) => $q->with(['activeStudents', 'academicTerm', 'lecturers']),
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',

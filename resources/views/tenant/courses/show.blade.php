@@ -232,12 +232,16 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <select name="lecturer_id" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
-                                    <option value="">Assign lecturer (optional)</option>
+                                <label class="block text-[10px] font-medium text-slate-500 mb-1">Assign lecturers (optional)</label>
+                                <div class="space-y-1 max-h-32 overflow-y-auto border border-slate-300 rounded-lg p-2 bg-white">
                                     @foreach($lecturers as $lecturer)
-                                        <option value="{{ $lecturer->id }}" {{ $lecturer->id === $course->lecturer_id ? 'selected' : '' }}>{{ $lecturer->name }}</option>
+                                        <label class="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-slate-50 cursor-pointer">
+                                            <input type="checkbox" name="lecturer_ids[]" value="{{ $lecturer->id }}" {{ $lecturer->id === $course->lecturer_id ? 'checked' : '' }}
+                                                   class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
+                                            <span class="text-xs text-slate-700">{{ $lecturer->name }}</span>
+                                        </label>
                                     @endforeach
-                                </select>
+                                </div>
                                 <button type="submit" class="w-full px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg">Create Section</button>
                             </form>
                         </div>
@@ -263,8 +267,10 @@
                                         @if($section->academicTerm)
                                             &middot; <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->academicTerm->name }}</span>
                                         @endif
-                                        @if($section->lecturer)
-                                            &middot; <span class="bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded text-[10px] font-medium">{{ $section->lecturer->name }}</span>
+                                        @if($section->lecturers->isNotEmpty())
+                                            @foreach($section->lecturers as $sectionLecturer)
+                                                &middot; <span class="bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded text-[10px] font-medium">{{ $sectionLecturer->name }}</span>
+                                            @endforeach
                                         @elseif($isOwner)
                                             &middot; <span class="bg-slate-50 text-slate-400 px-1 py-0.5 rounded text-[10px] font-medium italic">Unassigned</span>
                                         @endif

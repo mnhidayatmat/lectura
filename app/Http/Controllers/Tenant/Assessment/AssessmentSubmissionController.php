@@ -192,7 +192,7 @@ class AssessmentSubmissionController extends Controller
 
         // Lecturer can download any file; student can download own files
         $user = auth()->user();
-        $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->where('lecturer_id', $user->id)->exists();
+        $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->exists();
         if (! $isLecturer && $submission->user_id !== $user->id) {
             abort(403);
         }

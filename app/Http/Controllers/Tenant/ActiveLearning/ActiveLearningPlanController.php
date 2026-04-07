@@ -36,7 +36,7 @@ class ActiveLearningPlanController extends Controller
         $user = auth()->user();
 
         $ownedIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sectionIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+        $sectionIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
         $courseIds = $ownedIds->merge($sectionIds)->unique();
 
         $courses = Course::whereIn('id', $courseIds)->latest()->get();

@@ -26,27 +26,31 @@ class SectionController extends Controller
             'code' => ['required', 'string', 'max:20'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
-            'lecturer_id' => ['nullable', 'exists:users,id'],
+            'lecturer_ids' => ['nullable', 'array'],
+            'lecturer_ids.*' => ['exists:users,id'],
         ]);
 
         $tenant = app('current_tenant');
 
-        Section::create([
+        $section = Section::create([
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
             'academic_term_id' => $request->academic_term_id,
-            'lecturer_id' => $request->lecturer_id ?: null,
             'name' => $request->name,
             'code' => $request->code,
             'capacity' => $request->capacity,
         ]);
+
+        if ($request->filled('lecturer_ids')) {
+            $section->lecturers()->sync($request->lecturer_ids);
+        }
 
         return back()->with('success', "Section '{$request->name}' created.");
     }
 
     public function show(string $tenantSlug, Course $course, Section $section): View
     {
-        $section->load(['activeStudents', 'course', 'academicTerm', 'lecturer']);
+        $section->load(['activeStudents', 'course', 'academicTerm', 'lecturers']);
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
         $tenant = app('current_tenant');
@@ -70,10 +74,12 @@ class SectionController extends Controller
             'code' => ['required', 'string', 'max:20'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
-            'lecturer_id' => ['nullable', 'exists:users,id'],
+            'lecturer_ids' => ['nullable', 'array'],
+            'lecturer_ids.*' => ['exists:users,id'],
         ]);
 
-        $section->update($request->only('name', 'code', 'capacity', 'academic_term_id', 'lecturer_id'));
+        $section->update($request->only('name', 'code', 'capacity', 'academic_term_id'));
+        $section->lecturers()->sync($request->input('lecturer_ids', []));
 
         return back()->with('success', 'Section details updated.');
     }

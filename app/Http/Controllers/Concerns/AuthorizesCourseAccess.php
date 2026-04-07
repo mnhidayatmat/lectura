@@ -34,7 +34,7 @@ trait AuthorizesCourseAccess
         }
 
         $hasSections = Section::where('course_id', $course->id)
-            ->where('lecturer_id', $user->id)
+            ->whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))
             ->exists();
 
         if (! $hasSections) {
@@ -63,7 +63,7 @@ trait AuthorizesCourseAccess
      * Get the sections of a course that the current user may access.
      *
      * - Admins see all sections.
-     * - Course owner sees sections assigned to them OR unassigned (lecturer_id IS NULL).
+     * - Course owner sees sections assigned to them OR unassigned (no lecturers).
      * - Section-assigned lecturer sees only sections assigned to them.
      */
     protected function lecturerSections(Course $course): HasMany
@@ -78,12 +78,12 @@ trait AuthorizesCourseAccess
         if ($userId === $course->lecturer_id) {
             // Course owner: own sections + unassigned sections
             $query->where(function ($q) use ($userId) {
-                $q->where('lecturer_id', $userId)
-                  ->orWhereNull('lecturer_id');
+                $q->whereHas('lecturers', fn ($lq) => $lq->where('user_id', $userId))
+                  ->orWhereDoesntHave('lecturers');
             });
         } else {
             // Section-assigned lecturer: only their sections
-            $query->where('lecturer_id', $userId);
+            $query->whereHas('lecturers', fn ($q) => $q->where('user_id', $userId));
         }
 
         return $query;
@@ -108,13 +108,14 @@ trait AuthorizesCourseAccess
             return Section::pluck('id');
         }
 
-        // Sections explicitly assigned to user
-        $assignedSectionIds = Section::where('lecturer_id', $userId)->pluck('id');
+        // Sections explicitly assigned to user via pivot
+        $assignedSectionIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $userId))
+            ->pluck('id');
 
         // Unassigned sections in courses the user owns
         $ownedCourseIds = Course::where('lecturer_id', $userId)->pluck('id');
         $unassignedSectionIds = Section::whereIn('course_id', $ownedCourseIds)
-            ->whereNull('lecturer_id')
+            ->whereDoesntHave('lecturers')
             ->pluck('id');
 
         return $assignedSectionIds->merge($unassignedSectionIds)->unique();
@@ -127,7 +128,8 @@ trait AuthorizesCourseAccess
     {
         $userId = auth()->id();
         $owned = Course::where('lecturer_id', $userId)->pluck('id');
-        $fromSections = Section::where('lecturer_id', $userId)->pluck('course_id');
+        $fromSections = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $userId))
+            ->pluck('course_id');
 
         return $owned->merge($fromSections)->unique();
     }

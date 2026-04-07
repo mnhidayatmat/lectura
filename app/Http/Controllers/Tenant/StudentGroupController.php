@@ -35,7 +35,7 @@ class StudentGroupController extends Controller
 
         if (in_array($role, ['lecturer', 'admin', 'coordinator'])) {
             $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-            $sectionCourseIds = Section::where('lecturer_id', $user->id)->pluck('course_id');
+            $sectionCourseIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
             $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
 
             $courses = Course::whereIn('id', $allCourseIds)

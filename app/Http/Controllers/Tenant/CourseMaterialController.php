@@ -302,7 +302,7 @@ class CourseMaterialController extends Controller
 
     public function download(string $tenantSlug, Course $course, CourseFile $file): mixed
     {
-        $isLecturer = $this->isCourseOwner($course) || \App\Models\Section::where('course_id', $course->id)->where('lecturer_id', auth()->id())->exists();
+        $isLecturer = $this->isCourseOwner($course) || \App\Models\Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', auth()->id()))->exists();
         $isStudent  = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', auth()->id())
             ->where('is_active', true)
