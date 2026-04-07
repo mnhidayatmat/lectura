@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\Course;
 use App\Models\Section;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 trait AuthorizesCourseAccess
@@ -66,7 +66,7 @@ trait AuthorizesCourseAccess
      * - Course owner sees sections assigned to them OR unassigned (lecturer_id IS NULL).
      * - Section-assigned lecturer sees only sections assigned to them.
      */
-    protected function lecturerSections(Course $course): Builder
+    protected function lecturerSections(Course $course): HasMany
     {
         $query = $course->sections();
         $userId = auth()->id();
