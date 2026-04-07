@@ -243,7 +243,6 @@ class AssessmentPlanController extends Controller
 
     public function downloadInstruction(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
     {
-        // Students enrolled in the course can download; lecturers can too.
         if ($assessment->course_id !== $course->id || ! $assessment->instruction_file_path) {
             abort(404);
         }
@@ -256,5 +255,21 @@ class AssessmentPlanController extends Controller
             $assessment->instruction_file_path,
             $assessment->instruction_file_name ?? 'instruction'
         );
+    }
+
+    public function viewInstruction(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        if ($assessment->course_id !== $course->id || ! $assessment->instruction_file_path) {
+            abort(404);
+        }
+
+        $absolutePath = Storage::disk('local')->path($assessment->instruction_file_path);
+
+        if (! file_exists($absolutePath)) {
+            abort(404);
+        }
+
+        // response()->file() sets Content-Disposition: inline so the browser renders it.
+        return response()->file($absolutePath);
     }
 }

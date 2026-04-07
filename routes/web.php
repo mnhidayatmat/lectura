@@ -450,6 +450,7 @@ Route::prefix('{tenant:slug}')
             Route::post('/', [AssessmentPlanController::class, 'store'])->name('tenant.assessments.store');
             Route::get('/{assessment}/edit', [AssessmentPlanController::class, 'edit'])->name('tenant.assessments.edit');
             Route::get('/{assessment}/instruction', [AssessmentPlanController::class, 'downloadInstruction'])->name('tenant.assessments.instruction.download');
+            Route::get('/{assessment}/instruction/view', [AssessmentPlanController::class, 'viewInstruction'])->name('tenant.assessments.instruction.view');
             Route::put('/{assessment}', [AssessmentPlanController::class, 'update'])->name('tenant.assessments.update');
             Route::delete('/{assessment}', [AssessmentPlanController::class, 'destroy'])->name('tenant.assessments.destroy');
 

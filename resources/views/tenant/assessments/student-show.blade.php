@@ -38,35 +38,106 @@
 
         {{-- Instruction File --}}
         @if($assessment->instruction_file_path)
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-indigo-200 dark:border-indigo-700 p-5">
+            @php
+                $ext        = strtolower(pathinfo($assessment->instruction_file_name ?? '', PATHINFO_EXTENSION));
+                $isPdf      = $ext === 'pdf';
+                $isImage    = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                $isViewable = $isPdf || $isImage;
+                $isWord     = in_array($ext, ['doc', 'docx']);
+                $isPpt      = in_array($ext, ['ppt', 'pptx']);
+                $iconBg     = $isPdf   ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                            : ($isWord  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : ($isPpt   ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                            : ($isImage ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                            :             'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400')));
+                $viewUrl     = route('tenant.assessments.instruction.view',     [$tenant->slug, $course, $assessment]);
+                $downloadUrl = route('tenant.assessments.instruction.download', [$tenant->slug, $course, $assessment]);
+            @endphp
+
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-indigo-200 dark:border-indigo-700 p-5"
+                 x-data="{ open: false }">
+
+                {{-- Header --}}
                 <div class="flex items-center gap-2 mb-3">
                     <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">Assignment Instructions</h3>
                 </div>
+
+                {{-- File row --}}
                 <div class="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
-                    @php
-                        $ext = strtolower(pathinfo($assessment->instruction_file_name ?? '', PATHINFO_EXTENSION));
-                        $isPdf = $ext === 'pdf';
-                        $isWord = in_array($ext, ['doc', 'docx']);
-                        $isPpt = in_array($ext, ['ppt', 'pptx']);
-                        $iconColor = $isPdf ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30'
-                                   : ($isWord ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30'
-                                   : ($isPpt ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30'
-                                   : 'text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30'));
-                    @endphp
-                    <div class="w-10 h-10 rounded-xl {{ $iconColor }} flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <div class="w-10 h-10 rounded-xl {{ $iconBg }} flex items-center justify-center flex-shrink-0">
+                        @if($isImage)
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        @else
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        @endif
                     </div>
+
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{{ $assessment->instruction_file_name }}</p>
                         <p class="text-[11px] text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">{{ strtoupper($ext) }} file</p>
                     </div>
-                    <a href="{{ route('tenant.assessments.instruction.download', [$tenant->slug, $course, $assessment]) }}"
-                       class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition flex-shrink-0">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Download
-                    </a>
+
+                    {{-- Action buttons --}}
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        @if($isViewable)
+                            <button type="button" @click="open = true"
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-700 border border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-xs font-medium rounded-lg transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                View
+                            </button>
+                        @endif
+                        <a href="{{ $downloadUrl }}"
+                           class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Download
+                        </a>
+                    </div>
                 </div>
+
+                {{-- Viewer Modal (PDF & images) --}}
+                @if($isViewable)
+                    <div x-show="open" x-transition
+                         class="fixed inset-0 z-50 flex flex-col bg-black/80"
+                         @keydown.escape.window="open = false">
+
+                        {{-- Modal toolbar --}}
+                        <div class="flex items-center justify-between px-4 py-3 bg-slate-900/90 border-b border-slate-700 flex-shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="w-7 h-7 rounded-lg {{ $iconBg }} flex items-center justify-center">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                </div>
+                                <span class="text-sm font-medium text-white truncate max-w-xs">{{ $assessment->instruction_file_name }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="{{ $viewUrl }}" target="_blank"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    Open in tab
+                                </a>
+                                <a href="{{ $downloadUrl }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Download
+                                </a>
+                                <button type="button" @click="open = false"
+                                        class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Modal body --}}
+                        <div class="flex-1 overflow-auto p-4 flex items-center justify-center">
+                            @if($isPdf)
+                                <iframe src="{{ $viewUrl }}" class="w-full h-full rounded-lg border border-slate-700" style="min-height: 75vh;"></iframe>
+                            @elseif($isImage)
+                                <img src="{{ $viewUrl }}" alt="{{ $assessment->instruction_file_name }}"
+                                     class="max-w-full max-h-full rounded-lg shadow-2xl object-contain">
+                            @endif
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
