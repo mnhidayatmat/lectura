@@ -235,7 +235,7 @@ class PerformanceAggregatorService
         }
 
         // Build attendance timeline
-        $attendanceTimeline = $attendanceSessions->map(fn ($s) => [
+        $attendanceTimeline = $attendanceSessions->map(fn ($s) => (object) [
             'week' => $s->week_number,
             'date' => $s->started_at,
             'status' => $attendanceRecords[$s->id]->status ?? 'absent',

@@ -675,6 +675,8 @@ Route::prefix('{tenant:slug}')
         Route::get('/my-assessments', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentIndex'])->name('tenant.my-assessments');
         Route::get('/courses/{course}/assessments/{assessment}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentShow'])->name('tenant.my-assessments.show');
         Route::post('/courses/{course}/assessments/{assessment}/submit', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentSubmit'])->name('tenant.my-assessments.submit');
+        Route::delete('/courses/{course}/assessments/{assessment}/submission', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentDeleteSubmission'])->name('tenant.my-assessments.delete');
+        Route::post('/courses/{course}/assessments/{assessment}/resubmit', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentResubmit'])->name('tenant.my-assessments.resubmit');
 
         // Academic Terms (Semesters)
         Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');

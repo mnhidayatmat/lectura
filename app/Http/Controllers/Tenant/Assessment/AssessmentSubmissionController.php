@@ -288,6 +288,7 @@ class AssessmentSubmissionController extends Controller
             'is_late' => $isLate,
             'submitted_at' => now(),
             'status' => 'submitted',
+            'drive_folder_id' => null, // Will be set after folder creation
         ]);
 
         // File upload with optional Google Drive sync
@@ -321,6 +322,9 @@ class AssessmentSubmissionController extends Controller
                 $driveFolderId = $driveService->findOrCreateFolder(
                     $lecturer, $user->name, $assessmentFolderId
                 );
+
+                // Store folder ID on submission for later deletion
+                $submission->update(['drive_folder_id' => $driveFolderId]);
             } catch (\Throwable) {
                 $driveFolderId = null;
             }
@@ -366,5 +370,190 @@ class AssessmentSubmissionController extends Controller
         }
 
         return back()->with('success', 'Submission uploaded successfully.' . ($isLate ? ' (Late submission)' : ''));
+    }
+
+    public function studentDeleteSubmission(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
+    {
+        $user = auth()->user();
+
+        // Verify enrollment
+        $sectionIds = $course->sections()->pluck('id');
+        $isEnrolled = SectionStudent::where('user_id', $user->id)
+            ->whereIn('section_id', $sectionIds)
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$isEnrolled || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
+            ->where('user_id', $user->id)
+            ->with(['files', 'score'])
+            ->firstOrFail();
+
+        // Prevent deletion of graded submissions
+        if ($submission->status === 'graded') {
+            return back()->withErrors(['submission' => 'Cannot delete a graded submission.']);
+        }
+
+        $assessment->load('course');
+        $lecturer = $assessment->course->lecturer;
+
+        // Delete local files
+        foreach ($submission->files as $file) {
+            if (Storage::disk('local')->exists($file->storage_path)) {
+                Storage::disk('local')->delete($file->storage_path);
+            }
+            $file->delete();
+        }
+
+        // Delete entire Drive folder
+        if ($submission->drive_folder_id && $lecturer) {
+            try {
+                app(GoogleDriveService::class)->deleteFile($lecturer, $submission->drive_folder_id);
+            } catch (\Throwable) {
+                // Drive deletion failed — submission still locally deleted
+            }
+        }
+
+        // Force delete submission to clear unique constraint
+        $submission->forceDelete();
+
+        return redirect()->route('tenant.my-assessments.show', [$tenantSlug, $course, $assessment])
+            ->with('success', 'Submission deleted. You may resubmit if needed.');
+    }
+
+    public function studentResubmit(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
+    {
+        $user = auth()->user();
+
+        // Verify enrollment
+        $sectionIds = $course->sections()->pluck('id');
+        $isEnrolled = SectionStudent::where('user_id', $user->id)
+            ->whereIn('section_id', $sectionIds)
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$isEnrolled || $assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
+            ->where('user_id', $user->id)
+            ->with('files')
+            ->firstOrFail();
+
+        // Prevent resubmission of graded submissions
+        if ($submission->status === 'graded') {
+            return back()->withErrors(['files' => 'Cannot modify a graded submission.']);
+        }
+
+        $request->validate([
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $assessment->load('course');
+        $lecturer = $assessment->course->lecturer;
+
+        // Delete old local files
+        foreach ($submission->files as $file) {
+            if (Storage::disk('local')->exists($file->storage_path)) {
+                Storage::disk('local')->delete($file->storage_path);
+            }
+            $file->delete();
+        }
+
+        // Delete old Drive folder
+        if ($submission->drive_folder_id && $lecturer) {
+            try {
+                app(GoogleDriveService::class)->deleteFile($lecturer, $submission->drive_folder_id);
+            } catch (\Throwable) {
+                // Drive deletion failed — continue with local update
+            }
+        }
+
+        // Build new Drive folder structure
+        $driveFolderId = null;
+        if ($lecturer && $lecturer->isDriveConnected()) {
+            try {
+                $driveService = app(GoogleDriveService::class);
+
+                // Level 1: Course folder
+                $courseFolderId = $driveService->findOrCreateFolder(
+                    $lecturer,
+                    "{$assessment->course->code} — {$assessment->course->title}"
+                );
+
+                // Level 2: Submissions folder
+                $submissionsFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, 'Submissions', $courseFolderId
+                );
+
+                // Level 3: Per-assessment folder with type label
+                $typeLabel = ucfirst($assessment->type ?? 'Assessment');
+                $assessmentFolderName = "[{$typeLabel}] {$assessment->title}";
+                $assessmentFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, $assessmentFolderName, $submissionsFolderId
+                );
+
+                // Level 4: Per-student folder
+                $driveFolderId = $driveService->findOrCreateFolder(
+                    $lecturer, $user->name, $assessmentFolderId
+                );
+            } catch (\Throwable) {
+                $driveFolderId = null;
+            }
+        }
+
+        // Upload new files
+        $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
+
+        foreach ($request->file('files') as $file) {
+            $path = $file->store('assessment_submissions/' . $assessment->id, 'local');
+            $driveFileId = null;
+
+            if ($driveFolderId && $lecturer) {
+                try {
+                    // Sanitize filename and add date prefix
+                    $datePrefix = now()->format('Y-m-d');
+                    $safeName   = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                    $driveName  = "[{$datePrefix}] {$safeName}";
+
+                    $result = app(GoogleDriveService::class)->uploadFile(
+                        $lecturer,
+                        $file->getRealPath(),
+                        $driveName,
+                        $file->getClientMimeType(),
+                        $driveFolderId
+                    );
+                    $driveFileId = $result['id'];
+                } catch (\Throwable) {
+                    // Drive upload failed — keep local copy
+                }
+            }
+
+            AssessmentSubmissionFile::create([
+                'assessment_submission_id' => $submission->id,
+                'file_name' => $file->getClientOriginalName(),
+                'file_type' => $file->getClientMimeType(),
+                'file_size_bytes' => $file->getSize(),
+                'storage_path' => $path,
+                'drive_file_id' => $driveFileId,
+            ]);
+        }
+
+        // Update submission
+        $submission->update([
+            'notes' => $request->notes,
+            'is_late' => $isLate,
+            'submitted_at' => now(),
+            'status' => 'submitted',
+            'drive_folder_id' => $driveFolderId,
+        ]);
+
+        return back()->with('success', 'Submission updated successfully.' . ($isLate ? ' (Late submission)' : ''));
     }
 }

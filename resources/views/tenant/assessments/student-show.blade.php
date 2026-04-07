@@ -63,7 +63,7 @@
 
         {{-- Submission Status / Form --}}
         @if($submission)
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ showReupload: false, showDeleteConfirm: false }">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">Your Submission</h3>
                     @php $badge = $submission->status_badge; @endphp
@@ -103,6 +103,95 @@
                         <p class="text-xs text-slate-400 text-center">Your submission is being reviewed. Marks will appear here once released.</p>
                     </div>
                 @endif
+
+                {{-- Action Buttons (only if not graded) --}}
+                @if($submission->status !== 'graded')
+                    <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                        <button @click="showReupload = !showReupload" class="flex-1 px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-medium transition">
+                            Replace Files
+                        </button>
+                        <button @click="showDeleteConfirm = true" class="flex-1 px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium transition">
+                            Delete Submission
+                        </button>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Re-upload Form Panel --}}
+            @if($submission->status !== 'graded')
+                <div x-show="showReupload" x-transition class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Replace Files</h3>
+
+                    <form method="POST" action="{{ route('tenant.my-assessments.resubmit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4" x-data="{ files: [], uploading: false }" @submit="uploading = true">
+                        @csrf
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Upload Files *</label>
+                            <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer" @click="$refs.fileInput.click()">
+                                <svg class="w-8 h-8 mx-auto text-slate-400 dark:text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                <p class="text-sm text-slate-600 dark:text-slate-400">Click to upload or drag files here</p>
+                                <p class="text-xs text-slate-400 mt-1">PDF, Images, Word — max 25MB each</p>
+                            </div>
+                            <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" x-ref="fileInput" class="hidden" @change="files = Array.from($event.target.files)">
+
+                            {{-- File names --}}
+                            <template x-if="files.length > 0">
+                                <div class="mt-3 space-y-1">
+                                    <template x-for="(file, i) in files" :key="i">
+                                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                            <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+                                            <span x-text="file.name"></span>
+                                            <span class="text-xs text-slate-400" x-text="'(' + Math.round(file.size / 1024) + ' KB)'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            @error('files') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('files.*') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes <span class="text-slate-400">(optional)</span></label>
+                            <textarea name="notes" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition" placeholder="Any additional notes...">{{ old('notes') }}</textarea>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button type="submit" :disabled="uploading" class="flex-1 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-sm transition">
+                                <span x-show="!uploading">Replace & Resubmit</span>
+                                <span x-show="uploading" class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Uploading…
+                                </span>
+                            </button>
+                            <button type="button" @click="showReupload = false" class="px-4 py-2.5 text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            @endif
+
+            {{-- Delete Confirmation Modal --}}
+            <div x-show="showDeleteConfirm" x-transition class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center" @click.outside="showDeleteConfirm = false">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm mx-4 shadow-xl">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Submission?</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-300 mb-6">Are you sure you want to delete your submission? This action cannot be undone. You may resubmit afterward.</p>
+                    <div class="flex gap-2">
+                        <form method="POST" action="{{ route('tenant.my-assessments.delete', [$tenant->slug, $course, $assessment]) }}" class="flex-1">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition">
+                                Yes, Delete
+                            </button>
+                        </form>
+                        <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2.5 text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         @elseif($assessment->requires_submission && $assessment->status === 'active')
             {{-- Submission form --}}

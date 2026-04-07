@@ -17,7 +17,7 @@ class AssessmentSubmission extends Model
 
     protected $fillable = [
         'tenant_id', 'assessment_id', 'user_id',
-        'notes', 'is_late', 'submitted_at', 'status',
+        'notes', 'is_late', 'submitted_at', 'status', 'drive_folder_id',
     ];
 
     protected function casts(): array
