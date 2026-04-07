@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\Mcp\McpServer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +17,7 @@ class McpController extends Controller
      * GET /mcp — discovery endpoint.
      * Claude Code probes this before POSTing; also shows server info.
      */
-    public function discover(): \Illuminate\Http\JsonResponse
+    public function discover(): JsonResponse
     {
         $base = rtrim(config('app.url'), '/');
 
@@ -33,7 +34,7 @@ class McpController extends Controller
         ]);
     }
 
-    public function handle(Request $request, McpServer $server): Response|StreamedResponse
+    public function handle(Request $request, McpServer $server): JsonResponse|Response|StreamedResponse
     {
         // ── Auth — accepts static secret OR an OAuth access token ────────────
         if (!$this->authenticate($request)) {
