@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\TeachingPlan;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class TeachingPlanController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected TeachingPlannerService $planner,
     ) {}
@@ -24,9 +27,7 @@ class TeachingPlanController extends Controller
      */
     public function show(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $currentPlan = TeachingPlan::where('course_id', $course->id)
             ->where('status', '!=', 'archived')
@@ -49,9 +50,7 @@ class TeachingPlanController extends Controller
      */
     public function generate(string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
 
@@ -105,9 +104,7 @@ class TeachingPlanController extends Controller
      */
     public function publish(string $tenantSlug, Course $course, TeachingPlan $plan): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $plan->update(['status' => 'published']);
 
@@ -119,9 +116,7 @@ class TeachingPlanController extends Controller
      */
     public function version(string $tenantSlug, Course $course, TeachingPlan $plan): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $plan->load('weeks');
         $course->load(['topics', 'learningOutcomes']);

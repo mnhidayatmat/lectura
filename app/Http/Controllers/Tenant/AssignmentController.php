@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\Course;
@@ -26,6 +27,7 @@ use Illuminate\View\View;
 
 class AssignmentController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function index(): View
     {
         $user = auth()->user();
@@ -53,7 +55,7 @@ class AssignmentController extends Controller
         }
 
         // Lecturer
-        $courses = Course::where('lecturer_id', $user->id)->get();
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())->get();
         $assignments = Assignment::whereIn('course_id', $courses->pluck('id'))
             ->withCount('submissions')
             ->with('course')
@@ -65,7 +67,7 @@ class AssignmentController extends Controller
 
     public function create(): View
     {
-        $courses = Course::where('lecturer_id', auth()->id())->with('sections', 'learningOutcomes')->get();
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())->with('sections', 'learningOutcomes')->get();
         return view('tenant.assignments.create', compact('courses'));
     }
 

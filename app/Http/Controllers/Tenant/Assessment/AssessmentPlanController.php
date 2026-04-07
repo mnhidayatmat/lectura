@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\Course;
@@ -13,12 +14,13 @@ use Illuminate\View\View;
 
 class AssessmentPlanController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function overview(): View
     {
         $user = auth()->user();
         $tenant = app('current_tenant');
 
-        $courses = Course::where('lecturer_id', $user->id)
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->with(['assessments', 'learningOutcomes'])
             ->withCount('assessments')
             ->get()
@@ -37,9 +39,7 @@ class AssessmentPlanController extends Controller
 
     public function index(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $course->load(['learningOutcomes', 'assessments.clos', 'assessments.items.assessable']);
@@ -52,9 +52,7 @@ class AssessmentPlanController extends Controller
 
     public function create(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $course->load('learningOutcomes');
@@ -64,9 +62,7 @@ class AssessmentPlanController extends Controller
 
     public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -110,7 +106,8 @@ class AssessmentPlanController extends Controller
 
     public function edit(string $tenantSlug, Course $course, Assessment $assessment): View
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -120,7 +117,7 @@ class AssessmentPlanController extends Controller
 
         $assignments = $course->hasMany(\App\Models\Assignment::class)->get(['id', 'title']);
         $quizzes = \App\Models\QuizSession::where('lecturer_id', auth()->id())
-            ->whereIn('section_id', $course->sections()->pluck('id'))
+            ->whereIn('section_id', $this->lecturerSectionIds($course))
             ->get(['id', 'title']);
 
         return view('tenant.assessments.edit', compact('tenant', 'course', 'assessment', 'assignments', 'quizzes'));
@@ -128,7 +125,8 @@ class AssessmentPlanController extends Controller
 
     public function update(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -163,7 +161,8 @@ class AssessmentPlanController extends Controller
 
     public function destroy(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 

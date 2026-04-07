@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentItem;
@@ -15,9 +16,11 @@ use Illuminate\Http\Request;
 
 class AssessmentItemController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function store(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -49,7 +52,8 @@ class AssessmentItemController extends Controller
 
     public function destroy(string $tenantSlug, Course $course, Assessment $assessment, AssessmentItem $item): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id || $item->assessment_id !== $assessment->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id || $item->assessment_id !== $assessment->id) {
             abort(403);
         }
 

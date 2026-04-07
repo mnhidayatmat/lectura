@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
@@ -17,13 +18,15 @@ use Illuminate\View\View;
 
 class AssessmentScoreController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function __construct(
         protected AssessmentScoreService $scoreService,
     ) {}
 
     public function index(string $tenantSlug, Course $course, Assessment $assessment): View
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -35,7 +38,8 @@ class AssessmentScoreController extends Controller
 
     public function compute(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -46,14 +50,15 @@ class AssessmentScoreController extends Controller
 
     public function manualEntry(string $tenantSlug, Course $course, Assessment $assessment): View
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
         $tenant = app('current_tenant');
 
         // Get all enrolled students
-        $studentIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+        $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
             ->where('is_active', true)
             ->distinct()
             ->pluck('user_id');
@@ -67,7 +72,8 @@ class AssessmentScoreController extends Controller
 
     public function storeManual(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 

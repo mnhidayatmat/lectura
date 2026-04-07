@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseFile;
@@ -16,6 +17,8 @@ use Illuminate\View\View;
 
 class CourseFileController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected FolderService $folderService,
     ) {}
@@ -25,7 +28,7 @@ class CourseFileController extends Controller
      */
     public function index(): View
     {
-        $courses = Course::where('lecturer_id', auth()->id())
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->withCount('sections')
             ->get();
 
@@ -37,9 +40,7 @@ class CourseFileController extends Controller
      */
     public function manage(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         // Auto-create default folders if none exist
         if ($course->folders()->count() === 0) {

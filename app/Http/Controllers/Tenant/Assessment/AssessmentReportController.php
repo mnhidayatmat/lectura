@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use Illuminate\View\View;
 
 class AssessmentReportController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function courseReport(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $course->load([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Jobs\GeneratePerformanceSuggestions;
 use App\Models\Course;
@@ -19,6 +20,8 @@ use Illuminate\View\View;
 
 class PerformanceController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     public function __construct(
         protected PerformanceAggregatorService $aggregator,
     ) {}
@@ -27,7 +30,7 @@ class PerformanceController extends Controller
 
     public function lecturerIndex(): View
     {
-        $courses = Course::where('lecturer_id', auth()->id())
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->with('sections.activeStudents')
             ->get();
 
@@ -39,7 +42,7 @@ class PerformanceController extends Controller
         $this->authorizeLecturer($course);
 
         $sectionId = $request->query('section');
-        $section = $sectionId ? $course->sections()->find($sectionId) : null;
+        $section = $sectionId ? $this->lecturerSections($course)->find($sectionId) : null;
 
         $data = $this->aggregator->getCoursePerformance($course, $section);
 
@@ -147,9 +150,7 @@ class PerformanceController extends Controller
 
     protected function authorizeLecturer(Course $course): void
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
     }
 
     protected function authorizeStudent(Course $course): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use Illuminate\Http\RedirectResponse;
@@ -12,11 +13,10 @@ use Illuminate\View\View;
 
 class CloPlOMapController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function edit(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $course->load(['learningOutcomes.programmeLearningOutcomes', 'programme.learningOutcomes']);
@@ -37,9 +37,7 @@ class CloPlOMapController extends Controller
 
     public function update(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'mappings' => ['nullable', 'array'],

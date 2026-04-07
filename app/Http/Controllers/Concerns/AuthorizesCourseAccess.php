@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\Course;
 use App\Models\Section;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 trait AuthorizesCourseAccess
 {
@@ -47,5 +49,40 @@ trait AuthorizesCourseAccess
 
         return $user->id === $course->lecturer_id
             || $user->hasRoleInTenant($tenant->id, ['admin']);
+    }
+
+    /**
+     * Get the sections of a course that the current user may access.
+     * Course owners / admins see all sections; section-assigned lecturers see only theirs.
+     */
+    protected function lecturerSections(Course $course): Builder
+    {
+        $query = $course->sections();
+
+        if (! $this->isCourseOwner($course)) {
+            $query->where('lecturer_id', auth()->id());
+        }
+
+        return $query;
+    }
+
+    /**
+     * Get section IDs the current user may access for a given course.
+     */
+    protected function lecturerSectionIds(Course $course): Collection
+    {
+        return $this->lecturerSections($course)->pluck('id');
+    }
+
+    /**
+     * Get all course IDs the current user can access (owned + section-assigned).
+     */
+    protected function accessibleCourseIds(): Collection
+    {
+        $userId = auth()->id();
+        $owned = Course::where('lecturer_id', $userId)->pluck('id');
+        $fromSections = Section::where('lecturer_id', $userId)->pluck('course_id');
+
+        return $owned->merge($fromSections)->unique();
     }
 }

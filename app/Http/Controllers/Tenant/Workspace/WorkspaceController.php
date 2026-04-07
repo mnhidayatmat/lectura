@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Workspace;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\GroupSwapRequest;
 use App\Models\StudentGroup;
@@ -14,6 +15,7 @@ use Illuminate\View\View;
 
 class WorkspaceController extends Controller
 {
+    use AuthorizesCourseAccess;
     /**
      * Workspace landing: list all groups the student belongs to.
      */
@@ -107,9 +109,7 @@ class WorkspaceController extends Controller
     public function updateScore(Request $request, string $tenantSlug, StudentGroup $group): RedirectResponse
     {
         $course = $group->groupSet->course;
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'score' => ['required', 'numeric', 'min:0'],

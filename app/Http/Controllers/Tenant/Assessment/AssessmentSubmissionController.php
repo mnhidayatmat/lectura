@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Assessment;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AssessmentSubmission;
 use App\Models\AssessmentSubmissionFile;
 use App\Models\Course;
+use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Notifications\AssessmentMarksReleased;
 use App\Notifications\AssessmentSubmissionReceived;
@@ -22,18 +24,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentSubmissionController extends Controller
 {
+    use AuthorizesCourseAccess;
     // ─── Lecturer Methods ───────────────────────────────────────
 
     public function index(string $tenantSlug, Course $course, Assessment $assessment): View
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
         $tenant = app('current_tenant');
 
         // Get enrolled students
-        $sectionIds = $course->sections()->pluck('id');
+        $sectionIds = $this->lecturerSectionIds($course);
         $enrolledStudents = \App\Models\User::whereIn('id', function ($q) use ($sectionIds) {
             $q->select('user_id')
                 ->from('section_students')
@@ -58,7 +62,8 @@ class AssessmentSubmissionController extends Controller
 
     public function show(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmission $submission): View
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -72,7 +77,8 @@ class AssessmentSubmissionController extends Controller
 
     public function storeMark(Request $request, string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmission $submission): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -113,7 +119,8 @@ class AssessmentSubmissionController extends Controller
 
     public function release(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -142,7 +149,8 @@ class AssessmentSubmissionController extends Controller
 
     public function unrelease(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $assessment->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -160,7 +168,8 @@ class AssessmentSubmissionController extends Controller
 
         // Lecturer can download any file; student can download own files
         $user = auth()->user();
-        if ($course->lecturer_id !== $user->id && $submission->user_id !== $user->id) {
+        $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->where('lecturer_id', $user->id)->exists();
+        if (! $isLecturer && $submission->user_id !== $user->id) {
             abort(403);
         }
 

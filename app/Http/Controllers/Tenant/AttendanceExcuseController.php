@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceExcuse;
 use App\Models\Course;
@@ -15,6 +16,7 @@ use Illuminate\View\View;
 
 class AttendanceExcuseController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function __construct(
         protected AttendanceExcuseService $excuseService,
         protected AttendanceWarningService $warningService,
@@ -28,7 +30,7 @@ class AttendanceExcuseController extends Controller
         $user = auth()->user();
         $tenant = app('current_tenant');
 
-        $courseIds = Course::where('lecturer_id', $user->id)->pluck('id');
+        $courseIds = $this->accessibleCourseIds();
 
         $status = $request->query('status', 'pending');
 

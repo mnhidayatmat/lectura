@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant\Workspace;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\GroupSwapRequest;
 use App\Models\StudentGroup;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 
 class WorkspaceSwapController extends Controller
 {
+    use AuthorizesCourseAccess;
     /**
      * Member A initiates a swap request with Member B in another group.
      */
@@ -99,9 +101,7 @@ class WorkspaceSwapController extends Controller
     public function lecturerDecide(Request $request, string $tenantSlug, GroupSwapRequest $swap): RedirectResponse
     {
         $course = $swap->fromGroup->groupSet->course;
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         if ($swap->status !== GroupSwapRequest::STATUS_PENDING_LECTURER) {
             return back()->with('error', 'This swap is not awaiting your decision.')->with('_tab', 'members');

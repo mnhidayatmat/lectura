@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -15,23 +16,22 @@ use Illuminate\View\View;
 
 class AnalyticsController extends Controller
 {
+    use AuthorizesCourseAccess;
     public function index(): View
     {
         $user = auth()->user();
-        $courses = Course::where('lecturer_id', $user->id)->with('sections')->get();
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())->with('sections')->get();
 
         return view('tenant.analytics.index', compact('courses'));
     }
 
     public function course(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
-        $course->load(['sections.activeStudents', 'learningOutcomes']);
+        $course->load(['learningOutcomes']);
 
-        $sectionIds = $course->sections->pluck('id');
+        $sectionIds = $this->lecturerSectionIds($course);
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
             ->where('is_active', true)->pluck('user_id')->unique();
 

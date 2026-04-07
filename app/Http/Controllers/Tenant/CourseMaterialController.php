@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseFile;
@@ -20,12 +21,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CourseMaterialController extends Controller
 {
+    use AuthorizesCourseAccess;
+
     // ── Lecturer ──
 
     public function index(): View
     {
         $tenant = app('current_tenant');
-        $courses = Course::where('lecturer_id', auth()->id())
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->withCount('files')
             ->with('sections')
             ->get();
@@ -35,9 +38,7 @@ class CourseMaterialController extends Controller
 
     public function manage(string $tenantSlug, Course $course): View
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
 
@@ -50,9 +51,7 @@ class CourseMaterialController extends Controller
 
     public function storeSection(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -72,7 +71,8 @@ class CourseMaterialController extends Controller
 
     public function updateSection(Request $request, string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($section->course_id !== $course->id) {
             abort(403);
         }
 
@@ -87,7 +87,8 @@ class CourseMaterialController extends Controller
 
     public function destroySection(string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($section->course_id !== $course->id) {
             abort(403);
         }
 
@@ -103,7 +104,8 @@ class CourseMaterialController extends Controller
 
     public function moveSection(Request $request, string $tenantSlug, Course $course, CourseMaterialSection $section): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id() || $section->course_id !== $course->id) {
+        $this->authorizeCourseAccess($course);
+        if ($section->course_id !== $course->id) {
             abort(403);
         }
 
@@ -128,9 +130,7 @@ class CourseMaterialController extends Controller
 
     public function upload(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
@@ -234,9 +234,7 @@ class CourseMaterialController extends Controller
 
     public function storeLink(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $request->validate([
             'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
@@ -263,9 +261,7 @@ class CourseMaterialController extends Controller
 
     public function updateMaterial(Request $request, string $tenantSlug, Course $course, CourseFile $file): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         if ($file->isLink()) {
             $request->validate([
@@ -296,9 +292,7 @@ class CourseMaterialController extends Controller
 
     public function destroy(string $tenantSlug, Course $course, CourseFile $file): RedirectResponse
     {
-        if ($course->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeCourseAccess($course);
 
         $this->deleteFileStorage($file);
         $file->delete();
@@ -308,7 +302,7 @@ class CourseMaterialController extends Controller
 
     public function download(string $tenantSlug, Course $course, CourseFile $file): mixed
     {
-        $isLecturer = $course->lecturer_id === auth()->id();
+        $isLecturer = $this->isCourseOwner($course) || \App\Models\Section::where('course_id', $course->id)->where('lecturer_id', auth()->id())->exists();
         $isStudent  = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', auth()->id())
             ->where('is_active', true)
