@@ -112,14 +112,11 @@ class CourseController extends Controller
 
         $tenant = app('current_tenant');
         $isOwner = $this->isCourseOwner($course);
-        $userId = auth()->id();
 
         $course->load([
             'learningOutcomes',
             'topics',
-            'sections.activeStudents',
-            'sections.academicTerm',
-            'sections.lecturer',
+            'sections' => fn ($q) => $q->with(['activeStudents', 'academicTerm', 'lecturer']),
             'activeLearningPlans',
             'studentGroupSets',
             'faculty',
@@ -129,16 +126,18 @@ class CourseController extends Controller
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        // Lecturers in this tenant for the section assignment dropdown
-        $lecturers = TenantUser::where('tenant_id', $tenant->id)
-            ->whereIn('role', ['lecturer', 'admin', 'coordinator'])
-            ->where('is_active', true)
-            ->with('user:id,name,email')
-            ->get()
-            ->map(fn ($tu) => $tu->user)
-            ->filter()
-            ->sortBy('name')
-            ->values();
+        $lecturers = collect();
+        if ($isOwner) {
+            $lecturers = TenantUser::where('tenant_id', $tenant->id)
+                ->whereIn('role', ['lecturer', 'admin', 'coordinator'])
+                ->where('is_active', true)
+                ->with('user:id,name,email')
+                ->get()
+                ->map(fn ($tu) => $tu->user)
+                ->filter()
+                ->sortBy('name')
+                ->values();
+        }
 
         return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner'));
     }
