@@ -42,22 +42,33 @@ class AssessmentPlanController extends Controller
         $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
-        $course->load(['learningOutcomes', 'assessments.clos', 'assessments.items.assessable']);
+        $course->load(['learningOutcomes']);
 
-        $totalWeightage = $course->assessments->sum('weightage');
-        $coveredCloIds = $course->assessments->flatMap(fn ($a) => $a->clos->pluck('id'))->unique();
+        // Load only top-level assessments with their children
+        $assessments = $course->assessments()->topLevel()
+            ->with(['children', 'clos', 'items.assessable'])
+            ->get();
+
+        $totalWeightage = $assessments->sum(function ($a) {
+            return $a->weightage + $a->children->sum('weightage');
+        });
+        $coveredCloIds = $assessments->flatMap(fn ($a) => $a->clos->pluck('id'))
+            ->merge($assessments->flatMap(fn ($a) => $a->children->flatMap(fn ($c) => $c->clos->pluck('id'))))
+            ->unique();
+
+        $course->setRelation('assessments', $assessments);
 
         return view('tenant.assessments.index', compact('tenant', 'course', 'totalWeightage', 'coveredCloIds'));
     }
 
-    public function create(string $tenantSlug, Course $course): View
+    public function create(string $tenantSlug, Course $course, Assessment $parent = null): View
     {
         $this->authorizeCourseAccess($course);
 
         $tenant = app('current_tenant');
         $course->load('learningOutcomes');
 
-        return view('tenant.assessments.create', compact('tenant', 'course'));
+        return view('tenant.assessments.create', compact('tenant', 'course', 'parent'));
     }
 
     public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
@@ -65,6 +76,7 @@ class AssessmentPlanController extends Controller
         $this->authorizeCourseAccess($course);
 
         $request->validate([
+            'parent_id' => ['nullable', 'exists:assessments,id'],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:' . implode(',', Assessment::TYPES)],
             'method' => ['nullable', 'string', 'in:' . implode(',', Assessment::METHODS)],
@@ -80,9 +92,18 @@ class AssessmentPlanController extends Controller
 
         $tenant = app('current_tenant');
 
+        // Validate parent if provided
+        if ($request->filled('parent_id')) {
+            $parent = Assessment::find($request->parent_id);
+            if (!$parent || $parent->course_id !== $course->id) {
+                return back()->withErrors(['parent_id' => 'Invalid parent assessment.'])->withInput();
+            }
+        }
+
         $assessment = Assessment::create([
             'tenant_id' => $tenant->id,
             'course_id' => $course->id,
+            'parent_id' => $request->parent_id,
             'title' => $request->title,
             'type' => $request->type,
             'method' => $request->method,
@@ -113,7 +134,7 @@ class AssessmentPlanController extends Controller
 
         $tenant = app('current_tenant');
         $course->load('learningOutcomes');
-        $assessment->load('clos');
+        $assessment->load(['clos', 'children', 'parent']);
 
         $assignments = $course->hasMany(\App\Models\Assignment::class)->get(['id', 'title']);
         $quizzes = \App\Models\QuizSession::where('lecturer_id', auth()->id())
@@ -164,6 +185,13 @@ class AssessmentPlanController extends Controller
         $this->authorizeCourseAccess($course);
         if ($assessment->course_id !== $course->id) {
             abort(403);
+        }
+
+        // If this is a parent assessment, cascade delete children
+        if ($assessment->isParent()) {
+            foreach ($assessment->children as $child) {
+                $child->delete();
+            }
         }
 
         $assessment->delete();

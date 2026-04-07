@@ -131,8 +131,41 @@
             </form>
         </div>
 
-        {{-- Right: Linked items --}}
+        {{-- Right: Linked items & Child Assessments --}}
         <div class="space-y-4">
+            {{-- Child Assessments Section --}}
+            @if(!$assessment->parent_id)
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Child Assessments</h3>
+                    <a href="{{ route('tenant.assessments.child.create', [$tenant->slug, $course, $assessment]) }}" class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Child
+                    </a>
+                </div>
+
+                @forelse($assessment->children as $child)
+                    <div class="flex items-center justify-between py-2 {{ !$loop->last ? 'border-b border-slate-100 dark:border-slate-700' : '' }}">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <div>
+                                <p class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ $child->title }}</p>
+                                <p class="text-[10px] text-slate-400">{{ $child->weightage }}% &middot; {{ $child->total_marks }} marks</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $child]) }}" class="text-slate-400 hover:text-indigo-500">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-xs text-slate-400 text-center py-3">No child assessments yet.</p>
+                @endforelse
+            </div>
+            @endif
+
+            {{-- Linked Items --}}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">Linked Items</h3>
 

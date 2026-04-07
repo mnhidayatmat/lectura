@@ -1,19 +1,40 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
-            <a href="{{ route('tenant.assessments.index', [$tenant->slug, $course]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition">
-                <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            </a>
+            @if($parent)
+                <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $parent]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition">
+                    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @else
+                <a href="{{ route('tenant.assessments.index', [$tenant->slug, $course]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition">
+                    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @endif
             <div>
-                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Add Assessment</h2>
-                <p class="text-sm text-slate-500 dark:text-slate-400">{{ $course->code }} — {{ $course->title }}</p>
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">{{ $parent ? 'Add Child Assessment' : 'Add Assessment' }}</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">@if($parent) As a part of: {{ $parent->title }} @else {{ $course->code }} — {{ $course->title }} @endif</p>
             </div>
         </div>
     </x-slot>
 
-    <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}', requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' }} }">
+    @if($parent)
+        <div class="mb-6 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-indigo-900 dark:text-indigo-100">Creating child assessment for <strong>{{ $parent->title }}</strong></p>
+                <p class="text-xs text-indigo-600 dark:text-indigo-300">This will be a part that contributes to the parent assessment's total weightage and marks.</p>
+            </div>
+        </div>
+    @endif
+
+    <div class="max-w-2xl" x-data="{ selectedType: '{{ old('type', 'quiz') }}', requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' } }">
         <form method="POST" action="{{ route('tenant.assessments.store', [$tenant->slug, $course]) }}" class="space-y-6">
             @csrf
+            @if($parent)
+                <input type="hidden" name="parent_id" value="{{ $parent->id }}" />
+            @endif
 
             {{-- Assessment Type Cards --}}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
@@ -153,9 +174,13 @@
             <div class="flex items-center gap-3">
                 <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Add Assessment
+                    {{ $parent ? 'Add Child Assessment' : 'Add Assessment' }}
                 </button>
-                <a href="{{ route('tenant.assessments.index', [$tenant->slug, $course]) }}" class="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 transition">Cancel</a>
+                @if($parent)
+                    <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $parent]) }}" class="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 transition">Cancel</a>
+                @else
+                    <a href="{{ route('tenant.assessments.index', [$tenant->slug, $course]) }}" class="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 transition">Cancel</a>
+                @endif
             </div>
         </form>
     </div>

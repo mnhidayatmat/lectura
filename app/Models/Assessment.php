@@ -16,7 +16,7 @@ class Assessment extends Model
     use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'title', 'type', 'method',
+        'tenant_id', 'course_id', 'parent_id', 'title', 'type', 'method',
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
         'status', 'description', 'requires_submission', 'due_date',
     ];
@@ -47,6 +47,16 @@ class Assessment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Assessment::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Assessment::class, 'parent_id')->orderBy('sort_order');
     }
 
     public function clos(): BelongsToMany
@@ -83,5 +93,53 @@ class Assessment extends Model
             'completed' => ['label' => 'Completed', 'color' => 'purple'],
             default => ['label' => 'Draft', 'color' => 'amber'],
         };
+    }
+
+    /**
+     * Check if this is a parent assessment (has children)
+     */
+    public function isParent(): bool
+    {
+        return $this->children()->count() > 0;
+    }
+
+    /**
+     * Check if this is a child assessment
+     */
+    public function isChild(): bool
+    {
+        return !is_null($this->parent_id);
+    }
+
+    /**
+     * Scope to get only top-level assessments (no parent)
+     */
+    public function scopeTopLevel($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * Get total weightage including all children
+     */
+    public function getTotalWeightageIncludingChildrenAttribute(): float
+    {
+        if (!$this->isParent()) {
+            return (float) $this->weightage;
+        }
+
+        return (float) $this->weightage + $this->children->sum('weightage');
+    }
+
+    /**
+     * Get total marks including all children
+     */
+    public function getTotalMarksIncludingChildrenAttribute(): float
+    {
+        if (!$this->isParent()) {
+            return (float) $this->total_marks;
+        }
+
+        return (float) $this->total_marks + $this->children->sum('total_marks');
     }
 }

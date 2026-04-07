@@ -127,6 +127,7 @@
                         $icon = $typeIcons[$assessment->type] ?? $typeIcons['assignment'];
                         $badge = $assessment->status_badge;
                         $bc = $bloomColors[$assessment->bloom_level] ?? 'slate';
+                        $hasChildren = $assessment->children->isNotEmpty();
                     @endphp
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition group">
                         <div class="flex items-stretch">
@@ -143,16 +144,21 @@
                                     {{-- Content --}}
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-start justify-between gap-3">
-                                            <div>
+                                            <div class="flex items-center gap-2">
+                                                @if($hasChildren)
+                                                    <button x-data="{ expanded: false }" @click="expanded = !expanded" class="text-indigo-400 hover:text-indigo-600 transition">
+                                                        <svg class="w-4 h-4" :class="expanded ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                                    </button>
+                                                @endif
                                                 <h4 class="text-sm font-bold text-slate-900 dark:text-white">{{ $assessment->title }}</h4>
-                                                <div class="flex items-center gap-2 mt-1">
-                                                    <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 capitalize">{{ str_replace('_', ' ', $assessment->type) }}</span>
-                                                    @if($assessment->method)
-                                                        <span class="text-slate-300 dark:text-slate-600">&middot;</span>
-                                                        <span class="text-[10px] text-slate-400 capitalize">{{ $assessment->method }}</span>
-                                                    @endif
-                                                </div>
+                                                @if($hasChildren)
+                                                    <span class="text-[10px] text-slate-400">({{ $assessment->children->count() }} parts)</span>
+                                                @endif
                                             </div>
+                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-{{ $badge['color'] }}-100 dark:bg-{{ $badge['color'] }}-900/30 text-{{ $badge['color'] }}-700 dark:text-{{ $badge['color'] }}-400">{{ $badge['label'] }}</span>
+                                            </div>
+                                        </div>
                                             <div class="flex items-center gap-2 flex-shrink-0">
                                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-{{ $badge['color'] }}-100 dark:bg-{{ $badge['color'] }}-900/30 text-{{ $badge['color'] }}-700 dark:text-{{ $badge['color'] }}-400">{{ $badge['label'] }}</span>
                                             </div>
@@ -204,6 +210,37 @@
                                                 <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">{{ $assessment->items->count() }} linked</span>
                                             @endif
                                         </div>
+                                    </div>
+                                </div>
+
+                                {{-- Child Assessments --}}
+                                @if($hasChildren)
+                                    <div x-show="expanded" x-collapse class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                                        @foreach($assessment->children as $child)
+                                            @php
+                                                $childIcon = $typeIcons[$child->type] ?? $typeIcons['assignment'];
+                                                $childBadge = $child->status_badge;
+                                            @endphp
+                                            <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 border-l-4 border-indigo-400">
+                                                <div class="w-8 h-8 rounded-lg {{ $childIcon['bg'] }} flex items-center justify-center flex-shrink-0">
+                                                    <svg class="w-4 h-4 {{ $childIcon['text'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $childIcon['icon'] }}"/></svg>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <p class="text-xs font-medium text-slate-800 dark:text-slate-200">{{ $child->title }}</p>
+                                                    <div class="flex items-center gap-2 mt-0.5">
+                                                        <span class="text-[9px] text-slate-400">{{ $child->weightage }}% &middot; {{ $child->total_marks }} marks</span>
+                                                        <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-{{ $childBadge['color'] }}-100 dark:bg-{{ $childBadge['color'] }}-900/30 text-{{ $childBadge['color'] }}-700 dark:text-{{ $childBadge['color'] }}-400">{{ $childBadge['label'] }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $child]) }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-600 text-slate-400 hover:text-indigo-500 transition">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
                                     </div>
                                 </div>
                             </div>
