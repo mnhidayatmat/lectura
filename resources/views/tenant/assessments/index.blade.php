@@ -290,13 +290,18 @@
                             </div>
 
                             {{-- Action column --}}
-                            <div class="flex flex-col items-stretch justify-center gap-1.5 px-3 py-4 border-l border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 min-w-[7rem]">
+                            <div class="flex flex-col items-stretch justify-center gap-1.5 px-3 py-4 border-l border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 min-w-[7.5rem]">
                                 @if($assessment->requires_submission)
                                     <a href="{{ route('tenant.assessments.submissions.index', [$tenant->slug, $course, $assessment]) }}"
                                        class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                         Submissions
                                     </a>
+                                @else
+                                    <span class="inline-flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 text-[10px] rounded-xl cursor-default" title="Enable 'Student Submission' in edit to collect files">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                        No submission
+                                    </span>
                                 @endif
                                 <a href="{{ route('tenant.assessments.scores.index', [$tenant->slug, $course, $assessment]) }}"
                                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 text-teal-700 dark:text-teal-400 text-xs font-semibold rounded-xl transition">
