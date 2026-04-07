@@ -95,7 +95,7 @@
                             @php
                                 $score      = $scores->get($student->id);
                                 $submission = $submissions->get($student->id);
-                                $hasScore   = $score !== null && $score->finalized_at !== null;
+                                $hasScore   = $score !== null; {{-- show computed AND manual scores --}}
                             @endphp
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$hasScore ? 'opacity-75' : '' }}">
                                 {{-- # --}}
@@ -216,10 +216,10 @@
             </div>
 
             {{-- Release all button --}}
-            @if($scores->where('is_released', false)->whereNotNull('finalized_at')->count() > 0)
+            @if($scores->where('is_released', false)->count() > 0)
                 <div class="px-5 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/50">
                     <p class="text-xs text-slate-500 dark:text-slate-400">
-                        {{ $scores->where('is_released', false)->whereNotNull('finalized_at')->count() }} graded score(s) not yet released to students.
+                        {{ $scores->where('is_released', false)->count() }} score(s) not yet released to students.
                     </p>
                     <form method="POST" action="{{ route('tenant.assessments.scores.release', [$tenant->slug, $course, $assessment]) }}">
                         @csrf

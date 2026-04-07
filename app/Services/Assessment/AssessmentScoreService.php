@@ -59,12 +59,13 @@ class AssessmentScoreService
             AssessmentScore::updateOrCreate(
                 ['assessment_id' => $assessment->id, 'user_id' => $userId],
                 [
-                    'tenant_id' => $tenant->id,
-                    'raw_marks' => round($normalizedMarks, 2),
-                    'max_marks' => $assessment->total_marks,
+                    'tenant_id'      => $tenant->id,
+                    'raw_marks'      => round($normalizedMarks, 2),
+                    'max_marks'      => $assessment->total_marks,
                     'weighted_marks' => round($weightedMarks, 2),
-                    'percentage' => round($percentage, 2),
-                    'is_computed' => true,
+                    'percentage'     => round($percentage, 2),
+                    'is_computed'    => true,
+                    'finalized_at'   => now(),
                 ]
             );
 

@@ -46,15 +46,14 @@ class AssessmentScoreController extends Controller
             ? $assessment->submissions()->get()->keyBy('user_id')
             : collect();
 
-        // Summary stats
-        $gradedScores = $scores->whereNotNull('finalized_at');
+        // Summary stats — count any score record as "graded" (computed or manual)
         $stats = [
             'total'     => $students->count(),
             'submitted' => $submissions->count(),
-            'graded'    => $gradedScores->count(),
+            'graded'    => $scores->count(),
             'released'  => $scores->where('is_released', true)->count(),
-            'avg'       => $gradedScores->avg('percentage'),
-            'passing'   => $gradedScores->where('percentage', '>=', 50)->count(),
+            'avg'       => $scores->isNotEmpty() ? round($scores->avg('percentage'), 1) : null,
+            'passing'   => $scores->where('percentage', '>=', 50)->count(),
         ];
 
         return view('tenant.assessments.scores.index', compact(
