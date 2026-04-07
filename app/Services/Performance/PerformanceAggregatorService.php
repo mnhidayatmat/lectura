@@ -236,9 +236,9 @@ class PerformanceAggregatorService
 
         // Build attendance timeline
         $attendanceTimeline = $attendanceSessions->map(fn ($s) => (object) [
-            'week' => $s->week_number,
+            'week' => $s->week_number ?? 0,
             'date' => $s->started_at,
-            'status' => $attendanceRecords[$s->id]->status ?? 'absent',
+            'status' => $attendanceRecords->get($s->id)?->status ?? 'absent',
         ]);
 
         $avgMark = $marks->count() > 0 ? round($marks->avg('percentage'), 1) : null;

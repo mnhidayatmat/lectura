@@ -35,13 +35,19 @@ class AssignmentController extends Controller
 
         if ($role === 'student') {
             // Student: show assignments from enrolled courses, grouped by course
+            // Only show top-level assignments or sub-assignments directly
             $sectionIds = $user->sections()->pluck('sections.id');
             $courseIds = Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
-            $assignments = Assignment::whereIn('course_id', $courseIds)
+
+            // Get both parent and sub assignments, but we'll organize them
+            $allAssignments = Assignment::whereIn('course_id', $courseIds)
                 ->where('status', 'published')
-                ->with('course')
+                ->with('course', 'parent', 'subAssignments')
                 ->latest('deadline')
                 ->get();
+
+            // Filter: only show top-level for students, sub-assignments are shown within parent
+            $assignments = $allAssignments->filter(fn ($a) => $a->parent_id === null);
 
             $assignmentsByCourse = $assignments
                 ->groupBy('course_id')
@@ -54,27 +60,31 @@ class AssignmentController extends Controller
             return view('tenant.assignments.student-index', compact('assignmentsByCourse'));
         }
 
-        // Lecturer
+        // Lecturer: show top-level assignments with sub-assignments nested
         $courses = Course::whereIn('id', $this->accessibleCourseIds())->get();
         $assignments = Assignment::whereIn('course_id', $courses->pluck('id'))
+            ->topLevel()
             ->withCount('submissions')
-            ->with('course')
+            ->with('course', 'subAssignments')
             ->latest()
             ->get();
 
         return view('tenant.assignments.index', compact('assignments', 'courses'));
     }
 
-    public function create(): View
+    public function create(Assignment $parent = null): View
     {
         $courses = Course::whereIn('id', $this->accessibleCourseIds())->with('sections', 'learningOutcomes')->get();
-        return view('tenant.assignments.create', compact('courses'));
+        return view('tenant.assignments.create', compact('courses', 'parent'));
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $isSubAssignment = $request->filled('parent_id');
+
         $request->validate([
             'course_id' => ['required', 'exists:courses,id'],
+            'parent_id' => ['nullable', 'exists:assignments,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'total_marks' => ['required', 'numeric', 'min:1'],
@@ -92,6 +102,14 @@ class AssignmentController extends Controller
 
         $tenant = app('current_tenant');
 
+        // If creating sub-assignment, validate parent exists and belongs to same course
+        if ($isSubAssignment) {
+            $parent = Assignment::findOrFail($request->parent_id);
+            if ($parent->course_id != $request->course_id) {
+                return back()->withErrors(['parent_id' => 'Sub-assignment must belong to the same course as parent.'])->withInput();
+            }
+        }
+
         $schemeData = [
             'answer_scheme' => $request->answer_scheme,
             'answer_scheme_path' => null,
@@ -107,6 +125,7 @@ class AssignmentController extends Controller
         $assignment = Assignment::create([
             'tenant_id' => $tenant->id,
             'course_id' => $request->course_id,
+            'parent_id' => $request->parent_id,
             'created_by' => auth()->id(),
             'title' => $request->title,
             'description' => $request->description,
@@ -152,10 +171,11 @@ class AssignmentController extends Controller
             }
         }
 
-        return redirect()->route('tenant.assignments.show', [
-            'tenant' => $tenant->slug,
-            'assignment' => $assignment->id,
-        ])->with('success', 'Assignment created.');
+        $redirectRoute = $isSubAssignment
+            ? route('tenant.assignments.show', [$tenant->slug, $assignment->parent_id])
+            : route('tenant.assignments.show', [$tenant->slug, $assignment->id]);
+
+        return redirect($redirectRoute)->with('success', $isSubAssignment ? 'Sub-assignment created.' : 'Assignment created.');
     }
 
     public function show(string $tenantSlug, Assignment $assignment): View
@@ -164,7 +184,7 @@ class AssignmentController extends Controller
         $tenant = app('current_tenant');
         $role = $user->roleInTenant($tenant->id);
 
-        $assignment->load(['course', 'rubric.criteria.levels', 'submissions.user', 'submissions.files']);
+        $assignment->load(['course', 'rubric.criteria.levels', 'subAssignments', 'parent', 'submissions.user', 'submissions.files']);
 
         if ($role === 'student') {
             $mySubmission = $assignment->submissions->where('user_id', $user->id)->first();
@@ -174,7 +194,14 @@ class AssignmentController extends Controller
             return view('tenant.assignments.student-show', compact('assignment', 'mySubmission', 'myMark', 'myFeedback'));
         }
 
-        return view('tenant.assignments.show', compact('assignment'));
+        // Load submission counts for sub-assignments
+        $subAssignmentIds = $assignment->subAssignments->pluck('id');
+        $subSubmissionCounts = Submission::whereIn('assignment_id', $subAssignmentIds)
+            ->selectRaw('assignment_id, COUNT(*) as count')
+            ->groupBy('assignment_id')
+            ->pluck('count', 'assignment_id');
+
+        return view('tenant.assignments.show', compact('assignment', 'subSubmissionCounts'));
     }
 
     public function publish(string $tenantSlug, Assignment $assignment): RedirectResponse
@@ -376,6 +403,27 @@ class AssignmentController extends Controller
     {
         $tenant = app('current_tenant');
 
+        // If this is a parent assignment, also delete all sub-assignments
+        if ($assignment->isParent()) {
+            foreach ($assignment->subAssignments as $sub) {
+                $this->deleteAssignmentSubmissions($sub);
+                $sub->delete();
+            }
+        }
+
+        $this->deleteAssignmentSubmissions($assignment);
+        $assignment->delete();
+
+        $redirectRoute = $assignment->parent_id
+            ? route('tenant.assignments.show', [$tenant->slug, $assignment->parent_id])
+            : route('tenant.assignments.index', $tenant->slug);
+
+        return redirect($redirectRoute)
+            ->with('success', "Assignment \"{$assignment->title}\" deleted.");
+    }
+
+    private function deleteAssignmentSubmissions(Assignment $assignment): void
+    {
         // Clean up local submission files
         foreach ($assignment->submissions as $submission) {
             foreach ($submission->files as $file) {
@@ -389,11 +437,6 @@ class AssignmentController extends Controller
         if ($assignment->answer_scheme_path && \Storage::disk('local')->exists($assignment->answer_scheme_path)) {
             \Storage::disk('local')->delete($assignment->answer_scheme_path);
         }
-
-        $assignment->delete();
-
-        return redirect()->route('tenant.assignments.index', $tenant->slug)
-            ->with('success', "Assignment \"{$assignment->title}\" deleted.");
     }
 
     /**

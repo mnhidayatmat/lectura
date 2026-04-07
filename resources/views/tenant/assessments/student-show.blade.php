@@ -63,59 +63,61 @@
 
         {{-- Submission Status / Form --}}
         @if($submission)
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ showReupload: false, showDeleteConfirm: false }">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Your Submission</h3>
-                    @php $badge = $submission->status_badge; @endphp
-                    <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-{{ $badge['color'] }}-100 dark:bg-{{ $badge['color'] }}-900/20 text-{{ $badge['color'] }}-700 dark:text-{{ $badge['color'] }}-400">{{ $badge['label'] }}</span>
-                </div>
+            <div x-data="{ showReupload: false, showDeleteConfirm: false }">
+                {{-- Submission Card --}}
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Your Submission</h3>
+                        @php $badge = $submission->status_badge; @endphp
+                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-{{ $badge['color'] }}-100 dark:bg-{{ $badge['color'] }}-900/20 text-{{ $badge['color'] }}-700 dark:text-{{ $badge['color'] }}-400">{{ $badge['label'] }}</span>
+                    </div>
 
-                <div class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                    Submitted {{ $submission->submitted_at->format('d M Y, H:i') }}
-                    @if($submission->is_late) <span class="text-red-500 font-medium ml-1">(Late)</span> @endif
-                </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        Submitted {{ $submission->submitted_at->format('d M Y, H:i') }}
+                        @if($submission->is_late) <span class="text-red-500 font-medium ml-1">(Late)</span> @endif
+                    </div>
 
-                @if($submission->notes)
-                    <p class="text-sm text-slate-600 dark:text-slate-300 mb-3">{{ $submission->notes }}</p>
-                @endif
+                    @if($submission->notes)
+                        <p class="text-sm text-slate-600 dark:text-slate-300 mb-3">{{ $submission->notes }}</p>
+                    @endif
 
-                <div class="space-y-2">
-                    @foreach($submission->files as $file)
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-600">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg {{ str_contains($file->file_type, 'pdf') ? 'bg-red-100 dark:bg-red-900/20' : 'bg-blue-100 dark:bg-blue-900/20' }} flex items-center justify-center">
-                                    <svg class="w-4 h-4 {{ str_contains($file->file_type, 'pdf') ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <div class="space-y-2">
+                        @foreach($submission->files as $file)
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-600">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg {{ str_contains($file->file_type, 'pdf') ? 'bg-red-100 dark:bg-red-900/20' : 'bg-blue-100 dark:bg-blue-900/20' }} flex items-center justify-center">
+                                        <svg class="w-4 h-4 {{ str_contains($file->file_type, 'pdf') ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ $file->file_name }}</p>
+                                        <p class="text-[11px] text-slate-400">{{ round($file->file_size_bytes / 1024) }} KB</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ $file->file_name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ round($file->file_size_bytes / 1024) }} KB</p>
-                                </div>
+                                <a href="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $file]) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                </a>
                             </div>
-                            <a href="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $file]) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                            </a>
+                        @endforeach
+                    </div>
+
+                    @if(!$score)
+                        <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                            <p class="text-xs text-slate-400 text-center">Your submission is being reviewed. Marks will appear here once released.</p>
                         </div>
-                    @endforeach
+                    @endif
+
+                    {{-- Action Buttons (only if not graded) --}}
+                    @if($submission->status !== 'graded')
+                        <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                            <button @click="showReupload = !showReupload" class="flex-1 px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-medium transition">
+                                Replace Files
+                            </button>
+                            <button @click="showDeleteConfirm = true" class="flex-1 px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium transition">
+                                Delete Submission
+                            </button>
+                        </div>
+                    @endif
                 </div>
-
-                @if(!$score)
-                    <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                        <p class="text-xs text-slate-400 text-center">Your submission is being reviewed. Marks will appear here once released.</p>
-                    </div>
-                @endif
-
-                {{-- Action Buttons (only if not graded) --}}
-                @if($submission->status !== 'graded')
-                    <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
-                        <button @click="showReupload = !showReupload" class="flex-1 px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm font-medium transition">
-                            Replace Files
-                        </button>
-                        <button @click="showDeleteConfirm = true" class="flex-1 px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium transition">
-                            Delete Submission
-                        </button>
-                    </div>
-                @endif
-            </div>
 
             {{-- Re-upload Form Panel --}}
             @if($submission->status !== 'graded')
@@ -172,27 +174,29 @@
                         </div>
                     </form>
                 </div>
-            @endif
 
-            {{-- Delete Confirmation Modal --}}
-            <div x-show="showDeleteConfirm" x-transition class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center" @click.outside="showDeleteConfirm = false">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm mx-4 shadow-xl">
-                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Submission?</h3>
-                    <p class="text-sm text-slate-600 dark:text-slate-300 mb-6">Are you sure you want to delete your submission? This action cannot be undone. You may resubmit afterward.</p>
-                    <div class="flex gap-2">
-                        <form method="POST" action="{{ route('tenant.my-assessments.delete', [$tenant->slug, $course, $assessment]) }}" class="flex-1">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition">
-                                Yes, Delete
+                {{-- Delete Confirmation Modal --}}
+                <div x-show="showDeleteConfirm" x-transition class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center" @click.outside="showDeleteConfirm = false">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm mx-4 shadow-xl">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Submission?</h3>
+                        <p class="text-sm text-slate-600 dark:text-slate-300 mb-6">Are you sure you want to delete your submission? This action cannot be undone. You may resubmit afterward.</p>
+                        <div class="flex gap-2">
+                            <form method="POST" action="{{ route('tenant.my-assessments.delete', [$tenant->slug, $course, $assessment]) }}" class="flex-1">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition">
+                                    Yes, Delete
+                                </button>
+                            </form>
+                            <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2.5 text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                Cancel
                             </button>
-                        </form>
-                        <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2.5 text-slate-700 dark:text-slate-300 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-                            Cancel
-                        </button>
+                        </div>
                     </div>
                 </div>
+                {{-- End of wrapper div --}}
             </div>
+            @endif
         @elseif($assessment->requires_submission && $assessment->status === 'active')
             {{-- Submission form --}}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ files: [], uploading: false }">

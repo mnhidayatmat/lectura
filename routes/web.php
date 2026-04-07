@@ -431,6 +431,7 @@ Route::prefix('{tenant:slug}')
         // Assignments
         Route::get('/assignments', [AssignmentController::class, 'index'])->name('tenant.assignments.index');
         Route::get('/assignments/create', [AssignmentController::class, 'create'])->name('tenant.assignments.create');
+        Route::get('/assignments/{assignment}/sub/create', [AssignmentController::class, 'create'])->name('tenant.assignments.sub.create');
         Route::post('/assignments', [AssignmentController::class, 'store'])->name('tenant.assignments.store');
         Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('tenant.assignments.show');
         Route::post('/assignments/{assignment}/publish', [AssignmentController::class, 'publish'])->name('tenant.assignments.publish');
