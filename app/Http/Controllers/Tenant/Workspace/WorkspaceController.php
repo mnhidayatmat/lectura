@@ -8,7 +8,7 @@ use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\GroupSwapRequest;
 use App\Models\StudentGroup;
-use App\Models\StudentGroupMember;
+use App\Models\StudentGroupSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,13 +24,18 @@ class WorkspaceController extends Controller
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        $memberships = StudentGroupMember::where('user_id', $user->id)
-            ->with('group.groupSet.course.academicTerm')
+        // Query from tenant-scoped StudentGroupSet downward to avoid
+        // eager-loading scope issues when going up from StudentGroupMember
+        $sets = StudentGroupSet::whereHas('groups.members', fn ($q) => $q->where('user_id', $user->id))
+            ->with([
+                'course.academicTerm',
+                'groups' => fn ($q) => $q->whereHas('members', fn ($mq) => $mq->where('user_id', $user->id))
+                    ->with(['members', 'groupSet']),
+            ])
             ->get()
-            ->filter(fn ($m) => $m->group && $m->group->groupSet && $m->group->groupSet->course)
-            ->groupBy(fn ($m) => $m->group->groupSet->course_id);
+            ->groupBy('course_id');
 
-        return view('tenant.workspace.index', compact('tenant', 'memberships'));
+        return view('tenant.workspace.index', compact('tenant', 'sets'));
     }
 
     /**
