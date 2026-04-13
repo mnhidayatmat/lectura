@@ -48,7 +48,7 @@ class AssessmentPlanController extends Controller
 
         // Load only top-level assessments with their children
         $assessments = $course->assessments()->topLevel()
-            ->with(['children', 'clos', 'items.assessable'])
+            ->with(['children.clos', 'children.submissions', 'clos', 'items.assessable'])
             ->get();
 
         // Only top-level assessments contribute to the course total; children are sub-divisions of their parent.

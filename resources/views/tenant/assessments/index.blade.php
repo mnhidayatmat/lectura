@@ -144,7 +144,7 @@
                         $statusAccent = $assessment->status === 'completed' ? 'bg-emerald-500' : ($assessment->status === 'active' ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600');
                     @endphp
 
-                    <div x-data="{ expanded: false }" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition">
+                    <div x-data="{ expanded: true }" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition">
 
                         {{-- Main row --}}
                         <div class="flex items-stretch">
@@ -236,36 +236,101 @@
 
                                 {{-- Child Assessments --}}
                                 @if($hasChildren)
-                                    <div x-show="expanded" x-collapse class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                                    <div x-show="expanded" x-collapse class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
                                         @php $childWeightageUsed = $assessment->children->sum('weightage'); @endphp
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                                            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Parts ({{ $assessment->children->count() }})</span>
+                                        </div>
                                         @foreach($assessment->children as $child)
                                             @php
                                                 $childCfg   = $typeConfig[$child->type] ?? $typeConfig['other'];
                                                 $childBadge = $child->status_badge;
+                                                $childBc    = $bloomColors[$child->bloom_level] ?? $bloomColors['remember'];
                                                 $childMarksPortion = $assessment->total_marks > 0
                                                     ? round(($child->weightage / 100) * $assessment->total_marks, 1)
                                                     : $child->total_marks;
+                                                $childSubmissionCount = $child->requires_submission ? $child->submissions->count() : 0;
                                             @endphp
-                                            <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 border-l-4 border-l-indigo-400">
-                                                <div class="w-8 h-8 rounded-lg {{ $childCfg['bg'] }} flex items-center justify-center flex-shrink-0">
-                                                    <svg class="w-4 h-4 {{ $childCfg['text'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $childCfg['icon'] }}"/></svg>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <div class="flex items-center gap-2">
-                                                        <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{{ $child->title }}</p>
-                                                        <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-{{ $childBadge['color'] }}-100 dark:bg-{{ $childBadge['color'] }}-900/30 text-{{ $childBadge['color'] }}-700 dark:text-{{ $childBadge['color'] }}-400">{{ $childBadge['label'] }}</span>
+                                            <div class="flex items-stretch rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-700 border-l-4 border-l-indigo-400 overflow-hidden">
+                                                {{-- Body --}}
+                                                <div class="flex-1 p-3.5 min-w-0">
+                                                    <div class="flex items-start gap-3">
+                                                        <div class="w-9 h-9 rounded-lg {{ $childCfg['bg'] }} flex items-center justify-center flex-shrink-0">
+                                                            <svg class="w-4 h-4 {{ $childCfg['text'] }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $childCfg['icon'] }}"/></svg>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-start justify-between gap-3">
+                                                                <div class="flex items-center gap-2 flex-wrap min-w-0">
+                                                                    <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $child->title }}</p>
+                                                                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full {{ $childCfg['bg'] }} {{ $childCfg['text'] }}">{{ $childCfg['label'] }}</span>
+                                                                </div>
+                                                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-{{ $childBadge['color'] }}-100 dark:bg-{{ $childBadge['color'] }}-900/30 text-{{ $childBadge['color'] }}-700 dark:text-{{ $childBadge['color'] }}-400">{{ $childBadge['label'] }}</span>
+                                                            </div>
+
+                                                            @if($child->description)
+                                                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{{ $child->description }}</p>
+                                                            @endif
+
+                                                            <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md text-[10px] font-bold">
+                                                                    {{ number_format($child->weightage, 0) }}% of parent
+                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md text-[10px] font-semibold">
+                                                                    {{ number_format($childMarksPortion, 1) }} / {{ number_format($assessment->total_marks, 0) }} marks
+                                                                </span>
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 rounded-md text-[10px] font-medium">
+                                                                    ≈ {{ number_format(($child->weightage / 100) * $assessment->weightage, 1) }}% course
+                                                                </span>
+                                                                @if($child->bloom_level)
+                                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize {{ $childBc['bg'] }} {{ $childBc['text'] }}">{{ $child->bloom_level }}</span>
+                                                                @endif
+                                                                @foreach($child->clos as $clo)
+                                                                    <span class="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[10px] font-bold">{{ $clo->code }}</span>
+                                                                @endforeach
+                                                                @if($child->requires_submission)
+                                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md text-[10px] font-medium">
+                                                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                                                        Submission · {{ $childSubmissionCount }}
+                                                                    </span>
+                                                                    @if($child->due_date)
+                                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 {{ now()->gt($child->due_date) ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400' }} rounded-md text-[10px] font-medium">
+                                                                            Due {{ $child->due_date->format('d M Y') }}
+                                                                        </span>
+                                                                    @endif
+                                                                @endif
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
-                                                        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">{{ $child->weightage }}% of parent</span>
-                                                        <span class="text-[10px] text-slate-400">&middot;</span>
-                                                        <span class="text-[10px] text-slate-500 dark:text-slate-400">{{ number_format($childMarksPortion, 1) }} / {{ number_format($assessment->total_marks, 0) }} marks</span>
-                                                        <span class="text-[10px] text-slate-400">&middot;</span>
-                                                        <span class="text-[10px] text-slate-400">≈ {{ number_format(($child->weightage / 100) * $assessment->weightage, 1) }}% course</span>
+                                                </div>
+
+                                                {{-- Action column --}}
+                                                <div class="flex flex-col items-stretch justify-center gap-1.5 px-2.5 py-3 border-l border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/40 min-w-[6.75rem]">
+                                                    @if($child->requires_submission)
+                                                        <a href="{{ route('tenant.assessments.submissions.index', [$tenant->slug, $course, $child]) }}"
+                                                           class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg transition shadow-sm">
+                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                                            Submissions
+                                                        </a>
+                                                    @endif
+                                                    <a href="{{ route('tenant.assessments.scores.index', [$tenant->slug, $course, $child]) }}"
+                                                       class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 text-teal-700 dark:text-teal-400 text-[11px] font-semibold rounded-lg transition">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                                        Scores
+                                                    </a>
+                                                    <div class="flex items-center justify-center gap-0.5 pt-0.5">
+                                                        <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $child]) }}"
+                                                           class="p-1.5 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-400 hover:text-indigo-600 transition" title="Edit">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                        </a>
+                                                        <form method="POST" action="{{ route('tenant.assessments.destroy', [$tenant->slug, $course, $child]) }}" onsubmit="return confirm('Delete this part?')">
+                                                            @csrf @method('DELETE')
+                                                            <button class="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition" title="Delete">
+                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 </div>
-                                                <a href="{{ route('tenant.assessments.edit', [$tenant->slug, $course, $child]) }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-600 text-slate-400 hover:text-indigo-500 transition flex-shrink-0">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                                </a>
                                             </div>
                                         @endforeach
                                         {{-- Child allocation progress --}}
