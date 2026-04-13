@@ -95,7 +95,8 @@
                             @php
                                 $score      = $scores->get($student->id);
                                 $submission = $submissions->get($student->id);
-                                $hasScore   = $score !== null; {{-- show computed AND manual scores --}}
+                                // show computed AND manual scores
+                                $hasScore   = $score !== null;
                             @endphp
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$hasScore ? 'opacity-75' : '' }}">
                                 {{-- # --}}

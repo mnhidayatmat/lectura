@@ -11,31 +11,39 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('section_lecturers', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('section_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
+        if (! Schema::hasTable('section_lecturers')) {
+            Schema::create('section_lecturers', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('section_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->unique(['section_id', 'user_id']);
-        });
+                $table->unique(['section_id', 'user_id']);
+            });
+        }
 
-        // Migrate existing lecturer_id data to pivot table
-        DB::table('sections')
-            ->whereNotNull('lecturer_id')
-            ->orderBy('id')
-            ->each(function ($section) {
-                DB::table('section_lecturers')->insert([
-                    'section_id' => $section->id,
-                    'user_id' => $section->lecturer_id,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+        // Migrate existing lecturer_id data to pivot table (skip rows already migrated)
+        if (Schema::hasColumn('sections', 'lecturer_id')) {
+            DB::table('sections')
+                ->whereNotNull('lecturer_id')
+                ->orderBy('id')
+                ->each(function ($section) {
+                    DB::table('section_lecturers')->updateOrInsert(
+                        ['section_id' => $section->id, 'user_id' => $section->lecturer_id],
+                        ['created_at' => now(), 'updated_at' => now()],
+                    );
+                });
+        }
+
+        if (Schema::hasColumn('sections', 'lecturer_id')) {
+            Schema::table('sections', function (Blueprint $table) {
+                $table->dropIndex('sections_lecturer_id_index');
             });
 
-        Schema::table('sections', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('lecturer_id');
-        });
+            Schema::table('sections', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('lecturer_id');
+            });
+        }
     }
 
     public function down(): void
