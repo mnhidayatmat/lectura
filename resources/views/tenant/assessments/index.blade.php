@@ -236,12 +236,29 @@
 
                                 {{-- Child Assessments --}}
                                 @if($hasChildren)
-                                    <div x-show="expanded" x-collapse class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
-                                        @php $childWeightageUsed = $assessment->children->sum('weightage'); @endphp
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-                                            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Parts ({{ $assessment->children->count() }})</span>
-                                        </div>
+                                    @php $childWeightageUsed = $assessment->children->sum('weightage'); @endphp
+                                    <div x-show="expanded" x-collapse class="mt-5 sm:ml-14">
+                                        <div class="relative rounded-2xl bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/70 p-4 sm:p-5">
+                                            {{-- Connector line from parent --}}
+                                            <div class="hidden sm:block absolute -left-[1.85rem] top-0 bottom-6 w-px bg-gradient-to-b from-indigo-300 via-indigo-200 to-transparent dark:from-indigo-700 dark:via-indigo-800"></div>
+
+                                            {{-- Section header strip --}}
+                                            <div class="flex items-center justify-between gap-3 mb-4">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                                                        <svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider leading-tight">Parts</p>
+                                                        <p class="text-[10px] text-slate-400 leading-tight">{{ $assessment->children->count() }} sub-component{{ $assessment->children->count() === 1 ? '' : 's' }} of {{ $assessment->title }}</p>
+                                                    </div>
+                                                </div>
+                                                <span class="text-[10px] font-semibold px-2.5 py-1 rounded-full {{ $childWeightageUsed > 100 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : ($childWeightageUsed == 100 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400') }}">
+                                                    {{ number_format($childWeightageUsed, 0) }}% of parent allocated
+                                                </span>
+                                            </div>
+
+                                            <div class="space-y-3">
                                         @foreach($assessment->children as $child)
                                             @php
                                                 $childCfg   = $typeConfig[$child->type] ?? $typeConfig['other'];
@@ -333,23 +350,26 @@
                                                 </div>
                                             </div>
                                         @endforeach
-                                        {{-- Child allocation progress --}}
-                                        @if($assessment->children->count() > 0)
-                                            <div class="px-1 pt-1">
-                                                <div class="flex items-center justify-between mb-1">
-                                                    <span class="text-[10px] text-slate-400">Parent portion allocated</span>
-                                                    <span class="text-[10px] font-semibold {{ $childWeightageUsed > 100 ? 'text-red-500' : ($childWeightageUsed == 100 ? 'text-emerald-600' : 'text-amber-600') }}">{{ number_format($childWeightageUsed, 0) }}%</span>
+                                            </div>
+
+                                            {{-- Allocation progress bar --}}
+                                            <div class="mt-4 pt-4 border-t border-slate-200/80 dark:border-slate-700/60">
+                                                <div class="flex items-center justify-between mb-1.5">
+                                                    <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Parent portion allocated</span>
+                                                    <span class="text-[10px] font-bold {{ $childWeightageUsed > 100 ? 'text-red-600' : ($childWeightageUsed == 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400') }}">{{ number_format($childWeightageUsed, 0) }}% / 100%</span>
                                                 </div>
-                                                <div class="h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                                                    <div class="h-full rounded-full {{ $childWeightageUsed > 100 ? 'bg-red-500' : ($childWeightageUsed == 100 ? 'bg-emerald-500' : 'bg-amber-400') }}" style="width: {{ min($childWeightageUsed, 100) }}%"></div>
+                                                <div class="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                    <div class="h-full rounded-full transition-all duration-700 {{ $childWeightageUsed > 100 ? 'bg-red-500' : ($childWeightageUsed == 100 ? 'bg-emerald-500' : 'bg-amber-400') }}" style="width: {{ min($childWeightageUsed, 100) }}%"></div>
                                                 </div>
                                             </div>
-                                        @endif
 
-                                        <a href="{{ route('tenant.assessments.child.create', [$tenant->slug, $course, $assessment]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                            Add part
-                                        </a>
+                                            {{-- Add part CTA --}}
+                                            <a href="{{ route('tenant.assessments.child.create', [$tenant->slug, $course, $assessment]) }}"
+                                               class="mt-4 flex items-center justify-center gap-2 w-full px-4 py-2.5 border-2 border-dashed border-indigo-300 dark:border-indigo-700/60 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/70 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-xs font-semibold rounded-xl transition group">
+                                                <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                Add another part to {{ $assessment->title }}
+                                            </a>
+                                        </div>
                                     </div>
                                 @endif
                             </div>
