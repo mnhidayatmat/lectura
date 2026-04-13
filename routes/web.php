@@ -287,16 +287,46 @@ Route::prefix('{tenant:slug}')
 
             $courseCount = 0;
             $studentCount = 0;
+            $avgAttendance = null;
             $courses = collect();
             $todaySchedule = collect();
 
             if ($role !== 'student') {
-                $courses = \App\Models\Course::where('lecturer_id', $user->id)
+                // Match CourseController@index: owned courses + courses where user is a section lecturer
+                $ownedCourseIds = \App\Models\Course::where('lecturer_id', $user->id)->pluck('id');
+                $sectionCourseIds = \App\Models\Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
+                $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
+
+                $courses = \App\Models\Course::whereIn('id', $allCourseIds)
                     ->withCount('sections')
                     ->latest()->get();
-                $courseCount = $courses->count();
-                $sectionIds = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))->pluck('id');
-                $studentCount = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)->where('is_active', true)->distinct('user_id')->count('user_id');
+                $courseCount = $courses->where('status', 'active')->count();
+
+                $sectionIds = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))
+                    ->where('is_active', true)
+                    ->pluck('id');
+                $studentCount = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)
+                    ->where('is_active', true)
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                // Avg attendance across ended sessions in the lecturer's sections
+                $endedSessions = \App\Models\AttendanceSession::whereIn('section_id', $sectionIds)
+                    ->where('status', 'ended')
+                    ->withCount([
+                        'records as attended_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
+                        'records as total_count',
+                    ])
+                    ->get();
+
+                if ($endedSessions->isNotEmpty()) {
+                    $rates = $endedSessions
+                        ->filter(fn ($s) => $s->total_count > 0)
+                        ->map(fn ($s) => $s->attended_count / $s->total_count);
+                    if ($rates->isNotEmpty()) {
+                        $avgAttendance = (int) round($rates->avg() * 100);
+                    }
+                }
 
                 // Today's schedule from section schedules
                 $today = strtolower(now()->format('l')); // e.g. "monday"
@@ -322,7 +352,7 @@ Route::prefix('{tenant:slug}')
                 })->sortBy('start_time')->values();
             }
 
-            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'courses', 'todaySchedule'));
+            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'avgAttendance', 'courses', 'todaySchedule'));
         })->name('tenant.dashboard');
 
         // Course Management
