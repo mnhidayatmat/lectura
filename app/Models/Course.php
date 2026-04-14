@@ -109,7 +109,7 @@ class Course extends Model
 
     public function activeLearningPlans(): HasMany
     {
-        return $this->hasMany(ActiveLearningPlan::class);
+        return $this->hasMany(ActiveLearningPlan::class)->latest();
     }
 
     public function assessments(): HasMany
