@@ -193,14 +193,17 @@
                 leaderboard: [],
                 lastPoints: 0,
                 polling: null,
-                lastQuestionId: null,
+                pollActive: false,
 
                 startPolling() {
                     this.fetchState();
-                    this.polling = setInterval(() => this.fetchState(), 3000);
+                    this.polling = setInterval(() => {
+                        if (!this.pollActive) this.fetchState();
+                    }, 3000);
                 },
 
                 async fetchState() {
+                    this.pollActive = true;
                     try {
                         const res = await fetch(stateUrl, {
                             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
@@ -221,18 +224,17 @@
                                 this.selectedId = null;
                                 this.isCorrect  = null;
                                 // leaderboard & myRank intentionally kept from last reveal
-                            } else {
+                            } else if (!this.answered) {
+                                // Only update from server if student hasn't clicked locally
                                 this.answered = data.answered;
                             }
                         }
 
                         if (this.phase === 'reveal') {
-                            this.isCorrect  = data.is_correct;
-                            this.myRank     = data.my_rank;
+                            this.isCorrect   = data.is_correct;
+                            this.myRank      = data.my_rank;
                             this.leaderboard = data.leaderboard || [];
                             if (data.is_correct === true) {
-                                // Calculate points earned: difference between current and pre-reveal score
-                                // We approximate from leaderboard — just show if correct
                                 this.lastPoints = data.score - (this.lastScoreBeforeReveal ?? 0);
                             }
                         }
@@ -244,15 +246,20 @@
                         if (data.status === 'ended') {
                             clearInterval(this.polling);
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                    } finally {
+                        this.pollActive = false;
+                    }
                 },
 
                 async submitAnswer(optionId) {
                     if (this.answered) return;
+                    this.answered = true;
                     this.selectedId = optionId;
+                    this.lastScoreBeforeReveal = this.score;
 
                     try {
-                        const res = await fetch(respondUrl, {
+                        await fetch(respondUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -266,10 +273,8 @@
                                 response_time_ms: 0,
                             }),
                         });
-                        await res.json();
-                        this.answered = true;
-                        this.lastScoreBeforeReveal = this.score;
                     } catch (e) {
+                        this.answered = false;
                         this.selectedId = null;
                     }
                 },
