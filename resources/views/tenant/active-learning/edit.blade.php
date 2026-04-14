@@ -268,15 +268,30 @@
                                     <div x-show="showGroupForm" x-cloak x-transition class="mt-3 space-y-3">
                                         {{-- Auto-arrange from attendance --}}
                                         @if($attendanceSessions->isNotEmpty())
+                                            @php
+                                                $liveSession = $attendanceSessions->firstWhere('status', 'active');
+                                                $todaySession = $liveSession ?: $attendanceSessions->first(fn ($s) => optional($s->started_at)->isToday());
+                                            @endphp
                                             <form method="POST" action="{{ route('tenant.active-learning.groups.arrange-attendance', [app('current_tenant')->slug, $course, $plan, $activity]) }}" class="flex items-end gap-3 flex-wrap">
                                                 @csrf
                                                 <div>
                                                     <label class="text-xs font-medium text-slate-500">{{ __('active_learning.attendance_session') }}</label>
                                                     <select name="attendance_session_id" class="mt-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs" required>
                                                         @foreach($attendanceSessions as $session)
-                                                            <option value="{{ $session->id }}">{{ $session->section->name ?? 'Section' }} — W{{ $session->week_number }} ({{ $session->started_at->format('d M') }})</option>
+                                                            @php
+                                                                $isLive = $session->status === 'active';
+                                                                $isToday = optional($session->started_at)->isToday();
+                                                                $badge = $isLive ? '🔴 LIVE' : ($isToday ? '📅 Today' : $session->started_at->format('d M'));
+                                                                $checkedIn = $session->records()->whereIn('status', ['present', 'late'])->count();
+                                                            @endphp
+                                                            <option value="{{ $session->id }}" @selected($todaySession && $todaySession->id === $session->id)>
+                                                                {{ $badge }} · {{ $session->section->name ?? 'Section' }} — W{{ $session->week_number }} ({{ $checkedIn }} {{ __('active_learning.students') ?? 'students' }})
+                                                            </option>
                                                         @endforeach
                                                     </select>
+                                                    @if($liveSession)
+                                                        <p class="mt-1 text-[11px] text-emerald-600 font-medium">{{ __('active_learning.live_session_hint') ?? 'A live attendance session is running — groups will use current check-ins.' }}</p>
+                                                    @endif
                                                 </div>
                                                 <div>
                                                     <label class="text-xs font-medium text-slate-500">{{ __('active_learning.group_size') }}</label>

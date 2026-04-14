@@ -112,13 +112,21 @@ class ActiveLearningPlanController extends Controller
         $course->load(['topics', 'learningOutcomes', 'sections']);
         $tenant = app('current_tenant');
 
-        // Get attendance sessions for the course's sections
+        // Get attendance sessions for the course's sections.
+        // Include currently active sessions (so lecturers can form groups
+        // from the session they are taking right now) alongside ended ones.
         $sectionIds = $course->sections->pluck('id');
         $attendanceSessions = AttendanceSession::whereIn('section_id', $sectionIds)
-            ->where('status', 'ended')
+            ->whereIn('status', ['active', 'ended'])
             ->with('section')
             ->latest('started_at')
-            ->get();
+            ->get()
+            ->sortBy(fn ($s) => [
+                $s->status === 'active' ? 0 : 1,
+                $s->started_at?->isToday() ? 0 : 1,
+                -($s->started_at?->timestamp ?? 0),
+            ])
+            ->values();
 
         // Get course files for material linking
         $courseFiles = CourseFile::where('course_id', $course->id)->get();
