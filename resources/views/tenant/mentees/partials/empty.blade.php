@@ -1,7 +1,3 @@
-@php
-    $user = auth()->user();
-    $isAdmin = $user->is_super_admin || $user->hasRoleInTenant($tenant->id, ['admin', 'coordinator']);
-@endphp
 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-16 text-center">
     <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4">
         <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -10,12 +6,4 @@
     </div>
     <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">No students assigned</h3>
     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">You have not been assigned as {{ $role }} for any students yet.</p>
-    @if($isAdmin)
-        <a href="{{ route('tenant.admin.mentorships.create', $tenant->slug) }}"
-           class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700">
-            + Assign Mentorship
-        </a>
-    @else
-        <p class="mt-3 text-[11px] text-slate-400">Contact your coordinator or admin to be assigned.</p>
-    @endif
 </div>
