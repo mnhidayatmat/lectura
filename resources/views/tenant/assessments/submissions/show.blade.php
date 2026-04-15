@@ -234,15 +234,22 @@
                 @php
                     $hasRubric = $assessment->rubric && $assessment->rubric->criteria->isNotEmpty();
                     $oldCriteriaMarks = old('criteria_marks', []);
+                    $storedCriteriaMarks = $submission->score?->criteria_marks ?? [];
                     $initialCriteriaMarks = [];
                     $criterionMax = [];
                     $criterionWeight = [];
                     $isWeighted = false;
                     if ($hasRubric) {
                         foreach ($assessment->rubric->criteria as $c) {
-                            $initialCriteriaMarks[$c->id] = isset($oldCriteriaMarks[$c->id]) && $oldCriteriaMarks[$c->id] !== ''
-                                ? (float) $oldCriteriaMarks[$c->id]
-                                : null;
+                            if (isset($oldCriteriaMarks[$c->id]) && $oldCriteriaMarks[$c->id] !== '') {
+                                $initialCriteriaMarks[$c->id] = (float) $oldCriteriaMarks[$c->id];
+                            } elseif (isset($storedCriteriaMarks[$c->id])) {
+                                $initialCriteriaMarks[$c->id] = (float) $storedCriteriaMarks[$c->id];
+                            } elseif (isset($storedCriteriaMarks[(string) $c->id])) {
+                                $initialCriteriaMarks[$c->id] = (float) $storedCriteriaMarks[(string) $c->id];
+                            } else {
+                                $initialCriteriaMarks[$c->id] = null;
+                            }
                             $criterionMax[$c->id] = (float) $c->max_marks;
                             $criterionWeight[$c->id] = $c->weightage !== null ? (float) $c->weightage : 0.0;
                             if ($criterionWeight[$c->id] > 0) {

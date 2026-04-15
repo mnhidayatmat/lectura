@@ -15,6 +15,7 @@ use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Notifications\AssessmentMarksReleased;
 use App\Notifications\AssessmentSubmissionReceived;
+use App\Services\Assessment\SubmissionReportStampingService;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,6 +118,7 @@ class AssessmentSubmissionController extends Controller
 
         $request->validate($rules);
 
+        $criteriaMarksInput = null;
         if ($hasRubric) {
             // If any criterion has a weightage > 0, treat the whole rubric as weighted:
             // each criterion's contribution = (score / max) × (weight/100) × assessment.total_marks.
@@ -126,8 +128,10 @@ class AssessmentSubmissionController extends Controller
             );
 
             $rawMarks = 0.0;
+            $criteriaMarksInput = [];
             foreach ($assessment->rubric->criteria as $criterion) {
                 $score = (float) ($request->input('criteria_marks.'.$criterion->id) ?? 0);
+                $criteriaMarksInput[(string) $criterion->id] = $score;
                 if ($isWeighted) {
                     $max = (float) $criterion->max_marks;
                     $weight = (float) ($criterion->weightage ?? 0);
@@ -161,12 +165,25 @@ class AssessmentSubmissionController extends Controller
                 'is_computed' => false,
                 'is_released' => false,
                 'feedback' => $request->feedback,
+                'criteria_marks' => $criteriaMarksInput,
                 'finalized_by' => auth()->id(),
                 'finalized_at' => now(),
             ]
         );
 
         $submission->update(['status' => 'graded']);
+
+        // Stamp a grade-report cover page onto every PDF in the submission
+        // so the student sees their marks at the top of the file. Failures
+        // are logged and never block saving the grade.
+        try {
+            app(SubmissionReportStampingService::class)->stamp($submission->fresh(['files', 'user', 'score', 'assessment']));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('grade stamping failed', [
+                'submission_id' => $submission->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // "Save & Next" button sends next_id; "Save Grade" stays on this submission.
         if ($request->filled('next_id')) {
@@ -240,11 +257,20 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        if (! Storage::disk('local')->exists($file->storage_path)) {
+        // Students always get the graded copy (cover page + original) once
+        // it exists. Lecturers default to the same, but can fetch the raw
+        // source by appending ?original=1 — handy for re-reading the
+        // unannotated submission.
+        $path = $file->viewablePath();
+        if ($isLecturer && request()->boolean('original')) {
+            $path = $file->storage_path;
+        }
+
+        if (! Storage::disk('local')->exists($path)) {
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('local')->download($path, $file->file_name);
     }
 
     public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): \Symfony\Component\HttpFoundation\BinaryFileResponse
@@ -257,7 +283,12 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        $absolutePath = Storage::disk('local')->path($file->storage_path);
+        $path = $file->viewablePath();
+        if ($isLecturer && request()->boolean('original')) {
+            $path = $file->storage_path;
+        }
+
+        $absolutePath = Storage::disk('local')->path($path);
 
         if (! file_exists($absolutePath)) {
             abort(404, 'File not found.');

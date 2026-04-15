@@ -16,7 +16,7 @@ class AssessmentScore extends Model
         'tenant_id', 'assessment_id', 'user_id',
         'assessment_submission_id', 'raw_marks', 'max_marks',
         'weighted_marks', 'percentage', 'is_computed',
-        'is_released', 'released_at', 'feedback',
+        'is_released', 'released_at', 'feedback', 'criteria_marks',
         'finalized_by', 'finalized_at',
     ];
 
@@ -27,6 +27,7 @@ class AssessmentScore extends Model
             'is_released' => 'boolean',
             'released_at' => 'datetime',
             'finalized_at' => 'datetime',
+            'criteria_marks' => 'array',
         ];
     }
 
