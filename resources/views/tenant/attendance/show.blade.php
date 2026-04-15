@@ -5,13 +5,29 @@
                 <a href="{{ route('tenant.attendance.index', app('current_tenant')->slug) }}" class="text-slate-400 hover:text-slate-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </a>
-                <div>
+                <div x-data="{ editing: false }">
                     <h2 class="text-2xl font-bold text-slate-900">Attendance Report</h2>
-                    <p class="text-sm text-slate-500">
-                        {{ $session->section->course->code }} — {{ $session->section->name }}
-                        &middot; {{ ucfirst($session->session_type) }}
-                        &middot; {{ $session->started_at->format('d M Y, H:i') }}
-                    </p>
+                    <div x-show="!editing" class="flex items-center gap-2">
+                        <p class="text-sm text-slate-500">
+                            {{ $session->section->course->code }} — {{ $session->section->name }}
+                            &middot; {{ ucfirst($session->session_type) }}
+                            @if($session->week_number) &middot; Week {{ $session->week_number }} @endif
+                            &middot; {{ $session->started_at->format('d M Y, H:i') }}
+                        </p>
+                        <button type="button" @click="editing = true" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Edit</button>
+                    </div>
+                    <form x-show="editing" x-cloak method="POST" action="{{ route('tenant.attendance.update', [app('current_tenant')->slug, $session]) }}" class="flex items-center gap-2 mt-1">
+                        @csrf @method('PUT')
+                        <span class="text-sm text-slate-500">{{ $session->section->course->code }} — {{ $session->section->name }} &middot;</span>
+                        <select name="session_type" class="text-xs px-2 py-1 rounded border border-slate-300 focus:ring-1 focus:ring-indigo-500">
+                            @foreach(['lecture','tutorial','lab','extra','replacement'] as $t)
+                                <option value="{{ $t }}" {{ $session->session_type === $t ? 'selected' : '' }}>{{ ucfirst($t) }}</option>
+                            @endforeach
+                        </select>
+                        <input type="number" min="1" name="week_number" value="{{ $session->week_number }}" placeholder="Week" class="w-20 text-xs px-2 py-1 rounded border border-slate-300 focus:ring-1 focus:ring-indigo-500">
+                        <button type="submit" class="px-2 py-1 bg-indigo-600 text-white text-xs rounded">Save</button>
+                        <button type="button" @click="editing = false" class="px-2 py-1 text-slate-500 text-xs">Cancel</button>
+                    </form>
                 </div>
             </div>
             @if($session->status === 'ended')

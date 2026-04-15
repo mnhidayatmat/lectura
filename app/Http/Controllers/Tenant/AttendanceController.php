@@ -346,6 +346,24 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Update session metadata (type / week number). Useful to correct a wrong
+     * session_type picked when starting the session (e.g. lecture vs lab).
+     */
+    public function update(Request $request, string $tenantSlug, AttendanceSession $session): RedirectResponse
+    {
+        $this->authorizeSession($session);
+
+        $validated = $request->validate([
+            'session_type' => ['required', 'in:lecture,tutorial,lab,extra,replacement'],
+            'week_number' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $session->update($validated);
+
+        return back()->with('success', 'Session details updated.');
+    }
+
+    /**
      * View session details/report.
      */
     public function show(string $tenantSlug, AttendanceSession $session): View
