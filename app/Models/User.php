@@ -183,4 +183,31 @@ class User extends Authenticatable
     {
         return $this->hasMany(AttendanceWarning::class);
     }
+
+    // ── Mentorship (Academic Tutor / LI Supervisor) ──
+
+    public function mentees(): HasMany
+    {
+        return $this->hasMany(StudentMentorship::class, 'lecturer_id');
+    }
+
+    public function mentors(): HasMany
+    {
+        return $this->hasMany(StudentMentorship::class, 'student_id');
+    }
+
+    public function isMentorOf(User|int $student, ?string $role = null): bool
+    {
+        $studentId = $student instanceof User ? $student->id : $student;
+
+        $query = $this->mentees()
+            ->where('student_id', $studentId)
+            ->whereNull('ended_at');
+
+        if ($role) {
+            $query->where('role', $role);
+        }
+
+        return $query->exists();
+    }
 }

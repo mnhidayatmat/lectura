@@ -730,6 +730,18 @@ Route::prefix('{tenant:slug}')
         Route::put('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
         Route::delete('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
 
+        // Mentees (Academic Tutor / LI Supervisor view)
+        Route::get('/mentees', [\App\Http\Controllers\Tenant\MenteeController::class, 'index'])->name('tenant.mentees.index');
+        Route::get('/mentees/{student}', [\App\Http\Controllers\Tenant\MenteeController::class, 'show'])->name('tenant.mentees.show');
+        Route::get('/mentees/{student}/li-details', [\App\Http\Controllers\Tenant\MenteeController::class, 'editLiDetails'])->name('tenant.mentees.li-details.edit');
+        Route::put('/mentees/{student}/li-details', [\App\Http\Controllers\Tenant\MenteeController::class, 'updateLiDetails'])->name('tenant.mentees.li-details.update');
+
+        // Admin mentorship assignment
+        Route::get('/admin/mentorships', [\App\Http\Controllers\Tenant\Admin\MentorshipController::class, 'index'])->name('tenant.admin.mentorships.index');
+        Route::get('/admin/mentorships/create', [\App\Http\Controllers\Tenant\Admin\MentorshipController::class, 'create'])->name('tenant.admin.mentorships.create');
+        Route::post('/admin/mentorships', [\App\Http\Controllers\Tenant\Admin\MentorshipController::class, 'store'])->name('tenant.admin.mentorships.store');
+        Route::delete('/admin/mentorships/{mentorship}', [\App\Http\Controllers\Tenant\Admin\MentorshipController::class, 'destroy'])->name('tenant.admin.mentorships.destroy');
+
         // Settings
         Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
         Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
