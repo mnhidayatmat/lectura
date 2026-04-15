@@ -8,6 +8,9 @@ use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\Course;
+use App\Models\Rubric;
+use App\Models\RubricCriteria;
+use App\Models\RubricLevel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -90,6 +93,14 @@ class AssessmentPlanController extends Controller
             'requires_submission' => ['nullable', 'boolean'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
+            'criteria'                   => ['nullable', 'array'],
+            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.levels'          => ['nullable', 'array'],
+            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
+            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $tenant = app('current_tenant');
@@ -131,6 +142,8 @@ class AssessmentPlanController extends Controller
             $assessment->clos()->attach($request->clo_ids);
         }
 
+        $this->syncRubric($assessment, $request->input('criteria'));
+
         // Redirect child assessments back to the parent's edit page, not the index.
         if ($request->filled('parent_id') && isset($parent)) {
             return redirect()->route('tenant.assessments.edit', [$tenant->slug, $course, $parent])
@@ -157,7 +170,7 @@ class AssessmentPlanController extends Controller
 
         $tenant = app('current_tenant');
         $course->load('learningOutcomes');
-        $assessment->load(['clos', 'children', 'parent']);
+        $assessment->load(['clos', 'children', 'parent', 'rubric.criteria.levels']);
 
         $assignments = $course->hasMany(\App\Models\Assignment::class)->get(['id', 'title']);
         $quizzes = \App\Models\QuizSession::where('lecturer_id', auth()->id())
@@ -188,6 +201,14 @@ class AssessmentPlanController extends Controller
             'requires_submission' => ['nullable', 'boolean'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
+            'criteria'                   => ['nullable', 'array'],
+            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.levels'          => ['nullable', 'array'],
+            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
+            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $assessment->update(array_merge(
@@ -216,6 +237,8 @@ class AssessmentPlanController extends Controller
         }
 
         $assessment->clos()->sync($request->clo_ids ?? []);
+
+        $this->syncRubric($assessment, $request->input('criteria'));
 
         return redirect()->route('tenant.assessments.index', [app('current_tenant')->slug, $course])
             ->with('success', 'Assessment updated.');
@@ -278,5 +301,50 @@ class AssessmentPlanController extends Controller
 
         // response()->file() sets Content-Disposition: inline so the browser renders it.
         return response()->file($absolutePath);
+    }
+
+    /**
+     * Replace the assessment's rubric with the submitted criteria/levels.
+     * Passing null or an empty array removes any existing rubric.
+     */
+    protected function syncRubric(Assessment $assessment, ?array $criteria): void
+    {
+        $assessment->rubric()?->delete();
+
+        if (empty($criteria)) {
+            return;
+        }
+
+        $rubric = Rubric::create([
+            'assessment_id' => $assessment->id,
+            'type' => 'matrix',
+        ]);
+
+        foreach (array_values($criteria) as $i => $cData) {
+            if (empty($cData['title'])) {
+                continue;
+            }
+
+            $criterion = RubricCriteria::create([
+                'rubric_id' => $rubric->id,
+                'title' => $cData['title'],
+                'description' => $cData['description'] ?? null,
+                'max_marks' => (float) ($cData['max_marks'] ?? 0),
+                'sort_order' => $i,
+            ]);
+
+            foreach (array_values($cData['levels'] ?? []) as $j => $lData) {
+                if (empty($lData['label'])) {
+                    continue;
+                }
+                RubricLevel::create([
+                    'rubric_criteria_id' => $criterion->id,
+                    'label' => $lData['label'],
+                    'description' => $lData['description'] ?? null,
+                    'marks' => (float) ($lData['marks'] ?? 0),
+                    'sort_order' => $j,
+                ]);
+            }
+        }
     }
 }

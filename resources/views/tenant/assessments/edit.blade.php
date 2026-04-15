@@ -211,6 +211,9 @@
                     @error('instruction_file') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- Grading Rubric --}}
+                @include('tenant.assessments.partials.rubric-builder')
+
                 <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Save Changes</button>
             </form>
         </div>

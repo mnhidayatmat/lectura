@@ -11,12 +11,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Rubric extends Model
 {
     protected $fillable = [
-        'assignment_id', 'type',
+        'assignment_id', 'assessment_id', 'type',
     ];
 
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(Assignment::class);
+    }
+
+    public function assessment(): BelongsTo
+    {
+        return $this->belongsTo(Assessment::class);
     }
 
     public function criteria(): HasMany

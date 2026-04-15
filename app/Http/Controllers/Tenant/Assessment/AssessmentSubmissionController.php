@@ -69,6 +69,7 @@ class AssessmentSubmissionController extends Controller
 
         $tenant = app('current_tenant');
         $submission->load(['user', 'files', 'score']);
+        $assessment->load('rubric.criteria.levels');
 
         // Ordered list: ungraded first, then by submission time — for prev/next navigation
         $orderedIds = $assessment->submissions()
@@ -96,12 +97,36 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        $request->validate([
-            'raw_marks' => ['required', 'numeric', 'min:0', 'max:' . $assessment->total_marks],
-            'feedback' => ['nullable', 'string', 'max:5000'],
-        ]);
+        $assessment->load('rubric.criteria');
+        $hasRubric = $assessment->rubric && $assessment->rubric->criteria->isNotEmpty();
 
-        $rawMarks = (float) $request->raw_marks;
+        $rules = [
+            'feedback' => ['nullable', 'string', 'max:5000'],
+        ];
+
+        if ($hasRubric) {
+            $rules['criteria_marks'] = ['required', 'array'];
+            foreach ($assessment->rubric->criteria as $criterion) {
+                $rules['criteria_marks.'.$criterion->id] = [
+                    'required', 'numeric', 'min:0', 'max:'.(float) $criterion->max_marks,
+                ];
+            }
+        } else {
+            $rules['raw_marks'] = ['required', 'numeric', 'min:0', 'max:'.$assessment->total_marks];
+        }
+
+        $request->validate($rules);
+
+        if ($hasRubric) {
+            $rawMarks = 0.0;
+            foreach ($assessment->rubric->criteria as $criterion) {
+                $rawMarks += (float) ($request->input('criteria_marks.'.$criterion->id) ?? 0);
+            }
+            $rawMarks = min($rawMarks, (float) $assessment->total_marks);
+        } else {
+            $rawMarks = (float) $request->raw_marks;
+        }
+
         $maxMarks = (float) $assessment->total_marks;
         $percentage = $maxMarks > 0 ? round(($rawMarks / $maxMarks) * 100, 2) : 0;
         $weightedMarks = round($percentage * (float) $assessment->weightage / 100, 2);

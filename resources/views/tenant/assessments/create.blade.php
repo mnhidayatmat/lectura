@@ -621,6 +621,9 @@
                         </div>
                     @endif
 
+                    {{-- ── Grading Rubric ── --}}
+                    @include('tenant.assessments.partials.rubric-builder')
+
                     {{-- ── Submit Footer ── --}}
                     <div class="flex items-center gap-4 pt-6 pb-4 border-t border-slate-200 dark:border-slate-700">
                         <button type="submit"
