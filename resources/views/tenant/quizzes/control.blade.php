@@ -54,12 +54,19 @@
         </div>
     </x-slot>
 
-    <div class="space-y-6">
+    <div class="space-y-6"
+         x-data="quizLobby({
+            url: '{{ route('tenant.quizzes.lobby-state', [app('current_tenant')->slug, $session]) }}',
+            initialCount: {{ $session->participants->count() }},
+            initialParticipants: @js($session->participants->map(fn ($p) => ['id' => $p->id, 'name' => $session->is_anonymous ? $p->display_name : ($p->user->name ?? $p->display_name), 'joined_at' => optional($p->joined_at)->toIso8601String()])->values()),
+            isWaiting: {{ $session->status === 'waiting' ? 'true' : 'false' }},
+         })"
+         x-init="start()">
 
         {{-- Stats bar --}}
         <div class="grid grid-cols-3 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
-                <p class="text-2xl font-bold text-indigo-600">{{ $session->participants->count() }}</p>
+                <p class="text-2xl font-bold text-indigo-600 transition" x-text="count">{{ $session->participants->count() }}</p>
                 <p class="text-xs text-slate-500">Participants</p>
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
@@ -90,7 +97,39 @@
                 <div class="inline-block bg-indigo-50 rounded-xl px-8 py-4">
                     <p class="text-4xl font-extrabold text-indigo-700 tracking-[0.3em]">{{ $session->join_code }}</p>
                 </div>
-                <p class="text-sm text-slate-400 mt-6">{{ $session->participants->count() }} students joined. Click "Start Quiz" when ready.</p>
+                <p class="text-sm text-slate-400 mt-6">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span><span class="font-semibold text-slate-600" x-text="count">{{ $session->participants->count() }}</span> students joined. Click "Start Quiz" when ready.</span>
+                    </span>
+                </p>
+            </div>
+
+            {{-- Live participant list --}}
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900">Joined Students</h3>
+                    <span class="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live &middot; <span x-text="count">0</span>
+                    </span>
+                </div>
+                <div x-show="participants.length === 0" class="px-6 py-10 text-center text-sm text-slate-400">
+                    No students have joined yet. The list updates automatically.
+                </div>
+                <ul x-show="participants.length > 0" class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                    <template x-for="p in participants" :key="p.id">
+                        <li class="px-6 py-3 flex items-center justify-between"
+                            :class="newIds.includes(p.id) ? 'bg-emerald-50' : ''">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold"
+                                      x-text="(p.name || '?').charAt(0).toUpperCase()"></span>
+                                <span class="text-sm font-medium text-slate-700" x-text="p.name"></span>
+                            </div>
+                            <span x-show="newIds.includes(p.id)" class="text-xs font-semibold text-emerald-600">just joined</span>
+                        </li>
+                    </template>
+                </ul>
             </div>
 
         @elseif($phase === 'answering' && $activeQ)
@@ -213,4 +252,56 @@
             </div>
         @endif
     </div>
+
+    @push('scripts')
+    <script>
+        function quizLobby({ url, initialCount, initialParticipants, isWaiting }) {
+            return {
+                url,
+                count: initialCount,
+                participants: initialParticipants || [],
+                newIds: [],
+                isWaiting,
+                timer: null,
+
+                start() {
+                    if (!this.isWaiting) return;
+                    this.poll();
+                    this.timer = setInterval(() => this.poll(), 3000);
+                },
+
+                async poll() {
+                    try {
+                        const res = await fetch(this.url, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+
+                        const previousIds = new Set(this.participants.map(p => p.id));
+                        const fresh = (data.participants || []).filter(p => !previousIds.has(p.id)).map(p => p.id);
+
+                        this.count = data.count;
+                        this.participants = data.participants || [];
+
+                        if (fresh.length) {
+                            this.newIds = [...this.newIds, ...fresh];
+                            setTimeout(() => {
+                                this.newIds = this.newIds.filter(id => !fresh.includes(id));
+                            }, 3000);
+                        }
+
+                        // If lecturer started elsewhere or status changed, refresh the page
+                        if (data.status && data.status !== 'waiting') {
+                            clearInterval(this.timer);
+                            window.location.reload();
+                        }
+                    } catch (e) {
+                        // network blip — keep polling
+                    }
+                },
+            };
+        }
+    </script>
+    @endpush
 </x-tenant-layout>

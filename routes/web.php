@@ -452,6 +452,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/quizzes/{session}/replay', [QuizController::class, 'replay'])->name('tenant.quizzes.replay');
         Route::delete('/quizzes/{session}', [QuizController::class, 'destroy'])->name('tenant.quizzes.destroy');
         Route::get('/quizzes/{session}/state', [QuizController::class, 'state'])->name('tenant.quizzes.state');
+        Route::get('/quizzes/{session}/lobby-state', [QuizController::class, 'lobbyState'])->name('tenant.quizzes.lobby-state');
         // Student quiz
         Route::get('/quiz/join', [QuizController::class, 'join'])->name('tenant.quizzes.join');
         Route::get('/quiz/{session}/play', [QuizController::class, 'play'])->name('tenant.quizzes.play');

@@ -25,6 +25,7 @@ use Illuminate\View\View;
 class QuizController extends Controller
 {
     use AuthorizesCourseAccess;
+
     /**
      * Quiz list for lecturer — grouped by course, then by folder.
      */
@@ -79,7 +80,7 @@ class QuizController extends Controller
             'description' => $request->description,
         ]);
 
-        return back()->with('success', 'Folder "' . $request->name . '" created.');
+        return back()->with('success', 'Folder "'.$request->name.'" created.');
     }
 
     /** Update folder name/color */
@@ -105,7 +106,7 @@ class QuizController extends Controller
         $name = $folder->name;
         $folder->delete();
 
-        return back()->with('success', 'Folder "' . $name . '" deleted. Quizzes moved to uncategorized.');
+        return back()->with('success', 'Folder "'.$name.'" deleted. Quizzes moved to uncategorized.');
     }
 
     /** Move a quiz session into (or out of) a folder */
@@ -422,11 +423,11 @@ class QuizController extends Controller
         ]);
 
         $questions = $session->sessionQuestions;
-        $activeQ   = $session->activeQuestion();
+        $activeQ = $session->activeQuestion();
 
         // Determine phase and the question to display
-        $phase       = 'answering';
-        $revealQ     = null;
+        $phase = 'answering';
+        $revealQ = null;
         $revealIndex = -1;
         $currentIndex = $activeQ ? $questions->search(fn ($q) => $q->id === $activeQ->id) : -1;
         $responseCount = $activeQ ? $activeQ->responses->count() : 0;
@@ -462,6 +463,7 @@ class QuizController extends Controller
         }
 
         Cache::forget("quiz_session_{$session->id}_state");
+        Cache::forget("quiz_session_{$session->id}_lobby");
 
         return back();
     }
@@ -771,6 +773,10 @@ class QuizController extends Controller
             ]
         );
 
+        if ($participant->wasRecentlyCreated) {
+            Cache::forget("quiz_session_{$session->id}_lobby");
+        }
+
         $session->load(['sessionQuestions.question.options']);
 
         return view('tenant.quizzes.play', compact('session', 'participant'));
@@ -935,6 +941,34 @@ class QuizController extends Controller
     }
 
     /**
+     * API: Lobby state — live participant count + list for the waiting room.
+     * Polled by both the lecturer control page and the student play page while status === 'waiting'.
+     */
+    public function lobbyState(string $tenantSlug, QuizSession $session): JsonResponse
+    {
+        $data = Cache::remember("quiz_session_{$session->id}_lobby", 2, function () use ($session) {
+            $participants = QuizParticipant::where('quiz_session_id', $session->id)
+                ->with('user:id,name')
+                ->orderBy('joined_at')
+                ->get()
+                ->map(fn ($p) => [
+                    'id' => $p->id,
+                    'name' => $session->is_anonymous ? $p->display_name : ($p->user->name ?? $p->display_name),
+                    'joined_at' => optional($p->joined_at)->toIso8601String(),
+                ])
+                ->values();
+
+            return [
+                'status' => $session->fresh()->status,
+                'count' => $participants->count(),
+                'participants' => $participants,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
      * API: Get current question state for student (polling — live quiz).
      *
      * The active question and session status are cached for 3 seconds and shared
@@ -986,7 +1020,15 @@ class QuizController extends Controller
             }
 
             if (! $activeQ) {
-                return ['status' => $session->status, 'phase' => 'done', 'active_q_id' => null, 'closed_q_id' => null, 'question' => null, 'leaderboard' => null];
+                return [
+                    'status' => $session->status,
+                    'phase' => 'done',
+                    'active_q_id' => null,
+                    'closed_q_id' => null,
+                    'question' => null,
+                    'leaderboard' => null,
+                    'participant_count' => QuizParticipant::where('quiz_session_id', $session->id)->count(),
+                ];
             }
 
             $q = $activeQ->question()->with('options')->first();
@@ -1057,6 +1099,7 @@ class QuizController extends Controller
             'is_correct' => $isCorrect,
             'my_rank' => $myRank,
             'leaderboard' => $shared['leaderboard'],
+            'participant_count' => $shared['participant_count'] ?? null,
         ]);
     }
 }

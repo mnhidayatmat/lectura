@@ -19,6 +19,10 @@
             </div>
             <h3 class="text-lg font-bold text-slate-900">Waiting for quiz to start...</h3>
             <p class="text-sm text-slate-500 mt-2">Your lecturer will start the quiz shortly.</p>
+            <div class="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 text-indigo-700">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-sm font-semibold"><span x-text="participantCount">0</span> joined</span>
+            </div>
             <p class="text-xs text-slate-400 mt-4">Joined as: {{ $participant->display_name }}</p>
         </div>
 
@@ -192,6 +196,7 @@
                 myRank: null,
                 leaderboard: [],
                 lastPoints: 0,
+                participantCount: 0,
                 polling: null,
                 pollActive: false,
 
@@ -213,6 +218,9 @@
                         this.status = data.status;
                         this.phase  = data.phase || 'answering';
                         this.score  = data.score ?? this.score;
+                        if (typeof data.participant_count === 'number') {
+                            this.participantCount = data.participant_count;
+                        }
                         window._quizScore = this.score;
 
                         if (this.phase === 'answering' && data.question) {
