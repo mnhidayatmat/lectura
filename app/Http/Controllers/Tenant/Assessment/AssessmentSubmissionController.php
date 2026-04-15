@@ -206,6 +206,28 @@ class AssessmentSubmissionController extends Controller
         return Storage::disk('local')->download($file->storage_path, $file->file_name);
     }
 
+    public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $submission = $file->submission;
+
+        $user = auth()->user();
+        $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->exists();
+        if (! $isLecturer && $submission->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $absolutePath = Storage::disk('local')->path($file->storage_path);
+
+        if (! file_exists($absolutePath)) {
+            abort(404, 'File not found.');
+        }
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $file->file_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="'.addslashes($file->file_name).'"',
+        ]);
+    }
+
     // ─── Student Methods ────────────────────────────────────────
 
     public function studentIndex(string $tenantSlug): View

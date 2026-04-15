@@ -134,10 +134,10 @@
                         <div class="mt-4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                             <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                                 <span class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ $pdfFile->file_name }}</span>
-                                <a href="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $pdfFile]) }}"
+                                <a href="{{ route('tenant.assessments.submissions.view-file', [$tenant->slug, $course, $assessment, $pdfFile]) }}"
                                    target="_blank" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Open in tab</a>
                             </div>
-                            <iframe src="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $pdfFile]) }}#toolbar=1"
+                            <iframe src="{{ route('tenant.assessments.submissions.view-file', [$tenant->slug, $course, $assessment, $pdfFile]) }}#toolbar=1"
                                     class="w-full bg-slate-100 dark:bg-slate-900" style="height: 560px;"></iframe>
                         </div>
                     @endif

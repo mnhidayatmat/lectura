@@ -502,6 +502,7 @@ Route::prefix('{tenant:slug}')
             Route::post('/{assessment}/scores/release', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'release'])->name('tenant.assessments.scores.release');
             Route::post('/{assessment}/scores/{score}/unrelease', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'unrelease'])->name('tenant.assessments.scores.unrelease');
             Route::get('/{assessment}/submissions/files/{file}/download', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'downloadFile'])->name('tenant.assessments.submissions.download');
+            Route::get('/{assessment}/submissions/files/{file}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'viewFile'])->name('tenant.assessments.submissions.view-file');
         });
 
         // Assessment Reports
@@ -609,6 +610,7 @@ Route::prefix('{tenant:slug}')
         });
 
         // Collaborative Whiteboards (Excalidraw — per-course + per-group)
+        Route::get('/whiteboards', [WhiteboardController::class, 'all'])->name('tenant.whiteboards.all');
         Route::get('/courses/{course}/whiteboards', [WhiteboardController::class, 'index'])->name('tenant.whiteboards.index');
         Route::post('/courses/{course}/whiteboards', [WhiteboardController::class, 'store'])->name('tenant.whiteboards.store');
         Route::get('/whiteboards/{whiteboard}', [WhiteboardController::class, 'show'])->name('tenant.whiteboards.show');
