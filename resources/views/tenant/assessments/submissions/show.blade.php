@@ -235,27 +235,52 @@
                     $hasRubric = $assessment->rubric && $assessment->rubric->criteria->isNotEmpty();
                     $oldCriteriaMarks = old('criteria_marks', []);
                     $initialCriteriaMarks = [];
+                    $criterionMax = [];
+                    $criterionWeight = [];
+                    $isWeighted = false;
                     if ($hasRubric) {
                         foreach ($assessment->rubric->criteria as $c) {
                             $initialCriteriaMarks[$c->id] = isset($oldCriteriaMarks[$c->id]) && $oldCriteriaMarks[$c->id] !== ''
                                 ? (float) $oldCriteriaMarks[$c->id]
                                 : null;
+                            $criterionMax[$c->id] = (float) $c->max_marks;
+                            $criterionWeight[$c->id] = $c->weightage !== null ? (float) $c->weightage : 0.0;
+                            if ($criterionWeight[$c->id] > 0) {
+                                $isWeighted = true;
+                            }
                         }
                     }
                 @endphp
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5"
                      x-data="{
                          hasRubric: {{ $hasRubric ? 'true' : 'false' }},
+                         isWeighted: {{ $isWeighted ? 'true' : 'false' }},
                          criteriaMarks: @js($initialCriteriaMarks),
+                         criterionMax: @js($criterionMax),
+                         criterionWeight: @js($criterionWeight),
                          manualMarks: {{ json_encode(old('raw_marks', $submission->score?->raw_marks) !== null ? (float) old('raw_marks', $submission->score?->raw_marks) : '') }},
                          maxMarks: {{ (float) $assessment->total_marks }},
                          setCriterionMarks(id, value) {
                              this.criteriaMarks[id] = value;
                          },
+                         criterionScore(id) {
+                             const v = this.criteriaMarks[id];
+                             return (v === null || v === '' || isNaN(v)) ? 0 : parseFloat(v);
+                         },
+                         criterionContribution(id) {
+                             const score = this.criterionScore(id);
+                             if (this.isWeighted) {
+                                 const max = this.criterionMax[id] || 0;
+                                 const w = this.criterionWeight[id] || 0;
+                                 if (max <= 0) return 0;
+                                 return (score / max) * (w / 100) * this.maxMarks;
+                             }
+                             return score;
+                         },
                          get marks() {
                              if (this.hasRubric) {
-                                 return Object.values(this.criteriaMarks)
-                                     .reduce((s, v) => s + (v === null || v === '' || isNaN(v) ? 0 : parseFloat(v)), 0);
+                                 return Object.keys(this.criteriaMarks)
+                                     .reduce((s, id) => s + this.criterionContribution(id), 0);
                              }
                              return this.manualMarks === '' || this.manualMarks === null ? 0 : parseFloat(this.manualMarks);
                          },
@@ -288,7 +313,14 @@
                                     <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-700/20 p-3.5">
                                         <div class="flex items-start justify-between gap-3 mb-2">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{{ $criterion->title }}</p>
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $criterion->title }}</p>
+                                                    @if($criterion->weightage !== null && (float) $criterion->weightage > 0)
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wide">
+                                                            Weight {{ rtrim(rtrim(number_format((float) $criterion->weightage, 2), '0'), '.') }}%
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 @if($criterion->description)
                                                     <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ $criterion->description }}</p>
                                                 @endif
@@ -303,6 +335,16 @@
                                                 <span class="text-[11px] text-slate-400">/ {{ number_format((float) $criterion->max_marks, 0) }}</span>
                                             </div>
                                         </div>
+
+                                        @if($isWeighted && $criterion->weightage !== null && (float) $criterion->weightage > 0)
+                                            <p class="text-[10px] text-slate-400 mb-1.5">
+                                                Contributes
+                                                <span class="font-semibold text-indigo-600 dark:text-indigo-400"
+                                                      x-text="(Math.round(criterionContribution({{ $criterion->id }}) * 10) / 10)"></span>
+                                                / {{ rtrim(rtrim(number_format($assessment->total_marks * (float) $criterion->weightage / 100, 2), '0'), '.') }}
+                                                pts to the assessment total
+                                            </p>
+                                        @endif
 
                                         @if($criterion->levels->isNotEmpty())
                                             <div class="flex flex-wrap gap-1.5 mt-2">

@@ -97,6 +97,7 @@ class AssessmentPlanController extends Controller
             'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
             'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
             'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
             'criteria.*.levels'          => ['nullable', 'array'],
             'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
@@ -205,6 +206,7 @@ class AssessmentPlanController extends Controller
             'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
             'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
             'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
             'criteria.*.levels'          => ['nullable', 'array'],
             'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
@@ -325,11 +327,13 @@ class AssessmentPlanController extends Controller
                 continue;
             }
 
+            $weightage = $cData['weightage'] ?? null;
             $criterion = RubricCriteria::create([
                 'rubric_id' => $rubric->id,
                 'title' => $cData['title'],
                 'description' => $cData['description'] ?? null,
                 'max_marks' => (float) ($cData['max_marks'] ?? 0),
+                'weightage' => ($weightage === null || $weightage === '') ? null : (float) $weightage,
                 'sort_order' => $i,
             ]);
 

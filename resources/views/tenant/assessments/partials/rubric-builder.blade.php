@@ -6,6 +6,7 @@
             'title' => $c->title,
             'description' => $c->description,
             'max_marks' => (float) $c->max_marks,
+            'weightage' => $c->weightage !== null ? (float) $c->weightage : '',
             'levels' => $c->levels->map(fn ($l) => [
                 'label' => $l->label,
                 'description' => $l->description,
@@ -23,7 +24,7 @@
          enabled: {{ count($rubricSeed) > 0 ? 'true' : 'false' }},
          criteria: @js($rubricSeed),
          addCriterion() {
-             this.criteria.push({ title: '', description: '', max_marks: 10, levels: [] });
+             this.criteria.push({ title: '', description: '', max_marks: 10, weightage: '', levels: [] });
          },
          removeCriterion(i) {
              this.criteria.splice(i, 1);
@@ -37,6 +38,12 @@
          },
          totalMax() {
              return this.criteria.reduce((s, c) => s + (parseFloat(c.max_marks) || 0), 0);
+         },
+         totalWeight() {
+             return this.criteria.reduce((s, c) => s + (parseFloat(c.weightage) || 0), 0);
+         },
+         hasAnyWeight() {
+             return this.criteria.some(c => parseFloat(c.weightage) > 0);
          },
          enable() {
              this.enabled = true;
@@ -55,9 +62,18 @@
             </p>
         </div>
         <template x-if="enabled">
-            <div class="text-right flex-shrink-0 ml-4">
-                <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Rubric Total</p>
-                <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400" x-text="totalMax()"></p>
+            <div class="text-right flex-shrink-0 ml-4 flex items-start gap-4">
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Raw total</p>
+                    <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400" x-text="totalMax()"></p>
+                </div>
+                <div x-show="hasAnyWeight()">
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Weight sum</p>
+                    <p class="text-lg font-bold"
+                       :class="Math.abs(totalWeight() - 100) < 0.01 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                        <span x-text="totalWeight()"></span>%
+                    </p>
+                </div>
             </div>
         </template>
     </div>
@@ -80,7 +96,7 @@
                     <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center justify-center flex-shrink-0" x-text="i + 1"></div>
 
                     <div class="flex-1 space-y-3">
-                        <div class="grid sm:grid-cols-[1fr_120px] gap-3">
+                        <div class="grid sm:grid-cols-[1fr_110px_110px] gap-3">
                             <div>
                                 <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Criterion title *</label>
                                 <input type="text" :name="`criteria[${i}][title]`" x-model="c.title" required
@@ -91,6 +107,15 @@
                                 <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Max marks *</label>
                                 <input type="number" :name="`criteria[${i}][max_marks]`" x-model="c.max_marks" required min="0" step="0.5"
                                        class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Weight (%)</label>
+                                <div class="relative">
+                                    <input type="number" :name="`criteria[${i}][weightage]`" x-model="c.weightage" min="0" max="100" step="0.5"
+                                           placeholder="—"
+                                           class="w-full pl-3 pr-7 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                                    <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -147,9 +172,19 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add criterion
             </button>
-            <p class="text-[11px] text-slate-400">
-                Rubric total (<span x-text="totalMax()"></span>) should match the assessment's total marks.
-            </p>
+            <div class="text-right">
+                <p class="text-[11px] text-slate-400">
+                    Rubric raw total: <span class="font-semibold text-slate-600 dark:text-slate-300" x-text="totalMax()"></span>
+                </p>
+                <p class="text-[11px] text-slate-400" x-show="hasAnyWeight()">
+                    Leave weight blank for an unweighted (plain-sum) rubric. When set, the final mark is scaled to the assessment's total marks.
+                </p>
+            </div>
+        </div>
+
+        <div x-show="hasAnyWeight() && Math.abs(totalWeight() - 100) > 0.01"
+             class="mt-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300">
+            Your criterion weightages sum to <span class="font-bold" x-text="totalWeight()"></span>%. For a clean scale-to-total calculation, they should add up to 100%.
         </div>
     </div>
 </div>

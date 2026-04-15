@@ -118,11 +118,27 @@ class AssessmentSubmissionController extends Controller
         $request->validate($rules);
 
         if ($hasRubric) {
+            // If any criterion has a weightage > 0, treat the whole rubric as weighted:
+            // each criterion's contribution = (score / max) × (weight/100) × assessment.total_marks.
+            // Otherwise fall back to a plain sum of the criterion marks.
+            $isWeighted = $assessment->rubric->criteria->contains(
+                fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
+            );
+
             $rawMarks = 0.0;
             foreach ($assessment->rubric->criteria as $criterion) {
-                $rawMarks += (float) ($request->input('criteria_marks.'.$criterion->id) ?? 0);
+                $score = (float) ($request->input('criteria_marks.'.$criterion->id) ?? 0);
+                if ($isWeighted) {
+                    $max = (float) $criterion->max_marks;
+                    $weight = (float) ($criterion->weightage ?? 0);
+                    if ($max > 0 && $weight > 0) {
+                        $rawMarks += ($score / $max) * ($weight / 100) * (float) $assessment->total_marks;
+                    }
+                } else {
+                    $rawMarks += $score;
+                }
             }
-            $rawMarks = min($rawMarks, (float) $assessment->total_marks);
+            $rawMarks = round(min($rawMarks, (float) $assessment->total_marks), 2);
         } else {
             $rawMarks = (float) $request->raw_marks;
         }
