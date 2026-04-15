@@ -41,7 +41,7 @@ class ActiveLearningPlanController extends Controller
 
         $courses = Course::whereIn('id', $courseIds)->latest()->get();
 
-        $sort = $request->query('sort', 'latest');
+        $sort = $this->resolvePlanSort($request, 'active_learning_all_sort');
         $plans = $this->applyPlanSort(
             ActiveLearningPlan::whereIn('course_id', $courseIds)
                 ->withCount('activities')
@@ -56,7 +56,7 @@ class ActiveLearningPlanController extends Controller
     {
         $this->authorizeCourseAccess($course);
 
-        $sort = $request->query('sort', 'latest');
+        $sort = $this->resolvePlanSort($request, "active_learning_index_sort.{$course->id}");
         $plans = $this->applyPlanSort(
             ActiveLearningPlan::forCourse($course->id)
                 ->withCount('activities')
@@ -67,6 +67,25 @@ class ActiveLearningPlanController extends Controller
         $tenant = app('current_tenant');
 
         return view('tenant.active-learning.index', compact('course', 'plans', 'tenant', 'sort'));
+    }
+
+    protected function resolvePlanSort(Request $request, string $sessionKey): string
+    {
+        $allowed = ['latest', 'oldest', 'title_asc', 'title_desc', 'week', 'duration'];
+
+        if ($request->query->has('sort')) {
+            $sort = (string) $request->query('sort', 'latest');
+            if (! in_array($sort, $allowed, true)) {
+                $sort = 'latest';
+            }
+            session()->put($sessionKey, $sort);
+
+            return $sort;
+        }
+
+        $stored = session($sessionKey);
+
+        return in_array($stored, $allowed, true) ? $stored : 'latest';
     }
 
     protected function applyPlanSort(\Illuminate\Database\Eloquent\Builder $query, string $sort): \Illuminate\Database\Eloquent\Builder
