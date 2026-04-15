@@ -18,6 +18,20 @@
     </x-slot>
 
     <div class="space-y-8">
+        @if($plans->isNotEmpty())
+            <form method="GET" class="flex items-center justify-end gap-2">
+                <label for="sort" class="text-xs font-medium text-slate-500 dark:text-slate-400">Sort by</label>
+                <select name="sort" id="sort" onchange="this.form.submit()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500">
+                    <option value="latest" {{ ($sort ?? 'latest') === 'latest' ? 'selected' : '' }}>Newest first</option>
+                    <option value="oldest" {{ ($sort ?? '') === 'oldest' ? 'selected' : '' }}>Oldest first</option>
+                    <option value="title_asc" {{ ($sort ?? '') === 'title_asc' ? 'selected' : '' }}>Title (A–Z)</option>
+                    <option value="title_desc" {{ ($sort ?? '') === 'title_desc' ? 'selected' : '' }}>Title (Z–A)</option>
+                    <option value="week" {{ ($sort ?? '') === 'week' ? 'selected' : '' }}>Week number</option>
+                    <option value="duration" {{ ($sort ?? '') === 'duration' ? 'selected' : '' }}>Duration (longest)</option>
+                </select>
+            </form>
+        @endif
+
         @if($plans->isEmpty())
             <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-16 text-center">
                 <div class="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">

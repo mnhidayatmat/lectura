@@ -30,7 +30,7 @@ class ActiveLearningPlanController extends Controller
         protected TierGateService $tierGate,
     ) {}
 
-    public function all(): View
+    public function all(Request $request): View
     {
         $tenant = app('current_tenant');
         $user = auth()->user();
@@ -41,28 +41,44 @@ class ActiveLearningPlanController extends Controller
 
         $courses = Course::whereIn('id', $courseIds)->latest()->get();
 
-        $plans = ActiveLearningPlan::whereIn('course_id', $courseIds)
-            ->withCount('activities')
-            ->with(['course', 'topic'])
-            ->latest()
-            ->get();
+        $sort = $request->query('sort', 'latest');
+        $plans = $this->applyPlanSort(
+            ActiveLearningPlan::whereIn('course_id', $courseIds)
+                ->withCount('activities')
+                ->with(['course', 'topic']),
+            $sort
+        )->get();
 
-        return view('tenant.active-learning.all', compact('tenant', 'courses', 'plans'));
+        return view('tenant.active-learning.all', compact('tenant', 'courses', 'plans', 'sort'));
     }
 
-    public function index(string $tenantSlug, Course $course): View
+    public function index(Request $request, string $tenantSlug, Course $course): View
     {
         $this->authorizeCourseAccess($course);
 
-        $plans = ActiveLearningPlan::forCourse($course->id)
-            ->withCount('activities')
-            ->with('topic')
-            ->latest()
-            ->get();
+        $sort = $request->query('sort', 'latest');
+        $plans = $this->applyPlanSort(
+            ActiveLearningPlan::forCourse($course->id)
+                ->withCount('activities')
+                ->with('topic'),
+            $sort
+        )->get();
 
         $tenant = app('current_tenant');
 
-        return view('tenant.active-learning.index', compact('course', 'plans', 'tenant'));
+        return view('tenant.active-learning.index', compact('course', 'plans', 'tenant', 'sort'));
+    }
+
+    protected function applyPlanSort(\Illuminate\Database\Eloquent\Builder $query, string $sort): \Illuminate\Database\Eloquent\Builder
+    {
+        return match ($sort) {
+            'oldest'     => $query->orderBy('created_at', 'asc'),
+            'title_asc'  => $query->orderBy('title', 'asc'),
+            'title_desc' => $query->orderBy('title', 'desc'),
+            'week'       => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
+            'duration'   => $query->orderBy('duration_minutes', 'desc'),
+            default      => $query->latest(),
+        };
     }
 
     public function create(string $tenantSlug, Course $course): View
