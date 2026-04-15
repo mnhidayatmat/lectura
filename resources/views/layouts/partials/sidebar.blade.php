@@ -95,6 +95,13 @@
             Student Groups
         </a>
 
+        <a href="{{ $prefix }}/whiteboards"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/whiteboards*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
+            <svg class="w-5 h-5 {{ $active('*/whiteboards*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            Whiteboards
+        </a>
+
         {{-- Management section --}}
         <div class="pt-5 pb-1 px-3">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.management') }}</p>

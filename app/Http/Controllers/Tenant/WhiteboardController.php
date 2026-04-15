@@ -22,6 +22,75 @@ class WhiteboardController extends Controller
     use AuthorizesCourseAccess;
 
     /**
+     * Cross-course menu — every course the user can access, with its boards
+     * grouped under it. Used by the main sidebar entry.
+     */
+    public function all(): View
+    {
+        $user = auth()->user();
+        $tenant = app('current_tenant');
+        $isAdmin = $user->hasRoleInTenant($tenant->id, ['admin']);
+
+        // Resolve courses the user can reach — lecturers via owned/section
+        // assignments, students via section enrolment, admins see everything.
+        if ($isAdmin) {
+            $courseIds = Course::pluck('id');
+        } else {
+            $owned = Course::where('lecturer_id', $user->id)->pluck('id');
+            $fromSections = DB::table('sections')
+                ->join('section_lecturers', 'section_lecturers.section_id', '=', 'sections.id')
+                ->where('section_lecturers.user_id', $user->id)
+                ->pluck('sections.course_id');
+            $enrolled = DB::table('sections')
+                ->join('section_students', 'section_students.section_id', '=', 'sections.id')
+                ->where('section_students.user_id', $user->id)
+                ->where('section_students.is_active', true)
+                ->pluck('sections.course_id');
+
+            $courseIds = $owned->merge($fromSections)->merge($enrolled)->unique();
+        }
+
+        $courses = Course::whereIn('id', $courseIds)
+            ->orderBy('code')
+            ->get();
+
+        // For each course, load the boards the current user is allowed to see.
+        $myGroupIds = DB::table('active_learning_group_members')
+            ->where('user_id', $user->id)
+            ->pluck('active_learning_group_id');
+
+        $sections = $courses->map(function (Course $course) use ($myGroupIds, $isAdmin) {
+            $isManager = $this->canManageCourse($course);
+
+            $courseBoards = Whiteboard::where('course_id', $course->id)
+                ->where('scope', Whiteboard::SCOPE_COURSE)
+                ->with('lastEditor:id,name')
+                ->latest('updated_at')
+                ->get();
+
+            $groupQuery = Whiteboard::where('course_id', $course->id)
+                ->where('scope', Whiteboard::SCOPE_GROUP)
+                ->with(['group', 'lastEditor:id,name']);
+
+            if (! $isManager && ! $isAdmin) {
+                $groupQuery->whereIn('active_learning_group_id', $myGroupIds);
+            }
+
+            $groupBoards = $groupQuery->latest('updated_at')->get();
+
+            return [
+                'course' => $course,
+                'is_manager' => $isManager,
+                'course_boards' => $courseBoards,
+                'group_boards' => $groupBoards,
+                'total' => $courseBoards->count() + $groupBoards->count(),
+            ];
+        })->filter(fn ($s) => $s['total'] > 0 || $s['is_manager'])->values();
+
+        return view('tenant.whiteboards.all', compact('sections'));
+    }
+
+    /**
      * List boards for a course (course-scope + accessible group boards).
      */
     public function index(string $tenantSlug, Course $course): View
