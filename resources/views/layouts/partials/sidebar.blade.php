@@ -102,10 +102,7 @@
             Whiteboards
         </a>
 
-        @php
-            $hasMentees = auth()->user()->mentees()->whereNull('ended_at')->exists();
-        @endphp
-        @if($hasMentees)
+        @if(in_array($userRole, ['lecturer', 'coordinator', 'admin']))
             <a href="{{ $prefix }}/mentees"
                class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                       {{ $active('*/mentees*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
