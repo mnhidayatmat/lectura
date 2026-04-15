@@ -251,7 +251,7 @@
                         }
                     }
                 @endphp
-                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5"
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
                      x-data="{
                          hasRubric: {{ $hasRubric ? 'true' : 'false' }},
                          isWeighted: {{ $isWeighted ? 'true' : 'false' }},
@@ -298,155 +298,176 @@
                          }
                      }">
 
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">
-                        {{ $submission->score ? 'Update Grade' : 'Grade Submission' }}
-                    </h3>
+                    {{-- Card header --}}
+                    <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                                    {{ $submission->score ? 'Update Grade' : 'Grade Submission' }}
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    @if($hasRubric)
+                                        Rubric-based grading · {{ $assessment->rubric->criteria->count() }} {{ Str::plural('criterion', $assessment->rubric->criteria->count()) }}
+                                    @else
+                                        Enter marks out of {{ number_format($assessment->total_marks, 0) }}
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
 
                     <form method="POST" action="{{ route('tenant.assessments.submissions.mark', [$tenant->slug, $course, $assessment, $submission]) }}"
-                          class="space-y-4">
+                          class="p-6 space-y-6">
                         @csrf
 
                         @if($hasRubric)
                             {{-- Rubric-driven marks --}}
-                            <div class="space-y-3">
+                            <div class="space-y-4">
                                 @foreach($assessment->rubric->criteria as $criterion)
-                                    <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-700/20 p-3.5">
-                                        <div class="flex items-start justify-between gap-3 mb-2">
-                                            <div class="min-w-0">
-                                                <div class="flex items-center gap-2 flex-wrap">
-                                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $criterion->title }}</p>
+                                    <div class="rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-700/20 p-5 transition hover:border-indigo-200 dark:hover:border-indigo-800">
+                                        <div class="flex items-start justify-between gap-4 mb-3">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-2 flex-wrap mb-1">
+                                                    <p class="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">{{ $criterion->title }}</p>
                                                     @if($criterion->weightage !== null && (float) $criterion->weightage > 0)
                                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wide">
-                                                            Weight {{ rtrim(rtrim(number_format((float) $criterion->weightage, 2), '0'), '.') }}%
+                                                            {{ rtrim(rtrim(number_format((float) $criterion->weightage, 2), '0'), '.') }}% weight
                                                         </span>
                                                     @endif
                                                 </div>
                                                 @if($criterion->description)
-                                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ $criterion->description }}</p>
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{{ $criterion->description }}</p>
                                                 @endif
                                             </div>
-                                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                            <div class="flex items-center gap-2 flex-shrink-0">
                                                 <input type="number"
                                                        name="criteria_marks[{{ $criterion->id }}]"
                                                        x-model.number="criteriaMarks[{{ $criterion->id }}]"
                                                        min="0" max="{{ $criterion->max_marks }}" step="0.5"
                                                        placeholder="0"
-                                                       class="w-16 px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 transition">
-                                                <span class="text-[11px] text-slate-400">/ {{ number_format((float) $criterion->max_marks, 0) }}</span>
+                                                       class="w-20 px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                                <span class="text-xs text-slate-400 font-medium">/ {{ rtrim(rtrim(number_format((float) $criterion->max_marks, 1), '0'), '.') }}</span>
                                             </div>
                                         </div>
 
                                         @if($isWeighted && $criterion->weightage !== null && (float) $criterion->weightage > 0)
-                                            <p class="text-[10px] text-slate-400 mb-1.5">
-                                                Contributes
-                                                <span class="font-semibold text-indigo-600 dark:text-indigo-400"
-                                                      x-text="(Math.round(criterionContribution({{ $criterion->id }}) * 10) / 10)"></span>
-                                                / {{ rtrim(rtrim(number_format($assessment->total_marks * (float) $criterion->weightage / 100, 2), '0'), '.') }}
-                                                pts to the assessment total
-                                            </p>
+                                            <div class="mb-3 px-3 py-2 rounded-lg bg-white/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-600">
+                                                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                                    Contributes
+                                                    <span class="font-bold text-indigo-600 dark:text-indigo-400"
+                                                          x-text="(Math.round(criterionContribution({{ $criterion->id }}) * 10) / 10)"></span>
+                                                    of {{ rtrim(rtrim(number_format($assessment->total_marks * (float) $criterion->weightage / 100, 2), '0'), '.') }}
+                                                    pts to the assessment total
+                                                </p>
+                                            </div>
                                         @endif
 
                                         @if($criterion->levels->isNotEmpty())
-                                            <div class="flex flex-wrap gap-1.5 mt-2">
-                                                @foreach($criterion->levels as $level)
-                                                    <button type="button"
-                                                            @click="setCriterionMarks({{ $criterion->id }}, {{ (float) $level->marks }})"
-                                                            :class="parseFloat(criteriaMarks[{{ $criterion->id }}]) === {{ (float) $level->marks }}
-                                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600'"
-                                                            class="inline-flex flex-col items-start gap-0.5 px-2.5 py-1.5 border rounded-lg text-[11px] font-medium transition text-left"
-                                                            @if($level->description) title="{{ $level->description }}" @endif>
-                                                        <span>{{ $level->label }}</span>
-                                                        <span class="text-[10px] opacity-80">{{ number_format((float) $level->marks, 1) }}</span>
-                                                    </button>
-                                                @endforeach
+                                            <div>
+                                                <p class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Rating scale</p>
+                                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                    @foreach($criterion->levels as $level)
+                                                        <button type="button"
+                                                                @click="setCriterionMarks({{ $criterion->id }}, {{ (float) $level->marks }})"
+                                                                :class="parseFloat(criteriaMarks[{{ $criterion->id }}]) === {{ (float) $level->marks }}
+                                                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-200 dark:ring-indigo-900/50'
+                                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10'"
+                                                                class="flex flex-col items-start gap-0.5 px-3 py-2.5 border rounded-xl text-xs font-medium transition-all text-left"
+                                                                @if($level->description) title="{{ $level->description }}" @endif>
+                                                            <span class="font-semibold">{{ $level->label }}</span>
+                                                            <span class="text-[10px] opacity-80">{{ rtrim(rtrim(number_format((float) $level->marks, 1), '0'), '.') }} pts</span>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
                                             </div>
                                         @endif
-                                        @error('criteria_marks.'.$criterion->id) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        @error('criteria_marks.'.$criterion->id) <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                                     </div>
                                 @endforeach
                             </div>
 
                             {{-- Live total --}}
-                            <div class="rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-3">
-                                <div class="flex items-center justify-between">
+                            <div class="rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-5">
+                                <div class="flex items-end justify-between gap-4 mb-3">
                                     <div>
-                                        <p class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Total</p>
-                                        <p class="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                                            <span x-text="Math.round(marks * 10) / 10"></span>
-                                            <span class="text-sm font-normal text-indigo-500">/ {{ number_format($assessment->total_marks, 0) }}</span>
+                                        <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Total Score</p>
+                                        <p class="text-3xl font-bold text-indigo-700 dark:text-indigo-300 leading-none">
+                                            <span x-text="Math.round(marks * 10) / 10"></span><span class="text-base font-semibold text-indigo-500 dark:text-indigo-400">/{{ number_format($assessment->total_marks, 0) }}</span>
                                         </p>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-2xl font-bold" :class="grade.color" x-text="percentage + '%'"></p>
-                                        <p class="text-[10px] text-slate-400">Grade <span class="font-bold" :class="grade.color" x-text="grade.label"></span></p>
+                                        <p class="text-3xl font-bold leading-none" :class="grade.color" x-text="percentage + '%'"></p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">Grade <span class="font-bold text-sm" :class="grade.color" x-text="grade.label"></span></p>
                                     </div>
                                 </div>
-                                <div class="mt-2 h-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-300"
+                                <div class="h-2 bg-white/60 dark:bg-slate-800/40 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500"
                                          :class="percentage >= 50 ? 'bg-emerald-500' : 'bg-red-400'"
                                          :style="'width: ' + Math.min(percentage, 100) + '%'"></div>
                                 </div>
                             </div>
-                            @error('raw_marks') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('raw_marks') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                         @else
                             {{-- Marks input (no rubric) --}}
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                                    Marks <span class="normal-case text-slate-400">/ {{ number_format($assessment->total_marks, 0) }}</span>
+                            <div class="rounded-2xl bg-slate-50/60 dark:bg-slate-700/20 border border-slate-200 dark:border-slate-600 p-5">
+                                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-3">
+                                    Marks <span class="font-medium text-slate-400">/ {{ number_format($assessment->total_marks, 0) }}</span>
                                 </label>
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-4">
                                     <input type="number"
                                            name="raw_marks"
                                            x-model="manualMarks"
                                            required min="0" max="{{ $assessment->total_marks }}" step="0.5"
-                                           class="w-28 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xl font-bold text-center focus:ring-2 focus:ring-indigo-500 transition">
-                                    <div>
-                                        <p class="text-2xl font-bold" :class="grade.color" x-text="percentage + '%'"></p>
-                                        <p class="text-xs text-slate-400">Grade: <span class="font-bold" :class="grade.color" x-text="grade.label"></span></p>
+                                           class="w-32 px-4 py-3.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-2xl font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                    <div class="flex-1">
+                                        <p class="text-3xl font-bold leading-none" :class="grade.color" x-text="percentage + '%'"></p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">Grade <span class="font-bold" :class="grade.color" x-text="grade.label"></span></p>
                                     </div>
                                 </div>
                                 {{-- Visual bar --}}
-                                <div class="mt-2 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-300"
+                                <div class="mt-4 h-2 bg-slate-200/60 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500"
                                          :class="percentage >= 50 ? 'bg-emerald-500' : 'bg-red-400'"
                                          :style="'width: ' + Math.min(percentage, 100) + '%'"></div>
                                 </div>
-                                @error('raw_marks') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                @error('raw_marks') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                         @endif
 
                         {{-- Feedback --}}
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">
-                                Feedback <span class="normal-case font-normal text-slate-400">(optional)</span>
+                        <div class="rounded-2xl bg-slate-50/60 dark:bg-slate-700/20 border border-slate-200 dark:border-slate-600 p-5">
+                            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-3">
+                                Feedback <span class="font-medium normal-case text-slate-400">(optional)</span>
                             </label>
                             <textarea name="feedback" rows="6"
-                                      class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                                      class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
                                       placeholder="Write feedback for {{ $submission->user->name }}...">{{ old('feedback', $submission->score?->feedback) }}</textarea>
-                            @error('feedback') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('feedback') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Submit buttons --}}
-                        <div class="space-y-2">
+                        <div class="pt-2 space-y-3">
                             <button type="submit"
-                                    class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+                                    class="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 {{ $submission->score ? 'Update Grade' : 'Save Grade' }}
                             </button>
 
                             @if($next)
                                 <button type="submit" name="next_id" value="{{ $next->id }}"
-                                        class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition">
+                                        class="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-xl transition">
                                     Save & Grade Next
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                 </button>
                             @endif
-                        </div>
 
-                        <p class="text-[11px] text-slate-400 text-center">
-                            Marks are <strong>not visible</strong> to the student until you release them.
-                        </p>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500 text-center pt-1">
+                                Marks are <strong class="text-slate-500 dark:text-slate-400">not visible</strong> to the student until you release them.
+                            </p>
+                        </div>
                     </form>
                 </div>
 
