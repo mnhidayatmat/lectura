@@ -35,6 +35,7 @@ use App\Http\Controllers\Tenant\StudentCourseController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
+use App\Http\Controllers\Tenant\WhiteboardController;
 use Illuminate\Support\Facades\Route;
 
 // ── MCP OAuth 2.0 discovery (RFC 9728 + RFC 8414) ──────────────────────────────
@@ -606,6 +607,13 @@ Route::prefix('{tenant:slug}')
             Route::get('/{plan}/sessions/{session}/state', [SessionController::class, 'state'])->name('tenant.active-learning.sessions.state');
             Route::get('/{plan}/sessions/{session}/summary', [SessionController::class, 'summary'])->name('tenant.active-learning.sessions.summary');
         });
+
+        // Collaborative Whiteboards (Excalidraw — per-course + per-group)
+        Route::get('/courses/{course}/whiteboards', [WhiteboardController::class, 'index'])->name('tenant.whiteboards.index');
+        Route::post('/courses/{course}/whiteboards', [WhiteboardController::class, 'store'])->name('tenant.whiteboards.store');
+        Route::get('/whiteboards/{whiteboard}', [WhiteboardController::class, 'show'])->name('tenant.whiteboards.show');
+        Route::put('/whiteboards/{whiteboard}/scene', [WhiteboardController::class, 'updateScene'])->name('tenant.whiteboards.scene');
+        Route::delete('/whiteboards/{whiteboard}', [WhiteboardController::class, 'destroy'])->name('tenant.whiteboards.destroy');
 
         // Student Live Session Routes
         Route::get('/live', [StudentSessionController::class, 'hub'])->name('tenant.live-hub');
