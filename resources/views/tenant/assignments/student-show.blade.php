@@ -13,9 +13,29 @@
 
     <div class="max-w-2xl mx-auto space-y-6">
         {{-- Assignment Info --}}
-        @if($assignment->description)
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <p class="text-sm text-slate-600 whitespace-pre-line">{{ $assignment->description }}</p>
+        @if($assignment->description || $assignment->instruction_filename)
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+                @if($assignment->description)
+                    <p class="text-sm text-slate-600 whitespace-pre-line">{{ $assignment->description }}</p>
+                @endif
+
+                @if($assignment->instruction_filename)
+                    <div class="flex items-center gap-3 pt-3 border-t border-slate-100">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Assignment Instructions</p>
+                            <p class="text-sm font-medium text-slate-900 truncate">{{ $assignment->instruction_filename }}</p>
+                        </div>
+                        <a href="{{ route('tenant.assignments.instruction', [app('current_tenant')->slug, $assignment]) }}"
+                           target="_blank"
+                           class="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Open
+                        </a>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -76,7 +96,7 @@
                     @if($errors->has('submit'))
                         <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{{ $errors->first('submit') }}</div>
                     @endif
-                    <form method="POST" action="{{ route('tenant.assignments.submit', [app('current_tenant')->slug, $assignment]) }}" enctype="multipart/form-data" class="space-y-4">
+                    <form method="POST" action="{{ route('tenant.assignments.submit', [app('current_tenant')->slug, $assignment]) }}" enctype="multipart/form-data" x-data="{ submitting: false }" @submit="submitting = true" class="space-y-4">
                         @csrf
 
                         {{-- File Upload --}}
@@ -114,7 +134,10 @@
                             <label class="text-sm font-medium text-slate-700">Notes (optional)</label>
                             <textarea name="notes" rows="2" placeholder="Any notes for your lecturer..." class="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('notes') }}</textarea>
                         </div>
-                        <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-sm transition">Submit</button>
+                        <button type="submit" :disabled="submitting" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                            <svg x-show="submitting" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            <span x-text="submitting ? 'Submitting...' : 'Submit'"></span>
+                        </button>
                     </form>
                 </div>
             </div>

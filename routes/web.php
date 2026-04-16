@@ -473,6 +473,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/assignments/{assignment}/submissions/{submission}', [AssignmentController::class, 'review'])->name('tenant.assignments.review');
         Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
         Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
+        Route::get('/assignments/{assignment}/instruction', [AssignmentController::class, 'downloadInstruction'])->name('tenant.assignments.instruction');
 
         // Assessment (Course Assessment Plan)
         Route::get('/assessments', [AssessmentPlanController::class, 'overview'])->name('tenant.assessments.overview');

@@ -31,7 +31,8 @@ class Assignment extends Model
         'title', 'description', 'type', 'total_marks', 'deadline',
         'allow_resubmission', 'max_resubmissions', 'marking_mode',
         'submission_type',
-        'answer_scheme', 'answer_scheme_path', 'answer_scheme_filename',
+        'answer_scheme', 'answer_scheme_path', 'answer_scheme_filename', 'answer_scheme_drive_file_id',
+        'instruction_file_path', 'instruction_filename', 'instruction_drive_file_id', 'instruction_drive_web_link',
         'status', 'clo_ids',
     ];
 

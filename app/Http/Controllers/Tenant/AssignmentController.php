@@ -23,6 +23,8 @@ use App\Models\Submission;
 use App\Models\SubmissionFile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class AssignmentController extends Controller
@@ -94,6 +96,7 @@ class AssignmentController extends Controller
             'submission_type' => ['required', 'in:file,text,both'],
             'answer_scheme' => ['nullable', 'string'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
+            'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,jpg,jpeg,png'],
             'criteria' => ['nullable', 'array'],
             'criteria.*.title' => ['required_with:criteria', 'string'],
             'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
@@ -101,6 +104,7 @@ class AssignmentController extends Controller
         ]);
 
         $tenant = app('current_tenant');
+        $lecturer = auth()->user();
 
         // If creating sub-assignment, validate parent exists and belongs to same course
         if ($isSubAssignment) {
@@ -110,16 +114,82 @@ class AssignmentController extends Controller
             }
         }
 
+        // Resolve Drive service once if lecturer has Drive connected
+        $driveService = null;
+        $courseFolderId = null;
+        if ($lecturer->isDriveConnected()) {
+            try {
+                $driveService = app(GoogleDriveService::class);
+                $course = Course::find($request->course_id);
+                if ($course) {
+                    $courseFolderId = $driveService->findOrCreateFolder(
+                        $lecturer,
+                        "{$course->code} — {$course->title}"
+                    );
+                }
+            } catch (\Throwable) {
+                $driveService = null;
+                $courseFolderId = null;
+            }
+        }
+
         $schemeData = [
             'answer_scheme' => $request->answer_scheme,
             'answer_scheme_path' => null,
             'answer_scheme_filename' => null,
+            'answer_scheme_drive_file_id' => null,
         ];
 
         if ($request->hasFile('answer_scheme_file')) {
             $file = $request->file('answer_scheme_file');
             $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'local');
             $schemeData['answer_scheme_filename'] = $file->getClientOriginalName();
+
+            if ($driveService && $courseFolderId) {
+                try {
+                    $schemeFolderId = $driveService->findOrCreateFolder($lecturer, 'Answer Schemes', $courseFolderId);
+                    $result = $driveService->uploadFile(
+                        $lecturer,
+                        $file->getRealPath(),
+                        $file->getClientOriginalName(),
+                        $file->getClientMimeType(),
+                        $schemeFolderId
+                    );
+                    $schemeData['answer_scheme_drive_file_id'] = $result['id'];
+                } catch (\Throwable) {
+                    // Drive upload failed — keep local copy only
+                }
+            }
+        }
+
+        $instructionData = [
+            'instruction_file_path' => null,
+            'instruction_filename' => null,
+            'instruction_drive_file_id' => null,
+            'instruction_drive_web_link' => null,
+        ];
+
+        if ($request->hasFile('instruction_file')) {
+            $file = $request->file('instruction_file');
+            $instructionData['instruction_file_path'] = $file->store('assignment-instructions', 'local');
+            $instructionData['instruction_filename'] = $file->getClientOriginalName();
+
+            if ($driveService && $courseFolderId) {
+                try {
+                    $instructionFolderId = $driveService->findOrCreateFolder($lecturer, 'Assignment Instructions', $courseFolderId);
+                    $result = $driveService->uploadFile(
+                        $lecturer,
+                        $file->getRealPath(),
+                        $file->getClientOriginalName(),
+                        $file->getClientMimeType(),
+                        $instructionFolderId
+                    );
+                    $instructionData['instruction_drive_file_id'] = $result['id'];
+                    $instructionData['instruction_drive_web_link'] = $result['web_view_link'];
+                } catch (\Throwable) {
+                    // Drive upload failed — keep local copy only
+                }
+            }
         }
 
         $assignment = Assignment::create([
@@ -136,6 +206,7 @@ class AssignmentController extends Controller
             'submission_type' => $request->submission_type,
             'status' => 'draft',
             ...$schemeData,
+            ...$instructionData,
         ]);
 
         // Create rubric with criteria
@@ -399,6 +470,35 @@ class AssignmentController extends Controller
         ])->with('success', "Marks finalized for {$submission->user->name}.");
     }
 
+    /**
+     * Serve the assignment instruction file for download.
+     */
+    public function downloadInstruction(string $tenantSlug, Assignment $assignment): Response|RedirectResponse
+    {
+        if (! $assignment->instruction_file_path && ! $assignment->instruction_drive_web_link) {
+            abort(404);
+        }
+
+        // If Drive link available, redirect to it
+        if ($assignment->instruction_drive_web_link) {
+            return redirect($assignment->instruction_drive_web_link);
+        }
+
+        // Serve from local storage
+        if (! Storage::disk('local')->exists($assignment->instruction_file_path)) {
+            abort(404);
+        }
+
+        return response(
+            Storage::disk('local')->get($assignment->instruction_file_path),
+            200,
+            [
+                'Content-Type' => Storage::disk('local')->mimeType($assignment->instruction_file_path),
+                'Content-Disposition' => 'inline; filename="' . $assignment->instruction_filename . '"',
+            ]
+        );
+    }
+
     public function destroy(string $tenantSlug, Assignment $assignment): RedirectResponse
     {
         $tenant = app('current_tenant');
@@ -427,15 +527,20 @@ class AssignmentController extends Controller
         // Clean up local submission files
         foreach ($assignment->submissions as $submission) {
             foreach ($submission->files as $file) {
-                if ($file->storage_path && \Storage::disk('local')->exists($file->storage_path)) {
-                    \Storage::disk('local')->delete($file->storage_path);
+                if ($file->storage_path && Storage::disk('local')->exists($file->storage_path)) {
+                    Storage::disk('local')->delete($file->storage_path);
                 }
             }
         }
 
         // Clean up answer scheme file
-        if ($assignment->answer_scheme_path && \Storage::disk('local')->exists($assignment->answer_scheme_path)) {
-            \Storage::disk('local')->delete($assignment->answer_scheme_path);
+        if ($assignment->answer_scheme_path && Storage::disk('local')->exists($assignment->answer_scheme_path)) {
+            Storage::disk('local')->delete($assignment->answer_scheme_path);
+        }
+
+        // Clean up instruction file
+        if ($assignment->instruction_file_path && Storage::disk('local')->exists($assignment->instruction_file_path)) {
+            Storage::disk('local')->delete($assignment->instruction_file_path);
         }
     }
 

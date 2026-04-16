@@ -48,10 +48,38 @@
 
     <div class="space-y-6">
         {{-- Info --}}
-        @if($assignment->description)
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 class="font-semibold text-slate-900 mb-2">Description</h3>
-                <p class="text-sm text-slate-600 whitespace-pre-line">{{ $assignment->description }}</p>
+        @if($assignment->description || $assignment->instruction_filename)
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+                @if($assignment->description)
+                    <div>
+                        <h3 class="font-semibold text-slate-900 mb-2">Description</h3>
+                        <p class="text-sm text-slate-600 whitespace-pre-line">{{ $assignment->description }}</p>
+                    </div>
+                @endif
+
+                @if($assignment->instruction_filename)
+                    <div class="flex items-center gap-3 pt-3 {{ $assignment->description ? 'border-t border-slate-100' : '' }}">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Instruction File <span class="normal-case text-slate-400">(visible to students)</span></p>
+                            <p class="text-sm font-medium text-slate-900 truncate">{{ $assignment->instruction_filename }}</p>
+                            @if($assignment->instruction_drive_file_id)
+                                <p class="text-[11px] text-emerald-600 flex items-center gap-1 mt-0.5">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Saved to Google Drive
+                                </p>
+                            @endif
+                        </div>
+                        <a href="{{ route('tenant.assignments.instruction', [app('current_tenant')->slug, $assignment]) }}"
+                           target="_blank"
+                           class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-xl transition flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            View
+                        </a>
+                    </div>
+                @endif
             </div>
         @endif
 

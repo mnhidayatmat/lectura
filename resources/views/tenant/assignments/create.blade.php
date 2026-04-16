@@ -11,7 +11,7 @@
         </div>
     </x-slot>
 
-    <form method="POST" action="{{ route('tenant.assignments.store', app('current_tenant')->slug) }}" enctype="multipart/form-data" x-data="assignmentForm()" class="space-y-6">
+    <form method="POST" action="{{ route('tenant.assignments.store', app('current_tenant')->slug) }}" enctype="multipart/form-data" x-data="assignmentForm()" @submit="submitting = true" class="space-y-6">
         @csrf
 
         {{-- Basic Info --}}
@@ -34,6 +34,49 @@
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
                 <textarea name="description" rows="3" placeholder="Instructions for students..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+
+            {{-- Instruction File (visible to students) --}}
+            <div x-data="{ instructionFileName: null }">
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                    Assignment Instruction File
+                    <span class="text-slate-400 font-normal text-xs ml-1">— Students can view &amp; download this</span>
+                </label>
+                <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center hover:border-indigo-300 transition" :class="instructionFileName ? 'border-indigo-300 bg-indigo-50/30' : ''">
+                    <input type="file" name="instruction_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="hidden" id="instruction-file-upload"
+                        @change="instructionFileName = $event.target.files[0]?.name">
+                    <label for="instruction-file-upload" class="cursor-pointer">
+                        <div x-show="!instructionFileName" class="space-y-2">
+                            <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto">
+                                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </div>
+                            <p class="text-sm text-slate-600">Click to upload <span class="font-semibold text-indigo-600">instruction file</span></p>
+                            <p class="text-xs text-slate-400">PDF, DOC, DOCX, JPG, PNG — max 25MB</p>
+                        </div>
+                        <div x-show="instructionFileName" class="flex items-center justify-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-sm font-medium text-slate-900" x-text="instructionFileName"></p>
+                                <p class="text-xs text-emerald-600">Ready to upload</p>
+                            </div>
+                            <button type="button" @click.prevent="instructionFileName = null; document.getElementById('instruction-file-upload').value = ''" class="p-1 text-slate-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </label>
+                </div>
+                @auth
+                    @if(auth()->user()->isDriveConnected())
+                        <p class="mt-1.5 text-[11px] text-emerald-600 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Will also be saved to your Google Drive
+                        </p>
+                    @else
+                        <p class="mt-1.5 text-[11px] text-slate-400">Saved locally. <a href="{{ route('tenant.settings', app('current_tenant')->slug) }}" class="text-indigo-500 hover:underline">Connect Google Drive</a> for cloud backup.</p>
+                    @endif
+                @endauth
             </div>
 
             <div class="grid sm:grid-cols-4 gap-5">
@@ -232,7 +275,10 @@
 
         <div class="flex items-center justify-end gap-3">
             <a href="{{ route('tenant.assignments.index', app('current_tenant')->slug) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition">Cancel</a>
-            <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Create Assignment</button>
+            <button type="submit" :disabled="submitting" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl shadow-sm transition flex items-center gap-2">
+                <svg x-show="submitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <span x-text="submitting ? 'Creating...' : 'Create Assignment'"></span>
+            </button>
         </div>
     </form>
 
@@ -241,6 +287,7 @@
         function assignmentForm() {
             return {
                 subType: 'file',
+                submitting: false,
                 criteria: [],
                 addCriteria() {
                     this.criteria.push({
