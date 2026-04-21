@@ -127,6 +127,11 @@ class Course extends Model
         return $this->hasMany(AttendanceWarning::class);
     }
 
+    public function portfolioPhotos(): HasMany
+    {
+        return $this->hasMany(PortfolioPhoto::class);
+    }
+
     public function totalStudents(): int
     {
         return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))
