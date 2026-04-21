@@ -303,9 +303,52 @@
             </div>
             @endif
         @elseif($assessment->requires_submission && $assessment->status === 'active')
+            @php
+                $usesGroup = $assessment->usesGroupSubmission();
+                $leaderName = $usesGroup ? optional($groupLeader ?? null)->name : null;
+                $canSubmit = ! $usesGroup || ($myGroup && $isLeader);
+            @endphp
+
+            {{-- Group context panel (group submissions only) --}}
+            @if($usesGroup && $myGroup)
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-indigo-200 dark:border-indigo-700 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-indigo-100 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            <h3 class="font-semibold text-indigo-900 dark:text-indigo-200">{{ $myGroup->name }}</h3>
+                            @if($isLeader)
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 uppercase">Leader</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="p-3 rounded-xl border @if($leaderName) border-emerald-200 bg-emerald-50 dark:bg-emerald-900/15 dark:border-emerald-800 @elseif($activeVoteRound ?? false) border-amber-200 bg-amber-50 dark:bg-amber-900/15 dark:border-amber-800 @else border-red-200 bg-red-50 dark:bg-red-900/15 dark:border-red-800 @endif">
+                            <div class="flex items-start gap-2 text-xs">
+                                @if($leaderName)
+                                    <p class="flex-1 text-emerald-800 dark:text-emerald-300"><strong>Group leader:</strong> {{ $leaderName }} — leader submits on behalf of the group.</p>
+                                @elseif($activeVoteRound ?? false)
+                                    <p class="flex-1 text-amber-800 dark:text-amber-300"><strong>Leader election in progress.</strong> Submission unlocks once voting closes.</p>
+                                @else
+                                    <p class="flex-1 text-red-800 dark:text-red-300"><strong>No leader elected yet.</strong> Start a vote in your group workspace first.</p>
+                                @endif
+                                <a href="{{ route('tenant.workspace.show', [$tenant->slug, $myGroup]) }}" class="font-semibold underline hover:no-underline whitespace-nowrap">Group workspace →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @elseif($usesGroup && ! $myGroup)
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-amber-200 dark:border-amber-800 p-6 text-center">
+                    <p class="text-sm font-medium text-amber-800 dark:text-amber-300">You are not assigned to any group for this assessment.</p>
+                    <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Contact your lecturer for group assignment.</p>
+                </div>
+            @endif
+
+            @if($canSubmit)
             {{-- Submission form --}}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6" x-data="{ files: [], uploading: false }">
-                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Submit Your Work</h3>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">
+                    @if($usesGroup) Submit for Your Group @else Submit Your Work @endif
+                </h3>
 
                 <form method="POST" action="{{ route('tenant.my-assessments.submit', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-4" @submit="uploading = true">
                     @csrf
@@ -356,6 +399,15 @@
                     @endif
                 </form>
             </div>
+            @elseif($usesGroup && $myGroup && ! $isLeader)
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
+                    <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Waiting for group leader to submit</p>
+                    @if($leaderName)
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ $leaderName }} will submit on behalf of your group.</p>
+                    @endif
+                </div>
+            @endif
         @elseif($assessment->status !== 'active')
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
                 <p class="text-sm text-slate-500 dark:text-slate-400">This assessment is not currently accepting submissions.</p>

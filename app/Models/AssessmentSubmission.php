@@ -16,7 +16,7 @@ class AssessmentSubmission extends Model
     use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'assessment_id', 'user_id',
+        'tenant_id', 'assessment_id', 'user_id', 'student_group_id',
         'notes', 'is_late', 'submitted_at', 'status', 'drive_folder_id',
     ];
 
@@ -36,6 +36,11 @@ class AssessmentSubmission extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function studentGroup(): BelongsTo
+    {
+        return $this->belongsTo(StudentGroup::class);
     }
 
     public function files(): HasMany

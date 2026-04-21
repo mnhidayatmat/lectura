@@ -362,8 +362,24 @@ class AssessmentSubmissionController extends Controller
             ->where('is_released', true)
             ->first();
 
+        // Group submission context
+        $myGroup = null;
+        $isLeader = false;
+        $groupLeader = null;
+        $activeVoteRound = null;
+        if ($assessment->usesGroupSubmission()) {
+            $myGroup = $assessment->groupForUser($user->id);
+            if ($myGroup) {
+                $myGroup->load('members.user');
+                $isLeader = $assessment->isGroupLeader($user->id);
+                $groupLeader = $myGroup->leader();
+                $activeVoteRound = $myGroup->activeVoteRound();
+            }
+        }
+
         return view('tenant.assessments.student-show', compact(
-            'tenant', 'course', 'assessment', 'submission', 'score'
+            'tenant', 'course', 'assessment', 'submission', 'score',
+            'myGroup', 'isLeader', 'groupLeader', 'activeVoteRound'
         ));
     }
 
@@ -382,13 +398,29 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        // Check if already submitted
-        $existing = AssessmentSubmission::where('assessment_id', $assessment->id)
-            ->where('user_id', $user->id)
-            ->exists();
+        // Group submission gate: only the elected leader can submit
+        $myGroup = null;
+        $studentGroupId = null;
+        if ($assessment->usesGroupSubmission()) {
+            $myGroup = $assessment->groupForUser($user->id);
+            if (! $myGroup) {
+                return back()->withErrors(['files' => 'You are not assigned to a group for this assessment.']);
+            }
+            if (! $assessment->isGroupLeader($user->id)) {
+                return back()->withErrors(['files' => 'Only the group leader can submit. Your group needs to hold a vote in the group workspace to elect one.']);
+            }
+            $studentGroupId = $myGroup->id;
+        }
 
-        if ($existing) {
-            return back()->withErrors(['files' => 'You have already submitted for this assessment.']);
+        // Check if already submitted (by this user, or by anyone in the group)
+        $existingQuery = AssessmentSubmission::where('assessment_id', $assessment->id);
+        if ($studentGroupId) {
+            $existingQuery->where('student_group_id', $studentGroupId);
+        } else {
+            $existingQuery->where('user_id', $user->id);
+        }
+        if ($existingQuery->exists()) {
+            return back()->withErrors(['files' => 'A submission for this assessment already exists.']);
         }
 
         $request->validate([
@@ -404,6 +436,7 @@ class AssessmentSubmissionController extends Controller
             'tenant_id' => $tenant->id,
             'assessment_id' => $assessment->id,
             'user_id' => $user->id,
+            'student_group_id' => $studentGroupId,
             'notes' => $request->notes,
             'is_late' => $isLate,
             'submitted_at' => now(),
@@ -484,12 +517,37 @@ class AssessmentSubmissionController extends Controller
             ]);
         }
 
+        // Mirror the submission to every other group member so marks/release
+        // propagate uniformly. Members share the same files/notes via the
+        // leader's submission record; each mirror is a lightweight pointer.
+        if ($myGroup) {
+            $myGroup->loadMissing('members');
+            foreach ($myGroup->members as $member) {
+                if ((int) $member->user_id === (int) $user->id) continue;
+                AssessmentSubmission::create([
+                    'tenant_id' => $tenant->id,
+                    'assessment_id' => $assessment->id,
+                    'user_id' => $member->user_id,
+                    'student_group_id' => $studentGroupId,
+                    'notes' => $request->notes,
+                    'is_late' => $isLate,
+                    'submitted_at' => now(),
+                    'status' => 'submitted',
+                    'drive_folder_id' => null,
+                ]);
+            }
+        }
+
         // Notify lecturer
         if ($lecturer) {
             $lecturer->notify(new AssessmentSubmissionReceived($assessment, $user));
         }
 
-        return back()->with('success', 'Submission uploaded successfully.' . ($isLate ? ' (Late submission)' : ''));
+        $msg = $myGroup
+            ? 'Group submission uploaded successfully.'
+            : 'Submission uploaded successfully.';
+
+        return back()->with('success', $msg . ($isLate ? ' (Late submission)' : ''));
     }
 
     public function studentDeleteSubmission(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse

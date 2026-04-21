@@ -11,9 +11,12 @@ use App\Models\Course;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
+use App\Models\StudentGroupSet;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -75,6 +78,54 @@ class AssessmentPlanController extends Controller
         return view('tenant.assessments.create', compact('tenant', 'course', 'parent'));
     }
 
+    /**
+     * AJAX endpoint: list StudentGroupSets for a course, used by the assessment
+     * create/edit views when "require group submission" is toggled on.
+     */
+    public function courseGroupSets(string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
+
+        $sets = $course->studentGroupSets()
+            ->with(['groups' => fn ($q) => $q->withCount('members')])
+            ->where('is_active', true)
+            ->latest()
+            ->get()
+            ->map(fn ($set) => [
+                'id' => $set->id,
+                'name' => $set->name,
+                'type' => $set->type,
+                'description' => $set->description,
+                'groups_count' => $set->groups->count(),
+                'total_members' => $set->groups->sum('members_count'),
+            ]);
+
+        return response()->json($sets);
+    }
+
+    private function validateAssessmentGroupSet(Request $request, Course $course): void
+    {
+        if (! $request->boolean('requires_submission') || ! $request->boolean('requires_group_submission')) {
+            return;
+        }
+
+        if (! $request->filled('student_group_set_id')) {
+            throw ValidationException::withMessages([
+                'student_group_set_id' => 'Select a group set when requiring group submission.',
+            ]);
+        }
+
+        $valid = StudentGroupSet::where('id', $request->student_group_set_id)
+            ->where('course_id', $course->id)
+            ->exists();
+
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'student_group_set_id' => 'Selected group set does not belong to this course.',
+            ]);
+        }
+    }
+
     public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
     {
         $this->authorizeCourseAccess($course);
@@ -91,6 +142,8 @@ class AssessmentPlanController extends Controller
             'clo_ids'          => ['nullable', 'array'],
             'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
+            'requires_group_submission' => ['nullable', 'boolean'],
+            'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'criteria'                   => ['nullable', 'array'],
@@ -104,6 +157,8 @@ class AssessmentPlanController extends Controller
             'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
         ]);
 
+        $this->validateAssessmentGroupSet($request, $course);
+
         $tenant = app('current_tenant');
 
         // Validate parent if provided
@@ -114,9 +169,13 @@ class AssessmentPlanController extends Controller
             }
         }
 
+        $requiresSubmission = $request->boolean('requires_submission');
+        $requiresGroupSubmission = $requiresSubmission && $request->boolean('requires_group_submission');
+
         $assessment = Assessment::create([
             'tenant_id'    => $tenant->id,
             'course_id'    => $course->id,
+            'student_group_set_id' => $requiresGroupSubmission ? $request->student_group_set_id : null,
             'parent_id'    => $request->parent_id,
             'title'        => $request->title,
             'type'         => $request->type,
@@ -125,7 +184,7 @@ class AssessmentPlanController extends Controller
             'total_marks'  => $request->total_marks,
             'bloom_level'  => $request->bloom_level,
             'description'  => $request->description,
-            'requires_submission' => $request->boolean('requires_submission'),
+            'requires_submission' => $requiresSubmission,
             'due_date'     => $request->due_date,
             'sort_order'   => $course->assessments()->count(),
             'status'       => 'draft',
@@ -200,6 +259,8 @@ class AssessmentPlanController extends Controller
             'clo_ids'          => ['nullable', 'array'],
             'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
+            'requires_group_submission' => ['nullable', 'boolean'],
+            'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'criteria'                   => ['nullable', 'array'],
@@ -213,12 +274,20 @@ class AssessmentPlanController extends Controller
             'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
         ]);
 
+        $this->validateAssessmentGroupSet($request, $course);
+
+        $requiresSubmission = $request->boolean('requires_submission');
+        $requiresGroupSubmission = $requiresSubmission && $request->boolean('requires_group_submission');
+
         $assessment->update(array_merge(
             $request->only([
                 'title', 'type', 'method', 'weightage', 'total_marks',
                 'bloom_level', 'description', 'status', 'due_date',
             ]),
-            ['requires_submission' => $request->boolean('requires_submission')]
+            [
+                'requires_submission' => $requiresSubmission,
+                'student_group_set_id' => $requiresGroupSubmission ? $request->student_group_set_id : null,
+            ]
         ));
 
         // Handle instruction file: new upload replaces existing; remove_instruction deletes without replacing.

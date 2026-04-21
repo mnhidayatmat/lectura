@@ -36,6 +36,11 @@
          x-data="{
              selectedType: '{{ old('type', 'quiz') }}',
              requiresSubmission: {{ old('requires_submission') ? 'true' : 'false' }},
+             requiresGroupSubmission: {{ old('requires_group_submission') ? 'true' : 'false' }},
+             selectedGroupSetId: '{{ old('student_group_set_id', '') }}',
+             groupSets: [],
+             loadingGroupSets: false,
+             groupSetsUrl: '{{ route('tenant.assessments.group-sets', [$tenant->slug, $course]) }}',
              bloom: '{{ old('bloom_level', '') }}',
              hasFile: false,
              fileName: '',
@@ -47,7 +52,17 @@
              get courseEquivalent() {
                  return Math.round(this.childWeightage / 100 * {{ (float) ($parent?->weightage ?? 0) }} * 10) / 10;
              },
-         }">
+             async fetchGroupSets() {
+                 if (this.groupSets.length > 0 || this.loadingGroupSets) return;
+                 this.loadingGroupSets = true;
+                 try {
+                     const res = await fetch(this.groupSetsUrl);
+                     this.groupSets = await res.json();
+                 } catch (e) { this.groupSets = []; }
+                 this.loadingGroupSets = false;
+             },
+         }"
+         x-init="$watch('requiresGroupSubmission', v => { if (v) fetchGroupSets(); })">
 
         <div class="lg:grid lg:grid-cols-3 lg:gap-8 space-y-6 lg:space-y-0">
 
@@ -64,6 +79,7 @@
                     <input type="hidden" name="type" :value="selectedType">
                     <input type="hidden" name="bloom_level" :value="bloom">
                     <input type="hidden" name="requires_submission" :value="requiresSubmission ? 1 : 0">
+                    <input type="hidden" name="requires_group_submission" :value="(requiresSubmission && requiresGroupSubmission) ? 1 : 0">
 
                     {{-- ── Assessment Type ── --}}
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
@@ -526,6 +542,81 @@
                                     <p class="text-xs text-amber-800 dark:text-amber-300">
                                         Students can still submit after the due date, but their submission will be marked as <strong>late</strong>. You can lock submissions manually from the assessment page.
                                     </p>
+                                </div>
+
+                                {{-- ── Require Group Submission ── --}}
+                                <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                    <button type="button" @click="requiresGroupSubmission = !requiresGroupSubmission"
+                                            class="w-full flex items-center justify-between p-4 text-left">
+                                        <div class="flex items-center gap-3">
+                                            <div :class="requiresGroupSubmission ? 'bg-indigo-100 dark:bg-indigo-900/40' : 'bg-slate-100 dark:bg-slate-700/60'"
+                                                 class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition">
+                                                <svg :class="requiresGroupSubmission ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'"
+                                                     class="w-4.5 h-4.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-slate-900 dark:text-white">Require Group Submission</p>
+                                                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Students submit as a group via their elected leader.</p>
+                                            </div>
+                                        </div>
+                                        <div :class="requiresGroupSubmission ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'"
+                                             class="relative w-11 h-6 rounded-full transition-colors flex-shrink-0">
+                                            <span :class="requiresGroupSubmission ? 'translate-x-5' : 'translate-x-1'"
+                                                  class="absolute top-0.5 inline-block w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform"></span>
+                                        </div>
+                                    </button>
+
+                                    <div x-show="requiresGroupSubmission" x-collapse>
+                                        <div class="px-4 pb-4 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-3">
+                                            <div x-show="loadingGroupSets" class="text-center py-4">
+                                                <svg class="animate-spin h-5 w-5 text-indigo-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                                <p class="text-xs text-slate-500 mt-1">Loading group sets…</p>
+                                            </div>
+
+                                            <template x-if="!loadingGroupSets && groupSets.length === 0">
+                                                <div class="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/15 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
+                                                    <p class="font-medium">No group sets found for this course.</p>
+                                                    <p class="mt-1">Create groups first at <a href="{{ route('tenant.student-groups.index', [$tenant->slug, $course]) }}" class="underline font-semibold">Courses → Groups</a>, then return here.</p>
+                                                </div>
+                                            </template>
+
+                                            @error('student_group_set_id')
+                                                <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                            @enderror
+
+                                            <div x-show="!loadingGroupSets && groupSets.length > 0" class="space-y-2">
+                                                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Select Group Set *</label>
+                                                <template x-for="set in groupSets" :key="set.id">
+                                                    <label class="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition"
+                                                        :class="String(selectedGroupSetId) === String(set.id) ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-2 ring-indigo-200 dark:ring-indigo-800' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'">
+                                                        <input type="radio" name="student_group_set_id" :value="set.id" x-model="selectedGroupSetId" class="mt-1" />
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="flex items-center gap-2">
+                                                                <p class="text-sm font-semibold text-slate-900 dark:text-white" x-text="set.name"></p>
+                                                                <span class="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300" x-text="set.type"></span>
+                                                            </div>
+                                                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                                                <span x-text="set.groups_count"></span> groups ·
+                                                                <span x-text="set.total_members"></span> members
+                                                            </p>
+                                                            <template x-if="set.description">
+                                                                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1" x-text="set.description"></p>
+                                                            </template>
+                                                        </div>
+                                                    </label>
+                                                </template>
+                                            </div>
+
+                                            <div class="flex items-start gap-2 px-3 py-2.5 bg-indigo-50 dark:bg-indigo-900/15 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                                                <svg class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <p class="text-[11px] text-indigo-700 dark:text-indigo-300">
+                                                    Only the group leader can submit. Students elect the leader via the in-group voting system in their group workspace.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

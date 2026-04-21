@@ -17,7 +17,8 @@ class Assessment extends Model
     use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'parent_id', 'title', 'type', 'method',
+        'tenant_id', 'course_id', 'student_group_set_id', 'parent_id',
+        'title', 'type', 'method',
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
         'status', 'description', 'requires_submission', 'due_date',
         'instruction_file_path', 'instruction_file_name',
@@ -49,6 +50,47 @@ class Assessment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function studentGroupSet(): BelongsTo
+    {
+        return $this->belongsTo(StudentGroupSet::class);
+    }
+
+    public function usesGroupSubmission(): bool
+    {
+        return (bool) $this->requires_submission && $this->student_group_set_id !== null;
+    }
+
+    /**
+     * Resolve the StudentGroup a user belongs to for this assessment (group mode only).
+     */
+    public function groupForUser(int $userId): ?StudentGroup
+    {
+        if (! $this->usesGroupSubmission()) {
+            return null;
+        }
+
+        return StudentGroup::where('student_group_set_id', $this->student_group_set_id)
+            ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
+            ->first();
+    }
+
+    /**
+     * Whether a user is the elected leader of their group for this assessment.
+     * Leader is maintained by the in-group voting system (GroupVoteRound::closeRound
+     * promotes the winner to pivot role='leader').
+     */
+    public function isGroupLeader(int $userId): bool
+    {
+        $group = $this->groupForUser($userId);
+        if (! $group) {
+            return false;
+        }
+        return $group->members()
+            ->where('user_id', $userId)
+            ->where('role', 'leader')
+            ->exists();
     }
 
     public function parent(): BelongsTo
