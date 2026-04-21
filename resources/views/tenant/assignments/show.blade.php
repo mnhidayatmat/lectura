@@ -152,21 +152,38 @@
         @endif
 
         {{-- Submissions --}}
+        @php
+            $usesSet = $assignment->usesStudentGroupSet();
+            $allGroups = $usesSet
+                ? ($assignment->studentGroupSet?->groups ?? collect())
+                : $assignment->groups;
+            $totalGroups = $allGroups->count();
+
+            // Filter down to leader submissions only (one per group)
+            $displaySubmissions = $assignment->isGroupAssignment()
+                ? $assignment->submissions->filter(function ($s) use ($assignment, $allGroups, $usesSet) {
+                    if ($usesSet) {
+                        if (! $s->student_group_id) return false;
+                        $group = $allGroups->firstWhere('id', $s->student_group_id);
+                        if (! $group) return false;
+                        return $group->members->firstWhere('role', 'leader')?->user_id === $s->user_id;
+                    }
+                    if (! $s->assignment_group_id) return false;
+                    $group = $allGroups->firstWhere('id', $s->assignment_group_id);
+                    if (! $group) return false;
+                    return $group->members->firstWhere('is_leader', true)?->user_id === $s->user_id;
+                })
+                : $assignment->submissions;
+        @endphp
         <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 @if($assignment->isGroupAssignment())
-                    @php
-                        $leaderSubmissions = $assignment->submissions->filter(function ($s) use ($assignment) {
-                            return $s->assignment_group_id && $assignment->groups->pluck('id')->contains($s->assignment_group_id)
-                                && $assignment->groups->firstWhere('id', $s->assignment_group_id)?->members->where('is_leader', true)->first()?->user_id === $s->user_id;
-                        });
-                    @endphp
-                    <h3 class="font-semibold text-slate-900">Group Submissions ({{ $leaderSubmissions->count() }} / {{ $assignment->groups->count() }} groups)</h3>
+                    <h3 class="font-semibold text-slate-900">Group Submissions ({{ $displaySubmissions->count() }} / {{ $totalGroups }} groups)</h3>
                 @else
                     <h3 class="font-semibold text-slate-900">Submissions ({{ $assignment->submissions->count() }})</h3>
                 @endif
             </div>
-            @if($assignment->submissions->isEmpty())
+            @if($displaySubmissions->isEmpty())
                 <div class="p-10 text-center text-sm text-slate-400">No submissions yet. Students can submit after publishing.</div>
             @else
                 <div class="overflow-x-auto">
@@ -180,24 +197,17 @@
                             <th class="text-right px-6 py-3 font-medium text-slate-500"></th>
                         </tr></thead>
                         <tbody class="divide-y divide-slate-100">
-                            @php
-                                // For group assignments, only show leader submissions (one per group)
-                                $displaySubmissions = $assignment->isGroupAssignment()
-                                    ? $assignment->submissions->filter(function ($s) use ($assignment) {
-                                        if (!$s->assignment_group_id) return false;
-                                        $group = $assignment->groups->firstWhere('id', $s->assignment_group_id);
-                                        return $group && $group->members->where('is_leader', true)->first()?->user_id === $s->user_id;
-                                    })
-                                    : $assignment->submissions;
-                            @endphp
                             @foreach($displaySubmissions->sortBy('user.name') as $sub)
+                                @php
+                                    $subGroup = $sub->studentGroup ?? $sub->assignmentGroup;
+                                @endphp
                                 <tr class="hover:bg-slate-50/50">
                                     <td class="px-6 py-3">
                                         <div class="flex items-center gap-3">
                                             <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">{{ strtoupper(substr($sub->user->name ?? '?', 0, 1)) }}</div>
                                             <div>
-                                                @if($assignment->isGroupAssignment() && $sub->assignmentGroup)
-                                                    <span class="font-medium text-slate-900">{{ $sub->assignmentGroup->name }}</span>
+                                                @if($assignment->isGroupAssignment() && $subGroup)
+                                                    <span class="font-medium text-slate-900">{{ $subGroup->name }}</span>
                                                     <p class="text-[10px] text-slate-400">Leader: {{ $sub->user->name }}</p>
                                                 @else
                                                     <span class="font-medium text-slate-900">{{ $sub->user->name ?? 'Unknown' }}</span>
