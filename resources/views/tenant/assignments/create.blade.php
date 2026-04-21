@@ -23,7 +23,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Course *</label>
-                    <select name="course_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <select name="course_id" required @change="onCourseChange($event.target.value)" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         @foreach($courses as $c)
                             <option value="{{ $c->id }}">{{ $c->code }} — {{ $c->title }}</option>
                         @endforeach
@@ -90,7 +90,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
-                    <select name="type" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <select name="type" x-model="assignmentType" @change="onTypeChange()" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="individual">Individual</option>
                         <option value="group">Group</option>
                     </select>
@@ -226,6 +226,50 @@
             </div>
         </div>
 
+        {{-- Group Set Picker (shown when type=group) --}}
+        <div x-show="assignmentType === 'group'" x-transition class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-900">Group Submission</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Pick an existing group set for this course. Submissions are made by the group leader — students elect the leader through the in-group voting system.</p>
+            </div>
+            <div class="p-6 space-y-3">
+                <div x-show="loadingGroupSets" class="text-center py-6">
+                    <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    <p class="text-sm text-slate-500">Loading group sets...</p>
+                </div>
+
+                <template x-if="!loadingGroupSets && groupSets.length === 0">
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        <p class="font-medium">No group sets found for this course.</p>
+                        <p class="text-xs mt-1">Create groups first at <span class="font-mono">Courses → Groups</span>, then come back here.</p>
+                    </div>
+                </template>
+
+                <div x-show="!loadingGroupSets && groupSets.length > 0" class="space-y-2">
+                    <label class="block text-sm font-medium text-slate-700">Select Group Set *</label>
+                    <template x-for="set in groupSets" :key="set.id">
+                        <label class="flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition"
+                            :class="String(selectedGroupSetId) === String(set.id) ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'">
+                            <input type="radio" name="student_group_set_id" :value="set.id" x-model="selectedGroupSetId" required class="mt-1" />
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <p class="font-semibold text-slate-900" x-text="set.name"></p>
+                                    <span class="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" x-text="set.type"></span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    <span x-text="set.groups_count"></span> groups &middot;
+                                    <span x-text="set.total_members"></span> members
+                                </p>
+                                <template x-if="set.description">
+                                    <p class="text-xs text-slate-400 mt-1" x-text="set.description"></p>
+                                </template>
+                            </div>
+                        </label>
+                    </template>
+                </div>
+            </div>
+        </div>
+
         {{-- Rubric Builder --}}
         <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -284,11 +328,27 @@
 
     @push('scripts')
     <script>
-        function assignmentForm() {
+        function assignmentForm(initial = {}) {
             return {
-                subType: 'file',
+                subType: initial.subType || 'file',
+                assignmentType: initial.assignmentType || 'individual',
                 submitting: false,
-                criteria: [],
+                criteria: initial.criteria || [],
+                groupSets: [],
+                selectedGroupSetId: initial.selectedGroupSetId || '',
+                loadingGroupSets: false,
+                groupSetsUrl: '{{ route("tenant.assignments.course-group-sets", [app("current_tenant")->slug, ":courseId"]) }}',
+
+                init() {
+                    if (this.assignmentType === 'group') {
+                        const courseSelect = document.querySelector('select[name="course_id"]');
+                        if (courseSelect && courseSelect.value) {
+                            this.fetchGroupSets(courseSelect.value);
+                        }
+                    }
+                },
+
+
                 addCriteria() {
                     this.criteria.push({
                         title: '',
@@ -303,6 +363,32 @@
                 },
                 addLevel(ci) {
                     this.criteria[ci].levels.push({ label: '', description: '', marks: 0 });
+                },
+
+                onCourseChange(courseId) {
+                    if (this.assignmentType === 'group' && courseId) {
+                        this.selectedGroupSetId = '';
+                        this.fetchGroupSets(courseId);
+                    }
+                },
+                onTypeChange() {
+                    if (this.assignmentType === 'group') {
+                        const courseSelect = document.querySelector('select[name="course_id"]');
+                        if (courseSelect && courseSelect.value) {
+                            this.fetchGroupSets(courseSelect.value);
+                        }
+                    }
+                },
+                async fetchGroupSets(courseId) {
+                    this.loadingGroupSets = true;
+                    try {
+                        const url = this.groupSetsUrl.replace(':courseId', courseId);
+                        const res = await fetch(url);
+                        this.groupSets = await res.json();
+                    } catch (e) {
+                        this.groupSets = [];
+                    }
+                    this.loadingGroupSets = false;
                 },
             }
         }

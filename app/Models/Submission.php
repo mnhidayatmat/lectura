@@ -15,7 +15,8 @@ class Submission extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'assignment_id', 'user_id', 'submission_number',
+        'assignment_id', 'user_id', 'assignment_group_id', 'student_group_id',
+        'submission_number',
         'notes', 'text_content', 'is_late', 'submitted_at', 'status',
     ];
 
@@ -35,6 +36,16 @@ class Submission extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function assignmentGroup(): BelongsTo
+    {
+        return $this->belongsTo(AssignmentGroup::class);
+    }
+
+    public function studentGroup(): BelongsTo
+    {
+        return $this->belongsTo(StudentGroup::class);
     }
 
     public function files(): HasMany

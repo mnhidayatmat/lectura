@@ -5,7 +5,12 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
-                <h2 class="text-2xl font-bold text-slate-900">Review: {{ $submission->user->name }}</h2>
+                @php
+                    $reviewTitleGroup = $submission->studentGroup ?? $submission->assignmentGroup;
+                @endphp
+                <h2 class="text-2xl font-bold text-slate-900">
+                    Review: {{ $assignment->isGroupAssignment() && $reviewTitleGroup ? $reviewTitleGroup->name : $submission->user->name }}
+                </h2>
                 <p class="text-sm text-slate-500">{{ $assignment->title }} &middot; {{ $assignment->course->code }}</p>
             </div>
         </div>
@@ -105,6 +110,33 @@
 
         {{-- Right: Marking Form --}}
         <div>
+            {{-- Group members info --}}
+            @if($assignment->isGroupAssignment() && $groupMembers && $groupMembers->isNotEmpty())
+                <div class="bg-indigo-50 rounded-2xl border border-indigo-200 p-5 mb-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <h3 class="font-semibold text-indigo-900">Group Members ({{ $groupMembers->count() }})</h3>
+                    </div>
+                    <p class="text-xs text-indigo-700 mb-3">Marks and feedback will be applied to all group members below.</p>
+                    <div class="space-y-1.5">
+                        @foreach($groupMembers as $member)
+                            @php
+                                $isMemberLeader = ($member->role ?? null) === 'leader' || (bool) ($member->is_leader ?? false);
+                            @endphp
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold {{ $isMemberLeader ? 'bg-amber-100 text-amber-700' : 'bg-white text-indigo-700' }}">
+                                    {{ strtoupper(substr($member->user->name ?? '?', 0, 1)) }}
+                                </div>
+                                <span class="text-sm text-indigo-900">{{ $member->user->name }}</span>
+                                @if($isMemberLeader)
+                                    <span class="text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">Leader</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('tenant.assignments.finalize', [app('current_tenant')->slug, $assignment, $submission]) }}" class="space-y-6">
                 @csrf
 
@@ -161,7 +193,11 @@
                 </div>
 
                 <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-sm transition">
-                    Finalize Marks & Release Feedback
+                    @if($assignment->isGroupAssignment() && $groupMembers && $groupMembers->count() > 1)
+                        Finalize Marks for All {{ $groupMembers->count() }} Members
+                    @else
+                        Finalize Marks & Release Feedback
+                    @endif
                 </button>
             </form>
         </div>

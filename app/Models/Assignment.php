@@ -27,7 +27,8 @@ class Assignment extends Model
     }
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'section_id', 'created_by', 'parent_id',
+        'tenant_id', 'course_id', 'section_id', 'student_group_set_id',
+        'created_by', 'parent_id',
         'title', 'description', 'type', 'total_marks', 'deadline',
         'allow_resubmission', 'max_resubmissions', 'marking_mode',
         'submission_type',
@@ -83,6 +84,67 @@ class Assignment extends Model
     public function studentMarks(): HasMany
     {
         return $this->hasMany(StudentMark::class);
+    }
+
+    public function groups(): HasMany
+    {
+        return $this->hasMany(AssignmentGroup::class);
+    }
+
+    public function studentGroupSet(): BelongsTo
+    {
+        return $this->belongsTo(StudentGroupSet::class);
+    }
+
+    public function isGroupAssignment(): bool
+    {
+        return $this->type === 'group';
+    }
+
+    public function usesStudentGroupSet(): bool
+    {
+        return $this->isGroupAssignment() && $this->student_group_set_id !== null;
+    }
+
+    /**
+     * Get the group a specific user belongs to for this assignment.
+     * Returns a StudentGroup when linked to a StudentGroupSet, else legacy AssignmentGroup.
+     */
+    public function groupForUser(int $userId): StudentGroup|AssignmentGroup|null
+    {
+        if ($this->usesStudentGroupSet()) {
+            return StudentGroup::where('student_group_set_id', $this->student_group_set_id)
+                ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
+                ->first();
+        }
+
+        return $this->groups()
+            ->whereHas('members', fn ($q) => $q->where('user_id', $userId))
+            ->first();
+    }
+
+    /**
+     * Check if a user is a group leader for this assignment.
+     * For StudentGroupSet-linked assignments the leader is whoever holds role='leader'
+     * in the pivot — a value maintained by the in-group voting system (GroupVoteRound::closeRound
+     * promotes the winner to role='leader') or by manual lecturer assignment.
+     */
+    public function isGroupLeader(int $userId): bool
+    {
+        if ($this->usesStudentGroupSet()) {
+            $group = $this->groupForUser($userId);
+            if (! $group instanceof StudentGroup) {
+                return false;
+            }
+            return $group->members()
+                ->where('user_id', $userId)
+                ->where('role', 'leader')
+                ->exists();
+        }
+
+        return $this->groups()
+            ->whereHas('members', fn ($q) => $q->where('user_id', $userId)->where('is_leader', true))
+            ->exists();
     }
 
     public function assessmentItems(): \Illuminate\Database\Eloquent\Relations\MorphMany

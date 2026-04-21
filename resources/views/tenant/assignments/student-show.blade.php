@@ -82,13 +82,105 @@
             </div>
         @endif
 
+        {{-- Group Info (for group assignments) --}}
+        @if($assignment->isGroupAssignment() && $myGroup)
+            @php
+                $usesSet = $assignment->usesStudentGroupSet();
+                // Resolve leader display for both paths
+                $leaderName = null;
+                if ($usesSet) {
+                    $leaderName = optional($groupLeader ?? null)->name;
+                } else {
+                    $leaderMember = $myGroup->members->where('is_leader', true)->first();
+                    $leaderName = optional(optional($leaderMember)->user)->name;
+                }
+            @endphp
+            <div class="bg-white rounded-2xl border border-indigo-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-indigo-100 bg-indigo-50/50">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <h3 class="font-semibold text-indigo-900">{{ $myGroup->name }}</h3>
+                        @if($isLeader)
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 uppercase">Leader</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="p-4">
+                    {{-- Leader / voting status (StudentGroupSet path only) --}}
+                    @if($usesSet)
+                        <div class="mb-4 p-3 rounded-xl border @if($leaderName) border-emerald-200 bg-emerald-50 @elseif($activeVoteRound ?? false) border-amber-200 bg-amber-50 @else border-red-200 bg-red-50 @endif">
+                            <div class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0 @if($leaderName) text-emerald-600 @elseif($activeVoteRound ?? false) text-amber-600 @else text-red-600 @endif" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    @if($leaderName)
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    @else
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z"/>
+                                    @endif
+                                </svg>
+                                <div class="flex-1 text-xs">
+                                    @if($leaderName)
+                                        <p class="font-semibold text-emerald-900">Group leader: {{ $leaderName }}</p>
+                                        <p class="text-emerald-700 mt-0.5">The leader submits on behalf of the group.</p>
+                                    @elseif($activeVoteRound ?? false)
+                                        <p class="font-semibold text-amber-900">Leader election in progress</p>
+                                        <p class="text-amber-700 mt-0.5">Members are voting. Submission is unlocked once a winner is declared.</p>
+                                    @else
+                                        <p class="font-semibold text-red-900">No leader elected yet</p>
+                                        <p class="text-red-700 mt-0.5">Start a vote in your group workspace to elect a leader before submitting.</p>
+                                    @endif
+                                    <a href="{{ route('tenant.workspace.show', [app('current_tenant')->slug, $myGroup]) }}" class="inline-block mt-1.5 font-semibold underline hover:no-underline">Go to group workspace →</a>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Members</p>
+                    <div class="space-y-1.5">
+                        @foreach($myGroup->members as $member)
+                            @php
+                                if ($usesSet) {
+                                    $memberIsLeader = ($member->role ?? null) === 'leader';
+                                } else {
+                                    $memberIsLeader = (bool) ($member->is_leader ?? false);
+                                }
+                            @endphp
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold {{ $memberIsLeader ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700' }}">
+                                    {{ strtoupper(substr($member->user->name ?? '?', 0, 1)) }}
+                                </div>
+                                <span class="text-sm text-slate-700">{{ $member->user->name }}</span>
+                                @if($memberIsLeader)
+                                    <span class="text-[10px] font-semibold text-amber-600">Leader</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @elseif($assignment->isGroupAssignment() && !$myGroup)
+            <div class="bg-white rounded-2xl border border-amber-200 p-6 text-center">
+                <svg class="w-8 h-8 text-amber-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                <p class="text-sm font-medium text-amber-800">You are not assigned to any group for this assignment.</p>
+                <p class="text-xs text-amber-600 mt-1">Contact your lecturer for group assignment.</p>
+            </div>
+        @endif
+
         {{-- Submit --}}
-        @if(!$mySubmission)
+        @php
+            $canSubmit = !$assignment->isGroupAssignment() || ($myGroup && $isLeader);
+            $hasSubmission = $mySubmission || ($assignment->isGroupAssignment() && $groupSubmission);
+            $displaySubmission = $mySubmission ?? $groupSubmission;
+        @endphp
+
+        @if(!$hasSubmission && $canSubmit)
             @php $subType = $assignment->submission_type ?? 'file'; @endphp
             <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">Submit Your Work</h3>
+                    <h3 class="font-semibold text-slate-900">
+                        @if($assignment->isGroupAssignment()) Submit for Your Group @else Submit Your Work @endif
+                    </h3>
                     <p class="text-xs text-slate-400 mt-0.5">
+                        @if($assignment->isGroupAssignment()) As group leader, your submission applies to all members. @endif
                         @if($subType === 'file') Upload files @elseif($subType === 'text') Type your answer @else Upload files and/or type your answer @endif
                     </p>
                 </div>
@@ -136,31 +228,47 @@
                         </div>
                         <button type="submit" :disabled="submitting" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-sm transition flex items-center justify-center gap-2">
                             <svg x-show="submitting" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                            <span x-text="submitting ? 'Submitting...' : 'Submit'"></span>
+                            @php $submitLabel = $assignment->isGroupAssignment() ? 'Submit for Group' : 'Submit'; @endphp
+                            <span x-text="submitting ? 'Submitting...' : @js($submitLabel)"></span>
                         </button>
                     </form>
                 </div>
             </div>
-        @else
+        @elseif(!$hasSubmission && $assignment->isGroupAssignment() && $myGroup && !$isLeader)
+            {{-- Non-leader group member waiting for leader --}}
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center">
+                <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p class="text-sm font-medium text-slate-700">Waiting for group leader to submit</p>
+                @if($leaderName ?? null)
+                    <p class="text-xs text-slate-500 mt-1">{{ $leaderName }} will submit on behalf of your group.</p>
+                @endif
+            </div>
+        @elseif($displaySubmission)
             <div class="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
                         <svg class="w-6 h-6 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                         <div>
-                            <p class="text-sm font-medium text-emerald-900">Submitted {{ $mySubmission->submitted_at->format('d M Y, H:i') }}</p>
+                            <p class="text-sm font-medium text-emerald-900">
+                                @if($assignment->isGroupAssignment()) Group submitted @else Submitted @endif
+                                {{ $displaySubmission->submitted_at->format('d M Y, H:i') }}
+                            </p>
                             <p class="text-xs text-slate-500">
-                                @if($mySubmission->files->count()) {{ $mySubmission->files->count() }} file(s) @endif
-                                @if($mySubmission->files->count() && $mySubmission->text_content) &middot; @endif
-                                @if($mySubmission->text_content) Text answer included @endif
-                                &middot; Status: {{ ucfirst($mySubmission->status) }}
+                                @if($displaySubmission->files->count()) {{ $displaySubmission->files->count() }} file(s) @endif
+                                @if($displaySubmission->files->count() && $displaySubmission->text_content) &middot; @endif
+                                @if($displaySubmission->text_content) Text answer included @endif
+                                &middot; Status: {{ ucfirst($displaySubmission->status) }}
+                                @if($assignment->isGroupAssignment() && !$isLeader)
+                                    &middot; Submitted by {{ $displaySubmission->user->name ?? 'leader' }}
+                                @endif
                             </p>
                         </div>
                     </div>
                 </div>
-                @if($mySubmission->text_content)
+                @if($displaySubmission->text_content)
                     <div class="px-6 py-4 border-t border-emerald-100">
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Your Answer</p>
-                        <div class="bg-emerald-50/50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-line max-h-48 overflow-y-auto">{{ $mySubmission->text_content }}</div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Answer</p>
+                        <div class="bg-emerald-50/50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-line max-h-48 overflow-y-auto">{{ $displaySubmission->text_content }}</div>
                     </div>
                 @endif
             </div>

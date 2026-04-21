@@ -22,6 +22,7 @@ use App\Http\Controllers\Tenant\Assessment\AssessmentReportController;
 use App\Http\Controllers\Tenant\Assessment\AssessmentScoreController;
 use App\Http\Controllers\Tenant\Assessment\PloController;
 use App\Http\Controllers\Tenant\Assessment\CloPlOMapController;
+use App\Http\Controllers\Tenant\PortfolioController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningActivityController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningGroupController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningPlanController;
@@ -467,6 +468,8 @@ Route::prefix('{tenant:slug}')
         Route::get('/assignments/{assignment}/sub/create', [AssignmentController::class, 'create'])->name('tenant.assignments.sub.create');
         Route::post('/assignments', [AssignmentController::class, 'store'])->name('tenant.assignments.store');
         Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('tenant.assignments.show');
+        Route::get('/assignments/{assignment}/edit', [AssignmentController::class, 'edit'])->name('tenant.assignments.edit');
+        Route::put('/assignments/{assignment}', [AssignmentController::class, 'update'])->name('tenant.assignments.update');
         Route::post('/assignments/{assignment}/publish', [AssignmentController::class, 'publish'])->name('tenant.assignments.publish');
         Route::delete('/assignments/{assignment}', [AssignmentController::class, 'destroy'])->name('tenant.assignments.destroy');
         Route::post('/assignments/{assignment}/submit', [AssignmentController::class, 'submit'])->name('tenant.assignments.submit');
@@ -474,6 +477,8 @@ Route::prefix('{tenant:slug}')
         Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
         Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
         Route::get('/assignments/{assignment}/instruction', [AssignmentController::class, 'downloadInstruction'])->name('tenant.assignments.instruction');
+        Route::get('/assignments/course-students/{course}', [AssignmentController::class, 'courseStudents'])->name('tenant.assignments.course-students');
+        Route::get('/assignments/course-group-sets/{course}', [AssignmentController::class, 'courseGroupSets'])->name('tenant.assignments.course-group-sets');
 
         // Assessment (Course Assessment Plan)
         Route::get('/assessments', [AssessmentPlanController::class, 'overview'])->name('tenant.assessments.overview');
@@ -519,6 +524,13 @@ Route::prefix('{tenant:slug}')
         // CLO-PLO Mapping
         Route::get('/courses/{course}/clo-plo', [CloPlOMapController::class, 'edit'])->name('tenant.clo-plo.edit');
         Route::put('/courses/{course}/clo-plo', [CloPlOMapController::class, 'update'])->name('tenant.clo-plo.update');
+
+        // Teaching Portfolio
+        Route::get('/portfolio', [PortfolioController::class, 'index'])->name('tenant.portfolio.index');
+        Route::get('/portfolio/course/{course}', [PortfolioController::class, 'course'])->name('tenant.portfolio.course');
+        Route::post('/portfolio/course/{course}/store', [PortfolioController::class, 'store'])->name('tenant.portfolio.store');
+        Route::post('/portfolio/course/{course}/store-batch', [PortfolioController::class, 'storeBatch'])->name('tenant.portfolio.store-batch');
+        Route::delete('/portfolio/{photo}', [PortfolioController::class, 'destroy'])->name('tenant.portfolio.destroy');
 
         // Course Files
         Route::get('/files', [CourseFileController::class, 'index'])->name('tenant.files.index');

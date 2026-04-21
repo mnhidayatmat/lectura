@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
+use App\Models\AssignmentGroupMember;
 use App\Models\Course;
 use App\Services\GoogleDriveService;
 use App\Models\Feedback;
@@ -15,12 +16,17 @@ use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
 use App\Models\Section;
+use App\Models\SectionStudent;
+use App\Models\StudentGroup;
+use App\Models\StudentGroupMember;
+use App\Models\StudentGroupSet;
 use App\Notifications\AssignmentPublished;
 use App\Notifications\FeedbackReleased;
 use App\Notifications\SubmissionReceived;
 use App\Models\StudentMark;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -80,6 +86,86 @@ class AssignmentController extends Controller
         return view('tenant.assignments.create', compact('courses', 'parent'));
     }
 
+    public function edit(string $tenantSlug, Assignment $assignment): View
+    {
+        $this->authorizeCourseAccess($assignment->course);
+
+        $courses = Course::whereIn('id', $this->accessibleCourseIds())->with('sections', 'learningOutcomes')->get();
+        $assignment->load(['rubric.criteria.levels', 'studentGroupSet.groups.members.user']);
+
+        return view('tenant.assignments.edit', compact('assignment', 'courses'));
+    }
+
+    public function update(Request $request, string $tenantSlug, Assignment $assignment): RedirectResponse
+    {
+        $this->authorizeCourseAccess($assignment->course);
+
+        $request->validate([
+            'course_id' => ['required', 'exists:courses,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'total_marks' => ['required', 'numeric', 'min:1'],
+            'deadline' => ['nullable', 'date'],
+            'type' => ['required', 'in:individual,group'],
+            'student_group_set_id' => ['nullable', 'required_if:type,group', 'exists:student_group_sets,id'],
+            'marking_mode' => ['required', 'in:manual,ai_assisted'],
+            'submission_type' => ['required', 'in:file,text,both'],
+            'answer_scheme' => ['nullable', 'string'],
+            'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
+        ]);
+
+        $this->validateGroupSetBelongsToCourse($request);
+
+        $tenant = app('current_tenant');
+
+        $schemeData = [
+            'answer_scheme' => $request->answer_scheme,
+        ];
+
+        if ($request->hasFile('answer_scheme_file')) {
+            if ($assignment->answer_scheme_path && \Storage::disk('local')->exists($assignment->answer_scheme_path)) {
+                \Storage::disk('local')->delete($assignment->answer_scheme_path);
+            }
+            $file = $request->file('answer_scheme_file');
+            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'local');
+            $schemeData['answer_scheme_filename'] = $file->getClientOriginalName();
+        }
+
+        $assignment->update([
+            'course_id' => $request->course_id,
+            'title' => $request->title,
+            'description' => $request->description,
+            'total_marks' => $request->total_marks,
+            'deadline' => $request->deadline,
+            'type' => $request->type,
+            'student_group_set_id' => $request->type === 'group' ? $request->student_group_set_id : null,
+            'marking_mode' => $request->marking_mode,
+            'submission_type' => $request->submission_type,
+            ...$schemeData,
+        ]);
+
+        return redirect()
+            ->route('tenant.assignments.show', [$tenant->slug, $assignment->id])
+            ->with('success', 'Assignment updated.');
+    }
+
+    private function validateGroupSetBelongsToCourse(Request $request): void
+    {
+        if ($request->type !== 'group' || ! $request->filled('student_group_set_id')) {
+            return;
+        }
+
+        $valid = StudentGroupSet::where('id', $request->student_group_set_id)
+            ->where('course_id', $request->course_id)
+            ->exists();
+
+        if (! $valid) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'student_group_set_id' => 'Selected group set does not belong to the chosen course.',
+            ]);
+        }
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $isSubAssignment = $request->filled('parent_id');
@@ -92,6 +178,7 @@ class AssignmentController extends Controller
             'total_marks' => ['required', 'numeric', 'min:1'],
             'deadline' => ['nullable', 'date'],
             'type' => ['required', 'in:individual,group'],
+            'student_group_set_id' => ['nullable', 'required_if:type,group', 'exists:student_group_sets,id'],
             'marking_mode' => ['required', 'in:manual,ai_assisted'],
             'submission_type' => ['required', 'in:file,text,both'],
             'answer_scheme' => ['nullable', 'string'],
@@ -102,6 +189,8 @@ class AssignmentController extends Controller
             'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
             'criteria.*.levels' => ['nullable', 'array'],
         ]);
+
+        $this->validateGroupSetBelongsToCourse($request);
 
         $tenant = app('current_tenant');
         $lecturer = auth()->user();
@@ -196,6 +285,7 @@ class AssignmentController extends Controller
             'tenant_id' => $tenant->id,
             'course_id' => $request->course_id,
             'parent_id' => $request->parent_id,
+            'student_group_set_id' => $request->type === 'group' ? $request->student_group_set_id : null,
             'created_by' => auth()->id(),
             'title' => $request->title,
             'description' => $request->description,
@@ -255,14 +345,48 @@ class AssignmentController extends Controller
         $tenant = app('current_tenant');
         $role = $user->roleInTenant($tenant->id);
 
-        $assignment->load(['course', 'rubric.criteria.levels', 'subAssignments', 'parent', 'submissions.user', 'submissions.files']);
+        $assignment->load([
+            'course', 'rubric.criteria.levels', 'subAssignments', 'parent',
+            'submissions.user', 'submissions.files',
+            'submissions.assignmentGroup', 'submissions.studentGroup',
+            'groups.members.user', 'studentGroupSet.groups.members.user',
+        ]);
 
         if ($role === 'student') {
             $mySubmission = $assignment->submissions->where('user_id', $user->id)->first();
             $myMark = StudentMark::where('assignment_id', $assignment->id)->where('user_id', $user->id)->first();
             $myFeedback = $mySubmission ? Feedback::where('submission_id', $mySubmission->id)->where('user_id', $user->id)->where('is_released', true)->first() : null;
 
-            return view('tenant.assignments.student-show', compact('assignment', 'mySubmission', 'myMark', 'myFeedback'));
+            // Group assignment context
+            $myGroup = null;
+            $isLeader = false;
+            $groupSubmission = null;
+            $groupLeader = null;
+            $activeVoteRound = null;
+            if ($assignment->isGroupAssignment()) {
+                $myGroup = $assignment->groupForUser($user->id);
+                if ($myGroup) {
+                    $myGroup->load('members.user');
+                    $isLeader = $assignment->isGroupLeader($user->id);
+
+                    if ($assignment->usesStudentGroupSet() && $myGroup instanceof StudentGroup) {
+                        $groupLeader = $myGroup->leader();
+                        $activeVoteRound = $myGroup->activeVoteRound();
+                        $groupSubmission = $assignment->submissions
+                            ->where('student_group_id', $myGroup->id)
+                            ->first();
+                    } else {
+                        $groupSubmission = $assignment->submissions
+                            ->where('assignment_group_id', $myGroup->id)
+                            ->first();
+                    }
+                }
+            }
+
+            return view('tenant.assignments.student-show', compact(
+                'assignment', 'mySubmission', 'myMark', 'myFeedback',
+                'myGroup', 'isLeader', 'groupSubmission', 'groupLeader', 'activeVoteRound'
+            ));
         }
 
         // Load submission counts for sub-assignments
@@ -325,9 +449,34 @@ class AssignmentController extends Controller
         $user = auth()->user();
         $isLate = $assignment->deadline && now()->isAfter($assignment->deadline);
 
+        // For group assignments, only the leader can submit
+        $assignmentGroupId = null;
+        $studentGroupId = null;
+        $myGroup = null;
+        if ($assignment->isGroupAssignment()) {
+            $myGroup = $assignment->groupForUser($user->id);
+            if (! $myGroup) {
+                return back()->withErrors(['submit' => 'You are not assigned to a group for this assignment.']);
+            }
+            if (! $assignment->isGroupLeader($user->id)) {
+                $message = $assignment->usesStudentGroupSet()
+                    ? 'Only the group leader can submit. Your group needs to hold a vote to elect a leader.'
+                    : 'Only the group leader can submit for the group.';
+                return back()->withErrors(['submit' => $message]);
+            }
+
+            if ($assignment->usesStudentGroupSet()) {
+                $studentGroupId = $myGroup->id;
+            } else {
+                $assignmentGroupId = $myGroup->id;
+            }
+        }
+
         $submission = Submission::create([
             'assignment_id' => $assignment->id,
             'user_id' => $user->id,
+            'assignment_group_id' => $assignmentGroupId,
+            'student_group_id' => $studentGroupId,
             'notes' => $request->notes,
             'text_content' => $request->text_content,
             'is_late' => $isLate,
@@ -386,6 +535,26 @@ class AssignmentController extends Controller
             }
         }
 
+        // For group assignments, auto-create submissions for other group members
+        if ($assignment->isGroupAssignment() && $myGroup) {
+            $myGroup->loadMissing('members');
+            foreach ($myGroup->members as $member) {
+                if ((int) $member->user_id === (int) $user->id) continue; // Skip leader
+
+                Submission::create([
+                    'assignment_id' => $assignment->id,
+                    'user_id' => $member->user_id,
+                    'assignment_group_id' => $assignmentGroupId,
+                    'student_group_id' => $studentGroupId,
+                    'notes' => $request->notes,
+                    'text_content' => $request->text_content,
+                    'is_late' => $isLate,
+                    'submitted_at' => now(),
+                    'status' => 'submitted',
+                ]);
+            }
+        }
+
         // Notify lecturer
         $assignment->load('course');
         $lecturer = $assignment->course->lecturer;
@@ -393,7 +562,11 @@ class AssignmentController extends Controller
             $lecturer->notify(new SubmissionReceived($assignment, $user));
         }
 
-        return back()->with('success', 'Submission uploaded successfully.' . ($isLate ? ' (Late submission)' : ''));
+        $successMsg = $assignment->isGroupAssignment()
+            ? 'Group submission uploaded successfully.' . ($isLate ? ' (Late submission)' : '')
+            : 'Submission uploaded successfully.' . ($isLate ? ' (Late submission)' : '');
+
+        return back()->with('success', $successMsg);
     }
 
     /**
@@ -401,13 +574,73 @@ class AssignmentController extends Controller
      */
     public function review(string $tenantSlug, Assignment $assignment, Submission $submission): View
     {
-        $assignment->load(['rubric.criteria.levels', 'course']);
-        $submission->load(['user', 'files', 'markingSuggestions']);
+        $assignment->load(['rubric.criteria.levels', 'course', 'groups.members.user', 'studentGroupSet']);
+        $submission->load(['user', 'files', 'markingSuggestions', 'assignmentGroup.members.user', 'studentGroup.members.user']);
 
         $existingMark = StudentMark::where('assignment_id', $assignment->id)
             ->where('user_id', $submission->user_id)->first();
 
-        return view('tenant.assignments.review', compact('assignment', 'submission', 'existingMark'));
+        $groupMembers = null;
+        if ($assignment->isGroupAssignment()) {
+            if ($submission->student_group_id) {
+                $groupMembers = StudentGroupMember::where('student_group_id', $submission->student_group_id)
+                    ->with('user')
+                    ->get();
+            } elseif ($submission->assignment_group_id) {
+                $groupMembers = AssignmentGroupMember::where('assignment_group_id', $submission->assignment_group_id)
+                    ->with('user')
+                    ->get();
+            }
+        }
+
+        return view('tenant.assignments.review', compact('assignment', 'submission', 'existingMark', 'groupMembers'));
+    }
+
+    /**
+     * Get student group sets available for a course (for group assignment builder).
+     */
+    public function courseGroupSets(string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
+
+        $sets = $course->studentGroupSets()
+            ->with(['groups' => fn ($q) => $q->withCount('members')])
+            ->where('is_active', true)
+            ->latest()
+            ->get()
+            ->map(fn ($set) => [
+                'id' => $set->id,
+                'name' => $set->name,
+                'type' => $set->type,
+                'description' => $set->description,
+                'groups_count' => $set->groups->count(),
+                'total_members' => $set->groups->sum('members_count'),
+                'groups' => $set->groups->map(fn ($g) => [
+                    'id' => $g->id,
+                    'name' => $g->name,
+                    'members_count' => $g->members_count,
+                ])->values(),
+            ]);
+
+        return response()->json($sets);
+    }
+
+    /**
+     * Get students enrolled in a course (for group builder).
+     */
+    public function courseStudents(string $tenantSlug, Course $course): JsonResponse
+    {
+        $sectionIds = $course->sections()->pluck('id');
+        $students = SectionStudent::whereIn('section_id', $sectionIds)
+            ->where('is_active', true)
+            ->with('user:id,name,email')
+            ->get()
+            ->pluck('user')
+            ->unique('id')
+            ->values()
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email]);
+
+        return response()->json($students);
     }
 
     /**
@@ -427,47 +660,68 @@ class AssignmentController extends Controller
         $maxMarks = (float) $assignment->total_marks;
         $percentage = $maxMarks > 0 ? round($totalMarks / $maxMarks * 100, 2) : 0;
 
-        // Save or update student mark
-        StudentMark::updateOrCreate(
-            ['assignment_id' => $assignment->id, 'user_id' => $submission->user_id],
-            [
-                'tenant_id' => $tenant->id,
-                'submission_id' => $submission->id,
-                'total_marks' => $totalMarks,
-                'max_marks' => $maxMarks,
-                'percentage' => $percentage,
-                'is_final' => true,
-                'finalized_by' => auth()->id(),
-                'finalized_at' => now(),
-            ]
-        );
+        // Determine all users to receive marks
+        $usersToMark = collect();
+        if ($assignment->isGroupAssignment() && $submission->student_group_id) {
+            $groupSubmissions = Submission::where('assignment_id', $assignment->id)
+                ->where('student_group_id', $submission->student_group_id)
+                ->get();
+            $usersToMark = $groupSubmissions->map(fn ($s) => ['user_id' => $s->user_id, 'submission' => $s]);
+        } elseif ($assignment->isGroupAssignment() && $submission->assignment_group_id) {
+            $groupSubmissions = Submission::where('assignment_id', $assignment->id)
+                ->where('assignment_group_id', $submission->assignment_group_id)
+                ->get();
+            $usersToMark = $groupSubmissions->map(fn ($s) => ['user_id' => $s->user_id, 'submission' => $s]);
+        } else {
+            $usersToMark = collect([['user_id' => $submission->user_id, 'submission' => $submission]]);
+        }
 
-        $submission->update(['status' => 'graded']);
-
-        // Save feedback
-        if ($request->feedback_strengths || $request->feedback_improvements) {
-            Feedback::updateOrCreate(
-                ['submission_id' => $submission->id, 'user_id' => $submission->user_id],
+        foreach ($usersToMark as $entry) {
+            StudentMark::updateOrCreate(
+                ['assignment_id' => $assignment->id, 'user_id' => $entry['user_id']],
                 [
-                    'strengths' => $request->feedback_strengths,
-                    'improvement_tips' => $request->feedback_improvements,
-                    'performance_level' => $percentage >= 70 ? 'advanced' : ($percentage >= 40 ? 'average' : 'low'),
-                    'is_released' => true,
-                    'released_at' => now(),
+                    'tenant_id' => $tenant->id,
+                    'submission_id' => $entry['submission']->id,
+                    'total_marks' => $totalMarks,
+                    'max_marks' => $maxMarks,
+                    'percentage' => $percentage,
+                    'is_final' => true,
+                    'finalized_by' => auth()->id(),
+                    'finalized_at' => now(),
                 ]
             );
+
+            $entry['submission']->update(['status' => 'graded']);
+
+            // Save feedback for each member
+            if ($request->feedback_strengths || $request->feedback_improvements) {
+                Feedback::updateOrCreate(
+                    ['submission_id' => $entry['submission']->id, 'user_id' => $entry['user_id']],
+                    [
+                        'strengths' => $request->feedback_strengths,
+                        'improvement_tips' => $request->feedback_improvements,
+                        'performance_level' => $percentage >= 70 ? 'advanced' : ($percentage >= 40 ? 'average' : 'low'),
+                        'is_released' => true,
+                        'released_at' => now(),
+                    ]
+                );
+            }
+
+            // Notify each student
+            $mark = StudentMark::where('assignment_id', $assignment->id)->where('user_id', $entry['user_id'])->first();
+            if ($mark) {
+                $entry['submission']->user->notify(new FeedbackReleased($assignment, $mark));
+            }
         }
 
-        // Notify student
-        $mark = StudentMark::where('assignment_id', $assignment->id)->where('user_id', $submission->user_id)->first();
-        if ($mark) {
-            $submission->user->notify(new FeedbackReleased($assignment, $mark));
-        }
+        $successMsg = $assignment->isGroupAssignment()
+            ? "Marks finalized for group ({$usersToMark->count()} members)."
+            : "Marks finalized for {$submission->user->name}.";
 
         return redirect()->route('tenant.assignments.show', [
             'tenant' => $tenant->slug,
             'assignment' => $assignment->id,
-        ])->with('success', "Marks finalized for {$submission->user->name}.");
+        ])->with('success', $successMsg);
     }
 
     /**
