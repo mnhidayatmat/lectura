@@ -153,29 +153,46 @@ class AssessmentSubmissionController extends Controller
 
         $tenant = app('current_tenant');
 
-        AssessmentScore::updateOrCreate(
-            ['assessment_id' => $assessment->id, 'user_id' => $submission->user_id],
-            [
-                'tenant_id' => $tenant->id,
-                'assessment_submission_id' => $submission->id,
-                'raw_marks' => $rawMarks,
-                'max_marks' => $maxMarks,
-                'weighted_marks' => $weightedMarks,
-                'percentage' => $percentage,
-                'is_computed' => false,
-                'is_released' => false,
-                'feedback' => $request->feedback,
-                'criteria_marks' => $criteriaMarksInput,
-                'finalized_by' => auth()->id(),
-                'finalized_at' => now(),
-            ]
-        );
+        // Collect every AssessmentSubmission that should receive this mark.
+        // For a group submission, every member of the same student_group_id has a
+        // mirrored AssessmentSubmission row (created at submit time), and each
+        // needs its own AssessmentScore + 'graded' status so re-marking the
+        // leader keeps every member in sync.
+        $targetSubmissions = collect([$submission]);
+        if ($submission->student_group_id) {
+            $targetSubmissions = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('student_group_id', $submission->student_group_id)
+                ->get();
+        }
 
-        $submission->update(['status' => 'graded']);
+        foreach ($targetSubmissions as $target) {
+            AssessmentScore::updateOrCreate(
+                ['assessment_id' => $assessment->id, 'user_id' => $target->user_id],
+                [
+                    'tenant_id' => $tenant->id,
+                    'assessment_submission_id' => $target->id,
+                    'raw_marks' => $rawMarks,
+                    'max_marks' => $maxMarks,
+                    'weighted_marks' => $weightedMarks,
+                    'percentage' => $percentage,
+                    'is_computed' => false,
+                    'is_released' => false,
+                    'feedback' => $request->feedback,
+                    'criteria_marks' => $criteriaMarksInput,
+                    'finalized_by' => auth()->id(),
+                    'finalized_at' => now(),
+                ]
+            );
 
-        // Stamp a grade-report cover page onto every PDF in the submission
-        // so the student sees their marks at the top of the file. Failures
-        // are logged and never block saving the grade.
+            if ($target->status !== 'graded') {
+                $target->update(['status' => 'graded']);
+            }
+        }
+
+        // Stamp a grade-report cover page onto every PDF in the leader's
+        // submission (members share the leader's files via the group — their
+        // mirrored submissions carry no files). Failures are logged and
+        // never block saving the grade.
         try {
             app(SubmissionReportStampingService::class)->stamp($submission->fresh(['files', 'user', 'score', 'assessment']));
         } catch (\Throwable $e) {
@@ -184,6 +201,11 @@ class AssessmentSubmissionController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+
+        $extraMembers = $targetSubmissions->count() - 1;
+        $groupSuffix = $extraMembers > 0
+            ? " Applied to {$extraMembers} group member(s)."
+            : '';
 
         // "Save & Next" button sends next_id; "Save Grade" stays on this submission.
         if ($request->filled('next_id')) {
@@ -194,11 +216,11 @@ class AssessmentSubmissionController extends Controller
             $nextName = $next->user->name ?? '';
 
             return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $next])
-                ->with('success', "Graded {$submission->user->name}. Up next: {$nextName}.");
+                ->with('success', "Graded {$submission->user->name}.{$groupSuffix} Up next: {$nextName}.");
         }
 
         return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $submission])
-            ->with('success', "Grade saved for {$submission->user->name}.");
+            ->with('success', "Grade saved for {$submission->user->name}.{$groupSuffix}");
     }
 
     public function release(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
