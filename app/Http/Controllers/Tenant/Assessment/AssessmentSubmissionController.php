@@ -49,6 +49,38 @@ class AssessmentSubmissionController extends Controller
         $submissions = $assessment->submissions()->with(['user', 'files'])->get()->keyBy('user_id');
         $scores = $assessment->scores()->get()->keyBy('user_id');
 
+        // Build a map user_id => group metadata (id, name, color, role) so the
+        // submissions table can color-code each group and badge the leader.
+        $groupInfoByUser = collect();
+        if ($assessment->usesGroupSubmission()) {
+            $assessment->load('studentGroupSet.groups.members');
+            $palette = [
+                'indigo', 'emerald', 'amber', 'rose', 'sky',
+                'violet', 'teal', 'fuchsia', 'cyan', 'lime',
+                'orange', 'pink',
+            ];
+            foreach ($assessment->studentGroupSet->groups ?? [] as $i => $group) {
+                $color = $palette[$i % count($palette)];
+                foreach ($group->members as $member) {
+                    $groupInfoByUser[$member->user_id] = [
+                        'group_id' => $group->id,
+                        'group_name' => $group->name,
+                        'color' => $color,
+                        'role' => $member->role,
+                        'sort' => $i,
+                    ];
+                }
+            }
+
+            // Order students so group members sit together (group sort, then leader first, then name).
+            $enrolledStudents = $enrolledStudents->sortBy(function ($student) use ($groupInfoByUser) {
+                $info = $groupInfoByUser[$student->id] ?? null;
+                $groupSort = $info['sort'] ?? PHP_INT_MAX;
+                $leaderSort = ($info['role'] ?? null) === 'leader' ? 0 : 1;
+                return sprintf('%05d-%d-%s', $groupSort, $leaderSort, $student->name);
+            })->values();
+        }
+
         $stats = [
             'enrolled' => $enrolledStudents->count(),
             'submitted' => $submissions->count(),
@@ -57,7 +89,7 @@ class AssessmentSubmissionController extends Controller
         ];
 
         return view('tenant.assessments.submissions.index', compact(
-            'tenant', 'course', 'assessment', 'enrolledStudents', 'submissions', 'scores', 'stats'
+            'tenant', 'course', 'assessment', 'enrolledStudents', 'submissions', 'scores', 'stats', 'groupInfoByUser'
         ));
     }
 

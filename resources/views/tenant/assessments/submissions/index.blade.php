@@ -174,10 +174,36 @@
             </div>
         @else
             <div class="overflow-x-auto">
+                {{-- Group legend (only shown for group submissions) --}}
+                @if($assessment->usesGroupSubmission() && ($assessment->studentGroupSet->groups ?? collect())->isNotEmpty())
+                    @php
+                        $legendPalette = ['indigo', 'emerald', 'amber', 'rose', 'sky', 'violet', 'teal', 'fuchsia', 'cyan', 'lime', 'orange', 'pink'];
+                    @endphp
+                    <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Groups:</span>
+                            @foreach($assessment->studentGroupSet->groups as $i => $g)
+                                @php $c = $legendPalette[$i % count($legendPalette)]; @endphp
+                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-{{ $c }}-100 dark:bg-{{ $c }}-900/30 text-{{ $c }}-700 dark:text-{{ $c }}-400 text-[11px] font-medium">
+                                    <span class="w-2 h-2 rounded-full bg-{{ $c }}-500"></span>
+                                    {{ $g->name }}
+                                </span>
+                            @endforeach
+                            <span class="ml-auto inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                <svg class="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
+                                Leader badge marks the group's submitter
+                            </span>
+                        </div>
+                    </div>
+                @endif
+
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
                             <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Student</th>
+                            @if($assessment->usesGroupSubmission())
+                                <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Group</th>
+                            @endif
                             <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
                             <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Submitted</th>
                             <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Files</th>
@@ -191,24 +217,49 @@
                             @php
                                 $sub   = $submissions->get($student->id);
                                 $score = $scores->get($student->id);
+                                $groupInfo = ($groupInfoByUser ?? collect())->get($student->id);
+                                $isLeader = $groupInfo && $groupInfo['role'] === 'leader';
+                                $gColor = $groupInfo['color'] ?? null;
                             @endphp
-                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$sub ? 'opacity-60' : '' }}">
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$sub ? 'opacity-60' : '' }} {{ $gColor ? 'border-l-4 border-l-'.$gColor.'-400 dark:border-l-'.$gColor.'-500' : '' }}">
                                 {{-- Student --}}
                                 <td class="px-5 py-3">
                                     <div class="flex items-center gap-3">
                                         @if($student->avatar_url)
                                             <img src="{{ $student->avatar_url }}" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
                                         @else
-                                            <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
-                                                <span class="text-xs font-bold text-indigo-700 dark:text-indigo-400">{{ strtoupper(substr($student->name, 0, 1)) }}</span>
+                                            <div class="w-8 h-8 rounded-full {{ $gColor ? 'bg-'.$gColor.'-100 dark:bg-'.$gColor.'-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30' }} flex items-center justify-center flex-shrink-0">
+                                                <span class="text-xs font-bold {{ $gColor ? 'text-'.$gColor.'-700 dark:text-'.$gColor.'-400' : 'text-indigo-700 dark:text-indigo-400' }}">{{ strtoupper(substr($student->name, 0, 1)) }}</span>
                                             </div>
                                         @endif
                                         <div class="min-w-0">
-                                            <p class="font-medium text-slate-900 dark:text-white truncate">{{ $student->name }}</p>
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <p class="font-medium text-slate-900 dark:text-white truncate">{{ $student->name }}</p>
+                                                @if($isLeader)
+                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[9px] font-bold uppercase tracking-wide" title="Group leader — submitted for the group">
+                                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 1l2.39 6.36H19l-5.2 3.78 2 6.36L10 13.73l-5.8 3.77 2-6.36L1 7.36h6.61z"/></svg>
+                                                        Leader
+                                                    </span>
+                                                @endif
+                                            </div>
                                             <p class="text-[11px] text-slate-400 truncate">{{ $student->email }}</p>
                                         </div>
                                     </div>
                                 </td>
+
+                                {{-- Group --}}
+                                @if($assessment->usesGroupSubmission())
+                                    <td class="px-4 py-3">
+                                        @if($groupInfo)
+                                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-{{ $gColor }}-100 dark:bg-{{ $gColor }}-900/30 text-{{ $gColor }}-700 dark:text-{{ $gColor }}-400 text-[11px] font-medium">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-{{ $gColor }}-500"></span>
+                                                {{ $groupInfo['group_name'] }}
+                                            </span>
+                                        @else
+                                            <span class="text-[11px] text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                @endif
 
                                 {{-- Status --}}
                                 <td class="px-4 py-3 text-center">
