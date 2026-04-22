@@ -234,7 +234,40 @@ class AssessmentSubmissionController extends Controller
 
         if ($request->has('score_ids')) {
             $request->validate(['score_ids' => ['required', 'array'], 'score_ids.*' => ['integer']]);
-            $query->whereIn('id', $request->score_ids);
+
+            // Expand score_ids so that releasing any score belonging to a group
+            // submission also releases every other group member's score, keeping
+            // the group's release state in sync with the lecturer's action.
+            $requestedIds = collect($request->score_ids)->map(fn ($id) => (int) $id)->all();
+
+            $groupIds = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->whereIn('id', function ($q) use ($assessment, $requestedIds) {
+                    $q->select('assessment_submission_id')
+                        ->from('assessment_scores')
+                        ->where('assessment_id', $assessment->id)
+                        ->whereIn('id', $requestedIds);
+                })
+                ->whereNotNull('student_group_id')
+                ->pluck('student_group_id')
+                ->unique()
+                ->all();
+
+            $expandedIds = $requestedIds;
+            if (! empty($groupIds)) {
+                $groupMemberScoreIds = AssessmentScore::where('assessment_id', $assessment->id)
+                    ->whereIn('assessment_submission_id', function ($q) use ($assessment, $groupIds) {
+                        $q->select('id')
+                            ->from('assessment_submissions')
+                            ->where('assessment_id', $assessment->id)
+                            ->whereIn('student_group_id', $groupIds);
+                    })
+                    ->pluck('id')
+                    ->all();
+
+                $expandedIds = array_values(array_unique(array_merge($expandedIds, $groupMemberScoreIds)));
+            }
+
+            $query->whereIn('id', $expandedIds);
         }
 
         $scores = $query->with('user')->get();
