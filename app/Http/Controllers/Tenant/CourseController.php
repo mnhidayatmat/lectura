@@ -193,7 +193,7 @@ class CourseController extends Controller
             abort(403);
         }
 
-        $code = strtoupper(trim($request->invite_code));
+        $code = preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $request->invite_code));
 
         $course = Course::where('invite_code', $code)->first();
 
@@ -202,7 +202,7 @@ class CourseController extends Controller
         }
 
         if ($course->lecturer_id === $user->id) {
-            return back()->with('info', 'You are already the lecturer for ' . $course->code . ' — ' . $course->title . '.');
+            return back()->with('info', 'You are already the lecturer for '.$course->code.' — '.$course->title.'.');
         }
 
         $course->update(['lecturer_id' => $user->id]);
@@ -210,7 +210,7 @@ class CourseController extends Controller
         return redirect()->route('tenant.courses.show', [
             'tenant' => $tenant->slug,
             'course' => $course->id,
-        ])->with('success', 'Successfully joined course ' . $course->code . ' — ' . $course->title . '!');
+        ])->with('success', 'Successfully joined course '.$course->code.' — '.$course->title.'!');
     }
 
     protected function authorizeCourse(Course $course): void

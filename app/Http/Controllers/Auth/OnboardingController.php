@@ -90,16 +90,26 @@ class OnboardingController extends Controller
 
         // Students with invite code: also enroll in section
         if ($request->role === 'student' && $request->filled('invite_code')) {
-            $code = strtoupper(trim($request->invite_code));
+            $raw = (string) $request->invite_code;
+            $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($raw));
 
             $section = Section::where('invite_code', $code)
                 ->whereHas('course', fn ($q) => $q->where('tenant_id', $tenant->id))
                 ->first();
 
             if (! $section) {
-                $isCourseCode = Course::where('invite_code', $code)
+                $isCourseCode = $code !== '' && Course::where('invite_code', $code)
                     ->where('tenant_id', $tenant->id)
                     ->exists();
+
+                \Log::info('Onboarding enroll: invite code miss', [
+                    'user_id' => $user->id,
+                    'tenant_id' => $tenant->id,
+                    'raw' => $raw,
+                    'raw_bytes' => bin2hex($raw),
+                    'normalized' => $code,
+                    'is_course_code' => $isCourseCode,
+                ]);
 
                 $message = $isCourseCode
                     ? 'That code belongs to a course, not a section. Please ask your lecturer for the section invite code (shown as "Student code" next to each section).'
@@ -133,7 +143,9 @@ class OnboardingController extends Controller
 
         // Lecturers with invite code: also claim the course
         if ($request->role === 'lecturer' && $request->filled('invite_code')) {
-            $course = Course::where('invite_code', strtoupper(trim($request->invite_code)))
+            $code = preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $request->invite_code));
+
+            $course = Course::where('invite_code', $code)
                 ->where('tenant_id', $tenant->id)
                 ->first();
 

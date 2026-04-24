@@ -116,12 +116,22 @@ class StudentCourseController extends Controller
 
         $tenant = app('current_tenant');
         $user = auth()->user();
-        $code = strtoupper(trim($request->invite_code));
+        $raw = (string) $request->invite_code;
+        $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($raw));
 
         $section = Section::where('invite_code', $code)->first();
 
         if (! $section) {
-            $isCourseCode = Course::where('invite_code', $code)->exists();
+            $isCourseCode = $code !== '' && Course::where('invite_code', $code)->exists();
+
+            \Log::info('Student enroll: invite code miss', [
+                'user_id' => $user->id,
+                'tenant_id' => $tenant?->id,
+                'raw' => $raw,
+                'raw_bytes' => bin2hex($raw),
+                'normalized' => $code,
+                'is_course_code' => $isCourseCode,
+            ]);
 
             $message = $isCourseCode
                 ? 'That code belongs to a course, not a section. Please ask your lecturer for the section invite code (shown as "Student code" next to each section).'
