@@ -13,11 +13,7 @@
                         @php $badge = $course->statusBadge; @endphp
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700 flex-shrink-0">{{ $badge['label'] }}</span>
                     </div>
-                    <p class="mt-0.5 text-sm text-slate-500 break-words">{{ $course->title }}
-                        @if($course->invite_code)
-                            &middot; <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono text-slate-600 break-all">{{ $course->invite_code }}</code>
-                        @endif
-                    </p>
+                    <p class="mt-0.5 text-sm text-slate-500 break-words">{{ $course->title }}</p>
                 </div>
             </div>
             <a href="{{ route('tenant.courses.edit', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm transition flex-shrink-0">
@@ -55,9 +51,10 @@
                 <p class="text-xl font-bold text-slate-900 mt-1 truncate">{{ $course->learningOutcomes->count() }}</p>
             </div>
             @if($course->invite_code)
-                <div class="bg-white rounded-2xl border border-slate-200 p-4 col-span-2 sm:col-span-1 overflow-hidden">
-                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">Invite Code</p>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 col-span-2 sm:col-span-1 overflow-hidden" title="Share this code only with co-lecturers. Students enroll using the section invite code shown below each section.">
+                    <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">Lecturer Join Code</p>
                     <p class="text-lg font-bold text-indigo-700 mt-1 font-mono tracking-wider break-all">{{ $course->invite_code }}</p>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">For co-lecturers only. Students use the section code.</p>
                 </div>
             @endif
         </div>
@@ -273,7 +270,10 @@
                                     </div>
                                     <div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-slate-400">
                                         <span class="break-all">{{ $section->code }}</span>
-                                        <code class="bg-slate-100 px-1 rounded text-[10px] break-all">{{ $section->invite_code }}</code>
+                                        <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-medium" title="Share this code with students to let them enroll in this section.">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                            Student code: <code class="font-mono font-bold break-all">{{ $section->invite_code }}</code>
+                                        </span>
                                         @if($section->academicTerm)
                                             <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium break-words">{{ $section->academicTerm->name }}</span>
                                         @endif

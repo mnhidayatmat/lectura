@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActiveLearningPlan;
+use App\Models\Assignment;
+use App\Models\AttendanceRecord;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
@@ -30,6 +33,7 @@ class StudentCourseController extends Controller
         // Group by course (student may be in multiple sections of same course)
         $courses = $enrollments->groupBy(fn ($e) => $e->section->course_id)->map(function ($group) {
             $first = $group->first();
+
             return (object) [
                 'course' => $first->section->course,
                 'sections' => $group->pluck('section'),
@@ -69,7 +73,7 @@ class StudentCourseController extends Controller
             ->pluck('section');
 
         // Attendance summary
-        $attendanceRecords = \App\Models\AttendanceRecord::where('user_id', $user->id)
+        $attendanceRecords = AttendanceRecord::where('user_id', $user->id)
             ->whereHas('session', fn ($q) => $q->whereIn('section_id', $mySections->pluck('id')))
             ->get();
 
@@ -81,7 +85,7 @@ class StudentCourseController extends Controller
         ];
 
         // Upcoming assignments
-        $upcomingAssignments = \App\Models\Assignment::where('course_id', $course->id)
+        $upcomingAssignments = Assignment::where('course_id', $course->id)
             ->where('status', 'published')
             ->where(fn ($q) => $q->whereNull('deadline')->orWhere('deadline', '>=', now()))
             ->orderBy('deadline')
@@ -89,7 +93,7 @@ class StudentCourseController extends Controller
             ->get();
 
         // Published active learning plans
-        $activeLearningPlans = \App\Models\ActiveLearningPlan::where('course_id', $course->id)
+        $activeLearningPlans = ActiveLearningPlan::where('course_id', $course->id)
             ->where('status', 'published')
             ->withCount('activities')
             ->orderByDesc('week_number')
@@ -114,12 +118,20 @@ class StudentCourseController extends Controller
         $user = auth()->user();
         $code = strtoupper(trim($request->invite_code));
 
-        $section = Section::where('invite_code', $code)
-            ->where('is_active', true)
-            ->first();
+        $section = Section::where('invite_code', $code)->first();
 
         if (! $section) {
-            return back()->withErrors(['invite_code' => 'Invalid invite code. Please check with your lecturer.']);
+            $isCourseCode = Course::where('invite_code', $code)->exists();
+
+            $message = $isCourseCode
+                ? 'That code belongs to a course, not a section. Please ask your lecturer for the section invite code (shown as "Student code" next to each section).'
+                : 'Invalid invite code. Please check with your lecturer.';
+
+            return back()->withErrors(['invite_code' => $message]);
+        }
+
+        if (! $section->is_active) {
+            return back()->withErrors(['invite_code' => 'This section is not accepting enrollments. Please contact your lecturer.']);
         }
 
         // Check if already enrolled
@@ -129,7 +141,7 @@ class StudentCourseController extends Controller
 
         if ($existing) {
             if ($existing->is_active) {
-                return back()->with('info', 'You are already enrolled in ' . $section->course->code . ' — ' . $section->name . '.');
+                return back()->with('info', 'You are already enrolled in '.$section->course->code.' — '.$section->name.'.');
             }
             // Reactivate
             $existing->update(['is_active' => true, 'enrolled_at' => now()]);
@@ -154,6 +166,6 @@ class StudentCourseController extends Controller
         $course = $section->course;
 
         return redirect()->route('tenant.my-courses.show', [$tenant->slug, $course])
-            ->with('success', 'Successfully enrolled in ' . $course->code . ' — ' . $section->name . '!');
+            ->with('success', 'Successfully enrolled in '.$course->code.' — '.$section->name.'!');
     }
 }

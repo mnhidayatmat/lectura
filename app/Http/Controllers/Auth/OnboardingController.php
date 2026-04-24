@@ -22,7 +22,7 @@ class OnboardingController extends Controller
 
         $tenantUser = $user->tenantUsers()->where('is_active', true)->first();
         if ($tenantUser) {
-            return redirect('/' . $tenantUser->tenant->slug . '/dashboard');
+            return redirect('/'.$tenantUser->tenant->slug.'/dashboard');
         }
 
         $tenants = Tenant::where('is_active', true)->orderBy('name')->get();
@@ -54,7 +54,7 @@ class OnboardingController extends Controller
             $slug = $baseSlug;
             $i = 2;
             while (Tenant::where('slug', $slug)->exists()) {
-                $slug = $baseSlug . $i++;
+                $slug = $baseSlug.$i++;
             }
 
             $tenant = Tenant::create([
@@ -78,24 +78,38 @@ class OnboardingController extends Controller
                 'joined_at' => now(),
             ]);
 
-            return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! ' . $tenant->name . ' has been created. You are the first ' . ucfirst($request->role) . '.');
+            return redirect('/'.$tenant->slug.'/dashboard')->with('success', 'Welcome! '.$tenant->name.' has been created. You are the first '.ucfirst($request->role).'.');
         }
 
         // Join existing institution
         $tenant = Tenant::findOrFail($request->tenant_id);
 
         if ($user->tenantUsers()->where('tenant_id', $tenant->id)->exists()) {
-            return redirect('/' . $tenant->slug . '/dashboard');
+            return redirect('/'.$tenant->slug.'/dashboard');
         }
 
         // Students with invite code: also enroll in section
         if ($request->role === 'student' && $request->filled('invite_code')) {
-            $section = Section::where('invite_code', $request->invite_code)
+            $code = strtoupper(trim($request->invite_code));
+
+            $section = Section::where('invite_code', $code)
                 ->whereHas('course', fn ($q) => $q->where('tenant_id', $tenant->id))
                 ->first();
 
             if (! $section) {
-                return back()->withErrors(['invite_code' => 'Invalid invite code for this institution.'])->withInput();
+                $isCourseCode = Course::where('invite_code', $code)
+                    ->where('tenant_id', $tenant->id)
+                    ->exists();
+
+                $message = $isCourseCode
+                    ? 'That code belongs to a course, not a section. Please ask your lecturer for the section invite code (shown as "Student code" next to each section).'
+                    : 'Invalid invite code for this institution.';
+
+                return back()->withErrors(['invite_code' => $message])->withInput();
+            }
+
+            if (! $section->is_active) {
+                return back()->withErrors(['invite_code' => 'This section is not accepting enrollments. Please contact your lecturer.'])->withInput();
             }
 
             TenantUser::create([
@@ -114,7 +128,7 @@ class OnboardingController extends Controller
                 ],
             ]);
 
-            return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' and enrolled in ' . $section->name . '.');
+            return redirect('/'.$tenant->slug.'/dashboard')->with('success', 'Welcome! You joined '.$tenant->name.' and enrolled in '.$section->name.'.');
         }
 
         // Lecturers with invite code: also claim the course
@@ -137,7 +151,7 @@ class OnboardingController extends Controller
 
             $course->update(['lecturer_id' => $user->id]);
 
-            return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' and claimed course ' . $course->code . ' — ' . $course->title . '.');
+            return redirect('/'.$tenant->slug.'/dashboard')->with('success', 'Welcome! You joined '.$tenant->name.' and claimed course '.$course->code.' — '.$course->title.'.');
         }
 
         // Join with selected role
@@ -149,7 +163,7 @@ class OnboardingController extends Controller
             'joined_at' => now(),
         ]);
 
-        return redirect('/' . $tenant->slug . '/dashboard')->with('success', 'Welcome! You joined ' . $tenant->name . ' as ' . ucfirst($request->role) . '.');
+        return redirect('/'.$tenant->slug.'/dashboard')->with('success', 'Welcome! You joined '.$tenant->name.' as '.ucfirst($request->role).'.');
     }
 
     private function generateSlug(string $name): string
