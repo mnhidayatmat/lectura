@@ -14,7 +14,7 @@
 
 {{-- Student Sidebar — hidden on mobile (bottom nav used instead), visible on desktop --}}
 <div :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-     class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#242d3d] border-r border-slate-200 dark:border-[#354158] transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
+     class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#242d3d] border-r border-slate-200 dark:border-[#354158] -translate-x-full transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
 
     {{-- Logo --}}
     <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">

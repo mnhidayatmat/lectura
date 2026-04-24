@@ -14,7 +14,7 @@
 
 {{-- Sidebar --}}
 <div :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-     class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
+     class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 -translate-x-full transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col">
 
     {{-- Logo area --}}
     <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-800/80 flex-shrink-0">
