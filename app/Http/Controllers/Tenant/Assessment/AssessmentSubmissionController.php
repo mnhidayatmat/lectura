@@ -499,22 +499,34 @@ class AssessmentSubmissionController extends Controller
             $studentGroupId = $myGroup->id;
         }
 
-        // Check if already submitted (by this user, or by anyone in the group)
+        $request->validate([
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        // Existing submission(s) for this user / group are treated as a replace
+        // operation — the leader (or non-group submitter) is authorized to
+        // overwrite their own work. Graded submissions stay locked.
         $existingQuery = AssessmentSubmission::where('assessment_id', $assessment->id);
         if ($studentGroupId) {
             $existingQuery->where('student_group_id', $studentGroupId);
         } else {
             $existingQuery->where('user_id', $user->id);
         }
-        if ($existingQuery->exists()) {
-            return back()->withErrors(['files' => 'A submission for this assessment already exists.']);
+        $existingSubmissions = $existingQuery->with('files')->get();
+
+        if ($existingSubmissions->contains(fn ($s) => $s->status === 'graded')) {
+            return back()->withErrors(['files' => 'Cannot replace a graded submission.']);
         }
 
-        $request->validate([
-            'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $assessment->load('course');
+        $lecturer = $assessment->course->lecturer;
+
+        foreach ($existingSubmissions as $old) {
+            $this->purgeSubmissionArtifacts($old, $lecturer);
+            $old->forceDelete();
+        }
 
         $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
         $tenant = app('current_tenant');
@@ -532,8 +544,6 @@ class AssessmentSubmissionController extends Controller
         ]);
 
         // File upload with optional Google Drive sync
-        $assessment->load('course');
-        $lecturer = $assessment->course->lecturer;
         $driveFolderId = null;
 
         if ($lecturer && $lecturer->isDriveConnected()) {
@@ -652,20 +662,60 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
+        $assessment->load('course');
+        $lecturer = $assessment->course->lecturer;
+
+        // Group submissions: only the elected leader may delete, and the
+        // delete sweeps every mirror row for the group so subsequent submits
+        // are not blocked by orphaned mirrors from members.
+        if ($assessment->usesGroupSubmission()) {
+            $myGroup = $assessment->groupForUser($user->id);
+            if (! $myGroup || ! $assessment->isGroupLeader($user->id)) {
+                return back()->withErrors(['submission' => 'Only the group leader can delete the submission.']);
+            }
+
+            $submissions = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('student_group_id', $myGroup->id)
+                ->with(['files', 'score'])
+                ->get();
+
+            if ($submissions->contains(fn ($s) => $s->status === 'graded')) {
+                return back()->withErrors(['submission' => 'Cannot delete a graded submission.']);
+            }
+
+            foreach ($submissions as $sub) {
+                $this->purgeSubmissionArtifacts($sub, $lecturer);
+                $sub->forceDelete();
+            }
+
+            return redirect()->route('tenant.my-assessments.show', [$tenantSlug, $course, $assessment])
+                ->with('success', 'Submission deleted. You may resubmit if needed.');
+        }
+
         $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
             ->where('user_id', $user->id)
             ->with(['files', 'score'])
             ->firstOrFail();
 
-        // Prevent deletion of graded submissions
         if ($submission->status === 'graded') {
             return back()->withErrors(['submission' => 'Cannot delete a graded submission.']);
         }
 
-        $assessment->load('course');
-        $lecturer = $assessment->course->lecturer;
+        $this->purgeSubmissionArtifacts($submission, $lecturer);
+        $submission->forceDelete();
 
-        // Delete local files
+        return redirect()->route('tenant.my-assessments.show', [$tenantSlug, $course, $assessment])
+            ->with('success', 'Submission deleted. You may resubmit if needed.');
+    }
+
+    /**
+     * Delete a submission's local files and remote Drive folder.
+     * Drive failures are swallowed — local cleanup must still proceed.
+     */
+    private function purgeSubmissionArtifacts(AssessmentSubmission $submission, ?\App\Models\User $lecturer): void
+    {
+        $submission->loadMissing('files');
+
         foreach ($submission->files as $file) {
             if (Storage::disk('local')->exists($file->storage_path)) {
                 Storage::disk('local')->delete($file->storage_path);
@@ -673,7 +723,6 @@ class AssessmentSubmissionController extends Controller
             $file->delete();
         }
 
-        // Delete entire Drive folder
         if ($submission->drive_folder_id && $lecturer) {
             try {
                 app(GoogleDriveService::class)->deleteFile($lecturer, $submission->drive_folder_id);
@@ -681,12 +730,6 @@ class AssessmentSubmissionController extends Controller
                 // Drive deletion failed — submission still locally deleted
             }
         }
-
-        // Force delete submission to clear unique constraint
-        $submission->forceDelete();
-
-        return redirect()->route('tenant.my-assessments.show', [$tenantSlug, $course, $assessment])
-            ->with('success', 'Submission deleted. You may resubmit if needed.');
     }
 
     public function studentResubmit(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
@@ -704,12 +747,40 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
-            ->where('user_id', $user->id)
-            ->with('files')
-            ->firstOrFail();
+        // Group submissions: only the leader can replace. The "files holder"
+        // is whichever row currently has files attached (typically the row
+        // created by the original submitter, which may be a previous leader).
+        // Falls back to the current user's row when no files exist yet.
+        $myGroup = null;
+        $studentGroupId = null;
+        if ($assessment->usesGroupSubmission()) {
+            $myGroup = $assessment->groupForUser($user->id);
+            if (! $myGroup || ! $assessment->isGroupLeader($user->id)) {
+                return back()->withErrors(['files' => 'Only the group leader can replace the submission.']);
+            }
+            $studentGroupId = $myGroup->id;
 
-        // Prevent resubmission of graded submissions
+            $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('student_group_id', $studentGroupId)
+                ->whereHas('files')
+                ->with('files')
+                ->first()
+                ?? AssessmentSubmission::where('assessment_id', $assessment->id)
+                    ->where('student_group_id', $studentGroupId)
+                    ->where('user_id', $user->id)
+                    ->with('files')
+                    ->first();
+
+            if (! $submission) {
+                return back()->withErrors(['files' => 'No submission found to replace.']);
+            }
+        } else {
+            $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('user_id', $user->id)
+                ->with('files')
+                ->firstOrFail();
+        }
+
         if ($submission->status === 'graded') {
             return back()->withErrors(['files' => 'Cannot modify a graded submission.']);
         }
@@ -723,22 +794,7 @@ class AssessmentSubmissionController extends Controller
         $assessment->load('course');
         $lecturer = $assessment->course->lecturer;
 
-        // Delete old local files
-        foreach ($submission->files as $file) {
-            if (Storage::disk('local')->exists($file->storage_path)) {
-                Storage::disk('local')->delete($file->storage_path);
-            }
-            $file->delete();
-        }
-
-        // Delete old Drive folder
-        if ($submission->drive_folder_id && $lecturer) {
-            try {
-                app(GoogleDriveService::class)->deleteFile($lecturer, $submission->drive_folder_id);
-            } catch (\Throwable) {
-                // Drive deletion failed — continue with local update
-            }
-        }
+        $this->purgeSubmissionArtifacts($submission, $lecturer);
 
         // Build new Drive folder structure
         $driveFolderId = null;
@@ -818,6 +874,20 @@ class AssessmentSubmissionController extends Controller
             'status' => 'submitted',
             'drive_folder_id' => $driveFolderId,
         ]);
+
+        // Keep every group member's mirror row in sync so timestamps and
+        // status reflect the resubmission for the whole group.
+        if ($studentGroupId) {
+            AssessmentSubmission::where('assessment_id', $assessment->id)
+                ->where('student_group_id', $studentGroupId)
+                ->where('id', '!=', $submission->id)
+                ->update([
+                    'notes' => $request->notes,
+                    'is_late' => $isLate,
+                    'submitted_at' => now(),
+                    'status' => 'submitted',
+                ]);
+        }
 
         return back()->with('success', 'Submission updated successfully.' . ($isLate ? ' (Late submission)' : ''));
     }
