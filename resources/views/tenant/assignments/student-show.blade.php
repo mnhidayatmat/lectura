@@ -82,6 +82,32 @@
             </div>
         @endif
 
+        {{-- Marked submission (lecturer pen annotations) --}}
+        @php
+            $annotatedSubmission = $myFeedback ? ($mySubmission ?? ($groupSubmission ?? null)) : null;
+            $annotatedFiles = $annotatedSubmission ? $annotatedSubmission->files->filter(fn($f) => $f->annotated_image_path) : collect();
+        @endphp
+        @if($annotatedFiles->isNotEmpty())
+            <div class="bg-white rounded-2xl border border-rose-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-rose-100 bg-rose-50/50 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <h3 class="font-semibold text-rose-900">Marked by Lecturer</h3>
+                </div>
+                <div class="p-4 space-y-4">
+                    @foreach($annotatedFiles as $aFile)
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 mb-2">{{ $aFile->file_name }}</p>
+                            <a href="{{ route('tenant.assignments.files.annotated', [app('current_tenant')->slug, $assignment, $annotatedSubmission, $aFile]) }}" target="_blank" class="block">
+                                <img src="{{ route('tenant.assignments.files.annotated', [app('current_tenant')->slug, $assignment, $annotatedSubmission, $aFile]) }}"
+                                     alt="Marked {{ $aFile->file_name }}"
+                                     class="w-full rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition" />
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Group Info (for group assignments) --}}
         @if($assignment->isGroupAssignment() && $myGroup)
             @php

@@ -12,6 +12,7 @@ use App\Http\Controllers\Tenant\AttendancePolicyController;
 use App\Http\Controllers\Tenant\AttendanceReportController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\StudentGroupController;
+use App\Http\Controllers\Tenant\SubmissionAnnotationController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
@@ -476,6 +477,10 @@ Route::prefix('{tenant:slug}')
         Route::get('/assignments/{assignment}/submissions/{submission}', [AssignmentController::class, 'review'])->name('tenant.assignments.review');
         Route::post('/assignments/{assignment}/submissions/{submission}/finalize', [AssignmentController::class, 'finalizeMark'])->name('tenant.assignments.finalize');
         Route::post('/assignments/{assignment}/submissions/{submission}/ai-mark', [AssignmentController::class, 'aiMark'])->name('tenant.assignments.ai-mark');
+        Route::get('/assignments/{assignment}/submissions/{submission}/files/{file}/raw', [SubmissionAnnotationController::class, 'raw'])->name('tenant.assignments.files.raw');
+        Route::post('/assignments/{assignment}/submissions/{submission}/files/{file}/annotations', [SubmissionAnnotationController::class, 'store'])->name('tenant.assignments.files.annotations.store');
+        Route::delete('/assignments/{assignment}/submissions/{submission}/files/{file}/annotations', [SubmissionAnnotationController::class, 'destroy'])->name('tenant.assignments.files.annotations.destroy');
+        Route::get('/assignments/{assignment}/submissions/{submission}/files/{file}/annotated', [SubmissionAnnotationController::class, 'annotatedImage'])->name('tenant.assignments.files.annotated');
         Route::get('/assignments/{assignment}/instruction', [AssignmentController::class, 'downloadInstruction'])->name('tenant.assignments.instruction');
         Route::get('/assignments/course-students/{course}', [AssignmentController::class, 'courseStudents'])->name('tenant.assignments.course-students');
         Route::get('/assignments/course-group-sets/{course}', [AssignmentController::class, 'courseGroupSets'])->name('tenant.assignments.course-group-sets');
