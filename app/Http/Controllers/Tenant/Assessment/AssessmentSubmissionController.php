@@ -19,6 +19,7 @@ use App\Services\Assessment\SubmissionReportStampingService;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -545,8 +546,21 @@ class AssessmentSubmissionController extends Controller
 
         // File upload with optional Google Drive sync
         $driveFolderId = null;
+        $driveContext = [
+            'assessment_id' => $assessment->id,
+            'submission_id' => $submission->id,
+            'course_id' => $course->id,
+            'student_user_id' => $user->id,
+        ];
 
-        if ($lecturer && $lecturer->isDriveConnected()) {
+        if (! $lecturer) {
+            Log::info('drive submission skipped: course has no lecturer_id', $driveContext);
+        } elseif (! $lecturer->isDriveConnected()) {
+            Log::info('drive submission skipped: lecturer has not connected Drive', $driveContext + [
+                'lecturer_id' => $lecturer->id,
+                'lecturer_email' => $lecturer->email,
+            ]);
+        } else {
             try {
                 $driveService = app(GoogleDriveService::class);
 
@@ -575,8 +589,14 @@ class AssessmentSubmissionController extends Controller
 
                 // Store folder ID on submission for later deletion
                 $submission->update(['drive_folder_id' => $driveFolderId]);
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 $driveFolderId = null;
+                Log::warning('drive submission folder creation failed', $driveContext + [
+                    'lecturer_id' => $lecturer->id,
+                    'lecturer_email' => $lecturer->email,
+                    'error' => $e->getMessage(),
+                    'exception_class' => $e::class,
+                ]);
             }
         }
 
@@ -599,8 +619,15 @@ class AssessmentSubmissionController extends Controller
                         $driveFolderId
                     );
                     $driveFileId = $result['id'];
-                } catch (\Throwable) {
-                    // Drive upload failed — keep local copy
+                } catch (\Throwable $e) {
+                    Log::warning('drive submission file upload failed', $driveContext + [
+                        'lecturer_id' => $lecturer->id,
+                        'lecturer_email' => $lecturer->email,
+                        'drive_folder_id' => $driveFolderId,
+                        'file_name' => $file->getClientOriginalName(),
+                        'error' => $e->getMessage(),
+                        'exception_class' => $e::class,
+                    ]);
                 }
             }
 
@@ -798,7 +825,22 @@ class AssessmentSubmissionController extends Controller
 
         // Build new Drive folder structure
         $driveFolderId = null;
-        if ($lecturer && $lecturer->isDriveConnected()) {
+        $driveContext = [
+            'assessment_id' => $assessment->id,
+            'submission_id' => $submission->id,
+            'course_id' => $course->id,
+            'student_user_id' => $user->id,
+            'flow' => 'resubmit',
+        ];
+
+        if (! $lecturer) {
+            Log::info('drive submission skipped: course has no lecturer_id', $driveContext);
+        } elseif (! $lecturer->isDriveConnected()) {
+            Log::info('drive submission skipped: lecturer has not connected Drive', $driveContext + [
+                'lecturer_id' => $lecturer->id,
+                'lecturer_email' => $lecturer->email,
+            ]);
+        } else {
             try {
                 $driveService = app(GoogleDriveService::class);
 
@@ -824,8 +866,14 @@ class AssessmentSubmissionController extends Controller
                 $driveFolderId = $driveService->findOrCreateFolder(
                     $lecturer, $user->name, $assessmentFolderId
                 );
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 $driveFolderId = null;
+                Log::warning('drive submission folder creation failed', $driveContext + [
+                    'lecturer_id' => $lecturer->id,
+                    'lecturer_email' => $lecturer->email,
+                    'error' => $e->getMessage(),
+                    'exception_class' => $e::class,
+                ]);
             }
         }
 
@@ -851,8 +899,15 @@ class AssessmentSubmissionController extends Controller
                         $driveFolderId
                     );
                     $driveFileId = $result['id'];
-                } catch (\Throwable) {
-                    // Drive upload failed — keep local copy
+                } catch (\Throwable $e) {
+                    Log::warning('drive submission file upload failed', $driveContext + [
+                        'lecturer_id' => $lecturer->id,
+                        'lecturer_email' => $lecturer->email,
+                        'drive_folder_id' => $driveFolderId,
+                        'file_name' => $file->getClientOriginalName(),
+                        'error' => $e->getMessage(),
+                        'exception_class' => $e::class,
+                    ]);
                 }
             }
 
