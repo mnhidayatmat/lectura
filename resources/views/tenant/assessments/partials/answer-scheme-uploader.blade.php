@@ -54,8 +54,9 @@
         <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span class="flex-1 text-xs text-red-700 dark:text-red-400">Answer scheme will be removed when you save.</span>
         <button type="button" @click="removing = false" class="text-xs text-slate-500 hover:text-slate-700 transition">Undo</button>
-        <input type="hidden" name="remove_answer_scheme" value="1">
     </div>
+    {{-- Disabled inputs are not submitted; flag is only sent when actively removing. --}}
+    <input type="hidden" name="remove_answer_scheme" value="1" :disabled="!removing || hasNewFile">
 
     {{-- Action buttons (visible when no existing-and-kept, no new file picked) --}}
     <div x-show="(!hasExisting || removing) && !hasNewFile && !scanning && !merging">
