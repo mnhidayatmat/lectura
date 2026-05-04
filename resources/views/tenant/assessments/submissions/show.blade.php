@@ -102,6 +102,7 @@
                             @php
                                 $isPdf = str_contains($file->file_type ?? '', 'pdf');
                                 $isImg = str_contains($file->file_type ?? '', 'image');
+                                $annotatable = $file->isAnnotatable();
                                 $fileBg = $isPdf ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                                         : ($isImg ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
                                         : 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400');
@@ -118,8 +119,25 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{{ $file->file_name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ number_format($file->file_size_bytes / 1024, 0) }} KB</p>
+                                    <p class="text-[11px] text-slate-400">
+                                        {{ number_format($file->file_size_bytes / 1024, 0) }} KB
+                                        @if($file->annotated_at) &middot; <span class="text-rose-600 dark:text-rose-400 font-medium">Marked {{ $file->annotated_at->diffForHumans() }}</span> @endif
+                                    </p>
                                 </div>
+                                @if($annotatable)
+                                    <button type="button"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg transition flex-shrink-0"
+                                        data-annotate-open
+                                        data-file-id="{{ $file->id }}"
+                                        data-file-name="{{ $file->file_name }}"
+                                        data-file-ext="{{ strtolower(pathinfo($file->file_name, PATHINFO_EXTENSION)) }}"
+                                        data-file-url="{{ route('tenant.assessments.submissions.view-file', [$tenant->slug, $course, $assessment, $file]) }}?original=1"
+                                        data-save-url="{{ route('tenant.assessments.submissions.annotations.store', [$tenant->slug, $course, $assessment, $file]) }}"
+                                        data-strokes='@json($file->annotations ?? [])'>
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        {{ $file->annotated_at ? 'Edit Marks' : 'Mark with Pen' }}
+                                    </button>
+                                @endif
                                 <a href="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $file]) }}"
                                    class="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition flex-shrink-0" title="Download">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -496,4 +514,6 @@
             </div>
         </div>
     </div>
+
+    @include('tenant._partials.pen-annotator')
 </x-tenant-layout>

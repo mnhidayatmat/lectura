@@ -516,6 +516,9 @@ Route::prefix('{tenant:slug}')
             Route::post('/{assessment}/scores/{score}/unrelease', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'unrelease'])->name('tenant.assessments.scores.unrelease');
             Route::get('/{assessment}/submissions/files/{file}/download', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'downloadFile'])->name('tenant.assessments.submissions.download');
             Route::get('/{assessment}/submissions/files/{file}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'viewFile'])->name('tenant.assessments.submissions.view-file');
+            Route::post('/{assessment}/submissions/files/{file}/annotations', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'storeAnnotations'])->name('tenant.assessments.submissions.annotations.store');
+            Route::delete('/{assessment}/submissions/files/{file}/annotations', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'destroyAnnotations'])->name('tenant.assessments.submissions.annotations.destroy');
+            Route::get('/{assessment}/submissions/files/{file}/annotated', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'annotatedImage'])->name('tenant.assessments.submissions.annotated');
         });
 
         // Assessment Reports

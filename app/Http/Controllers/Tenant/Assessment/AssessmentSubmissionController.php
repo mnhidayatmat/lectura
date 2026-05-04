@@ -17,10 +17,13 @@ use App\Notifications\AssessmentMarksReleased;
 use App\Notifications\AssessmentSubmissionReceived;
 use App\Services\Assessment\SubmissionReportStampingService;
 use App\Services\GoogleDriveService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -386,6 +389,134 @@ class AssessmentSubmissionController extends Controller
             'Content-Type' => $file->file_type ?: 'application/octet-stream',
             'Content-Disposition' => 'inline; filename="'.addslashes($file->file_name).'"',
         ]);
+    }
+
+    /**
+     * Persist the lecturer's pen annotations for one submission file.
+     *
+     *   strokes: vector JSON the canvas re-loads on next visit so marks
+     *            stay editable.
+     *   image:   flattened PNG data URL the student sees alongside the original.
+     */
+    public function storeAnnotations(
+        Request $request,
+        string $tenantSlug,
+        Course $course,
+        Assessment $assessment,
+        AssessmentSubmissionFile $file,
+    ): JsonResponse {
+        $this->authorizeCourseAccess($course);
+        $this->ensureFileBelongsHere($course, $assessment, $file);
+
+        $data = $request->validate([
+            'strokes' => ['required', 'array'],
+            'image' => ['nullable', 'string'],
+        ]);
+
+        $imagePath = $file->annotated_image_path;
+
+        if (! empty($data['image'])) {
+            if (! preg_match('#^data:image/png;base64,#', $data['image'])) {
+                abort(422, 'Annotated image must be a PNG data URL.');
+            }
+            $payload = base64_decode(substr($data['image'], strlen('data:image/png;base64,')), true);
+            if ($payload === false) {
+                abort(422, 'Could not decode annotated image.');
+            }
+            if ($imagePath && Storage::disk('local')->exists($imagePath)) {
+                Storage::disk('local')->delete($imagePath);
+            }
+            $imagePath = sprintf(
+                'assessment-annotations/%d/%d-%s.png',
+                $file->assessment_submission_id,
+                $file->id,
+                Str::random(8),
+            );
+            Storage::disk('local')->put($imagePath, $payload);
+        }
+
+        $file->update([
+            'annotations' => $data['strokes'],
+            'annotated_image_path' => $imagePath,
+            'annotated_at' => now(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'annotated_at' => $file->annotated_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Wipe the lecturer's annotations for this file.
+     */
+    public function destroyAnnotations(
+        string $tenantSlug,
+        Course $course,
+        Assessment $assessment,
+        AssessmentSubmissionFile $file,
+    ): RedirectResponse {
+        $this->authorizeCourseAccess($course);
+        $this->ensureFileBelongsHere($course, $assessment, $file);
+
+        if ($file->annotated_image_path && Storage::disk('local')->exists($file->annotated_image_path)) {
+            Storage::disk('local')->delete($file->annotated_image_path);
+        }
+
+        $file->update([
+            'annotations' => null,
+            'annotated_image_path' => null,
+            'annotated_at' => null,
+        ]);
+
+        return back()->with('success', 'Annotations cleared.');
+    }
+
+    /**
+     * Serve the flattened annotated PNG to lecturer or submission owner.
+     */
+    public function annotatedImage(
+        string $tenantSlug,
+        Course $course,
+        Assessment $assessment,
+        AssessmentSubmissionFile $file,
+    ): Response {
+        $user = auth()->user();
+        $submission = $file->submission;
+
+        $isLecturer = $this->isCourseOwner($course)
+            || Section::where('course_id', $course->id)
+                ->whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))
+                ->exists();
+
+        if (! $isLecturer && (! $submission || $submission->user_id !== $user->id)) {
+            abort(403);
+        }
+
+        $this->ensureFileBelongsHere($course, $assessment, $file);
+
+        if (! $file->annotated_image_path || ! Storage::disk('local')->exists($file->annotated_image_path)) {
+            abort(404);
+        }
+
+        return response(
+            Storage::disk('local')->get($file->annotated_image_path),
+            200,
+            [
+                'Content-Type' => 'image/png',
+                'Cache-Control' => 'private, max-age=120',
+            ]
+        );
+    }
+
+    private function ensureFileBelongsHere(Course $course, Assessment $assessment, AssessmentSubmissionFile $file): void
+    {
+        $submission = $file->submission;
+        if (! $submission
+            || $submission->assessment_id !== $assessment->id
+            || $assessment->course_id !== $course->id) {
+            abort(404);
+        }
     }
 
     // ─── Student Methods ────────────────────────────────────────

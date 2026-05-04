@@ -166,6 +166,33 @@
             </div>
         @endif
 
+        {{-- Marked submission (lecturer pen annotations, only after score released) --}}
+        @php
+            $annotatedFiles = ($score && $submission)
+                ? $submission->files->filter(fn($f) => $f->annotated_image_path)
+                : collect();
+        @endphp
+        @if($annotatedFiles->isNotEmpty())
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-rose-200 dark:border-rose-900 overflow-hidden">
+                <div class="px-6 py-4 border-b border-rose-100 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-900/10 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <h3 class="font-semibold text-rose-900 dark:text-rose-200">Marked by Lecturer</h3>
+                </div>
+                <div class="p-4 space-y-4">
+                    @foreach($annotatedFiles as $aFile)
+                        <div>
+                            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{{ $aFile->file_name }}</p>
+                            <a href="{{ route('tenant.assessments.submissions.annotated', [$tenant->slug, $course, $assessment, $aFile]) }}" target="_blank" class="block">
+                                <img src="{{ route('tenant.assessments.submissions.annotated', [$tenant->slug, $course, $assessment, $aFile]) }}"
+                                     alt="Marked {{ $aFile->file_name }}"
+                                     class="w-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition" />
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Submission Status / Form --}}
         @if($submission)
             <div x-data="{ showReupload: false, showDeleteConfirm: false }">
