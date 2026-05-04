@@ -156,10 +156,11 @@ class AssessmentSubmissionController extends Controller
 
         $criteriaMarksInput = null;
         if ($hasRubric) {
-            // If any criterion has a weightage > 0, treat the whole rubric as weighted:
-            // each criterion's contribution = (score / max) × (weight/100) × assessment.total_marks.
-            // Otherwise fall back to a plain sum of the criterion marks.
-            $isWeighted = $assessment->rubric->criteria->contains(
+            // Treat the rubric as weighted only when EVERY criterion has an explicit
+            // positive weight: each criterion's contribution = (score / max) × (weight/100)
+            // × assessment.total_marks. If any criterion is missing a weight, fall back
+            // to a plain sum so partial-weight rubrics don't silently undercount.
+            $isWeighted = $assessment->rubric->criteria->every(
                 fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
             );
 

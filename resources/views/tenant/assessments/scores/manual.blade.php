@@ -19,7 +19,11 @@
 
     @if($hasRubric)
         @php
-            $isWeighted = $criteria->contains(fn ($c) => $c->weightage !== null && (float) $c->weightage > 0);
+            // Weighted only when EVERY criterion has an explicit positive weight —
+            // matches the controller logic so the live total reflects what gets saved.
+            $isWeighted = $criteria->isNotEmpty() && $criteria->every(
+                fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
+            );
             $rubricMaxSum = (float) $criteria->sum('max_marks');
         @endphp
 
@@ -38,50 +42,28 @@
         @if($hasRubric)
             @php
                 $totalMarks = (float) $assessment->total_marks;
-                $weightingState = json_encode([
+                $cfgPayload = [
                     'isWeighted' => $isWeighted,
                     'totalMarks' => $totalMarks,
                     'criteria' => $criteria->map(fn ($c) => [
-                        'id' => (int) $c->id,
+                        'id' => (string) $c->id,
                         'max' => (float) $c->max_marks,
                         'weight' => $c->weightage !== null ? (float) $c->weightage : null,
                     ])->values()->all(),
-                ]);
-            @endphp
-
-            <div x-data='{
-                cfg: @json($weightingState, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
-                rowTotal(row) {
-                    if (!row) return 0;
-                    if (this.cfg.isWeighted) {
-                        let t = 0;
-                        for (const c of this.cfg.criteria) {
-                            const v = parseFloat(row[c.id] || 0) || 0;
-                            if (c.max > 0 && c.weight && c.weight > 0) {
-                                t += (v / c.max) * (c.weight / 100) * this.cfg.totalMarks;
-                            }
-                        }
-                        return Math.min(t, this.cfg.totalMarks);
-                    }
-                    let s = 0;
-                    for (const c of this.cfg.criteria) {
-                        s += parseFloat(row[c.id] || 0) || 0;
-                    }
-                    return Math.min(s, this.cfg.totalMarks);
-                },
-                rowPct(row) {
-                    if (this.cfg.totalMarks <= 0) return 0;
-                    return (this.rowTotal(row) / this.cfg.totalMarks) * 100;
-                },
-                marks: @json($students->mapWithKeys(function ($s) use ($criteria, $existingCriteriaMarks) {
+                ];
+                // Pre-build initial values for the store: { studentId: { criterionId: value } }
+                $initialValues = [];
+                foreach ($students as $s) {
                     $row = [];
                     foreach ($criteria as $c) {
                         $existing = $existingCriteriaMarks[$s->id][$c->id] ?? null;
-                        $row[$c->id] = $existing !== null ? (float) $existing : '';
+                        $row[(string) $c->id] = $existing !== null ? (float) $existing : '';
                     }
-                    return [$s->id => $row];
-                })),
-            }'>
+                    $initialValues[(string) $s->id] = $row;
+                }
+            @endphp
+
+            <div>
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
@@ -122,7 +104,7 @@
                                             <td class="px-3 py-2.5 text-center">
                                                 <input type="number"
                                                        name="criteria_marks[{{ $student->id }}][{{ $criterion->id }}]"
-                                                       x-model="marks[{{ $student->id }}][{{ $criterion->id }}]"
+                                                       x-model="$store.manualEntry.values['{{ $student->id }}']['{{ $criterion->id }}']"
                                                        min="0" max="{{ $criterion->max_marks }}" step="0.5"
                                                        placeholder="—"
                                                        class="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-center focus:ring-2 focus:ring-indigo-500">
@@ -130,15 +112,38 @@
                                         @endforeach
                                         <td class="px-3 py-2.5 text-center">
                                             <span class="text-sm font-bold"
-                                                  :class="rowPct(marks[{{ $student->id }}]) >= 70 ? 'text-emerald-600 dark:text-emerald-400'
-                                                          : (rowPct(marks[{{ $student->id }}]) >= 50 ? 'text-amber-600 dark:text-amber-400'
+                                                  :class="$store.manualEntry.rowPct('{{ $student->id }}') >= 70 ? 'text-emerald-600 dark:text-emerald-400'
+                                                          : ($store.manualEntry.rowPct('{{ $student->id }}') >= 50 ? 'text-amber-600 dark:text-amber-400'
                                                           : 'text-slate-700 dark:text-slate-300')"
-                                                  x-text="rowTotal(marks[{{ $student->id }}]).toFixed(1)"></span>
+                                                  x-text="$store.manualEntry.rowTotal('{{ $student->id }}').toFixed(1)"></span>
                                             <span class="text-xs text-slate-400">/{{ number_format((float) $assessment->total_marks, 0) }}</span>
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
+                            <tfoot>
+                                <tr class="bg-slate-50 dark:bg-slate-800/70 border-t-2 border-slate-200 dark:border-slate-700">
+                                    <td></td>
+                                    <td class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Class average</td>
+                                    @foreach($criteria as $criterion)
+                                        <td class="px-3 py-3 text-center">
+                                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                                                  x-text="$store.manualEntry.colAvg('{{ $criterion->id }}').toFixed(1)"></span>
+                                            <span class="text-[10px] text-slate-400">/{{ rtrim(rtrim(number_format((float) $criterion->max_marks, 1), '0'), '.') }}</span>
+                                            <div class="text-[10px] text-slate-400 mt-0.5">
+                                                <span x-text="$store.manualEntry.colFilledCount('{{ $criterion->id }}')"></span> entered
+                                            </div>
+                                        </td>
+                                    @endforeach
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400" x-text="$store.manualEntry.classAvg().toFixed(1)"></span>
+                                        <span class="text-[10px] text-slate-400">/{{ number_format((float) $assessment->total_marks, 0) }}</span>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">
+                                            <span x-text="$store.manualEntry.filledRowCount()"></span> / {{ $students->count() }} entered
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -177,4 +182,88 @@
             @endif
         </div>
     </form>
+
+    @if($hasRubric)
+        @push('scripts')
+            <script>
+                document.addEventListener('alpine:init', () => {
+                    Alpine.store('manualEntry', {
+                        cfg: @json($cfgPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
+                        values: @json($initialValues, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_FORCE_OBJECT),
+
+                        _row(sid) {
+                            return this.values[sid] || {};
+                        },
+                        _isFilled(v) {
+                            return v !== '' && v !== null && v !== undefined && !isNaN(parseFloat(v));
+                        },
+                        _rowHasAnyValue(sid) {
+                            const row = this._row(sid);
+                            return Object.values(row).some(v => this._isFilled(v));
+                        },
+
+                        rowTotal(sid) {
+                            const row = this._row(sid);
+                            const cfg = this.cfg;
+                            if (cfg.isWeighted) {
+                                let t = 0;
+                                for (const c of cfg.criteria) {
+                                    const raw = row[c.id];
+                                    const v = this._isFilled(raw) ? parseFloat(raw) : 0;
+                                    if (c.max > 0 && c.weight && c.weight > 0) {
+                                        t += (v / c.max) * (c.weight / 100) * cfg.totalMarks;
+                                    }
+                                }
+                                return Math.min(t, cfg.totalMarks);
+                            }
+                            let s = 0;
+                            for (const c of cfg.criteria) {
+                                const raw = row[c.id];
+                                s += this._isFilled(raw) ? parseFloat(raw) : 0;
+                            }
+                            return Math.min(s, cfg.totalMarks);
+                        },
+                        rowPct(sid) {
+                            if (this.cfg.totalMarks <= 0) return 0;
+                            return (this.rowTotal(sid) / this.cfg.totalMarks) * 100;
+                        },
+
+                        colAvg(cid) {
+                            let sum = 0, n = 0;
+                            for (const sid of Object.keys(this.values)) {
+                                const v = this.values[sid][cid];
+                                if (!this._isFilled(v)) continue;
+                                sum += parseFloat(v);
+                                n++;
+                            }
+                            return n > 0 ? sum / n : 0;
+                        },
+                        colFilledCount(cid) {
+                            let n = 0;
+                            for (const sid of Object.keys(this.values)) {
+                                if (this._isFilled(this.values[sid][cid])) n++;
+                            }
+                            return n;
+                        },
+                        classAvg() {
+                            let sum = 0, n = 0;
+                            for (const sid of Object.keys(this.values)) {
+                                if (!this._rowHasAnyValue(sid)) continue;
+                                sum += this.rowTotal(sid);
+                                n++;
+                            }
+                            return n > 0 ? sum / n : 0;
+                        },
+                        filledRowCount() {
+                            let n = 0;
+                            for (const sid of Object.keys(this.values)) {
+                                if (this._rowHasAnyValue(sid)) n++;
+                            }
+                            return n;
+                        },
+                    });
+                });
+            </script>
+        @endpush
+    @endif
 </x-tenant-layout>

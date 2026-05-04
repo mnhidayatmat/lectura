@@ -133,8 +133,10 @@ class AssessmentScoreController extends Controller
         $tenant = app('current_tenant');
         $count = 0;
 
-        // Same weighting strategy used by AssessmentSubmissionController::storeMark.
-        $isWeighted = $hasRubric && $criteria->contains(
+        // Same weighting strategy used by AssessmentSubmissionController::storeMark:
+        // weighted only when EVERY criterion has an explicit positive weight,
+        // otherwise plain sum so partial-weight rubrics don't undercount.
+        $isWeighted = $hasRubric && $criteria->every(
             fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
         );
 
