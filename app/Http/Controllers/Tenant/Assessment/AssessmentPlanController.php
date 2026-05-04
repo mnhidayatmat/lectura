@@ -146,6 +146,7 @@ class AssessmentPlanController extends Controller
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
+            'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
             'criteria'                   => ['nullable', 'array'],
             'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
             'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
@@ -195,6 +196,14 @@ class AssessmentPlanController extends Controller
             $assessment->update([
                 'instruction_file_path' => $file->store('assessment-instructions', 'local'),
                 'instruction_file_name' => $file->getClientOriginalName(),
+            ]);
+        }
+
+        if ($request->hasFile('answer_scheme_file')) {
+            $file = $request->file('answer_scheme_file');
+            $assessment->update([
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_filename' => $file->getClientOriginalName(),
             ]);
         }
 
@@ -263,6 +272,7 @@ class AssessmentPlanController extends Controller
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date'         => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
+            'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
             'criteria'                   => ['nullable', 'array'],
             'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
             'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
@@ -307,6 +317,22 @@ class AssessmentPlanController extends Controller
             $assessment->update(['instruction_file_path' => null, 'instruction_file_name' => null]);
         }
 
+        if ($request->hasFile('answer_scheme_file')) {
+            if ($assessment->answer_scheme_path) {
+                Storage::disk('local')->delete($assessment->answer_scheme_path);
+            }
+            $file = $request->file('answer_scheme_file');
+            $assessment->update([
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_filename' => $file->getClientOriginalName(),
+            ]);
+        } elseif ($request->boolean('remove_answer_scheme')) {
+            if ($assessment->answer_scheme_path) {
+                Storage::disk('local')->delete($assessment->answer_scheme_path);
+            }
+            $assessment->update(['answer_scheme_path' => null, 'answer_scheme_filename' => null]);
+        }
+
         $assessment->clos()->sync($request->clo_ids ?? []);
 
         $this->syncRubric($assessment, $request->input('criteria'));
@@ -326,12 +352,18 @@ class AssessmentPlanController extends Controller
         if ($assessment->instruction_file_path) {
             Storage::disk('local')->delete($assessment->instruction_file_path);
         }
+        if ($assessment->answer_scheme_path) {
+            Storage::disk('local')->delete($assessment->answer_scheme_path);
+        }
 
         // If this is a parent assessment, cascade delete children (and their files)
         if ($assessment->isParent()) {
             foreach ($assessment->children as $child) {
                 if ($child->instruction_file_path) {
                     Storage::disk('local')->delete($child->instruction_file_path);
+                }
+                if ($child->answer_scheme_path) {
+                    Storage::disk('local')->delete($child->answer_scheme_path);
                 }
                 $child->delete();
             }
@@ -371,6 +403,39 @@ class AssessmentPlanController extends Controller
         }
 
         // response()->file() sets Content-Disposition: inline so the browser renders it.
+        return response()->file($absolutePath);
+    }
+
+    public function downloadAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
+    {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id || ! $assessment->answer_scheme_path) {
+            abort(404);
+        }
+
+        if (! Storage::disk('local')->exists($assessment->answer_scheme_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->download(
+            $assessment->answer_scheme_path,
+            $assessment->answer_scheme_filename ?? 'answer-scheme.pdf'
+        );
+    }
+
+    public function viewAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id || ! $assessment->answer_scheme_path) {
+            abort(404);
+        }
+
+        $absolutePath = Storage::disk('local')->path($assessment->answer_scheme_path);
+
+        if (! file_exists($absolutePath)) {
+            abort(404);
+        }
+
         return response()->file($absolutePath);
     }
 

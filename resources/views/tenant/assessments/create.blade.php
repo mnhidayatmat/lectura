@@ -687,6 +687,9 @@
                         @enderror
                     </div>
 
+                    {{-- ── Marking Answer Scheme (lecturer only) ── --}}
+                    @include('tenant.assessments.partials.answer-scheme-uploader', ['assessment' => null])
+
                     {{-- ── CLO Mapping ── --}}
                     @if($course->learningOutcomes->isNotEmpty())
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">

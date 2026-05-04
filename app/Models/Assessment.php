@@ -22,6 +22,7 @@ class Assessment extends Model
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
         'status', 'description', 'requires_submission', 'due_date',
         'instruction_file_path', 'instruction_file_name',
+        'answer_scheme_path', 'answer_scheme_filename',
     ];
 
     protected function casts(): array

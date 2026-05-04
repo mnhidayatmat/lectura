@@ -305,6 +305,9 @@
                     @error('instruction_file') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- Marking Answer Scheme (lecturer only) --}}
+                @include('tenant.assessments.partials.answer-scheme-uploader', ['assessment' => $assessment])
+
                 {{-- Grading Rubric --}}
                 @include('tenant.assessments.partials.rubric-builder')
 
