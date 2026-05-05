@@ -5,10 +5,19 @@ import QRCode from 'qrcode';
 import tiptapEditor from './tiptap-editor';
 import { mathModal } from './tiptap-math';
 import groupChat from './group-chat';
-import * as ScanToPdf from './scan-to-pdf';
 
 window.QRCode = QRCode;
-window.LecturaScan = ScanToPdf;
+
+// Lazy proxy for the scan-to-PDF helpers — jspdf is heavy (~150 kB) and
+// only used on Manual Score Entry, so we keep it out of the main bundle
+// and let Vite emit a separate chunk fetched the first time a lecturer
+// taps "Scan".
+let scanModulePromise = null;
+const loadScan = () => (scanModulePromise ??= import('./scan-to-pdf'));
+window.LecturaScan = {
+    imageFromFile: async (f) => (await loadScan()).imageFromFile(f),
+    buildPdf: async (pages) => (await loadScan()).buildPdf(pages),
+};
 
 // Register Alpine components on THE SAME Alpine instance that Livewire uses.
 // This ensures x-data="componentName(...)" resolves correctly.
