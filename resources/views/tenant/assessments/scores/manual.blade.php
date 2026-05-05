@@ -63,7 +63,8 @@
                 }
             @endphp
 
-            <div>
+            {{-- Desktop table --}}
+            <div class="hidden lg:block">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
@@ -154,8 +155,82 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Mobile cards --}}
+            <div class="lg:hidden space-y-3">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Class average</p>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            <span x-text="$store.manualEntry.filledRowCount()"></span> / {{ $students->count() }} entered
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400" x-text="$store.manualEntry.classAvg().toFixed(1)"></p>
+                        <p class="text-[10px] text-slate-400">/ {{ number_format((float) $assessment->total_marks, 0) }}</p>
+                    </div>
+                </div>
+
+                @foreach($students as $i => $student)
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="px-4 py-3 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/40">
+                            <span class="text-[10px] font-semibold text-slate-400 w-5 text-right flex-shrink-0">{{ $i + 1 }}</span>
+                            @if($student->avatar_url)
+                                <img src="{{ $student->avatar_url }}" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
+                            @else
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">{{ strtoupper(substr($student->name, 0, 1)) }}</span>
+                                </div>
+                            @endif
+                            <div class="min-w-0 flex-1">
+                                <p class="font-semibold text-sm text-slate-900 dark:text-white truncate">{{ $student->name }}</p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <p class="text-base font-bold leading-tight"
+                                   :class="$store.manualEntry.rowPct('{{ $student->id }}') >= 70 ? 'text-emerald-600 dark:text-emerald-400'
+                                           : ($store.manualEntry.rowPct('{{ $student->id }}') >= 50 ? 'text-amber-600 dark:text-amber-400'
+                                           : 'text-slate-700 dark:text-slate-300')"
+                                   x-text="$store.manualEntry.rowTotal('{{ $student->id }}').toFixed(1)"></p>
+                                <p class="text-[10px] text-slate-400 leading-tight">/ {{ number_format((float) $assessment->total_marks, 0) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="px-4 py-3 divide-y divide-slate-100 dark:divide-slate-700">
+                            @foreach($criteria as $j => $criterion)
+                                <div class="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Q{{ $j + 1 }}</span>
+                                            <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ $criterion->title }}</span>
+                                        </div>
+                                        <p class="text-[10px] text-indigo-500 mt-0.5">
+                                            / {{ rtrim(rtrim(number_format((float) $criterion->max_marks, 1), '0'), '.') }}
+                                            @if($isWeighted && $criterion->weightage !== null)
+                                                <span class="text-slate-400">· {{ rtrim(rtrim(number_format((float) $criterion->weightage, 1), '0'), '.') }}%</span>
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <input type="number"
+                                           inputmode="decimal"
+                                           name="criteria_marks[{{ $student->id }}][{{ $criterion->id }}]"
+                                           x-model="$store.manualEntry.values['{{ $student->id }}']['{{ $criterion->id }}']"
+                                           min="0" max="{{ $criterion->max_marks }}" step="0.5"
+                                           placeholder="—"
+                                           class="w-20 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-semibold text-center focus:ring-2 focus:ring-indigo-500 flex-shrink-0">
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="px-4 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/40">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Answer Script <span class="font-normal normal-case text-slate-400">· PDF / Image</span></p>
+                            @include('tenant.assessments.scores.partials.answer-script-cell', ['wrapAs' => 'div'])
+                        </div>
+                    </div>
+                @endforeach
+            </div>
         @else
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            {{-- Desktop table (no rubric) --}}
+            <div class="hidden lg:block bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -181,15 +256,123 @@
                     </table>
                 </div>
             </div>
+
+            {{-- Mobile cards (no rubric) --}}
+            <div class="lg:hidden space-y-3">
+                @foreach($students as $i => $student)
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="px-4 py-3 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/40">
+                            <span class="text-[10px] font-semibold text-slate-400 w-5 text-right flex-shrink-0">{{ $i + 1 }}</span>
+                            @if($student->avatar_url)
+                                <img src="{{ $student->avatar_url }}" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
+                            @else
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">{{ strtoupper(substr($student->name, 0, 1)) }}</span>
+                                </div>
+                            @endif
+                            <p class="font-semibold text-sm text-slate-900 dark:text-white truncate min-w-0 flex-1">{{ $student->name }}</p>
+                        </div>
+                        <div class="px-4 py-3 flex items-center gap-3">
+                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex-1">
+                                Marks <span class="text-slate-400">/ {{ number_format((float) $assessment->total_marks, 0) }}</span>
+                            </label>
+                            <input type="number" inputmode="decimal" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.5" placeholder="—" class="w-24 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-semibold text-center focus:ring-2 focus:ring-indigo-500 flex-shrink-0">
+                        </div>
+                        <div class="px-4 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/40">
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Answer Script <span class="font-normal normal-case text-slate-400">· PDF / Image</span></p>
+                            @include('tenant.assessments.scores.partials.answer-script-cell', ['wrapAs' => 'div'])
+                        </div>
+                    </div>
+                @endforeach
+            </div>
         @endif
 
-        <div class="mt-4 flex items-center gap-3">
-            <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Save All Marks</button>
+        {{-- Sticky save bar on mobile, inline on desktop --}}
+        <div class="mt-4 lg:relative sticky bottom-0 z-10 lg:bg-transparent bg-white/95 dark:bg-slate-900/95 backdrop-blur lg:backdrop-blur-none -mx-4 lg:mx-0 px-4 lg:px-0 py-3 lg:py-0 border-t lg:border-t-0 border-slate-200 dark:border-slate-700 flex items-center gap-3">
+            <button type="submit" class="flex-1 lg:flex-none px-6 py-3 lg:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Save All Marks</button>
             @if($hasRubric)
-                <p class="text-xs text-slate-500 dark:text-slate-400">Rows with no scores entered are skipped.</p>
+                <p class="hidden sm:block text-xs text-slate-500 dark:text-slate-400">Rows with no scores entered are skipped.</p>
             @endif
         </div>
     </form>
+
+    @push('scripts')
+        <script>
+            window.LecturaScan = window.LecturaScan || (() => {
+                const JSPDF_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+                let pdfPromise = null;
+
+                function ensureJsPdf() {
+                    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+                    if (pdfPromise) return pdfPromise;
+                    pdfPromise = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = JSPDF_SRC;
+                        s.crossOrigin = 'anonymous';
+                        s.onload = () => resolve();
+                        s.onerror = () => { pdfPromise = null; reject(new Error('Failed to load jsPDF')); };
+                        document.head.appendChild(s);
+                    });
+                    return pdfPromise;
+                }
+
+                function downscaleDataUrl(dataUrl, maxDim, quality) {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const ratio = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+                            const w = Math.round(img.naturalWidth * ratio);
+                            const h = Math.round(img.naturalHeight * ratio);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = w;
+                            canvas.height = h;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#fff';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.drawImage(img, 0, 0, w, h);
+                            resolve({ dataUrl: canvas.toDataURL('image/jpeg', quality), width: w, height: h });
+                        };
+                        img.onerror = reject;
+                        img.src = dataUrl;
+                    });
+                }
+
+                function imageFromFile(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = async (ev) => {
+                            try {
+                                const compact = await downscaleDataUrl(ev.target.result, 1600, 0.78);
+                                resolve(compact);
+                            } catch (err) { reject(err); }
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                async function buildPdf(pages) {
+                    await ensureJsPdf();
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait', compress: true });
+                    const pageW = pdf.internal.pageSize.getWidth();
+                    const pageH = pdf.internal.pageSize.getHeight();
+                    pages.forEach((p, i) => {
+                        if (i > 0) pdf.addPage();
+                        const ratio = Math.min(pageW / p.width, pageH / p.height);
+                        const w = p.width * ratio;
+                        const h = p.height * ratio;
+                        const x = (pageW - w) / 2;
+                        const y = (pageH - h) / 2;
+                        pdf.addImage(p.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+                    });
+                    return pdf.output('blob');
+                }
+
+                return { ensureJsPdf, imageFromFile, buildPdf };
+            })();
+        </script>
+    @endpush
 
     @if($hasRubric)
         @push('scripts')
