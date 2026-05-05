@@ -5,8 +5,10 @@ import QRCode from 'qrcode';
 import tiptapEditor from './tiptap-editor';
 import { mathModal } from './tiptap-math';
 import groupChat from './group-chat';
+import * as ScanToPdf from './scan-to-pdf';
 
 window.QRCode = QRCode;
+window.LecturaScan = ScanToPdf;
 
 // Register Alpine components on THE SAME Alpine instance that Livewire uses.
 // This ensures x-data="componentName(...)" resolves correctly.
