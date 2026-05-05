@@ -742,6 +742,8 @@ Route::prefix('{tenant:slug}')
 
         Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
         Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
+        Route::get('/marks/assessment-scores/{score}/answer-script/view', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'viewAnswerScript'])->name('tenant.marks.answer-script.view');
+        Route::get('/marks/assessment-scores/{score}/answer-script', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'downloadAnswerScript'])->name('tenant.marks.answer-script.download');
 
         // Student Assessments (submission)
         Route::get('/my-assessments', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentIndex'])->name('tenant.my-assessments');
