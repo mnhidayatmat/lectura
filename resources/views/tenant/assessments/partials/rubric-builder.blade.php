@@ -177,14 +177,14 @@
                     Rubric raw total: <span class="font-semibold text-slate-600 dark:text-slate-300" x-text="totalMax()"></span>
                 </p>
                 <p class="text-[11px] text-slate-400" x-show="hasAnyWeight()">
-                    Leave weight blank for an unweighted (plain-sum) rubric. When set, the final mark is scaled to the assessment's total marks.
+                    Leave weight blank for an unweighted (plain-sum) rubric. When set, each criterion's weight is taken as a share of the total — sum to 100 to read them as percentages, or to the assessment's total marks to read them as mark allocations.
                 </p>
             </div>
         </div>
 
-        <div x-show="hasAnyWeight() && Math.abs(totalWeight() - 100) > 0.01"
+        <div x-show="hasAnyWeight() && (totalWeight() <= 0)"
              class="mt-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300">
-            Your criterion weightages sum to <span class="font-bold" x-text="totalWeight()"></span>%. For a clean scale-to-total calculation, they should add up to 100%.
+            Criterion weightages sum to <span class="font-bold" x-text="totalWeight()"></span>. Set at least one positive weight or leave them all blank for a plain-sum rubric.
         </div>
     </div>
 </div>

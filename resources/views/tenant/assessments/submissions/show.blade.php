@@ -282,6 +282,7 @@
                             }
                         }
                     }
+                    $weightSum = $isWeighted ? array_sum($criterionWeight) : 0.0;
                 @endphp
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
                      x-data="{
@@ -299,13 +300,18 @@
                              const v = this.criteriaMarks[id];
                              return (v === null || v === '' || isNaN(v)) ? 0 : parseFloat(v);
                          },
+                         get weightSum() {
+                             return Object.values(this.criterionWeight)
+                                 .reduce((s, w) => s + (w > 0 ? w : 0), 0);
+                         },
                          criterionContribution(id) {
                              const score = this.criterionScore(id);
                              if (this.isWeighted) {
                                  const max = this.criterionMax[id] || 0;
                                  const w = this.criterionWeight[id] || 0;
-                                 if (max <= 0) return 0;
-                                 return (score / max) * (w / 100) * this.maxMarks;
+                                 const sum = this.weightSum;
+                                 if (max <= 0 || sum <= 0) return 0;
+                                 return (score / max) * (w / sum) * this.maxMarks;
                              }
                              return score;
                          },
@@ -392,7 +398,7 @@
                                                     Contributes
                                                     <span class="font-bold text-indigo-600 dark:text-indigo-400"
                                                           x-text="(Math.round(criterionContribution({{ $criterion->id }}) * 10) / 10)"></span>
-                                                    of {{ rtrim(rtrim(number_format($assessment->total_marks * (float) $criterion->weightage / 100, 2), '0'), '.') }}
+                                                    of {{ $weightSum > 0 ? rtrim(rtrim(number_format($assessment->total_marks * (float) $criterion->weightage / $weightSum, 2), '0'), '.') : '0' }}
                                                     pts to the assessment total
                                                 </p>
                                             </div>

@@ -240,6 +240,9 @@ class SubmissionReportStampingService
             $y += 7;
 
             $isWeighted = $rubric->criteria->contains(fn ($c) => $c->weightage !== null && (float) $c->weightage > 0);
+            $weightSum = $isWeighted
+                ? (float) $rubric->criteria->sum(fn ($c) => $c->weightage !== null ? (float) $c->weightage : 0.0)
+                : 0.0;
             $storedCriteriaMarks = $score->criteria_marks ?? [];
 
             foreach ($rubric->criteria as $criterion) {
@@ -256,9 +259,9 @@ class SubmissionReportStampingService
                     ?? null;
                 $criterionScore = $criterionScore !== null ? (float) $criterionScore : null;
 
-                if ($isWeighted && $weight !== null && $weight > 0) {
+                if ($isWeighted && $weight !== null && $weight > 0 && $weightSum > 0) {
                     $contribution = ($criterionScore !== null && $criterionMax > 0)
-                        ? ($criterionScore / $criterionMax) * ($weight / 100) * $max
+                        ? ($criterionScore / $criterionMax) * ($weight / $weightSum) * $max
                         : 0.0;
                 } else {
                     $contribution = $criterionScore ?? 0.0;
