@@ -363,7 +363,18 @@
             saveBtn.disabled = true;
             saveLabel.textContent = 'Saving…';
             try {
-                const flattened = buildFlattenedImage();
+                // Server caps the JSON body at ~7 MB to stay under typical PHP
+                // post_max_size (8 M default). The flattened image is a "nice
+                // to have" preview — if it won't fit even after compression we
+                // drop it and persist strokes only so the lecturer's marks
+                // aren't lost.
+                const MAX_BODY_BYTES = 6 * 1024 * 1024;
+                const strokesPayload = JSON.stringify(state.strokes);
+                const headroom = MAX_BODY_BYTES - strokesPayload.length - 256;
+
+                const flattened = buildFlattenedImage(headroom);
+                const body = JSON.stringify({ strokes: state.strokes, image: flattened });
+
                 const res = await fetch(state.saveUrl, {
                     method: 'POST',
                     headers: {
@@ -373,10 +384,10 @@
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ strokes: state.strokes, image: flattened }),
+                    body,
                 });
                 if (!res.ok) throw new Error('Server returned ' + res.status);
-                saveLabel.textContent = 'Saved ✓';
+                saveLabel.textContent = flattened ? 'Saved ✓' : 'Saved (no preview)';
                 setTimeout(() => {
                     saveLabel.textContent = 'Save';
                     saveBtn.disabled = false;
@@ -390,7 +401,11 @@
             }
         }
 
-        function buildFlattenedImage() {
+        // Build a JPEG data URL that fits under `maxBytes`. We try the natural
+        // canvas size at quality 0.8 first, then progressively scale down and
+        // drop quality. If we can't fit, return null and the caller saves
+        // strokes only.
+        function buildFlattenedImage(maxBytes) {
             if (state.pages.length === 0) return null;
             const gap = 16;
             let totalH = 0, maxW = 0;
@@ -400,24 +415,37 @@
             });
             totalH += gap * (state.pages.length - 1);
 
-            const out = document.createElement('canvas');
-            out.width = maxW;
-            out.height = totalH;
-            const ctx = out.getContext('2d');
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, out.width, out.height);
+            const attempts = [
+                { scale: 1.0, quality: 0.8 },
+                { scale: 0.85, quality: 0.75 },
+                { scale: 0.7, quality: 0.7 },
+                { scale: 0.55, quality: 0.65 },
+                { scale: 0.4, quality: 0.6 },
+            ];
 
-            let y = 0;
-            state.pages.forEach(p => {
-                ctx.drawImage(p.base, 0, y);
-                ctx.drawImage(p.overlay, 0, y);
-                y += p.base.height + gap;
-            });
+            for (const { scale, quality } of attempts) {
+                const out = document.createElement('canvas');
+                out.width = Math.max(1, Math.round(maxW * scale));
+                out.height = Math.max(1, Math.round(totalH * scale));
+                const ctx = out.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, out.width, out.height);
 
-            // JPEG keeps payloads small enough to fit under typical PHP
-            // post_max_size (often 8M). PNG of a multi-page PDF easily
-            // exceeds that and the request gets rejected with a 500.
-            return out.toDataURL('image/jpeg', 0.85);
+                let y = 0;
+                state.pages.forEach(p => {
+                    const pw = Math.round(p.base.width * scale);
+                    const ph = Math.round(p.base.height * scale);
+                    ctx.drawImage(p.base, 0, y, pw, ph);
+                    ctx.drawImage(p.overlay, 0, y, pw, ph);
+                    y += ph + Math.round(gap * scale);
+                });
+
+                const dataUrl = out.toDataURL('image/jpeg', quality);
+                if (typeof maxBytes !== 'number' || maxBytes <= 0 || dataUrl.length <= maxBytes) {
+                    return dataUrl;
+                }
+            }
+            return null;
         }
     })();
 </script>
