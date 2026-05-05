@@ -19,6 +19,7 @@ class AssessmentScore extends Model
         'is_released', 'released_at', 'feedback', 'criteria_marks',
         'finalized_by', 'finalized_at',
         'answer_script_path', 'answer_script_filename',
+        'answer_script_drive_file_id', 'answer_script_drive_link',
     ];
 
     protected function casts(): array

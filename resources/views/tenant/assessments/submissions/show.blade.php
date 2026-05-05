@@ -49,6 +49,13 @@
         </div>
     @endif
 
+    @if(session('warning'))
+        <div class="mb-6 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-sm rounded-xl flex items-start gap-3">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <div>{{ session('warning') }}</div>
+        </div>
+    @endif
+
     <div class="grid lg:grid-cols-5 gap-6">
 
         {{-- ── LEFT: submission detail (3 cols) ── --}}
@@ -345,6 +352,7 @@
                     </div>
 
                     <form method="POST" action="{{ route('tenant.assessments.submissions.mark', [$tenant->slug, $course, $assessment, $submission]) }}"
+                          enctype="multipart/form-data"
                           class="p-6 space-y-6">
                         @csrf
 
@@ -471,6 +479,101 @@
                                       class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
                                       placeholder="Write feedback for {{ $submission->user->name }}...">{{ old('feedback', $submission->score?->feedback) }}</textarea>
                             @error('feedback') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        {{-- Answer Script (uploads to lecturer's Google Drive) --}}
+                        @php
+                            $existingScriptName = $submission->score?->answer_script_filename;
+                            $existingScriptLink = $submission->score?->answer_script_drive_link;
+                            $courseLecturerConnected = (bool) $course->lecturer?->isDriveConnected();
+                        @endphp
+                        <div class="rounded-2xl bg-slate-50/60 dark:bg-slate-700/20 border border-slate-200 dark:border-slate-600 p-5"
+                             x-data="{
+                                existing: @js((bool) $existingScriptLink),
+                                existingName: @js($existingScriptName ?? ''),
+                                existingLink: @js($existingScriptLink ?? ''),
+                                removing: false,
+                                newName: '',
+                                get hasNew() { return this.newName !== ''; },
+                                pickFile() { this.$refs.scriptFile.click(); },
+                                onPicked(e) {
+                                    const f = e.target.files[0];
+                                    if (!f) return;
+                                    this.newName = f.name;
+                                    this.removing = false;
+                                },
+                                clearNew() {
+                                    this.$refs.scriptFile.value = '';
+                                    this.newName = '';
+                                },
+                             }">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
+                                    Marking Answer Script
+                                    <span class="font-medium normal-case text-slate-400">(saved to your Google Drive)</span>
+                                </label>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase tracking-wide">Lecturer only</span>
+                            </div>
+
+                            @if(! $courseLecturerConnected)
+                                <div class="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-400">
+                                    The course lecturer hasn't connected Google Drive yet. Connect Drive in
+                                    <a href="{{ route('tenant.settings', $tenant->slug) }}" class="underline font-semibold">Settings</a>
+                                    before uploading marking scripts.
+                                </div>
+                            @endif
+
+                            <input type="file" x-ref="scriptFile" name="answer_script"
+                                   accept="application/pdf,image/jpeg,image/png"
+                                   class="hidden"
+                                   @change="onPicked($event)">
+                            <input type="hidden" name="remove_answer_script" value="1" :disabled="!removing || hasNew">
+
+                            <template x-if="existing && !removing && !hasNew">
+                                <div class="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
+                                    <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                    <a :href="existingLink" target="_blank" rel="noopener"
+                                       class="flex-1 text-sm font-medium text-emerald-700 dark:text-emerald-300 hover:underline truncate"
+                                       x-text="existingName"></a>
+                                    <a :href="existingLink" target="_blank" rel="noopener"
+                                       class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline flex-shrink-0">Open in Drive ↗</a>
+                                    <button type="button" @click="pickFile()"
+                                            class="text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition flex-shrink-0">Replace</button>
+                                    <button type="button" @click="removing = true"
+                                            class="text-[11px] text-slate-500 dark:text-slate-400 hover:text-red-600 transition flex-shrink-0">Remove</button>
+                                </div>
+                            </template>
+
+                            <template x-if="existing && removing && !hasNew">
+                                <div class="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
+                                    <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span class="flex-1 text-xs text-red-700 dark:text-red-400">Will be removed from Drive when you save.</span>
+                                    <button type="button" @click="removing = false" class="text-xs text-slate-500 hover:text-slate-700 transition">Undo</button>
+                                </div>
+                            </template>
+
+                            <template x-if="hasNew">
+                                <div class="flex items-center gap-2 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
+                                    <svg class="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+                                    <span class="flex-1 text-sm font-medium text-indigo-700 dark:text-indigo-300 truncate" x-text="newName"></span>
+                                    <span class="text-[10px] text-indigo-600 dark:text-indigo-400" x-text="existing ? 'Will replace existing' : 'Will be uploaded on save'"></span>
+                                    <button type="button" @click="clearNew()" class="text-slate-400 hover:text-red-500 transition flex-shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            </template>
+
+                            <template x-if="!hasNew && (!existing || removing)">
+                                <button type="button" @click="pickFile()"
+                                        :disabled="@js(! $courseLecturerConnected)"
+                                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    Upload PDF or image
+                                </button>
+                            </template>
+
+                            <p class="mt-2 text-[10px] text-slate-400">PDF, JPG, or PNG up to 25 MB. Stored in your Drive under <span class="font-mono">{{ $course->code }} → Submissions → {{ $submission->user->name ?? 'Student' }}</span>.</p>
+                            @error('answer_script') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Submit buttons --}}

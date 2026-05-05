@@ -22,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -142,6 +143,8 @@ class AssessmentSubmissionController extends Controller
 
         $rules = [
             'feedback' => ['nullable', 'string', 'max:5000'],
+            'answer_script' => ['nullable', 'file', 'max:25600', 'mimes:pdf,jpg,jpeg,png'],
+            'remove_answer_script' => ['nullable', 'in:0,1,true,false'],
         ];
 
         if ($hasRubric) {
@@ -229,6 +232,28 @@ class AssessmentSubmissionController extends Controller
             }
         }
 
+        // Marking answer script — upload to lecturer's Drive (and remove the
+        // previous one if the lecturer is replacing or clearing it). Failures
+        // here are surfaced as flash warnings; they don't block the grade save.
+        $scriptError = null;
+        try {
+            $this->syncMarkingScriptToDrive(
+                $request,
+                $course,
+                $assessment,
+                $submission,
+                $targetSubmissions,
+            );
+        } catch (\Throwable $e) {
+            Log::warning('marking script drive sync failed', [
+                'assessment_id' => $assessment->id,
+                'submission_id' => $submission->id,
+                'error' => $e->getMessage(),
+                'exception_class' => $e::class,
+            ]);
+            $scriptError = $e->getMessage();
+        }
+
         // Stamp a grade-report cover page onto every PDF in the leader's
         // submission (members share the leader's files via the group — their
         // mirrored submissions carry no files). Failures are logged and
@@ -255,12 +280,139 @@ class AssessmentSubmissionController extends Controller
 
             $nextName = $next->user->name ?? '';
 
-            return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $next])
+            $redirect = redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $next])
                 ->with('success', "Graded {$submission->user->name}.{$groupSuffix} Up next: {$nextName}.");
+
+            if ($scriptError) {
+                $redirect->with('warning', "Grade saved, but the answer script could not be saved to Drive: {$scriptError}");
+            }
+
+            return $redirect;
         }
 
-        return redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $submission])
+        $redirect = redirect()->route('tenant.assessments.submissions.show', [$tenantSlug, $course, $assessment, $submission])
             ->with('success', "Grade saved for {$submission->user->name}.{$groupSuffix}");
+
+        if ($scriptError) {
+            $redirect->with('warning', "Grade saved, but the answer script could not be saved to Drive: {$scriptError}");
+        }
+
+        return $redirect;
+    }
+
+    /**
+     * Upload (or remove) the lecturer's marking answer script for this
+     * submission to the course owner's Google Drive, mirroring the same
+     * folder hierarchy student submissions use, and apply the resulting
+     * Drive metadata to every group-mirrored AssessmentScore.
+     *
+     * Called from storeMark; throws on Drive failure so the caller can
+     * surface a flash warning while still keeping the grade save.
+     */
+    private function syncMarkingScriptToDrive(
+        Request $request,
+        Course $course,
+        Assessment $assessment,
+        AssessmentSubmission $submission,
+        Collection $targetSubmissions,
+    ): void {
+        $hasFile = $request->hasFile('answer_script');
+        $remove = filter_var($request->input('remove_answer_script'), FILTER_VALIDATE_BOOLEAN);
+        if (! $hasFile && ! $remove) {
+            return;
+        }
+
+        $lecturer = $course->lecturer;
+        if (! $lecturer) {
+            throw new \RuntimeException('This course has no lecturer assigned.');
+        }
+        if (! $lecturer->isDriveConnected()) {
+            throw new \RuntimeException('The course lecturer has not connected Google Drive.');
+        }
+
+        $driveService = app(GoogleDriveService::class);
+
+        // Tear down any previously-uploaded script — for the lecturer's own
+        // submission and for every mirrored group-member score that points
+        // at the same file. Drive deletes are idempotent in our wrapper.
+        $existingScores = AssessmentScore::where('assessment_id', $assessment->id)
+            ->whereIn('user_id', $targetSubmissions->pluck('user_id'))
+            ->get();
+
+        $existingDriveIds = $existingScores->pluck('answer_script_drive_file_id')->filter()->unique();
+        foreach ($existingDriveIds as $fileId) {
+            $driveService->deleteFile($lecturer, $fileId);
+        }
+
+        // Always clear the script columns on every mirrored score before
+        // writing the new ones, so a remove-and-replace stays consistent.
+        AssessmentScore::where('assessment_id', $assessment->id)
+            ->whereIn('user_id', $targetSubmissions->pluck('user_id'))
+            ->update([
+                'answer_script_drive_file_id' => null,
+                'answer_script_drive_link' => null,
+                'answer_script_filename' => null,
+            ]);
+
+        if (! $hasFile) {
+            return;
+        }
+
+        // Reuse the per-student folder student submissions already use, so
+        // the lecturer's marking script sits next to the student's work.
+        $studentFolderId = $submission->drive_folder_id
+            ?: $this->ensureStudentSubmissionFolder($driveService, $lecturer, $course, $assessment, $submission);
+
+        $file = $request->file('answer_script');
+        $datePrefix = now()->format('Y-m-d');
+        $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+        $driveName = "[Marking] {$datePrefix} {$safeName}";
+
+        $result = $driveService->uploadFile(
+            $lecturer,
+            $file->getRealPath(),
+            $driveName,
+            $file->getClientMimeType(),
+            $studentFolderId,
+        );
+
+        AssessmentScore::where('assessment_id', $assessment->id)
+            ->whereIn('user_id', $targetSubmissions->pluck('user_id'))
+            ->update([
+                'answer_script_drive_file_id' => $result['id'],
+                'answer_script_drive_link' => $result['web_view_link'],
+                'answer_script_filename' => $file->getClientOriginalName(),
+            ]);
+    }
+
+    private function ensureStudentSubmissionFolder(
+        GoogleDriveService $driveService,
+        User $lecturer,
+        Course $course,
+        Assessment $assessment,
+        AssessmentSubmission $submission,
+    ): string {
+        $courseFolderId = $driveService->findOrCreateFolder(
+            $lecturer,
+            "{$course->code} — {$course->title}",
+        );
+        $submissionsFolderId = $driveService->findOrCreateFolder(
+            $lecturer, 'Submissions', $courseFolderId,
+        );
+        $typeLabel = ucfirst($assessment->type ?? 'Assessment');
+        $assessmentFolderId = $driveService->findOrCreateFolder(
+            $lecturer, "[{$typeLabel}] {$assessment->title}", $submissionsFolderId,
+        );
+        $studentName = $submission->user->name ?? "Student {$submission->user_id}";
+        $studentFolderId = $driveService->findOrCreateFolder(
+            $lecturer, $studentName, $assessmentFolderId,
+        );
+
+        if (! $submission->drive_folder_id) {
+            $submission->update(['drive_folder_id' => $studentFolderId]);
+        }
+
+        return $studentFolderId;
     }
 
     public function release(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
