@@ -249,11 +249,14 @@
         function bindPointer(pageIdx) {
             const page = state.pages[pageIdx];
             const c = page.overlay;
+            // Round to 4 decimals (≈0.1px precision at 1100px wide) so a long
+            // session of strokes doesn't balloon the JSON payload past
+            // post_max_size when serialized.
             const getPos = (e) => {
                 const rect = c.getBoundingClientRect();
                 return [
-                    (e.clientX - rect.left) / rect.width,
-                    (e.clientY - rect.top) / rect.height,
+                    Math.round(((e.clientX - rect.left) / rect.width) * 10000) / 10000,
+                    Math.round(((e.clientY - rect.top) / rect.height) * 10000) / 10000,
                 ];
             };
             c.addEventListener('pointerdown', (e) => {
@@ -363,12 +366,13 @@
             saveBtn.disabled = true;
             saveLabel.textContent = 'Saving…';
             try {
-                // Server caps the JSON body at ~7 MB to stay under typical PHP
-                // post_max_size (8 M default). The flattened image is a "nice
-                // to have" preview — if it won't fit even after compression we
-                // drop it and persist strokes only so the lecturer's marks
-                // aren't lost.
-                const MAX_BODY_BYTES = 6 * 1024 * 1024;
+                // Stay well under the typical 8 MB post_max_size — once that
+                // ceiling is breached PHP rejects the body before Laravel runs
+                // and the user just sees a 500 with no log entry. The image
+                // is a preview only; if it won't fit even after compression
+                // we drop it and persist strokes alone so the lecturer's
+                // marks aren't lost.
+                const MAX_BODY_BYTES = 5 * 1024 * 1024;
                 const strokesPayload = JSON.stringify(state.strokes);
                 const headroom = MAX_BODY_BYTES - strokesPayload.length - 256;
 
@@ -407,6 +411,10 @@
         // strokes only.
         function buildFlattenedImage(maxBytes) {
             if (state.pages.length === 0) return null;
+            // Strokes alone already filled the request budget — sending any
+            // image would push us past post_max_size.
+            if (typeof maxBytes !== 'number' || maxBytes <= 0) return null;
+
             const gap = 16;
             let totalH = 0, maxW = 0;
             state.pages.forEach(p => {
@@ -421,6 +429,7 @@
                 { scale: 0.7, quality: 0.7 },
                 { scale: 0.55, quality: 0.65 },
                 { scale: 0.4, quality: 0.6 },
+                { scale: 0.3, quality: 0.55 },
             ];
 
             for (const { scale, quality } of attempts) {
@@ -441,7 +450,7 @@
                 });
 
                 const dataUrl = out.toDataURL('image/jpeg', quality);
-                if (typeof maxBytes !== 'number' || maxBytes <= 0 || dataUrl.length <= maxBytes) {
+                if (dataUrl.length <= maxBytes) {
                     return dataUrl;
                 }
             }
