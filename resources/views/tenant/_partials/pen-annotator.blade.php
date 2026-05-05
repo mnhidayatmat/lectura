@@ -60,7 +60,7 @@
 
 @once
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha512-g/feAizyeUWv3wHM5kqIO5tzLJBO+5rTHnPbhqQlZysrHvSkpd9GnJoSWvnvFLbE8ChijW7TqFKyOmkO6UE+jw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
     (function () {
         if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
