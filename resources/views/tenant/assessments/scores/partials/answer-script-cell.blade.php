@@ -16,8 +16,22 @@
         existingName: @js($existingName ?? ''),
         removing: false,
         newName: '',
+        isMobile: false,
         get hasNew() { return this.newName !== ''; },
-        pickFile() { this.$refs.scriptInput.click(); },
+        init() {
+            this.isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        },
+        pickFile(mode = 'file') {
+            const input = this.$refs.scriptInput;
+            if (mode === 'camera') {
+                input.setAttribute('accept', 'image/*');
+                input.setAttribute('capture', 'environment');
+            } else {
+                input.setAttribute('accept', 'application/pdf,image/jpeg,image/png');
+                input.removeAttribute('capture');
+            }
+            input.click();
+        },
         onPicked(e) {
             const f = e.target.files[0];
             if (!f) return;
@@ -50,7 +64,11 @@
                         <span class="text-[10px] font-medium truncate" x-text="existingName"></span>
                     </a>
                 @endif
-                <button type="button" @click="pickFile()"
+                <button type="button" x-show="isMobile" @click="pickFile('camera')"
+                        class="p-1 text-slate-400 hover:text-indigo-500 transition flex-shrink-0" title="Scan with camera">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                </button>
+                <button type="button" @click="pickFile('file')"
                         class="p-1 text-slate-400 hover:text-indigo-500 transition flex-shrink-0" title="Replace">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
@@ -80,13 +98,20 @@
             </div>
         </template>
 
-        {{-- Upload trigger when nothing on file (or after marking for removal) --}}
+        {{-- Upload / Scan triggers when nothing on file (or after marking for removal) --}}
         <template x-if="!hasNew && (!existing || removing)">
-            <button type="button" @click="pickFile()"
-                    class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition text-[10px] font-medium">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                <span>Upload</span>
-            </button>
+            <div class="flex items-center gap-1">
+                <button type="button" @click="pickFile('file')"
+                        class="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition text-[10px] font-medium">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <span>Upload</span>
+                </button>
+                <button type="button" x-show="isMobile" @click="pickFile('camera')"
+                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition text-[10px] font-medium" title="Scan with camera">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    <span>Scan</span>
+                </button>
+            </div>
         </template>
     </div>
 </td>
