@@ -18,6 +18,7 @@ class AssessmentScore extends Model
         'weighted_marks', 'percentage', 'is_computed',
         'is_released', 'released_at', 'feedback', 'criteria_marks',
         'finalized_by', 'finalized_at',
+        'answer_script_path', 'answer_script_filename',
     ];
 
     protected function casts(): array

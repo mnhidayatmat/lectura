@@ -36,7 +36,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('tenant.assessments.scores.store-manual', [$tenant->slug, $course, $assessment]) }}">
+    <form method="POST" action="{{ route('tenant.assessments.scores.store-manual', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data">
         @csrf
 
         @if($hasRubric)
@@ -82,6 +82,10 @@
                                         <div class="font-bold text-slate-700 dark:text-slate-200">Total</div>
                                         <div class="text-[10px] font-semibold text-indigo-500 mt-0.5">/ {{ number_format((float) $assessment->total_marks, 0) }}</div>
                                     </th>
+                                    <th class="text-center px-3 py-3 font-medium text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide whitespace-nowrap">
+                                        <div class="font-bold text-slate-700 dark:text-slate-200">Answer Script</div>
+                                        <div class="text-[10px] font-normal text-slate-400 mt-0.5 normal-case">PDF / Image</div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
@@ -118,6 +122,7 @@
                                                   x-text="$store.manualEntry.rowTotal('{{ $student->id }}').toFixed(1)"></span>
                                             <span class="text-xs text-slate-400">/{{ number_format((float) $assessment->total_marks, 0) }}</span>
                                         </td>
+                                        @include('tenant.assessments.scores.partials.answer-script-cell')
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -142,6 +147,7 @@
                                             <span x-text="$store.manualEntry.filledRowCount()"></span> / {{ $students->count() }} entered
                                         </div>
                                     </td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -157,6 +163,7 @@
                                 <th class="text-left px-5 py-3 font-medium text-slate-500 dark:text-slate-400">#</th>
                                 <th class="text-left px-5 py-3 font-medium text-slate-500 dark:text-slate-400">Student</th>
                                 <th class="text-center px-5 py-3 font-medium text-slate-500 dark:text-slate-400">Marks (/ {{ number_format((float) $assessment->total_marks, 0) }})</th>
+                                <th class="text-center px-5 py-3 font-medium text-slate-500 dark:text-slate-400">Answer Script</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
@@ -167,6 +174,7 @@
                                     <td class="px-5 py-2.5 text-center">
                                         <input type="number" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.5" placeholder="—" class="w-24 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-center focus:ring-2 focus:ring-indigo-500">
                                     </td>
+                                    @include('tenant.assessments.scores.partials.answer-script-cell')
                                 </tr>
                             @endforeach
                         </tbody>

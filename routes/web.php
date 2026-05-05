@@ -509,6 +509,8 @@ Route::prefix('{tenant:slug}')
             Route::post('/{assessment}/scores/compute', [AssessmentScoreController::class, 'compute'])->name('tenant.assessments.scores.compute');
             Route::get('/{assessment}/scores/manual', [AssessmentScoreController::class, 'manualEntry'])->name('tenant.assessments.scores.manual');
             Route::post('/{assessment}/scores/manual', [AssessmentScoreController::class, 'storeManual'])->name('tenant.assessments.scores.store-manual');
+            Route::get('/{assessment}/scores/{score}/answer-script/view', [AssessmentScoreController::class, 'viewAnswerScript'])->name('tenant.assessments.scores.answer-script.view');
+            Route::get('/{assessment}/scores/{score}/answer-script', [AssessmentScoreController::class, 'downloadAnswerScript'])->name('tenant.assessments.scores.answer-script.download');
 
             // Submissions
             Route::get('/{assessment}/submissions', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'index'])->name('tenant.assessments.submissions.index');
