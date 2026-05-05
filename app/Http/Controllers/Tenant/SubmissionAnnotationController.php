@@ -42,7 +42,7 @@ class SubmissionAnnotationController extends Controller
             200,
             [
                 'Content-Type' => Storage::disk('local')->mimeType($file->storage_path) ?: 'application/octet-stream',
-                'Content-Disposition' => 'inline; filename="' . addslashes($file->file_name) . '"',
+                'Content-Disposition' => 'inline; filename="'.addslashes($file->file_name).'"',
                 'Cache-Control' => 'private, max-age=300',
             ]
         );
@@ -122,11 +122,14 @@ class SubmissionAnnotationController extends Controller
             abort(404);
         }
 
+        $ext = strtolower(pathinfo($file->annotated_image_path, PATHINFO_EXTENSION));
+        $mime = $ext === 'jpg' || $ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+
         return response(
             Storage::disk('local')->get($file->annotated_image_path),
             200,
             [
-                'Content-Type' => 'image/png',
+                'Content-Type' => $mime,
                 'Cache-Control' => 'private, max-age=120',
             ]
         );
@@ -188,11 +191,12 @@ class SubmissionAnnotationController extends Controller
 
     private function writeFlattenedImage(SubmissionFile $file, string $dataUrl, ?string $existingPath): string
     {
-        if (! preg_match('#^data:image/png;base64,#', $dataUrl)) {
-            abort(422, 'Annotated image must be a PNG data URL.');
+        if (! preg_match('#^data:image/(png|jpe?g);base64,(.+)$#', $dataUrl, $m)) {
+            abort(422, 'Annotated image must be a PNG or JPEG data URL.');
         }
 
-        $payload = base64_decode(substr($dataUrl, strlen('data:image/png;base64,')), true);
+        $ext = $m[1] === 'png' ? 'png' : 'jpg';
+        $payload = base64_decode($m[2], true);
         if ($payload === false) {
             abort(422, 'Could not decode annotated image.');
         }
@@ -202,10 +206,11 @@ class SubmissionAnnotationController extends Controller
         }
 
         $path = sprintf(
-            'submission-annotations/%d/%d-%s.png',
+            'submission-annotations/%d/%d-%s.%s',
             $file->submission_id,
             $file->id,
             Str::random(8),
+            $ext,
         );
 
         Storage::disk('local')->put($path, $payload);

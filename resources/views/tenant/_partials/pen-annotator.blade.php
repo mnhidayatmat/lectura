@@ -414,7 +414,10 @@
                 y += p.base.height + gap;
             });
 
-            return out.toDataURL('image/png');
+            // JPEG keeps payloads small enough to fit under typical PHP
+            // post_max_size (often 8M). PNG of a multi-page PDF easily
+            // exceeds that and the request gets rejected with a 500.
+            return out.toDataURL('image/jpeg', 0.85);
         }
     })();
 </script>

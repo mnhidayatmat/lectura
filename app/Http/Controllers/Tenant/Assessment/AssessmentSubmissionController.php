@@ -13,6 +13,7 @@ use App\Models\AssessmentSubmissionFile;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
+use App\Models\User;
 use App\Notifications\AssessmentMarksReleased;
 use App\Notifications\AssessmentSubmissionReceived;
 use App\Services\Assessment\SubmissionReportStampingService;
@@ -25,6 +26,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentSubmissionController extends Controller
@@ -43,7 +45,7 @@ class AssessmentSubmissionController extends Controller
 
         // Get enrolled students
         $sectionIds = $this->lecturerSectionIds($course);
-        $enrolledStudents = \App\Models\User::whereIn('id', function ($q) use ($sectionIds) {
+        $enrolledStudents = User::whereIn('id', function ($q) use ($sectionIds) {
             $q->select('user_id')
                 ->from('section_students')
                 ->whereIn('section_id', $sectionIds)
@@ -81,6 +83,7 @@ class AssessmentSubmissionController extends Controller
                 $info = $groupInfoByUser[$student->id] ?? null;
                 $groupSort = $info['sort'] ?? PHP_INT_MAX;
                 $leaderSort = ($info['role'] ?? null) === 'leader' ? 0 : 1;
+
                 return sprintf('%05d-%d-%s', $groupSort, $leaderSort, $student->name);
             })->values();
         }
@@ -114,12 +117,12 @@ class AssessmentSubmissionController extends Controller
             ->orderBy('submitted_at')
             ->pluck('id');
 
-        $pos  = $orderedIds->search($submission->id);
-        $prev = $pos > 0                        ? AssessmentSubmission::find($orderedIds[$pos - 1]) : null;
+        $pos = $orderedIds->search($submission->id);
+        $prev = $pos > 0 ? AssessmentSubmission::find($orderedIds[$pos - 1]) : null;
         $next = $pos < $orderedIds->count() - 1 ? AssessmentSubmission::find($orderedIds[$pos + 1]) : null;
 
         $gradedCount = $assessment->submissions()->where('status', 'graded')->count();
-        $totalCount  = $orderedIds->count();
+        $totalCount = $orderedIds->count();
 
         return view('tenant.assessments.submissions.show', compact(
             'tenant', 'course', 'assessment', 'submission',
@@ -233,7 +236,7 @@ class AssessmentSubmissionController extends Controller
         try {
             app(SubmissionReportStampingService::class)->stamp($submission->fresh(['files', 'user', 'score', 'assessment']));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('grade stamping failed', [
+            Log::warning('grade stamping failed', [
                 'submission_id' => $submission->id,
                 'error' => $e->getMessage(),
             ]);
@@ -365,7 +368,7 @@ class AssessmentSubmissionController extends Controller
         return Storage::disk('local')->download($path, $file->file_name);
     }
 
-    public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): BinaryFileResponse
     {
         $submission = $file->submission;
 
@@ -417,10 +420,11 @@ class AssessmentSubmissionController extends Controller
         $imagePath = $file->annotated_image_path;
 
         if (! empty($data['image'])) {
-            if (! preg_match('#^data:image/png;base64,#', $data['image'])) {
-                abort(422, 'Annotated image must be a PNG data URL.');
+            if (! preg_match('#^data:image/(png|jpe?g);base64,(.+)$#', $data['image'], $m)) {
+                abort(422, 'Annotated image must be a PNG or JPEG data URL.');
             }
-            $payload = base64_decode(substr($data['image'], strlen('data:image/png;base64,')), true);
+            $ext = $m[1] === 'png' ? 'png' : 'jpg';
+            $payload = base64_decode($m[2], true);
             if ($payload === false) {
                 abort(422, 'Could not decode annotated image.');
             }
@@ -428,10 +432,11 @@ class AssessmentSubmissionController extends Controller
                 Storage::disk('local')->delete($imagePath);
             }
             $imagePath = sprintf(
-                'assessment-annotations/%d/%d-%s.png',
+                'assessment-annotations/%d/%d-%s.%s',
                 $file->assessment_submission_id,
                 $file->id,
                 Str::random(8),
+                $ext,
             );
             Storage::disk('local')->put($imagePath, $payload);
         }
@@ -500,11 +505,14 @@ class AssessmentSubmissionController extends Controller
             abort(404);
         }
 
+        $ext = strtolower(pathinfo($file->annotated_image_path, PATHINFO_EXTENSION));
+        $mime = $ext === 'jpg' || $ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+
         return response(
             Storage::disk('local')->get($file->annotated_image_path),
             200,
             [
-                'Content-Type' => 'image/png',
+                'Content-Type' => $mime,
                 'Cache-Control' => 'private, max-age=120',
             ]
         );
@@ -531,7 +539,7 @@ class AssessmentSubmissionController extends Controller
             ->where('is_active', true)
             ->pluck('section_id');
 
-        $courseIds = \App\Models\Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
+        $courseIds = Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
 
         $assessments = Assessment::whereIn('course_id', $courseIds)
             ->where('requires_submission', true)
@@ -733,15 +741,15 @@ class AssessmentSubmissionController extends Controller
         }
 
         foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/' . $assessment->id, 'local');
+            $path = $file->store('assessment_submissions/'.$assessment->id, 'local');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {
                 try {
                     // Sanitize filename and add date prefix
                     $datePrefix = now()->format('Y-m-d');
-                    $safeName   = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
-                    $driveName  = "[{$datePrefix}] {$safeName}";
+                    $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                    $driveName = "[{$datePrefix}] {$safeName}";
 
                     $result = app(GoogleDriveService::class)->uploadFile(
                         $lecturer,
@@ -779,7 +787,9 @@ class AssessmentSubmissionController extends Controller
         if ($myGroup) {
             $myGroup->loadMissing('members');
             foreach ($myGroup->members as $member) {
-                if ((int) $member->user_id === (int) $user->id) continue;
+                if ((int) $member->user_id === (int) $user->id) {
+                    continue;
+                }
                 AssessmentSubmission::create([
                     'tenant_id' => $tenant->id,
                     'assessment_id' => $assessment->id,
@@ -803,7 +813,7 @@ class AssessmentSubmissionController extends Controller
             ? 'Group submission uploaded successfully.'
             : 'Submission uploaded successfully.';
 
-        return back()->with('success', $msg . ($isLate ? ' (Late submission)' : ''));
+        return back()->with('success', $msg.($isLate ? ' (Late submission)' : ''));
     }
 
     public function studentDeleteSubmission(string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
@@ -817,7 +827,7 @@ class AssessmentSubmissionController extends Controller
             ->where('is_active', true)
             ->exists();
 
-        if (!$isEnrolled || $assessment->course_id !== $course->id) {
+        if (! $isEnrolled || $assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -871,7 +881,7 @@ class AssessmentSubmissionController extends Controller
      * Delete a submission's local files and remote Drive folder.
      * Drive failures are swallowed — local cleanup must still proceed.
      */
-    private function purgeSubmissionArtifacts(AssessmentSubmission $submission, ?\App\Models\User $lecturer): void
+    private function purgeSubmissionArtifacts(AssessmentSubmission $submission, ?User $lecturer): void
     {
         $submission->loadMissing('files');
 
@@ -902,7 +912,7 @@ class AssessmentSubmissionController extends Controller
             ->where('is_active', true)
             ->exists();
 
-        if (!$isEnrolled || $assessment->course_id !== $course->id) {
+        if (! $isEnrolled || $assessment->course_id !== $course->id) {
             abort(403);
         }
 
@@ -1013,15 +1023,15 @@ class AssessmentSubmissionController extends Controller
         $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
 
         foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/' . $assessment->id, 'local');
+            $path = $file->store('assessment_submissions/'.$assessment->id, 'local');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {
                 try {
                     // Sanitize filename and add date prefix
                     $datePrefix = now()->format('Y-m-d');
-                    $safeName   = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
-                    $driveName  = "[{$datePrefix}] {$safeName}";
+                    $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                    $driveName = "[{$datePrefix}] {$safeName}";
 
                     $result = app(GoogleDriveService::class)->uploadFile(
                         $lecturer,
@@ -1076,6 +1086,6 @@ class AssessmentSubmissionController extends Controller
                 ]);
         }
 
-        return back()->with('success', 'Submission updated successfully.' . ($isLate ? ' (Late submission)' : ''));
+        return back()->with('success', 'Submission updated successfully.'.($isLate ? ' (Late submission)' : ''));
     }
 }
