@@ -178,6 +178,9 @@ class AssessmentScoreController extends Controller
         $isWeighted = $hasRubric && $criteria->every(
             fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
         );
+        $weightSum = $isWeighted
+            ? (float) $criteria->sum(fn ($c) => (float) ($c->weightage ?? 0))
+            : 0.0;
 
         $processedUserIds = [];
 
@@ -201,11 +204,11 @@ class AssessmentScoreController extends Controller
                 foreach ($criteria as $criterion) {
                     $score = (float) ($perCriterion[$criterion->id] ?? 0);
                     $criteriaMarksInput[(string) $criterion->id] = $score;
-                    if ($isWeighted) {
+                    if ($isWeighted && $weightSum > 0) {
                         $max = (float) $criterion->max_marks;
                         $weight = (float) ($criterion->weightage ?? 0);
                         if ($max > 0 && $weight > 0) {
-                            $rawMarks += ($score / $max) * ($weight / 100) * (float) $assessment->total_marks;
+                            $rawMarks += ($score / $max) * ($weight / $weightSum) * (float) $assessment->total_marks;
                         }
                     } else {
                         $rawMarks += $score;

@@ -163,23 +163,27 @@ class AssessmentSubmissionController extends Controller
         $criteriaMarksInput = null;
         if ($hasRubric) {
             // Treat the rubric as weighted only when EVERY criterion has an explicit
-            // positive weight: each criterion's contribution = (score / max) × (weight/100)
-            // × assessment.total_marks. If any criterion is missing a weight, fall back
-            // to a plain sum so partial-weight rubrics don't silently undercount.
+            // positive weight. Each criterion's contribution =
+            // (score / max) × (weight / Σweights) × assessment.total_marks, so weights
+            // sum to total_marks regardless of whether the lecturer enters them as
+            // percentages-of-100 or as raw mark allocations.
             $isWeighted = $assessment->rubric->criteria->every(
                 fn ($c) => $c->weightage !== null && (float) $c->weightage > 0
             );
+            $weightSum = $isWeighted
+                ? (float) $assessment->rubric->criteria->sum(fn ($c) => (float) ($c->weightage ?? 0))
+                : 0.0;
 
             $rawMarks = 0.0;
             $criteriaMarksInput = [];
             foreach ($assessment->rubric->criteria as $criterion) {
                 $score = (float) ($request->input('criteria_marks.'.$criterion->id) ?? 0);
                 $criteriaMarksInput[(string) $criterion->id] = $score;
-                if ($isWeighted) {
+                if ($isWeighted && $weightSum > 0) {
                     $max = (float) $criterion->max_marks;
                     $weight = (float) ($criterion->weightage ?? 0);
                     if ($max > 0 && $weight > 0) {
-                        $rawMarks += ($score / $max) * ($weight / 100) * (float) $assessment->total_marks;
+                        $rawMarks += ($score / $max) * ($weight / $weightSum) * (float) $assessment->total_marks;
                     }
                 } else {
                     $rawMarks += $score;

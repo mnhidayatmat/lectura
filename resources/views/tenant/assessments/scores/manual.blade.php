@@ -214,12 +214,16 @@
                             const row = this._row(sid);
                             const cfg = this.cfg;
                             if (cfg.isWeighted) {
+                                const weightSum = cfg.criteria.reduce(
+                                    (s, c) => s + ((c.weight && c.weight > 0) ? c.weight : 0), 0
+                                );
+                                if (weightSum <= 0) return 0;
                                 let t = 0;
                                 for (const c of cfg.criteria) {
                                     const raw = row[c.id];
                                     const v = this._isFilled(raw) ? parseFloat(raw) : 0;
                                     if (c.max > 0 && c.weight && c.weight > 0) {
-                                        t += (v / c.max) * (c.weight / 100) * cfg.totalMarks;
+                                        t += (v / c.max) * (c.weight / weightSum) * cfg.totalMarks;
                                     }
                                 }
                                 return Math.min(t, cfg.totalMarks);
