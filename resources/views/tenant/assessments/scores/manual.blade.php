@@ -47,6 +47,20 @@
         </div>
     @endif
 
+    @unless ($driveConnected)
+        <div class="mb-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 text-sm flex items-start gap-3">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <div class="flex-1">
+                <p class="font-semibold">Connect Google Drive to upload answer scripts.</p>
+                <p class="text-xs mt-0.5">Marking scripts are stored only in your own Drive — not on the server. Marks save normally without it.</p>
+            </div>
+            <a href="{{ route('tenant.settings', $tenant->slug) }}"
+               class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition flex-shrink-0">
+                Open Settings
+            </a>
+        </div>
+    @endunless
+
     <form method="POST" action="{{ route('tenant.assessments.scores.store-manual', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data">
         @csrf
 

@@ -106,11 +106,12 @@ class AssessmentScoreController extends Controller
 
         $criteria = $assessment->rubric?->criteria ?? collect();
         $hasRubric = $criteria->isNotEmpty();
+        $driveConnected = (bool) $course->lecturer?->isDriveConnected();
 
         return view('tenant.assessments.scores.manual', compact(
             'tenant', 'course', 'assessment', 'students',
             'existingScores', 'existingCriteriaMarks', 'existingAnswerScripts',
-            'criteria', 'hasRubric'
+            'criteria', 'hasRubric', 'driveConnected'
         ));
     }
 
@@ -170,10 +171,21 @@ class AssessmentScoreController extends Controller
                 return;
             }
 
+            // Drive-only storage: never persist marking scripts to the server
+            // disk. If the lecturer hasn't linked Drive, surface a clear error
+            // and skip the script (marks still save).
+            if (! $driveConnected) {
+                $name = $student?->name ?? "Student #{$userId}";
+                $scriptErrors[] = "{$name}: connect Google Drive in Settings before uploading answer scripts.";
+
+                return;
+            }
+
             try {
-                // Tear down any prior file (Drive + local) before saving the new one,
-                // so a replace or remove never leaves orphans behind.
-                if ($score->answer_script_drive_file_id && $driveConnected) {
+                // Tear down the previous Drive file (and any legacy local copy
+                // from before Drive was required) so replace/remove never
+                // leaves orphans behind.
+                if ($score->answer_script_drive_file_id) {
                     $this->driveService->deleteFile($lecturer, $score->answer_script_drive_file_id);
                 }
                 if ($score->answer_script_path) {
@@ -187,28 +199,22 @@ class AssessmentScoreController extends Controller
 
                 if ($hasNew) {
                     $file = $scriptFiles[$userId];
-
-                    if ($driveConnected) {
-                        $folderId = $studentFolderCache[$userId]
-                            ?? $studentFolderCache[$userId] = $this->ensureManualScriptFolder(
-                                $lecturer, $course, $assessment, $student, (int) $userId,
-                            );
-                        $datePrefix = now()->format('Y-m-d');
-                        $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
-                        $driveName = "[Marking] {$datePrefix} {$safeName}";
-                        $result = $this->driveService->uploadFile(
-                            $lecturer,
-                            $file->getRealPath(),
-                            $driveName,
-                            $file->getClientMimeType() ?: 'application/pdf',
-                            $folderId,
+                    $folderId = $studentFolderCache[$userId]
+                        ?? $studentFolderCache[$userId] = $this->ensureManualScriptFolder(
+                            $lecturer, $course, $assessment, $student, (int) $userId,
                         );
-                        $score->answer_script_drive_file_id = $result['id'];
-                        $score->answer_script_drive_link = $result['web_view_link'];
-                    } else {
-                        $score->answer_script_path = $file->store('assessment-answer-scripts', 'local');
-                    }
-
+                    $datePrefix = now()->format('Y-m-d');
+                    $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                    $driveName = "[Marking] {$datePrefix} {$safeName}";
+                    $result = $this->driveService->uploadFile(
+                        $lecturer,
+                        $file->getRealPath(),
+                        $driveName,
+                        $file->getClientMimeType() ?: 'application/pdf',
+                        $folderId,
+                    );
+                    $score->answer_script_drive_file_id = $result['id'];
+                    $score->answer_script_drive_link = $result['web_view_link'];
                     $score->answer_script_filename = $file->getClientOriginalName();
                 }
 
@@ -360,8 +366,6 @@ class AssessmentScoreController extends Controller
             $redirect->with('warning', 'Some answer scripts could not be saved: '.implode('; ', $scriptErrors));
         } elseif (! empty($skippedScriptUploads)) {
             $redirect->with('warning', 'Enter a mark before uploading a script for: '.implode(', ', $skippedScriptUploads).'.');
-        } elseif (! $driveConnected && ($scriptFiles || $removeScripts)) {
-            $redirect->with('warning', 'Google Drive is not connected, so answer scripts were saved to local storage. Connect Drive in Settings to keep marking scripts in your own Drive.');
         }
 
         return $redirect;
