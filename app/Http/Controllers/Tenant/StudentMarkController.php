@@ -7,12 +7,12 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\AssessmentScore;
 use App\Models\Assignment;
+use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\StudentMark;
+use App\Models\Submission;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentMarkController extends Controller
 {
@@ -26,7 +26,7 @@ class StudentMarkController extends Controller
             ->where('is_active', true)
             ->pluck('section_id');
 
-        $courseIds = \App\Models\Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
+        $courseIds = Section::whereIn('id', $sectionIds)->pluck('course_id')->unique();
 
         // Get all assignments for those courses that are published or later
         $assignments = Assignment::whereIn('course_id', $courseIds)
@@ -42,7 +42,7 @@ class StudentMarkController extends Controller
             ->get()
             ->keyBy('assignment_id');
 
-        $submissions = \App\Models\Submission::where('user_id', $user->id)
+        $submissions = Submission::where('user_id', $user->id)
             ->whereIn('assignment_id', $assignments->pluck('id'))
             ->with('feedback')
             ->get()
@@ -82,9 +82,13 @@ class StudentMarkController extends Controller
         return view('tenant.marks.show', compact('tenant', 'mark'));
     }
 
-    public function viewAnswerScript(string $tenantSlug, AssessmentScore $score): BinaryFileResponse
+    public function viewAnswerScript(string $tenantSlug, AssessmentScore $score)
     {
         $this->authorizeReleasedScript($score);
+
+        if ($score->answer_script_drive_link) {
+            return redirect()->away($score->answer_script_drive_link);
+        }
 
         $absolutePath = Storage::disk('local')->path($score->answer_script_path);
         if (! file_exists($absolutePath)) {
@@ -94,9 +98,13 @@ class StudentMarkController extends Controller
         return response()->file($absolutePath);
     }
 
-    public function downloadAnswerScript(string $tenantSlug, AssessmentScore $score): StreamedResponse
+    public function downloadAnswerScript(string $tenantSlug, AssessmentScore $score)
     {
         $this->authorizeReleasedScript($score);
+
+        if ($score->answer_script_drive_link) {
+            return redirect()->away($score->answer_script_drive_link);
+        }
 
         return Storage::disk('local')->download(
             $score->answer_script_path,
@@ -109,7 +117,8 @@ class StudentMarkController extends Controller
         $tenant = app('current_tenant');
         $user = auth()->user();
 
-        if ($score->user_id !== $user->id || ! $score->is_released || ! $score->answer_script_path) {
+        $hasScript = $score->answer_script_drive_link || $score->answer_script_path;
+        if ($score->user_id !== $user->id || ! $score->is_released || ! $hasScript) {
             abort(404);
         }
 
@@ -118,7 +127,7 @@ class StudentMarkController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($score->answer_script_path)) {
+        if (! $score->answer_script_drive_link && ! Storage::disk('local')->exists($score->answer_script_path)) {
             abort(404);
         }
     }

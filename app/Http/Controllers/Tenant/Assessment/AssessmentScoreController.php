@@ -12,12 +12,12 @@ use App\Models\Course;
 use App\Models\SectionStudent;
 use App\Models\User;
 use App\Services\Assessment\AssessmentScoreService;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentScoreController extends Controller
 {
@@ -25,6 +25,7 @@ class AssessmentScoreController extends Controller
 
     public function __construct(
         protected AssessmentScoreService $scoreService,
+        protected GoogleDriveService $driveService,
     ) {}
 
     public function index(string $tenantSlug, Course $course, Assessment $assessment): View
@@ -98,7 +99,7 @@ class AssessmentScoreController extends Controller
         $scores = $assessment->scores()->get()->keyBy('user_id');
         $existingScores = $scores->map(fn ($s) => $s->raw_marks);
         $existingCriteriaMarks = $scores->map(fn ($s) => is_array($s->criteria_marks) ? $s->criteria_marks : []);
-        $existingAnswerScripts = $scores->map(fn ($s) => $s->answer_script_path
+        $existingAnswerScripts = $scores->map(fn ($s) => ($s->answer_script_drive_link || $s->answer_script_path)
             ? ['score_id' => $s->id, 'name' => $s->answer_script_filename]
             : null
         )->filter();
@@ -153,22 +154,73 @@ class AssessmentScoreController extends Controller
             ->all();
         $existingScores = $assessment->scores()->get()->keyBy('user_id');
 
-        $applyScriptFile = function (AssessmentScore $score, $userId) use (&$scriptFiles, $removeScripts) {
-            if (isset($scriptFiles[$userId]) && $scriptFiles[$userId]) {
+        $lecturer = $course->lecturer;
+        $driveConnected = $lecturer && $lecturer->isDriveConnected();
+        $studentFolderCache = [];
+        $scriptErrors = [];
+
+        $applyScriptFile = function (AssessmentScore $score, $userId, ?User $student) use (
+            &$scriptFiles, $removeScripts, $course, $assessment, $lecturer, $driveConnected,
+            &$studentFolderCache, &$scriptErrors
+        ) {
+            $hasNew = isset($scriptFiles[$userId]) && $scriptFiles[$userId];
+            $isRemoval = in_array((string) $userId, $removeScripts, true);
+
+            if (! $hasNew && ! $isRemoval) {
+                return;
+            }
+
+            try {
+                // Tear down any prior file (Drive + local) before saving the new one,
+                // so a replace or remove never leaves orphans behind.
+                if ($score->answer_script_drive_file_id && $driveConnected) {
+                    $this->driveService->deleteFile($lecturer, $score->answer_script_drive_file_id);
+                }
                 if ($score->answer_script_path) {
                     Storage::disk('local')->delete($score->answer_script_path);
                 }
-                $file = $scriptFiles[$userId];
-                $score->answer_script_path = $file->store('assessment-answer-scripts', 'local');
-                $score->answer_script_filename = $file->getClientOriginalName();
-                $score->save();
-            } elseif (in_array((string) $userId, $removeScripts, true)) {
-                if ($score->answer_script_path) {
-                    Storage::disk('local')->delete($score->answer_script_path);
-                }
+
+                $score->answer_script_drive_file_id = null;
+                $score->answer_script_drive_link = null;
                 $score->answer_script_path = null;
                 $score->answer_script_filename = null;
+
+                if ($hasNew) {
+                    $file = $scriptFiles[$userId];
+
+                    if ($driveConnected) {
+                        $folderId = $studentFolderCache[$userId]
+                            ?? $studentFolderCache[$userId] = $this->ensureManualScriptFolder(
+                                $lecturer, $course, $assessment, $student, (int) $userId,
+                            );
+                        $datePrefix = now()->format('Y-m-d');
+                        $safeName = preg_replace('/[^a-zA-Z0-9._\- ]/', '_', $file->getClientOriginalName());
+                        $driveName = "[Marking] {$datePrefix} {$safeName}";
+                        $result = $this->driveService->uploadFile(
+                            $lecturer,
+                            $file->getRealPath(),
+                            $driveName,
+                            $file->getClientMimeType() ?: 'application/pdf',
+                            $folderId,
+                        );
+                        $score->answer_script_drive_file_id = $result['id'];
+                        $score->answer_script_drive_link = $result['web_view_link'];
+                    } else {
+                        $score->answer_script_path = $file->store('assessment-answer-scripts', 'local');
+                    }
+
+                    $score->answer_script_filename = $file->getClientOriginalName();
+                }
+
                 $score->save();
+            } catch (\Throwable $e) {
+                Log::warning('Manual answer script upload failed', [
+                    'assessment_id' => $assessment->id,
+                    'user_id' => $userId,
+                    'error' => $e->getMessage(),
+                ]);
+                $name = $student?->name ?? "Student #{$userId}";
+                $scriptErrors[] = "{$name}: {$e->getMessage()}";
             }
         };
 
@@ -183,6 +235,17 @@ class AssessmentScoreController extends Controller
             : 0.0;
 
         $processedUserIds = [];
+
+        // Look up students once so we can hand them to the script handler for
+        // Drive folder naming and error messages.
+        $studentIds = collect(array_keys($scriptFiles))
+            ->merge($removeScripts)
+            ->merge(array_keys($request->input('criteria_marks', []) ?: []))
+            ->merge(array_keys($request->input('marks', []) ?: []))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+        $students = User::whereIn('id', $studentIds)->get()->keyBy('id');
 
         if ($hasRubric) {
             $payload = $request->input('criteria_marks', []);
@@ -234,7 +297,7 @@ class AssessmentScoreController extends Controller
                         'finalized_at' => now(),
                     ]
                 );
-                $applyScriptFile($score, $userId);
+                $applyScriptFile($score, $userId, $students->get((int) $userId));
                 $processedUserIds[] = (int) $userId;
                 $count++;
             }
@@ -263,7 +326,7 @@ class AssessmentScoreController extends Controller
                         'finalized_at' => now(),
                     ]
                 );
-                $applyScriptFile($score, $userId);
+                $applyScriptFile($score, $userId, $students->get((int) $userId));
                 $processedUserIds[] = (int) $userId;
                 $count++;
             }
@@ -277,21 +340,76 @@ class AssessmentScoreController extends Controller
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->diff($processedUserIds);
+        $skippedScriptUploads = [];
         foreach ($fileOnlyUserIds as $userId) {
             if (! $existingScores->has($userId)) {
+                if (isset($scriptFiles[$userId]) && $scriptFiles[$userId]) {
+                    $name = $students->get((int) $userId)?->name ?? "Student #{$userId}";
+                    $skippedScriptUploads[] = $name;
+                }
+
                 continue;
             }
-            $applyScriptFile($existingScores->get($userId), $userId);
+            $applyScriptFile($existingScores->get($userId), $userId, $students->get((int) $userId));
         }
 
-        return redirect()->route('tenant.assessments.scores.index', [$tenant->slug, $course, $assessment])
+        $redirect = redirect()->route('tenant.assessments.scores.index', [$tenant->slug, $course, $assessment])
             ->with('success', "Marks saved for {$count} students.");
+
+        if (! empty($scriptErrors)) {
+            $redirect->with('warning', 'Some answer scripts could not be saved: '.implode('; ', $scriptErrors));
+        } elseif (! empty($skippedScriptUploads)) {
+            $redirect->with('warning', 'Enter a mark before uploading a script for: '.implode(', ', $skippedScriptUploads).'.');
+        } elseif (! $driveConnected && ($scriptFiles || $removeScripts)) {
+            $redirect->with('warning', 'Google Drive is not connected, so answer scripts were saved to local storage. Connect Drive in Settings to keep marking scripts in your own Drive.');
+        }
+
+        return $redirect;
     }
 
-    public function viewAnswerScript(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score): BinaryFileResponse
+    /**
+     * Build (or look up) the per-student folder for a manual-entry marking
+     * script in the lecturer's Drive. Mirrors the hierarchy used by the
+     * per-submission grading flow so both kinds of marking artefacts sit
+     * together: Lectura/{Course}/Submissions/[Type] Title/{Student}/.
+     */
+    private function ensureManualScriptFolder(
+        User $lecturer,
+        Course $course,
+        Assessment $assessment,
+        ?User $student,
+        int $userId,
+    ): string {
+        $courseFolderId = $this->driveService->findOrCreateFolder(
+            $lecturer,
+            "{$course->code} — {$course->title}",
+        );
+        $submissionsFolderId = $this->driveService->findOrCreateFolder(
+            $lecturer, 'Submissions', $courseFolderId,
+        );
+        $typeLabel = ucfirst($assessment->type ?? 'Assessment');
+        $assessmentFolderId = $this->driveService->findOrCreateFolder(
+            $lecturer, "[{$typeLabel}] {$assessment->title}", $submissionsFolderId,
+        );
+        $studentName = $student?->name ?? "Student {$userId}";
+
+        return $this->driveService->findOrCreateFolder(
+            $lecturer, $studentName, $assessmentFolderId,
+        );
+    }
+
+    public function viewAnswerScript(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score)
     {
         $this->authorizeCourseAccess($course);
-        if ($assessment->course_id !== $course->id || $score->assessment_id !== $assessment->id || ! $score->answer_script_path) {
+        if ($assessment->course_id !== $course->id || $score->assessment_id !== $assessment->id) {
+            abort(404);
+        }
+
+        if ($score->answer_script_drive_link) {
+            return redirect()->away($score->answer_script_drive_link);
+        }
+
+        if (! $score->answer_script_path) {
             abort(404);
         }
 
@@ -303,14 +421,18 @@ class AssessmentScoreController extends Controller
         return response()->file($absolutePath);
     }
 
-    public function downloadAnswerScript(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score): StreamedResponse
+    public function downloadAnswerScript(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score)
     {
         $this->authorizeCourseAccess($course);
-        if ($assessment->course_id !== $course->id || $score->assessment_id !== $assessment->id || ! $score->answer_script_path) {
+        if ($assessment->course_id !== $course->id || $score->assessment_id !== $assessment->id) {
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($score->answer_script_path)) {
+        if ($score->answer_script_drive_link) {
+            return redirect()->away($score->answer_script_drive_link);
+        }
+
+        if (! $score->answer_script_path || ! Storage::disk('local')->exists($score->answer_script_path)) {
             abort(404);
         }
 

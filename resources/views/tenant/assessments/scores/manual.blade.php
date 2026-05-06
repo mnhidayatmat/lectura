@@ -36,6 +36,17 @@
         </div>
     @endif
 
+    @if ($errors->any())
+        <div class="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 text-sm">
+            <p class="font-semibold mb-1">Some entries couldn't be saved:</p>
+            <ul class="list-disc list-inside space-y-0.5 text-xs">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('tenant.assessments.scores.store-manual', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data">
         @csrf
 

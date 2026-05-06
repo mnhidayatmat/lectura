@@ -1,3 +1,13 @@
+# Apache mod_php upload limits — manual score entry submits the
+# entire class's marks plus answer-script PDFs in one request.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 64M
+    php_value post_max_size 128M
+    php_value memory_limit 256M
+    php_value max_file_uploads 200
+    php_value max_input_vars 5000
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
