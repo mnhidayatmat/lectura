@@ -106,7 +106,7 @@ class AssessmentScoreController extends Controller
 
         $criteria = $assessment->rubric?->criteria ?? collect();
         $hasRubric = $criteria->isNotEmpty();
-        $driveConnected = (bool) $course->lecturer?->isDriveConnected();
+        $driveConnected = (bool) auth()->user()?->isDriveConnected();
 
         return view('tenant.assessments.scores.manual', compact(
             'tenant', 'course', 'assessment', 'students',
@@ -155,7 +155,10 @@ class AssessmentScoreController extends Controller
             ->all();
         $existingScores = $assessment->scores()->get()->keyBy('user_id');
 
-        $lecturer = $course->lecturer;
+        // Use the authenticated marker's Drive — not the course owner's — so
+        // a section-assigned lecturer or admin grading on someone else's
+        // course still routes the script to their own Drive.
+        $lecturer = auth()->user();
         $driveConnected = $lecturer && $lecturer->isDriveConnected();
         $studentFolderCache = [];
         $scriptErrors = [];
@@ -172,11 +175,11 @@ class AssessmentScoreController extends Controller
             }
 
             // Drive-only storage: never persist marking scripts to the server
-            // disk. If the lecturer hasn't linked Drive, surface a clear error
-            // and skip the script (marks still save).
+            // disk. If the marker hasn't linked their own Drive, surface a
+            // clear error and skip the script (marks still save).
             if (! $driveConnected) {
                 $name = $student?->name ?? "Student #{$userId}";
-                $scriptErrors[] = "{$name}: connect Google Drive in Settings before uploading answer scripts.";
+                $scriptErrors[] = "{$name}: connect your Google Drive in Settings before uploading answer scripts.";
 
                 return;
             }
