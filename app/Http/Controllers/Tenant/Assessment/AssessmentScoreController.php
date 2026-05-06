@@ -160,6 +160,19 @@ class AssessmentScoreController extends Controller
         // course still routes the script to their own Drive.
         $lecturer = auth()->user();
         $driveConnected = $lecturer && $lecturer->isDriveConnected();
+
+        Log::info('storeManual: entered', [
+            'assessment_id' => $assessment->id,
+            'lecturer_id' => $lecturer?->id,
+            'lecturer_email' => $lecturer?->email,
+            'drive_connected' => $driveConnected,
+            'script_file_count' => is_array($scriptFiles) ? count($scriptFiles) : 0,
+            'script_file_keys' => is_array($scriptFiles) ? array_keys($scriptFiles) : [],
+            'remove_keys' => $removeScripts,
+            'has_marks' => ! empty($request->input('marks', [])),
+            'has_criteria_marks' => ! empty($request->input('criteria_marks', [])),
+            'content_length' => $request->header('content-length'),
+        ]);
         $studentFolderCache = [];
         $scriptErrors = [];
 
