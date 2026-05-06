@@ -305,10 +305,10 @@ class AssessmentSubmissionController extends Controller
     }
 
     /**
-     * Upload (or remove) the lecturer's marking answer script for this
-     * submission to the course owner's Google Drive, mirroring the same
-     * folder hierarchy student submissions use, and apply the resulting
-     * Drive metadata to every group-mirrored AssessmentScore.
+     * Upload (or remove) the marker's answer script for this submission to
+     * the marker's own Google Drive, mirroring the folder hierarchy student
+     * submissions use, and apply the resulting Drive metadata to every
+     * group-mirrored AssessmentScore.
      *
      * Called from storeMark; throws on Drive failure so the caller can
      * surface a flash warning while still keeping the grade save.
@@ -326,19 +326,24 @@ class AssessmentSubmissionController extends Controller
             return;
         }
 
-        $lecturer = $course->lecturer;
+        // Use the authenticated marker's Drive — not the course owner's — so
+        // a section-assigned lecturer or admin grading on someone else's
+        // course still routes the script to their own Drive.
+        $lecturer = auth()->user();
         if (! $lecturer) {
-            throw new \RuntimeException('This course has no lecturer assigned.');
+            throw new \RuntimeException('You must be signed in to upload an answer script.');
         }
         if (! $lecturer->isDriveConnected()) {
-            throw new \RuntimeException('The course lecturer has not connected Google Drive.');
+            throw new \RuntimeException('Connect your Google Drive in Settings before uploading answer scripts.');
         }
 
         $driveService = app(GoogleDriveService::class);
 
-        // Tear down any previously-uploaded script — for the lecturer's own
-        // submission and for every mirrored group-member score that points
-        // at the same file. Drive deletes are idempotent in our wrapper.
+        // Tear down any previously-uploaded script — for this submission and
+        // for every mirrored group-member score that points at the same file.
+        // Drive deletes are idempotent in our wrapper, and the previous file
+        // may have been uploaded by a different marker / to a different Drive
+        // — those deletes will simply no-op rather than fail loudly.
         $existingScores = AssessmentScore::where('assessment_id', $assessment->id)
             ->whereIn('user_id', $targetSubmissions->pluck('user_id'))
             ->get();
@@ -362,10 +367,13 @@ class AssessmentSubmissionController extends Controller
             return;
         }
 
-        // Reuse the per-student folder student submissions already use, so
-        // the lecturer's marking script sits next to the student's work.
-        $studentFolderId = $submission->drive_folder_id
-            ?: $this->ensureStudentSubmissionFolder($driveService, $lecturer, $course, $assessment, $submission);
+        // Build the folder hierarchy fresh in the marker's Drive. We can't
+        // reuse $submission->drive_folder_id because it was set by the
+        // student-submission flow against the course owner's Drive — that
+        // ID won't resolve in a different marker's Drive.
+        $studentFolderId = $this->buildMarkerFolderHierarchy(
+            $driveService, $lecturer, $course, $assessment, $submission,
+        );
 
         $file = $request->file('answer_script');
         $datePrefix = now()->format('Y-m-d');
@@ -389,7 +397,14 @@ class AssessmentSubmissionController extends Controller
             ]);
     }
 
-    private function ensureStudentSubmissionFolder(
+    /**
+     * Build (idempotently) the per-student folder for a marking script in
+     * the marker's own Drive. Does NOT persist back to
+     * $submission->drive_folder_id — that column tracks the student
+     * submission's folder in the course owner's Drive, and we must not
+     * overwrite it with a folder ID from a different Drive.
+     */
+    private function buildMarkerFolderHierarchy(
         GoogleDriveService $driveService,
         User $lecturer,
         Course $course,
@@ -408,15 +423,10 @@ class AssessmentSubmissionController extends Controller
             $lecturer, "[{$typeLabel}] {$assessment->title}", $submissionsFolderId,
         );
         $studentName = $submission->user->name ?? "Student {$submission->user_id}";
-        $studentFolderId = $driveService->findOrCreateFolder(
+
+        return $driveService->findOrCreateFolder(
             $lecturer, $studentName, $assessmentFolderId,
         );
-
-        if (! $submission->drive_folder_id) {
-            $submission->update(['drive_folder_id' => $studentFolderId]);
-        }
-
-        return $studentFolderId;
     }
 
     public function release(Request $request, string $tenantSlug, Course $course, Assessment $assessment): RedirectResponse
