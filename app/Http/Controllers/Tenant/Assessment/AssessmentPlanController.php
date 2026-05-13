@@ -163,6 +163,7 @@ class AssessmentPlanController extends Controller
         $tenant = app('current_tenant');
 
         // Validate parent if provided
+        $parent = null;
         if ($request->filled('parent_id')) {
             $parent = Assessment::find($request->parent_id);
             if (!$parent || $parent->course_id !== $course->id) {
@@ -172,6 +173,10 @@ class AssessmentPlanController extends Controller
 
         $requiresSubmission = $request->boolean('requires_submission');
         $requiresGroupSubmission = $requiresSubmission && $request->boolean('requires_group_submission');
+
+        // Children inherit the parent's status so they're immediately visible to
+        // students when the parent is already active/completed.
+        $initialStatus = $parent ? $parent->status : 'draft';
 
         $assessment = Assessment::create([
             'tenant_id'    => $tenant->id,
@@ -188,7 +193,7 @@ class AssessmentPlanController extends Controller
             'requires_submission' => $requiresSubmission,
             'due_date'     => $request->due_date,
             'sort_order'   => $course->assessments()->count(),
-            'status'       => 'draft',
+            'status'       => $initialStatus,
         ]);
 
         if ($request->hasFile('instruction_file')) {
