@@ -135,7 +135,7 @@
                                                 <input type="number"
                                                        name="criteria_marks[{{ $student->id }}][{{ $criterion->id }}]"
                                                        x-model="$store.manualEntry.values['{{ $student->id }}']['{{ $criterion->id }}']"
-                                                       min="0" max="{{ $criterion->max_marks }}" step="0.5"
+                                                       min="0" max="{{ $criterion->max_marks }}" step="0.01"
                                                        placeholder="—"
                                                        class="w-20 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-center focus:ring-2 focus:ring-indigo-500">
                                             </td>
@@ -239,7 +239,7 @@
                                            inputmode="decimal"
                                            name="criteria_marks[{{ $student->id }}][{{ $criterion->id }}]"
                                            x-model="$store.manualEntry.values['{{ $student->id }}']['{{ $criterion->id }}']"
-                                           min="0" max="{{ $criterion->max_marks }}" step="0.5"
+                                           min="0" max="{{ $criterion->max_marks }}" step="0.01"
                                            placeholder="—"
                                            class="w-20 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-semibold text-center focus:ring-2 focus:ring-indigo-500 flex-shrink-0">
                                 </div>
@@ -272,7 +272,7 @@
                                     <td class="px-5 py-2.5 text-xs text-slate-400">{{ $i + 1 }}</td>
                                     <td class="px-5 py-2.5 font-medium text-slate-900 dark:text-white text-xs">{{ $student->name }}</td>
                                     <td class="px-5 py-2.5 text-center">
-                                        <input type="number" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.5" placeholder="—" class="w-24 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-center focus:ring-2 focus:ring-indigo-500">
+                                        <input type="number" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.01" placeholder="—" class="w-24 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-center focus:ring-2 focus:ring-indigo-500">
                                     </td>
                                     @include('tenant.assessments.scores.partials.answer-script-cell')
                                 </tr>
@@ -301,7 +301,7 @@
                             <label class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex-1">
                                 Marks <span class="text-slate-400">/ {{ number_format((float) $assessment->total_marks, 0) }}</span>
                             </label>
-                            <input type="number" inputmode="decimal" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.5" placeholder="—" class="w-24 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-semibold text-center focus:ring-2 focus:ring-indigo-500 flex-shrink-0">
+                            <input type="number" inputmode="decimal" name="marks[{{ $student->id }}]" value="{{ $existingScores[$student->id] ?? '' }}" min="0" max="{{ $assessment->total_marks }}" step="0.01" placeholder="—" class="w-24 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-semibold text-center focus:ring-2 focus:ring-indigo-500 flex-shrink-0">
                         </div>
                         <div class="px-4 py-3 border-t border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/40">
                             <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Answer Script <span class="font-normal normal-case text-slate-400">· PDF / Image</span></p>
