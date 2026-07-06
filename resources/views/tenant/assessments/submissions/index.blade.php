@@ -285,10 +285,25 @@
                                 {{-- Files --}}
                                 <td class="px-4 py-3 text-center">
                                     @if($sub && $sub->files->count() > 0)
-                                        <span class="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
-                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                                            {{ $sub->files->count() }}
-                                        </span>
+                                        <div x-data="{ open: false }" class="relative inline-block text-left">
+                                            <button type="button" @click="open = !open" @click.outside="open = false"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                                                    title="Download files">
+                                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                                {{ $sub->files->count() }}
+                                                <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            </button>
+                                            <div x-show="open" x-cloak x-transition
+                                                 class="absolute z-20 mt-1 left-1/2 -translate-x-1/2 w-64 max-h-64 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg py-1">
+                                                @foreach($sub->files as $file)
+                                                    <a href="{{ route('tenant.assessments.submissions.download', [$tenant->slug, $course, $assessment, $file]) }}"
+                                                       class="flex items-center gap-2 px-3 py-2 text-left text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                                                        <svg class="w-3.5 h-3.5 flex-shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                        <span class="truncate flex-1">{{ $file->file_name }}</span>
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     @else
                                         <span class="text-slate-300 dark:text-slate-600">—</span>
                                     @endif
