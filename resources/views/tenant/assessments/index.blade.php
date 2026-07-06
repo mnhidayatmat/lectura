@@ -140,11 +140,8 @@
                     @endphp
 
                     <div x-data="{ expanded: true }" class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition overflow-hidden">
-                        <div class="flex items-stretch">
-                            {{-- Status accent --}}
-                            <div class="w-1 flex-shrink-0 {{ $st['bar'] }}"></div>
-
-                            <div class="flex-1 p-4 sm:p-5 min-w-0">
+                        <div>
+                            <div class="p-4 sm:p-5 min-w-0">
                                 <div class="flex items-start gap-3.5">
                                     {{-- Type icon (neutral container, colored glyph) --}}
                                     <div class="mt-0.5 w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center flex-shrink-0">
