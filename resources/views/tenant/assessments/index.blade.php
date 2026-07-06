@@ -129,6 +129,21 @@
                     'completed' => ['label' => 'Completed', 'dot' => 'bg-emerald-500',               'text' => 'text-emerald-600 dark:text-emerald-400', 'bar' => 'bg-emerald-500'],
                     default     => ['label' => 'Draft',     'dot' => 'bg-slate-300 dark:bg-slate-600','text' => 'text-slate-500 dark:text-slate-400', 'bar' => 'bg-slate-200 dark:bg-slate-600'],
                 };
+                // Grading completion: graded students over total enrolled. Returns null
+                // when there are no enrolled students to grade.
+                $gradingStatus = function ($graded, $total) {
+                    if ($total <= 0) {
+                        return null;
+                    }
+                    $graded = min($graded, $total);
+                    return [
+                        'graded'   => $graded,
+                        'total'    => $total,
+                        'pct'      => (int) round($graded / $total * 100),
+                        'complete' => $graded >= $total,
+                        'started'  => $graded > 0,
+                    ];
+                };
             @endphp
 
             <div class="space-y-3">
@@ -158,6 +173,18 @@
                                                     <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $st['text'] }}">
                                                         <span class="w-1.5 h-1.5 rounded-full {{ $st['dot'] }}"></span>{{ $st['label'] }}
                                                     </span>
+                                                    @php $grade = $gradingStatus($assessment->scores_count, $totalStudents); @endphp
+                                                    @if($grade)
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold {{ $grade['complete'] ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : ($grade['started'] ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400') }}"
+                                                              title="{{ $grade['graded'] }} of {{ $grade['total'] }} students graded">
+                                                            @if($grade['complete'])
+                                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                                Graded
+                                                            @else
+                                                                {{ $grade['pct'] }}% graded
+                                                            @endif
+                                                        </span>
+                                                    @endif
                                                 </div>
                                                 @if($assessment->description)
                                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{{ $assessment->description }}</p>
@@ -272,6 +299,18 @@
                                                                         <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $childSt['text'] }}">
                                                                             <span class="w-1.5 h-1.5 rounded-full {{ $childSt['dot'] }}"></span>{{ $childSt['label'] }}
                                                                         </span>
+                                                                        @php $childGrade = $gradingStatus($child->scores_count, $totalStudents); @endphp
+                                                                        @if($childGrade)
+                                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold {{ $childGrade['complete'] ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : ($childGrade['started'] ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400') }}"
+                                                                                  title="{{ $childGrade['graded'] }} of {{ $childGrade['total'] }} students graded">
+                                                                                @if($childGrade['complete'])
+                                                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                                                    Graded
+                                                                                @else
+                                                                                    {{ $childGrade['pct'] }}% graded
+                                                                                @endif
+                                                                            </span>
+                                                                        @endif
                                                                     </div>
                                                                     <div class="text-right flex-shrink-0 leading-none">
                                                                         <div class="text-sm font-bold tabular-nums text-slate-900 dark:text-white">{{ number_format($child->weightage, 0) }}%</div>

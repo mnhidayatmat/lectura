@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Tenant\Assessment;
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\AssessmentScore;
 use App\Models\Course;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
+use App\Models\SectionStudent;
 use App\Models\StudentGroupSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -52,10 +54,24 @@ class AssessmentPlanController extends Controller
         $tenant = app('current_tenant');
         $course->load(['learningOutcomes']);
 
-        // Load only top-level assessments with their children
+        // Load only top-level assessments with their children. scores_count drives
+        // the grading-completion indicator on each card (graded students / total).
         $assessments = $course->assessments()->topLevel()
-            ->with(['children.clos', 'children.submissions', 'clos', 'items.assessable'])
+            ->withCount('scores')
+            ->with([
+                'children' => fn ($q) => $q->withCount('scores'),
+                'children.clos', 'children.submissions',
+                'clos', 'items.assessable',
+            ])
             ->get();
+
+        // Total enrolled students across the sections this lecturer teaches — the
+        // denominator for grading completion (same population the scores page uses).
+        $totalStudents = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+            ->where('is_active', true)
+            ->distinct()
+            ->pluck('user_id')
+            ->count();
 
         // Only top-level assessments contribute to the course total; children are sub-divisions of their parent.
         $totalWeightage = $assessments->sum('weightage');
@@ -65,7 +81,7 @@ class AssessmentPlanController extends Controller
 
         $course->setRelation('assessments', $assessments);
 
-        return view('tenant.assessments.index', compact('tenant', 'course', 'totalWeightage', 'coveredCloIds'));
+        return view('tenant.assessments.index', compact('tenant', 'course', 'totalWeightage', 'coveredCloIds', 'totalStudents'));
     }
 
     public function create(string $tenantSlug, Course $course, Assessment $parent = null): View
