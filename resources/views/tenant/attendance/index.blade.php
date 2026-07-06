@@ -53,6 +53,43 @@
             </div>
         </div>
 
+        {{-- Attendance Reports --}}
+        @if($sections->isNotEmpty())
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100">
+                    <h3 class="font-semibold text-slate-900">Attendance Reports</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Download the full attendance report for a section (all sessions &amp; students)</p>
+                </div>
+                <div class="divide-y divide-slate-100">
+                    @foreach($sections as $section)
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-slate-900">{{ $section->course->code }} — {{ $section->name }}</p>
+                                <p class="text-xs text-slate-500 truncate">{{ $section->course->title }}</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <a href="{{ route('tenant.attendance.report', [app('current_tenant')->slug, $section->course, 'section_id' => $section->id]) }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    View
+                                </a>
+                                <a href="{{ route('tenant.attendance.report.excel', [app('current_tenant')->slug, $section->course, 'section_id' => $section->id]) }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Excel
+                                </a>
+                                <a href="{{ route('tenant.attendance.report.pdf', [app('current_tenant')->slug, $section->course, 'section_id' => $section->id]) }}"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    PDF
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Active Sessions --}}
         @if($activeSessions->isNotEmpty())
             <div class="bg-white rounded-2xl border-2 border-emerald-200 overflow-hidden">
