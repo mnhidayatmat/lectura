@@ -173,7 +173,22 @@
                                                     <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $st['text'] }}">
                                                         <span class="w-1.5 h-1.5 rounded-full {{ $st['dot'] }}"></span>{{ $st['label'] }}
                                                     </span>
-                                                    @php $grade = $gradingStatus($assessment->scores_count, $totalStudents); @endphp
+                                                    @php
+                                                        if ($hasChildren) {
+                                                            // Parent has no scores of its own — grading lives on the children.
+                                                            // Aggregate: complete only when every child is fully graded.
+                                                            $childGrades = $assessment->children->map(fn ($c) => $gradingStatus($c->scores_count, $totalStudents))->filter();
+                                                            $grade = $childGrades->isEmpty() ? null : [
+                                                                'graded'   => $childGrades->sum('graded'),
+                                                                'total'    => $childGrades->sum('total'),
+                                                                'pct'      => (int) round($childGrades->avg('pct')),
+                                                                'complete' => $childGrades->every(fn ($g) => $g['complete']),
+                                                                'started'  => $childGrades->contains(fn ($g) => $g['started']),
+                                                            ];
+                                                        } else {
+                                                            $grade = $gradingStatus($assessment->scores_count, $totalStudents);
+                                                        }
+                                                    @endphp
                                                     @if($grade)
                                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold {{ $grade['complete'] ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : ($grade['started'] ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400') }}"
                                                               title="{{ $grade['graded'] }} of {{ $grade['total'] }} students graded">
