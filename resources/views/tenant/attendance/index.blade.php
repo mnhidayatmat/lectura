@@ -123,9 +123,22 @@
         @endif
 
         {{-- Session History by Course --}}
-        <div>
-            <h3 class="text-lg font-semibold text-slate-900 mb-4">Session History</h3>
+        <div x-data="{ open: window.localStorage.getItem('attendanceHistoryOpen') !== 'false' }"
+             x-init="$watch('open', v => window.localStorage.setItem('attendanceHistoryOpen', v))">
+            <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between gap-3 mb-4 group"
+                    :aria-expanded="open.toString()">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-semibold text-slate-900">Session History</h3>
+                    <span class="text-xs text-slate-400" x-show="!open" x-cloak>(hidden)</span>
+                </div>
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600 transition"
+                      :title="open ? 'Minimise' : 'Maximise'">
+                    <svg class="w-5 h-5 transition-transform duration-200" :class="open ? '' : '-rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </span>
+            </button>
 
+            <div x-show="open" x-collapse>
             @if($pastSessionsByCourse->isEmpty() && $activeSessions->isEmpty())
                 <div class="bg-white rounded-2xl border border-slate-200 p-10 text-center">
                     <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -189,6 +202,7 @@
                     @endforeach
                 </div>
             @endif
+            </div>
         </div>
     </div>
 </x-tenant-layout>
