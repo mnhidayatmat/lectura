@@ -612,11 +612,36 @@ class QuizController extends Controller
     /**
      * Results page.
      */
+    /**
+     * Authorize read-only access to a quiz session's results.
+     *
+     * The creating lecturer always has access. Additionally, tenant admins
+     * and lecturers assigned to the session's course/section may view results,
+     * so a quiz run under one account is not invisible to co-lecturers/admins.
+     * Mutating actions (start, replay, edit, …) remain owner-only.
+     */
+    protected function authorizeSessionView(QuizSession $session): void
+    {
+        if ($session->lecturer_id === auth()->id()) {
+            return;
+        }
+
+        $course = $session->section?->course;
+
+        if ($course) {
+            // Grants access to tenant admins + course/section lecturers,
+            // aborts 403/404 otherwise.
+            $this->authorizeCourseAccess($course);
+
+            return;
+        }
+
+        abort(403);
+    }
+
     public function results(string $tenantSlug, QuizSession $session): View
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeSessionView($session);
 
         $session->load([
             'section.course',
@@ -726,7 +751,7 @@ class QuizController extends Controller
 
             // Verify student is enrolled in the section
             $enrolled = SectionStudent::where('section_id', $session->section_id)
-                ->where('student_id', $user->id)
+                ->where('user_id', $user->id)
                 ->exists();
 
             if (! $enrolled && $session->lecturer_id !== $user->id) {
