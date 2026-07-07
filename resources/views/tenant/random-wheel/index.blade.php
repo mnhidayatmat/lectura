@@ -384,8 +384,19 @@
 
             spin() {
                 if (this.spinning || !this.wheelStudents.length) return;
-                this.spinning = true;
+
+                // Auto-remove happens HERE, at the start of the next spin — not at
+                // the end of the previous one — so the wheel keeps resting on the
+                // last winner (arrow matches the banner) until the user spins again.
+                if (this.autoRemove && this.winner) {
+                    this.wheelStudents = this.wheelStudents.filter(s => s.id !== this.winner.id);
+                    this.currentAngle = 0;
+                    this.drawWheel();
+                }
                 this.winner = null;
+                if (!this.wheelStudents.length) { this.saveState(); return; }
+
+                this.spinning = true;
 
                 const n = this.wheelStudents.length;
                 const arc = (2 * Math.PI) / n;
@@ -420,12 +431,8 @@
                         this.spinning = false;
                         this.winner = this.wheelStudents[winnerIdx];
                         this.history.push({ name: this.winner.name, time: new Date().toLocaleTimeString() });
-
-                        if (this.autoRemove) {
-                            this.wheelStudents = this.wheelStudents.filter((_, i) => i !== winnerIdx);
-                            this.currentAngle = 0;
-                            this.$nextTick(() => this.drawWheel());
-                        }
+                        // Leave the wheel resting on the winner (arrow points at it).
+                        // If auto-remove is on, the winner is dropped at the next spin().
                         this.saveState();
                     }
                 };
