@@ -397,7 +397,7 @@
 
                 // Calculate target: pointer is at top (3π/2), we need the winner segment under it
                 const targetAngle = (2 * Math.PI) - (winnerIdx * arc + arc / 2) + (3 * Math.PI / 2);
-                const spins = 5 + Math.random() * 3; // 5-8 full rotations
+                const spins = 5 + Math.floor(Math.random() * 4); // 5-8 WHOLE rotations (must be integer so the wheel lands on targetAngle)
                 const finalAngle = this.currentAngle + spins * 2 * Math.PI + (targetAngle - (this.currentAngle % (2 * Math.PI)));
 
                 const startAngle = this.currentAngle;
