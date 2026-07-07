@@ -184,6 +184,47 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - **AI Provider settings**: manage provider configs at `/admin/ai-settings`
 - **Activity log**: system-wide audit trail with filters by log name and event at `/admin/activity`
 
+### Assessments & OBE (Outcome-Based Education)
+
+- Separate from Assignments: `Assessment` is the graded-assessment / Course Assessment Plan (CAP) system, controllers in `Tenant\Assessment\`
+- **Hierarchy**: assessments are self-referential via `parent_id` — a parent CAP row can hold child components (`children()` ordered by `sort_order`). `isParent()`/`isChild()`, `topLevel()` scope. Parent grading indicators aggregate child grading status
+- **CLO/PLO mapping**: `CourseLearningOutcome` (CLO) ↔ `ProgrammeLearningOutcome` (PLO) many-to-many via `clo_plo_mappings`; assessments map to CLOs via `assessment_clos`. Edit CLO→PLO mapping at `/courses/{course}/clo-plo`; manage PLOs, `Programme`, `Faculty`, `AcademicTerm` as institution structure
+- **Scoring**: `AssessmentScore` (per-student), `AssessmentItem` (question/rubric line items), `AssessmentCloScore` (per-CLO attainment). `AssessmentScoreService` computes scores; supports manual entry and compute-from-items. Scores are released/unreleased to students (gated visibility)
+- **Submissions**: `AssessmentSubmission` + `AssessmentSubmissionFile`; lecturers mark, annotate (image annotations via `SubmissionAnnotationController`), and `SubmissionReportStampingService` stamps report PDFs
+- Assessment reports/exports at `/courses/{course}/assessment-reports`; student view at `/my-assessments`
+
+### Student Groups & Group Workspace
+
+- `StudentGroupSet` → `StudentGroup` → `StudentGroupMember` — lecturer creates group sets per course, manual or `arrange-random`. Assessments can bind to a `student_group_set_id` for group grading
+- **Workspace** (`/workspace`, `Tenant\Workspace\` controllers): student-facing collaborative group space — chat (`StudentGroupPost`), files/folders (`StudentGroupFile`/`StudentGroupFolder`), meeting minutes (`GroupMinute`), tasks (`GroupTask`), peer voting (`GroupVote`/`GroupVoteRound`), member swap requests (`GroupSwapRequest`), and sleeping-partner reports (`GroupSleepingPartnerReport`)
+
+### Live Session Hub & Whiteboards
+
+- **Live Hub** (`/live`, `StudentSessionController`): students join active-learning sessions by code, respond to polls/questions live, and review afterward. Complements the quiz `QuizSession` real-time flow
+- **Whiteboards** (`/whiteboards`, `WhiteboardController`): per-course collaborative whiteboard; scene persisted as JSON in `Whiteboard.scene_data`, saved via PUT `.../scene`
+
+### Performance & Portfolio
+
+- **Performance** (`/performance` lecturer, `/my-performance` student): `PerformanceAggregatorService` rolls up marks/attendance/assessment data into dashboards. AI suggestions (Pro) via `GeneratePerformanceSuggestions` job + `PerformanceAiService`, producing `PerformanceAiSuggestion` records (Alpine polls `ai-status`). The old `/analytics` routes now redirect here
+- **Portfolio** (`/portfolio`): lecturers store `PortfolioPhoto` evidence per course (compliance/teaching-portfolio documentation)
+
+### Role Switching (multi-role users)
+
+- Distinct from admin impersonation: a user holding multiple roles in one tenant (e.g. lecturer + coordinator) switches active view via `RoleSwitchController` (`/switch-role`). Chosen role stored in `session('tenant_{id}_role')`; verified against active `tenant_users` rows. `super_admin` may switch to any role
+
+### MCP Server (Lectura as an MCP endpoint)
+
+- The app **exposes** its own MCP server at `POST /mcp` (`McpController` → `App\Services\Mcp\McpServer`), giving MCP clients file/database/Artisan access to the project. Protocol version `2024-11-05`, Bearer-token auth, no CSRF
+- Full OAuth 2.0 flow for MCP clients via `McpOAuthController`: RFC 9728/8414 discovery at `/.well-known/oauth-*`, plus `/authorize`, `/oauth/token`, `/oauth/register` (dynamic client registration)
+
+### Console Commands
+
+- `php artisan quizzes:award-full-marks {course} [--quiz=*] [--dry-run] [--force]` — awards full marks to enrolled students for a course's quizzes. Note: CLI has no bound tenant, so it uses `withoutGlobalScopes()` to bypass `BelongsToTenant` — replicate this pattern in any new command touching tenant-scoped models
+
+### Exports
+
+- Excel exports via `maatwebsite/excel` in `app/Exports/` (e.g. `CourseAttendanceExport` with summary + detail sheets). Notifications in `app/Notifications/` cover assessment/assignment/attendance/feedback events
+
 ## Conventions
 
 ### Code Style
