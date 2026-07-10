@@ -34,6 +34,11 @@ class GradedItem
         public readonly ?string $grade,
         public readonly array $cloIds,
         public readonly bool $isReleased,
+        /**
+         * Share of the final grade, as a percentage. Null for Assignments,
+         * which carry no weightage — such courses fall back to a plain mean.
+         */
+        public readonly ?float $weightage = null,
         public readonly ?Feedback $feedbackDetail = null,
         public readonly ?string $feedbackText = null,
     ) {}
@@ -84,6 +89,7 @@ class GradedItem
                 ? $assessment->clos->pluck('id')->map(fn ($id) => (int) $id)->all()
                 : [],
             isReleased: (bool) $score->is_released,
+            weightage: $assessment->weightage === null ? null : (float) $assessment->weightage,
             feedbackText: $score->is_released ? $score->feedback : null,
         );
     }

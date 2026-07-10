@@ -62,6 +62,40 @@ class PerformanceAggregatorService
     }
 
     /**
+     * Average percentage across graded items, weighted by each item's share
+     * of the final grade:
+     *
+     *     Σ(percentage × weightage) / Σ(weightage)
+     *
+     * The divisor is the weightage *graded so far*, not the course's full
+     * 100. Mid-semester that reports a student's standing on the work marked
+     * to date, rather than dragging everyone down by the ungraded remainder.
+     *
+     * Falls back to a plain mean when any item lacks a weightage —
+     * Assignments carry none, so a course graded through that system cannot
+     * be weighted.
+     *
+     * @param  Collection<int, GradedItem>  $items
+     */
+    protected function averagePercentage(Collection $items): ?float
+    {
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        $weights = $items->map(fn (GradedItem $i) => $i->weightage);
+
+        if ($weights->contains(null) || (float) $weights->sum() <= 0.0) {
+            return round($items->avg('percentage'), 2);
+        }
+
+        $gradedWeightage = (float) $weights->sum();
+        $weighted = $items->sum(fn (GradedItem $i) => $i->percentage * $i->weightage);
+
+        return round($weighted / $gradedWeightage, 2);
+    }
+
+    /**
      * Get full course performance data for lecturer dashboard.
      */
     public function getCoursePerformance(Course $course, ?Section $section = null, ?Collection $allowedSections = null): array
@@ -133,8 +167,9 @@ class PerformanceAggregatorService
             'date' => $qs->started_at,
         ])->values();
 
-        // Course-level summaries
-        $avgMark = $marks->count() > 0 ? round($marks->avg('percentage'), 1) : null;
+        // Course-level summaries. Weighted across every graded row: with a
+        // uniform roster this equals the mean of the students' final grades.
+        $avgMark = $this->averagePercentage($marks);
         $avgQuiz = $quizSessions->flatMap->participants->count() > 0
             ? round($quizSessions->flatMap->participants->avg('total_score'), 1)
             : null;
@@ -279,7 +314,7 @@ class PerformanceAggregatorService
             'status' => $attendanceRecords->get($s->id)?->status ?? 'absent',
         ]);
 
-        $avgMark = $marks->count() > 0 ? round($marks->avg('percentage'), 1) : null;
+        $avgMark = $this->averagePercentage($marks);
 
         return [
             'course' => $course,
@@ -327,7 +362,7 @@ class PerformanceAggregatorService
             $studentAl = $alByStudent->get($student->id, collect());
             $att = $attendanceByStudent[$student->id] ?? ['attended' => 0, 'total' => 0];
 
-            $avgMark = $studentMarks->count() > 0 ? round($studentMarks->avg('percentage'), 1) : null;
+            $avgMark = $this->averagePercentage($studentMarks);
             $avgQuiz = $studentQuiz->count() > 0 ? round($studentQuiz->avg('total_score'), 1) : null;
             $attendanceRate = $att['total'] > 0 ? round($att['attended'] / $att['total'] * 100, 1) : null;
 

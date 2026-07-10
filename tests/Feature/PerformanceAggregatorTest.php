@@ -6,10 +6,12 @@ namespace Tests\Feature;
 
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
+use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\CourseLearningOutcome;
 use App\Models\Section;
 use App\Models\SectionStudent;
+use App\Models\StudentMark;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Performance\PerformanceAggregatorService;
@@ -295,6 +297,110 @@ class PerformanceAggregatorTest extends TestCase
 
         $student = $this->aggregator->getStudentCoursePerformance($alice, $this->course, releasedOnly: true);
         $this->assertSame(90.0, collect($student['clo_attainment'])->firstWhere('code', 'CLO1')['avg']);
+    }
+
+    /**
+     * Real numbers from BTG2663 / Muhammad Daniel Haziq. A plain mean of his
+     * seven percentages gives 52.07; his actual weighted grade is 49.05,
+     * because his worst mark (Assignment 3, 9%) carries a 20% weightage.
+     */
+    public function test_avg_mark_is_weighted_by_assessment_weightage(): void
+    {
+        $student = $this->enrol('Daniel');
+
+        $components = [
+            ['Assignment 1', 10, 69.0],
+            ['Assignment 2', 10, 65.0],
+            ['Case Study 1', 10, 62.5],
+            ['Assignment 3', 20, 9.0],
+            ['Case Study 2', 20, 75.0],
+            ['Test 1', 15, 60.0],
+            ['Test 2', 15, 24.0],
+        ];
+
+        foreach ($components as [$title, $weight, $pct]) {
+            $a = $this->assessment($title, total: 100, weightage: (float) $weight);
+            $this->score($a, $student, $pct); // total 100 -> raw == percentage
+        }
+
+        $data = $this->aggregator->getStudentCoursePerformance($student, $this->course);
+        $this->assertSame(49.05, $data['avg_mark']);
+
+        // The old plain mean, which must no longer be what we report.
+        $this->assertNotSame(52.07, $data['avg_mark']);
+
+        $course = $this->aggregator->getCoursePerformance($this->course);
+        $this->assertSame(49.05, $course['avg_mark']);
+        $this->assertSame(49.05, $course['students'][0]['avg_mark']);
+    }
+
+    /**
+     * Mid-semester the divisor is the weightage graded so far, not the
+     * course's full 100 — otherwise every student looks like they're failing.
+     */
+    public function test_avg_mark_divides_by_graded_weightage_not_full_course(): void
+    {
+        $student = $this->enrol('Alice');
+
+        // Only 30% of the course is graded so far.
+        $this->score($this->assessment('Quiz', total: 100, weightage: 10), $student, 60.0);
+        $this->score($this->assessment('Test', total: 100, weightage: 20), $student, 90.0);
+
+        $data = $this->aggregator->getStudentCoursePerformance($student, $this->course);
+
+        // Correct:            (60*10 + 90*20) / 30  = 80.0
+        // Plain mean would be (60 + 90) / 2         = 75.0
+        // Dividing by 100 would give                = 24.0
+        $this->assertSame(80.0, $data['avg_mark']);
+    }
+
+    public function test_unequal_weightage_shifts_the_average(): void
+    {
+        $student = $this->enrol('Alice');
+
+        $this->score($this->assessment('Small', total: 100, weightage: 10), $student, 100.0);
+        $this->score($this->assessment('Large', total: 100, weightage: 90), $student, 50.0);
+
+        $data = $this->aggregator->getStudentCoursePerformance($student, $this->course);
+
+        // Plain mean would be 75. Weighted: (100*10 + 50*90) / 100 = 55.
+        $this->assertSame(55.0, $data['avg_mark']);
+    }
+
+    /**
+     * Assignments carry no weightage, so such a course cannot be weighted and
+     * must fall back to a plain mean rather than silently dropping the marks.
+     */
+    public function test_assignment_marks_without_weightage_fall_back_to_plain_mean(): void
+    {
+        $student = $this->enrol('Alice');
+
+        foreach ([[90.0, 'A1'], [60.0, 'A2']] as [$pct, $title]) {
+            $assignment = Assignment::create([
+                'tenant_id' => $this->tenant->id,
+                'course_id' => $this->course->id,
+                'created_by' => $this->course->lecturer_id,
+                'title' => $title,
+                'type' => 'individual',
+                'total_marks' => 100,
+                'status' => 'published',
+            ]);
+
+            StudentMark::create([
+                'tenant_id' => $this->tenant->id,
+                'assignment_id' => $assignment->id,
+                'user_id' => $student->id,
+                'total_marks' => $pct,
+                'max_marks' => 100,
+                'percentage' => $pct,
+                'grade' => 'B',
+            ]);
+        }
+
+        $data = $this->aggregator->getStudentCoursePerformance($student, $this->course);
+
+        $this->assertCount(2, $data['marks']);
+        $this->assertSame(75.0, $data['avg_mark']);
     }
 
     public function test_course_with_no_grades_reports_null_average(): void
