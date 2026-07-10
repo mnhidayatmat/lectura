@@ -252,16 +252,23 @@
                 @else
                     <div class="p-6 space-y-4">
                         @foreach($data['clo_attainment'] as $clo)
+                            @php $avg = $clo['avg']; @endphp
                             <div>
                                 <div class="flex items-center justify-between mb-1.5">
                                     <div class="flex-1 min-w-0">
                                         <span class="text-sm font-semibold text-slate-700">{{ $clo['code'] }}</span>
                                         <span class="text-xs text-slate-400 ml-1.5 truncate">{{ Str::limit($clo['description'], 50) }}</span>
                                     </div>
-                                    <span class="text-sm font-bold ml-3 {{ $clo['avg'] >= 60 ? 'text-emerald-600' : ($clo['avg'] >= 40 ? 'text-amber-600' : 'text-red-600') }}">{{ round($clo['avg'], 1) }}%</span>
+                                    @if($avg === null)
+                                        <span class="text-xs font-medium ml-3 text-slate-400">{{ __('performance.not_assessed') }}</span>
+                                    @else
+                                        <span class="text-sm font-bold ml-3 {{ $avg >= 60 ? 'text-emerald-600' : ($avg >= 40 ? 'text-amber-600' : 'text-red-600') }}">{{ round($avg, 1) }}%</span>
+                                    @endif
                                 </div>
                                 <div class="w-full bg-slate-100 rounded-full h-3">
-                                    <div class="h-3 rounded-full {{ $clo['avg'] >= 60 ? 'bg-emerald-500' : ($clo['avg'] >= 40 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($clo['avg'], 100) }}%"></div>
+                                    @if($avg !== null)
+                                        <div class="h-3 rounded-full {{ $avg >= 60 ? 'bg-emerald-500' : ($avg >= 40 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($avg, 100) }}%"></div>
+                                    @endif
                                 </div>
                                 <div class="flex justify-between mt-1 text-[10px] text-slate-400">
                                     <span>{{ $clo['count'] }} {{ strtolower(__('performance.assessment_count')) }}</span>

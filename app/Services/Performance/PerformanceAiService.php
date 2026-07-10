@@ -49,7 +49,7 @@ class PerformanceAiService
             ->implode("\n");
 
         $cloAttainment = collect($data['clo_attainment'])
-            ->map(fn ($c) => "{$c['code']}: " . ($c['avg'] !== null ? "{$c['avg']}% (n={$c['count']})" : 'No data'))
+            ->map(fn ($c) => "{$c['code']}: ".($c['avg'] !== null ? "{$c['avg']}% (n={$c['count']})" : 'No data'))
             ->implode("\n");
 
         $assignmentSummary = $data['assignment_stats']
@@ -105,11 +105,11 @@ PROMPT;
     protected function buildStudentPrompt(User $student, Course $course, array $data): string
     {
         $cloSummary = collect($data['clo_attainment'])
-            ->map(fn ($c) => "{$c['code']}: " . ($c['avg'] !== null ? "{$c['avg']}%" : 'No data'))
+            ->map(fn ($c) => "{$c['code']}: ".($c['avg'] !== null ? "{$c['avg']}%" : 'No data'))
             ->implode(', ');
 
         $marksList = $data['marks']
-            ->map(fn ($m) => "{$m->assignment->title}: {$m->percentage}%")
+            ->map(fn (GradedItem $m) => "{$m->title}: {$m->percentage}%")
             ->implode("\n");
 
         $quizList = $data['quiz_participations']

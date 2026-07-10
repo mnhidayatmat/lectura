@@ -95,4 +95,6 @@ return [
     'date' => 'Tarikh',
     'assignment' => 'Tugasan',
     'percentage' => 'Peratusan',
+    'hidden_from_student' => 'Belum dilepaskan',
+    'not_assessed' => 'Belum dinilai',
 ];

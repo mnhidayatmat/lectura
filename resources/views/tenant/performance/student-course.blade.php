@@ -63,16 +63,23 @@
                 </div>
                 <div class="p-6 space-y-4">
                     @foreach($data['clo_attainment'] as $clo)
+                        @php $avg = $clo['avg']; @endphp
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <div class="flex items-center gap-2">
                                     <span class="text-sm font-semibold text-slate-700">{{ $clo['code'] }}</span>
                                     <span class="text-xs text-slate-400 truncate max-w-xs hidden sm:inline">{{ $clo['description'] }}</span>
                                 </div>
-                                <span class="text-sm font-bold {{ $clo['avg'] >= 50 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format($clo['avg'], 1) }}%</span>
+                                @if($avg === null)
+                                    <span class="text-xs font-medium text-slate-400">{{ __('performance.not_assessed') }}</span>
+                                @else
+                                    <span class="text-sm font-bold {{ $avg >= 50 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format($avg, 1) }}%</span>
+                                @endif
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-3">
-                                <div class="h-3 rounded-full transition-all {{ $clo['avg'] >= 70 ? 'bg-emerald-500' : ($clo['avg'] >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($clo['avg'], 100) }}%"></div>
+                                @if($avg !== null)
+                                    <div class="h-3 rounded-full transition-all {{ $avg >= 70 ? 'bg-emerald-500' : ($avg >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($avg, 100) }}%"></div>
+                                @endif
                             </div>
                             <p class="text-[10px] text-slate-400 mt-1">{{ $clo['count'] }} {{ __('performance.assessments') }}</p>
                         </div>
@@ -93,15 +100,9 @@
                 <div class="space-y-2 p-4" x-data="{ expanded: {} }">
                     @foreach($data['marks'] as $mark)
                         @php
-                            $assignment = $mark->assignment;
-                            $feedback = null;
-                            // Try to get feedback from submission if exists
-                            if ($assignment->submissions && $assignment->submissions->count() > 0) {
-                                $submission = $assignment->submissions->first();
-                                if ($submission->feedback && $submission->feedback->is_released) {
-                                    $feedback = $submission->feedback;
-                                }
-                            }
+                            // Assignments carry structured feedback; assessments a
+                            // single free-text field. Both are already release-gated.
+                            $feedback = $mark->feedbackDetail;
                         @endphp
                         <div class="border border-slate-200 rounded-xl hover:border-slate-300 transition overflow-hidden"
                              x-data="{ open: false }">
@@ -113,8 +114,8 @@
                                         <svg class="w-5 h-5 {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <p class="font-semibold text-slate-900">{{ $assignment->title }}</p>
-                                        <p class="text-xs text-slate-400 mt-0.5">{{ ucfirst($assignment->type) }} • Due {{ $assignment->deadline?->format('d M Y') ?? 'N/A' }}</p>
+                                        <p class="font-semibold text-slate-900">{{ $mark->title }}</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">{{ $mark->type ? ucfirst($mark->type) : '—' }} • Due {{ $mark->dueAt?->format('d M Y') ?? 'N/A' }}</p>
                                     </div>
                                 </div>
 
@@ -123,7 +124,7 @@
                                         <p class="font-bold {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}">
                                             {{ number_format($mark->percentage, 0) }}%
                                         </p>
-                                        <p class="text-[10px] text-slate-400">{{ $mark->total_marks }}/{{ $mark->max_marks }}</p>
+                                        <p class="text-[10px] text-slate-400">{{ $mark->obtained }}/{{ $mark->max }}</p>
                                     </div>
                                     <svg class="w-4 h-4 text-slate-400 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                 </div>
@@ -135,7 +136,7 @@
                                 <div class="grid sm:grid-cols-3 gap-3">
                                     <div class="bg-white rounded-lg p-3 border border-slate-200">
                                         <p class="text-xs font-semibold text-slate-500 uppercase">Total Marks</p>
-                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->total_marks }}/{{ $mark->max_marks }}</p>
+                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->obtained }}/{{ $mark->max }}</p>
                                     </div>
                                     <div class="bg-white rounded-lg p-3 border border-slate-200">
                                         <p class="text-xs font-semibold text-slate-500 uppercase">Percentage</p>
@@ -143,11 +144,24 @@
                                     </div>
                                     <div class="bg-white rounded-lg p-3 border border-slate-200">
                                         <p class="text-xs font-semibold text-slate-500 uppercase">Grade</p>
-                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->grade }}</p>
+                                        <p class="text-lg font-bold text-slate-900 mt-1">{{ $mark->grade ?? '—' }}</p>
                                     </div>
                                 </div>
 
-                                {{-- Feedback Section --}}
+                                {{-- Assessment feedback: single free-text field --}}
+                                @if($mark->feedbackText)
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd"/></svg>
+                                            <h4 class="font-semibold text-slate-900 text-sm">Feedback from Lecturer</h4>
+                                        </div>
+                                        <div class="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                                            <p class="text-sm text-emerald-800 whitespace-pre-line">{{ $mark->feedbackText }}</p>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                {{-- Assignment feedback: structured sections --}}
                                 @if($feedback)
                                     <div class="space-y-3">
                                         <div class="flex items-center gap-2">

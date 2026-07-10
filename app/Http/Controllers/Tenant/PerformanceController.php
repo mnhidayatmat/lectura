@@ -88,7 +88,7 @@ class PerformanceController extends Controller
 
     public function studentIndex(): View
     {
-        $data = $this->aggregator->getStudentOverview(auth()->user());
+        $data = $this->aggregator->getStudentOverview(auth()->user(), releasedOnly: true);
 
         return view('tenant.performance.student-index', compact('data'));
     }
@@ -97,7 +97,7 @@ class PerformanceController extends Controller
     {
         $this->authorizeStudent($course);
 
-        $data = $this->aggregator->getStudentCoursePerformance(auth()->user(), $course);
+        $data = $this->aggregator->getStudentCoursePerformance(auth()->user(), $course, releasedOnly: true);
 
         $latestSuggestion = PerformanceAiSuggestion::where('course_id', $course->id)
             ->where('user_id', auth()->id())

@@ -102,4 +102,6 @@ return [
     'date' => 'Date',
     'assignment' => 'Assignment',
     'percentage' => 'Percentage',
+    'hidden_from_student' => 'Not released',
+    'not_assessed' => 'Not assessed',
 ];

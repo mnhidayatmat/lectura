@@ -63,16 +63,23 @@
                 </div>
                 <div class="p-6 space-y-4">
                     @foreach($data['clo_attainment'] as $clo)
+                        @php $avg = $clo['avg']; @endphp
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <div class="flex items-center gap-2">
                                     <span class="text-sm font-semibold text-slate-700">{{ $clo['code'] }}</span>
                                     <span class="text-xs text-slate-400 truncate max-w-xs hidden sm:inline">{{ $clo['description'] }}</span>
                                 </div>
-                                <span class="text-sm font-bold {{ $clo['avg'] >= 50 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format($clo['avg'], 1) }}%</span>
+                                @if($avg === null)
+                                    <span class="text-xs font-medium text-slate-400">{{ __('performance.not_assessed') }}</span>
+                                @else
+                                    <span class="text-sm font-bold {{ $avg >= 50 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format($avg, 1) }}%</span>
+                                @endif
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-3">
-                                <div class="h-3 rounded-full transition-all {{ $clo['avg'] >= 70 ? 'bg-emerald-500' : ($clo['avg'] >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($clo['avg'], 100) }}%"></div>
+                                @if($avg !== null)
+                                    <div class="h-3 rounded-full transition-all {{ $avg >= 70 ? 'bg-emerald-500' : ($avg >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min($avg, 100) }}%"></div>
+                                @endif
                             </div>
                             <p class="text-[10px] text-slate-400 mt-1">{{ $clo['count'] }} {{ __('performance.assessments') }}</p>
                         </div>
@@ -103,16 +110,25 @@
                             <tbody class="divide-y divide-slate-100">
                                 @foreach($data['marks'] as $mark)
                                     <tr>
-                                        <td class="px-6 py-3 font-medium text-slate-900">{{ $mark->assignment->title }}</td>
-                                        <td class="px-6 py-3 text-center text-slate-600">{{ $mark->total_marks }}/{{ $mark->max_marks }}</td>
+                                        <td class="px-6 py-3 font-medium text-slate-900">
+                                            {{ $mark->title }}
+                                            @if(! $mark->isReleased)
+                                                <span class="ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">{{ __('performance.hidden_from_student') }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-3 text-center text-slate-600">{{ $mark->obtained }}/{{ $mark->max }}</td>
                                         <td class="px-6 py-3 text-center font-bold {{ $mark->percentage >= 70 ? 'text-emerald-600' : ($mark->percentage >= 40 ? 'text-amber-600' : 'text-red-600') }}">
                                             {{ number_format($mark->percentage, 1) }}%
                                         </td>
                                         <td class="px-6 py-3 text-center">
-                                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
-                                                {{ $mark->percentage >= 70 ? 'bg-emerald-100 text-emerald-700' : ($mark->percentage >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700') }}">
-                                                {{ $mark->grade }}
-                                            </span>
+                                            @if($mark->grade)
+                                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
+                                                    {{ $mark->percentage >= 70 ? 'bg-emerald-100 text-emerald-700' : ($mark->percentage >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700') }}">
+                                                    {{ $mark->grade }}
+                                                </span>
+                                            @else
+                                                <span class="text-slate-300">—</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

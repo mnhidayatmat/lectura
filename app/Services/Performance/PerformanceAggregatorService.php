@@ -6,6 +6,7 @@ namespace App\Services\Performance;
 
 use App\Models\ActiveLearningResponse;
 use App\Models\ActiveLearningSession;
+use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Course;
@@ -16,9 +17,50 @@ use App\Models\SectionStudent;
 use App\Models\StudentMark;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class PerformanceAggregatorService
 {
+    /**
+     * Load every graded result for a course as a normalised GradedItem
+     * collection, drawn from both gradebooks:
+     *   - StudentMark  (Assignments system)
+     *   - AssessmentScore (OBE Assessments system)
+     *
+     * A course typically uses one or the other, but nothing prevents both.
+     *
+     * @param  Collection<int>  $studentIds
+     * @return Collection<int, GradedItem>
+     */
+    protected function gradedItems(
+        Course $course,
+        Collection $studentIds,
+        int $tenantId,
+        bool $releasedOnly = false,
+    ): Collection {
+        $marks = StudentMark::where('tenant_id', $tenantId)
+            ->whereHas('assignment', fn ($q) => $q->where('course_id', $course->id))
+            ->whereIn('user_id', $studentIds)
+            ->with(['assignment', 'submission.feedback', 'user'])
+            ->get()
+            ->map(fn (StudentMark $m) => GradedItem::fromStudentMark($m));
+
+        $scores = AssessmentScore::where('tenant_id', $tenantId)
+            ->whereIn('user_id', $studentIds)
+            ->whereHas('assessment', fn ($q) => $q
+                ->where('course_id', $course->id)
+                // A parent CAP row aggregates its children; counting both
+                // would double-weight the same work.
+                ->whereDoesntHave('children')
+            )
+            ->when($releasedOnly, fn ($q) => $q->where('is_released', true))
+            ->with(['assessment.clos', 'user'])
+            ->get()
+            ->map(fn (AssessmentScore $s) => GradedItem::fromAssessmentScore($s));
+
+        return $marks->concat($scores)->values();
+    }
+
     /**
      * Get full course performance data for lecturer dashboard.
      */
@@ -40,12 +82,8 @@ class PerformanceAggregatorService
         $students = User::whereIn('id', $studentIds)->get()->keyBy('id');
         $tenantId = app('current_tenant')->id;
 
-        // Marks
-        $marks = StudentMark::where('tenant_id', $tenantId)
-            ->whereHas('assignment', fn ($q) => $q->where('course_id', $course->id))
-            ->whereIn('user_id', $studentIds)
-            ->with(['assignment', 'user'])
-            ->get();
+        // Marks — both gradebooks. Lecturer view: unreleased scores included.
+        $marks = $this->gradedItems($course, $studentIds, $tenantId);
 
         // Attendance
         $attendanceSessions = AttendanceSession::whereIn('section_id', $sectionIds)
@@ -71,15 +109,18 @@ class PerformanceAggregatorService
         // CLO attainment
         $cloAttainment = $this->calculateCloAttainment($course, $marks);
 
-        // Assignment stats
-        $assignmentStats = $marks->groupBy('assignment_id')->map(fn ($group) => [
-            'title' => $group->first()->assignment->title ?? 'Unknown',
-            'avg' => round($group->avg('percentage'), 1),
-            'min' => round($group->min('percentage'), 1),
-            'max' => round($group->max('percentage'), 1),
-            'count' => $group->count(),
-            'clo_ids' => $group->first()->assignment->clo_ids ?? [],
-        ])->values();
+        // Per-assessment stats (assignments and assessments alike)
+        $assignmentStats = $marks
+            ->groupBy(fn (GradedItem $i) => $i->source.':'.$i->sourceId)
+            ->map(fn ($group) => [
+                'title' => $group->first()->title,
+                'source' => $group->first()->source,
+                'avg' => round($group->avg('percentage'), 1),
+                'min' => round($group->min('percentage'), 1),
+                'max' => round($group->max('percentage'), 1),
+                'count' => $group->count(),
+                'clo_ids' => $group->first()->cloIds,
+            ])->values();
 
         // Quiz stats
         $quizStats = $quizSessions->map(fn ($qs) => [
@@ -127,7 +168,7 @@ class PerformanceAggregatorService
     /**
      * Get a single student's performance across all enrolled courses.
      */
-    public function getStudentOverview(User $student): array
+    public function getStudentOverview(User $student, bool $releasedOnly = false): array
     {
         $tenantId = app('current_tenant')->id;
         $sectionIds = SectionStudent::where('user_id', $student->id)
@@ -140,13 +181,13 @@ class PerformanceAggregatorService
         $coursePerformance = [];
         foreach ($courses as $course) {
             try {
-                $coursePerformance[] = $this->getStudentCoursePerformance($student, $course);
+                $coursePerformance[] = $this->getStudentCoursePerformance($student, $course, $releasedOnly);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Performance aggregation failed for course', [
+                Log::warning('Performance aggregation failed for course', [
                     'course_id' => $course->id,
                     'student_id' => $student->id,
                     'error' => $e->getMessage(),
-                    'file' => $e->getFile() . ':' . $e->getLine(),
+                    'file' => $e->getFile().':'.$e->getLine(),
                 ]);
                 $coursePerformance[] = [
                     'course' => $course,
@@ -174,18 +215,15 @@ class PerformanceAggregatorService
     /**
      * Get a student's performance in a specific course.
      */
-    public function getStudentCoursePerformance(User $student, Course $course): array
+    public function getStudentCoursePerformance(User $student, Course $course, bool $releasedOnly = false): array
     {
         $course->load(['sections', 'learningOutcomes']);
         $tenantId = app('current_tenant')->id;
         $sectionIds = $course->sections->pluck('id');
 
-        // Marks
-        $marks = StudentMark::where('tenant_id', $tenantId)
-            ->where('user_id', $student->id)
-            ->whereHas('assignment', fn ($q) => $q->where('course_id', $course->id))
-            ->with('assignment')
-            ->get();
+        // Marks — both gradebooks. When the student is the viewer, unreleased
+        // assessment scores must stay hidden.
+        $marks = $this->gradedItems($course, collect([$student->id]), $tenantId, $releasedOnly);
 
         // Attendance
         $attendanceSessions = AttendanceSession::whereIn('section_id', $sectionIds)
@@ -225,7 +263,7 @@ class PerformanceAggregatorService
         // CLO attainment for this student
         $cloAttainment = [];
         foreach ($course->learningOutcomes as $clo) {
-            $cloMarks = $marks->filter(fn ($m) => in_array($clo->id, $m->assignment->clo_ids ?? []));
+            $cloMarks = $marks->filter(fn (GradedItem $i) => in_array((int) $clo->id, $i->cloIds, true));
             $cloAttainment[] = [
                 'code' => $clo->code,
                 'description' => $clo->description,
@@ -264,7 +302,7 @@ class PerformanceAggregatorService
         Collection $quizSessions,
         Collection $alResponses,
     ): Collection {
-        $marksByStudent = $marks->groupBy('user_id');
+        $marksByStudent = $marks->groupBy(fn (GradedItem $i) => $i->userId);
         $quizByStudent = $quizSessions->flatMap->participants->groupBy('user_id');
         $alByStudent = $alResponses->groupBy('user_id');
 
@@ -337,13 +375,13 @@ class PerformanceAggregatorService
     {
         $cloAttainment = [];
         foreach ($course->learningOutcomes as $clo) {
-            $cloMarks = $marks->filter(fn ($m) => in_array($clo->id, $m->assignment->clo_ids ?? []));
+            $cloMarks = $marks->filter(fn (GradedItem $i) => in_array((int) $clo->id, $i->cloIds, true));
             $cloAttainment[] = [
                 'code' => $clo->code,
                 'description' => $clo->description,
                 'avg' => $cloMarks->count() > 0 ? round($cloMarks->avg('percentage'), 1) : null,
                 'count' => $cloMarks->count(),
-                'student_count' => $cloMarks->pluck('user_id')->unique()->count(),
+                'student_count' => $cloMarks->map(fn (GradedItem $i) => $i->userId)->unique()->count(),
             ];
         }
 
