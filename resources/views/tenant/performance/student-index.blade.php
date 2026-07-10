@@ -44,7 +44,7 @@
                 @foreach($data['courses'] as $courseData)
                     @php
                         $course = $courseData['course'];
-                        $composite = $courseData['composite_score'];
+                        $finalGrade = $courseData['avg_mark'];
                     @endphp
                     <div class="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md hover:border-indigo-200 transition group">
                         <div class="flex items-start justify-between mb-4">
@@ -81,14 +81,14 @@
                             </div>
                         </div>
 
-                        {{-- Composite Score --}}
+                        {{-- Weighted final grade --}}
                         <div class="flex items-center justify-between pt-3 border-t border-slate-100">
                             <div class="flex items-center gap-2">
-                                <div class="w-2.5 h-2.5 rounded-full {{ $composite !== null && $composite >= 70 ? 'bg-emerald-500' : ($composite !== null && $composite >= 50 ? 'bg-amber-500' : ($composite !== null ? 'bg-red-500' : 'bg-slate-300')) }}"></div>
-                                <span class="text-sm font-bold {{ $composite !== null && $composite >= 70 ? 'text-emerald-600' : ($composite !== null && $composite >= 50 ? 'text-amber-600' : ($composite !== null ? 'text-red-600' : 'text-slate-400')) }}">
-                                    {{ $composite !== null ? number_format($composite, 1) . '%' : '--' }}
+                                <div class="w-2.5 h-2.5 rounded-full {{ $finalGrade !== null && $finalGrade >= 70 ? 'bg-emerald-500' : ($finalGrade !== null && $finalGrade >= 50 ? 'bg-amber-500' : ($finalGrade !== null ? 'bg-red-500' : 'bg-slate-300')) }}"></div>
+                                <span class="text-sm font-bold {{ $finalGrade !== null && $finalGrade >= 70 ? 'text-emerald-600' : ($finalGrade !== null && $finalGrade >= 50 ? 'text-amber-600' : ($finalGrade !== null ? 'text-red-600' : 'text-slate-400')) }}">
+                                    {{ $finalGrade !== null ? number_format($finalGrade, 1) . '%' : '--' }}
                                 </span>
-                                <span class="text-xs text-slate-400">{{ __('performance.composite') }}</span>
+                                <span class="text-xs text-slate-400">{{ __('performance.final_grade') }}</span>
                             </div>
                             <a href="{{ route('tenant.my-performance.course', [app('current_tenant')->slug, $course]) }}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition">
                                 {{ __('performance.view_details') }}

@@ -96,19 +96,32 @@
 
         {{-- Student Performance Table --}}
         <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden" x-data="{
-            sortBy: 'composite_score',
+            sortBy: 'avg_mark',
             sortDir: 'desc',
             students: {{ Js::from($data['students']) }},
+            columns: {{ Js::from($data['assessment_columns']) }},
+            /* Column keys are prefixed 'score:' so an assessment column and a
+               plain field like avg_mark can share one sort implementation. */
+            sortValue(student, key) {
+                if (key.startsWith('score:')) {
+                    return student.scores?.[key.slice(6)]?.p ?? null;
+                }
+                return student[key] ?? null;
+            },
             get sortedStudents() {
                 return [...this.students].sort((a, b) => {
-                    let valA, valB;
                     if (this.sortBy === 'name') {
-                        valA = (a.user?.name || '').toLowerCase();
-                        valB = (b.user?.name || '').toLowerCase();
-                        return this.sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        const nameA = (a.user?.name || '').toLowerCase();
+                        const nameB = (b.user?.name || '').toLowerCase();
+                        return this.sortDir === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
                     }
-                    valA = a[this.sortBy] ?? 0;
-                    valB = b[this.sortBy] ?? 0;
+                    /* Ungraded sorts last in both directions, rather than
+                       masquerading as a zero. */
+                    const valA = this.sortValue(a, this.sortBy);
+                    const valB = this.sortValue(b, this.sortBy);
+                    if (valA === null && valB === null) return 0;
+                    if (valA === null) return 1;
+                    if (valB === null) return -1;
                     return this.sortDir === 'asc' ? valA - valB : valB - valA;
                 });
             },
@@ -124,12 +137,36 @@
                 if (this.sortBy !== col) return '';
                 return this.sortDir === 'asc' ? '\u25B2' : '\u25BC';
             },
-            compositeColor(score) {
-                if (score === null || score === undefined) return 'bg-slate-100 text-slate-600';
-                if (score >= 80) return 'bg-emerald-100 text-emerald-700';
-                if (score >= 60) return 'bg-blue-100 text-blue-700';
-                if (score >= 40) return 'bg-amber-100 text-amber-700';
+            pct(v) {
+                return v === null || v === undefined ? '--' : (Math.round(v * 100) / 100) + '%';
+            },
+            markColor(v) {
+                if (v === null || v === undefined) return 'text-slate-300';
+                return v >= 50 ? 'text-slate-900' : 'text-red-600';
+            },
+            finalColor(v) {
+                if (v === null || v === undefined) return 'bg-slate-100 text-slate-500';
+                if (v >= 70) return 'bg-emerald-100 text-emerald-700';
+                if (v >= 50) return 'bg-blue-100 text-blue-700';
                 return 'bg-red-100 text-red-700';
+            },
+            attendanceColor(v) {
+                if (v === null || v === undefined) return 'text-slate-300';
+                if (v >= 80) return 'text-teal-600';
+                if (v >= 60) return 'text-amber-600';
+                return 'text-red-600';
+            },
+            /* Averages skip ungraded students rather than counting them as 0. */
+            mean(values) {
+                const graded = values.filter(v => v !== null && v !== undefined);
+                if (!graded.length) return null;
+                return graded.reduce((a, b) => a + b, 0) / graded.length;
+            },
+            columnAverage(key) {
+                return this.mean(this.students.map(s => s.scores?.[key]?.p ?? null));
+            },
+            fieldAverage(key) {
+                return this.mean(this.students.map(s => s[key] ?? null));
             }
         }">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -143,23 +180,26 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b border-slate-100 bg-slate-50/50">
-                                <th class="text-left px-6 py-3 font-medium text-slate-500 cursor-pointer select-none" @click="toggleSort('name')">
+                                <th class="text-left px-6 py-3 font-medium text-slate-500 cursor-pointer select-none sticky left-0 bg-slate-50/50 z-10" @click="toggleSort('name')">
                                     <span class="inline-flex items-center gap-1">{{ __('performance.student_name') }} <span class="text-xs" x-text="sortIcon('name')"></span></span>
                                 </th>
-                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none" @click="toggleSort('avg_mark')">
-                                    <span class="inline-flex items-center gap-1">{{ __('performance.marks') }} <span class="text-xs" x-text="sortIcon('avg_mark')"></span></span>
-                                </th>
-                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none" @click="toggleSort('avg_quiz')">
-                                    <span class="inline-flex items-center gap-1">{{ __('performance.quiz') }} <span class="text-xs" x-text="sortIcon('avg_quiz')"></span></span>
-                                </th>
-                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none" @click="toggleSort('attendance_rate')">
+
+                                {{-- One column per assessment, in the order the course defines them --}}
+                                <template x-for="col in columns" :key="col.key">
+                                    <th class="text-center px-3 py-3 font-medium text-slate-500 cursor-pointer select-none whitespace-nowrap"
+                                        @click="toggleSort('score:' + col.key)">
+                                        <span class="inline-flex items-center gap-1" x-text="col.title"></span>
+                                        <span class="text-xs" x-text="sortIcon('score:' + col.key)"></span>
+                                        <span class="block text-[10px] font-normal text-slate-400"
+                                              x-text="col.weightage !== null ? col.weightage + '%' : ''"></span>
+                                    </th>
+                                </template>
+
+                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none whitespace-nowrap" @click="toggleSort('attendance_rate')">
                                     <span class="inline-flex items-center gap-1">{{ __('performance.attendance') }} <span class="text-xs" x-text="sortIcon('attendance_rate')"></span></span>
                                 </th>
-                                <th class="text-center px-4 py-3 font-medium text-slate-500">
-                                    {{ __('performance.active_learning') }}
-                                </th>
-                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none" @click="toggleSort('composite_score')">
-                                    <span class="inline-flex items-center gap-1">{{ __('performance.composite') }} <span class="text-xs" x-text="sortIcon('composite_score')"></span></span>
+                                <th class="text-center px-4 py-3 font-medium text-slate-500 cursor-pointer select-none whitespace-nowrap" @click="toggleSort('avg_mark')">
+                                    <span class="inline-flex items-center gap-1">{{ __('performance.final_percent') }} <span class="text-xs" x-text="sortIcon('avg_mark')"></span></span>
                                 </th>
                                 <th class="text-center px-4 py-3 font-medium text-slate-500">{{ __('performance.actions') }}</th>
                             </tr>
@@ -167,34 +207,31 @@
                         <tbody class="divide-y divide-slate-100">
                             <template x-for="student in sortedStudents" :key="student.user?.id">
                                 <tr class="hover:bg-slate-50/50 transition">
-                                    <td class="px-6 py-3">
+                                    <td class="px-6 py-3 sticky left-0 bg-white z-10">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700" x-text="student.user?.name ? student.user.name.charAt(0).toUpperCase() : '?'"></div>
-                                            <div>
-                                                <p class="font-medium text-slate-900" x-text="student.user?.name"></p>
-                                                <p class="text-xs text-slate-400">
-                                                    <span x-text="(student.assessment_count || 0) + ' {{ strtolower(__('performance.assessment_count')) }}'"></span>
-                                                    <span class="mx-1">&middot;</span>
-                                                    <span x-text="(student.quiz_count || 0) + ' {{ strtolower(__('performance.quiz_count')) }}'"></span>
-                                                </p>
-                                            </div>
+                                            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0" x-text="student.user?.name ? student.user.name.charAt(0).toUpperCase() : '?'"></div>
+                                            <p class="font-medium text-slate-900 whitespace-nowrap" x-text="student.user?.name"></p>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span :class="student.avg_mark !== null && student.avg_mark >= 50 ? 'text-emerald-600 font-bold' : (student.avg_mark !== null ? 'text-red-600 font-bold' : 'text-slate-400')" x-text="student.avg_mark !== null ? Math.round(student.avg_mark * 10) / 10 + '%' : '--'"></span>
+
+                                    {{-- Percentage, with the weighted contribution beneath it --}}
+                                    <template x-for="col in columns" :key="col.key">
+                                        <td class="px-3 py-3 text-center whitespace-nowrap">
+                                            <span class="font-semibold" :class="markColor(student.scores?.[col.key]?.p)"
+                                                  x-text="pct(student.scores?.[col.key]?.p)"></span>
+                                            <span class="block text-[10px] text-slate-400"
+                                                  x-text="student.scores?.[col.key]?.w ?? ''"></span>
+                                        </td>
+                                    </template>
+
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                                        <span class="font-semibold" :class="attendanceColor(student.attendance_rate)" x-text="pct(student.attendance_rate)"></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                                        <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold" :class="finalColor(student.avg_mark)" x-text="pct(student.avg_mark)"></span>
                                     </td>
                                     <td class="px-4 py-3 text-center">
-                                        <span :class="student.avg_quiz !== null && student.avg_quiz >= 50 ? 'text-violet-600 font-bold' : (student.avg_quiz !== null ? 'text-red-600 font-bold' : 'text-slate-400')" x-text="student.avg_quiz !== null ? Math.round(student.avg_quiz * 10) / 10 + '%' : '--'"></span>
-                                    </td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span :class="student.attendance_rate !== null && student.attendance_rate >= 80 ? 'text-teal-600 font-bold' : (student.attendance_rate !== null && student.attendance_rate >= 60 ? 'text-amber-600 font-bold' : (student.attendance_rate !== null ? 'text-red-600 font-bold' : 'text-slate-400'))" x-text="student.attendance_rate !== null ? Math.round(student.attendance_rate * 10) / 10 + '%' : '--'"></span>
-                                    </td>
-                                    <td class="px-4 py-3 text-center text-slate-600" x-text="(student.al_responses || 0) + ' {{ __('performance.responses') }}'"></td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold" :class="compositeColor(student.composite_score)" x-text="student.composite_score !== null && student.composite_score !== undefined ? Math.round(student.composite_score * 10) / 10 : '--'"></span>
-                                    </td>
-                                    <td class="px-4 py-3 text-center">
-                                        <a :href="'{{ route('tenant.performance.student', [app('current_tenant')->slug, $course, '__ID__']) }}'.replace('__ID__', student.user?.id)" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium transition">
+                                        <a :href="'{{ route('tenant.performance.student', [app('current_tenant')->slug, $course, '__ID__']) }}'.replace('__ID__', student.user?.id)" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium transition whitespace-nowrap">
                                             {{ __('performance.view_detail') }}
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                         </a>
@@ -202,6 +239,17 @@
                                 </tr>
                             </template>
                         </tbody>
+                        <tfoot>
+                            <tr class="border-t-2 border-slate-200 bg-slate-50/50 font-semibold text-slate-700">
+                                <td class="px-6 py-3 text-right sticky left-0 bg-slate-50/50 z-10">{{ __('performance.average') }}</td>
+                                <template x-for="col in columns" :key="col.key">
+                                    <td class="px-3 py-3 text-center whitespace-nowrap" x-text="pct(columnAverage(col.key))"></td>
+                                </template>
+                                <td class="px-4 py-3 text-center whitespace-nowrap" x-text="pct(fieldAverage('attendance_rate'))"></td>
+                                <td class="px-4 py-3 text-center whitespace-nowrap" x-text="pct(fieldAverage('avg_mark'))"></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             @endif

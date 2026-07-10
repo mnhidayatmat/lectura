@@ -6,6 +6,7 @@ namespace App\Services\Performance;
 
 use App\Models\ActiveLearningResponse;
 use App\Models\ActiveLearningSession;
+use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -96,6 +97,62 @@ class PerformanceAggregatorService
     }
 
     /**
+     * The assessment columns for the student table, in the order the course
+     * defines them. Drawn from the assessments table rather than from the
+     * graded items, so an assessment nobody has been marked on still gets a
+     * column (shown empty) — the printed gradebook lists every component.
+     *
+     * Courses graded through the Assignments system have no Assessment rows;
+     * their columns are derived from the graded items instead.
+     *
+     * @param  Collection<int, GradedItem>  $items
+     * @return Collection<int, array{key: string, title: string, weightage: ?float}>
+     */
+    protected function assessmentColumns(Course $course, Collection $items): Collection
+    {
+        $columns = Assessment::where('course_id', $course->id)
+            ->whereDoesntHave('children')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Assessment $a) => [
+                'key' => 'assessment:'.$a->id,
+                'title' => $a->title,
+                'weightage' => $a->weightage === null ? null : (float) $a->weightage,
+            ]);
+
+        $assignmentColumns = $items
+            ->filter(fn (GradedItem $i) => $i->source === 'assignment')
+            ->unique(fn (GradedItem $i) => $i->sourceId)
+            ->map(fn (GradedItem $i) => [
+                'key' => 'assignment:'.$i->sourceId,
+                'title' => $i->title,
+                'weightage' => null,
+            ]);
+
+        return $columns->concat($assignmentColumns)->values();
+    }
+
+    /**
+     * A student's graded items keyed by column, carrying the percentage and
+     * the weighted contribution to the final grade (the printed gradebook's
+     * "Final %"). Computed from percentage × weightage rather than read from
+     * assessment_scores.weighted_marks, which the two grading paths disagree on.
+     *
+     * @param  Collection<int, GradedItem>  $items
+     */
+    protected function scoresByColumn(Collection $items): array
+    {
+        return $items->mapWithKeys(fn (GradedItem $i) => [
+            $i->source.':'.$i->sourceId => [
+                'p' => round($i->percentage, 2),
+                'w' => $i->weightage === null ? null : round($i->percentage * $i->weightage / 100, 2),
+                'released' => $i->isReleased,
+            ],
+        ])->all();
+    }
+
+    /**
      * Get full course performance data for lecturer dashboard.
      */
     public function getCoursePerformance(Course $course, ?Section $section = null, ?Collection $allowedSections = null): array
@@ -182,7 +239,11 @@ class PerformanceAggregatorService
         }
         $attendanceRate = $totalPossible > 0 ? round($totalAttendance / $totalPossible * 100, 1) : null;
 
-        $atRisk = $studentPerformance->filter(fn ($s) => ($s['composite_score'] ?? 0) < 40)->values();
+        // At risk on the weighted final grade, against the 50% pass mark used
+        // elsewhere. A student with nothing graded yet is unknown, not at risk.
+        $atRisk = $studentPerformance
+            ->filter(fn ($s) => $s['avg_mark'] !== null && $s['avg_mark'] < 50)
+            ->values();
 
         return [
             'total_students' => $students->count(),
@@ -197,6 +258,7 @@ class PerformanceAggregatorService
             'attendance_sessions' => $attendanceSessions,
             'clo_attainment' => $cloAttainment,
             'sections' => $sections,
+            'assessment_columns' => $this->assessmentColumns($course, $marks),
         ];
     }
 
@@ -234,7 +296,6 @@ class PerformanceAggregatorService
                     'quiz_participations' => collect(),
                     'attendance_timeline' => collect(),
                     'clo_attainment' => [],
-                    'composite_score' => null,
                 ];
             }
         }
@@ -326,7 +387,6 @@ class PerformanceAggregatorService
             'quiz_participations' => $quizParticipations,
             'attendance_timeline' => $attendanceTimeline,
             'clo_attainment' => $cloAttainment,
-            'composite_score' => $this->computeComposite($avgMark, $attendanceRate, $avgQuiz),
         ];
     }
 
@@ -374,36 +434,9 @@ class PerformanceAggregatorService
                 'al_responses' => $studentAl->count(),
                 'assessment_count' => $studentMarks->count(),
                 'quiz_count' => $studentQuiz->count(),
-                'composite_score' => $this->computeComposite($avgMark, $attendanceRate, $avgQuiz),
+                'scores' => $this->scoresByColumn($studentMarks),
             ];
-        })->sortByDesc('composite_score')->values();
-    }
-
-    protected function computeComposite(?float $avgMark, ?float $attendanceRate, ?float $avgQuiz): float
-    {
-        $components = [];
-        $weights = [];
-
-        if ($avgMark !== null) {
-            $components[] = $avgMark;
-            $weights[] = 0.5;
-        }
-        if ($attendanceRate !== null) {
-            $components[] = $attendanceRate;
-            $weights[] = 0.2;
-        }
-        if ($avgQuiz !== null) {
-            $components[] = min($avgQuiz, 100);
-            $weights[] = 0.3;
-        }
-
-        if (empty($components)) {
-            return 0;
-        }
-
-        $totalWeight = array_sum($weights);
-
-        return round(collect($components)->zip($weights)->sum(fn ($pair) => $pair[0] * $pair[1]) / $totalWeight, 1);
+        })->sortByDesc('avg_mark')->values();
     }
 
     protected function calculateCloAttainment(Course $course, Collection $marks): array

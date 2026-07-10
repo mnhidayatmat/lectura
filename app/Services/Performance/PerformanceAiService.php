@@ -57,7 +57,7 @@ class PerformanceAiService
             ->implode("\n");
 
         $atRiskList = $data['at_risk_students']
-            ->map(fn ($s) => "{$s['user']->name}: composite={$s['composite_score']}%, marks={$s['avg_mark']}%, attendance={$s['attendance_rate']}%")
+            ->map(fn ($s) => "{$s['user']->name}: final grade={$s['avg_mark']}%, attendance={$s['attendance_rate']}%")
             ->implode("\n");
 
         return <<<PROMPT
@@ -121,11 +121,10 @@ You are an educational advisor analysing an individual student's performance to 
 
 Student: {$student->name}
 Course: {$course->code} — {$course->title}
-Average Mark: {$data['avg_mark']}%
+Weighted Final Grade: {$data['avg_mark']}%
 Average Quiz Score: {$data['avg_quiz']}
 Attendance Rate: {$data['attendance_rate']}%
 Active Learning Responses: {$data['al_responses']}
-Composite Score: {$data['composite_score']}%
 
 CLO Attainment: {$cloSummary}
 

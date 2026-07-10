@@ -403,6 +403,71 @@ class PerformanceAggregatorTest extends TestCase
         $this->assertSame(75.0, $data['avg_mark']);
     }
 
+    public function test_assessment_columns_follow_course_order_and_include_ungraded(): void
+    {
+        $alice = $this->enrol('Alice');
+
+        $second = $this->assessment('Test 1', weightage: 15);
+        $second->update(['sort_order' => 2]);
+        $first = $this->assessment('Assignment 1', weightage: 10);
+        $first->update(['sort_order' => 1]);
+        // Created but nobody marked on it — must still get a column.
+        $third = $this->assessment('Final Exam', weightage: 30);
+        $third->update(['sort_order' => 3]);
+
+        $this->score($first, $alice, 10.0);
+        $this->score($second, $alice, 15.0);
+
+        $data = $this->aggregator->getCoursePerformance($this->course);
+        $columns = $data['assessment_columns'];
+
+        $this->assertSame(
+            ['Assignment 1', 'Test 1', 'Final Exam'],
+            $columns->pluck('title')->all(),
+        );
+        $this->assertSame([10.0, 15.0, 30.0], $columns->pluck('weightage')->all());
+
+        $scores = $data['students'][0]['scores'];
+        $this->assertArrayHasKey('assessment:'.$first->id, $scores);
+        // Ungraded assessment has a column but no score entry.
+        $this->assertArrayNotHasKey('assessment:'.$third->id, $scores);
+    }
+
+    public function test_student_scores_carry_percentage_and_weighted_contribution(): void
+    {
+        $alice = $this->enrol('Alice');
+
+        // 73% of a 10%-weighted assessment contributes 7.30 to the final grade.
+        $a = $this->assessment('Assignment 1', total: 100, weightage: 10);
+        $this->score($a, $alice, 73.0);
+
+        $data = $this->aggregator->getCoursePerformance($this->course);
+        $cell = $data['students'][0]['scores']['assessment:'.$a->id];
+
+        $this->assertSame(73.0, $cell['p']);
+        $this->assertSame(7.3, $cell['w']);
+    }
+
+    /**
+     * At risk is the weighted final grade below the 50% pass mark. A student
+     * with nothing graded is unknown, not failing.
+     */
+    public function test_at_risk_uses_final_grade_and_skips_ungraded_students(): void
+    {
+        $failing = $this->enrol('Failing');
+        $passing = $this->enrol('Passing');
+        $this->enrol('Ungraded');
+
+        $a = $this->assessment('Test', total: 100, weightage: 100);
+        $this->score($a, $failing, 47.5);
+        $this->score($a, $passing, 60.0);
+
+        $data = $this->aggregator->getCoursePerformance($this->course);
+
+        $this->assertSame(1, $data['at_risk_count']);
+        $this->assertSame('Failing', $data['at_risk_students'][0]['user']->name);
+    }
+
     public function test_course_with_no_grades_reports_null_average(): void
     {
         $this->enrol('Alice');
