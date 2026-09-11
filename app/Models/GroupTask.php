@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GroupTask extends Model
 {
     protected $fillable = [
-        'student_group_id', 'title', 'assigned_to', 'start_date', 'due_date', 'status', 'created_by',
+        'student_group_id', 'title', 'description', 'assigned_to', 'start_date', 'due_date', 'status', 'created_by',
     ];
 
     protected function casts(): array

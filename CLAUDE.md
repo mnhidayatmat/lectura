@@ -61,7 +61,11 @@ npm run build
 
 ### Routing
 
-- **No API routes** — server-rendered Blade app only (`routes/web.php`)
+- **Web** — server-rendered Blade only (`routes/web.php`); no JSON routes for the web UI itself
+- **Mobile API** — `routes/api.php` requires one file per area from `routes/api/v1/` (`common`, `student`,
+  `lecturer`, `live`, `workspace`); controllers in `App\Http\Controllers\Api\V1\`, Sanctum bearer tokens,
+  tenant-scoped under `/api/v1/t/{tenant}` via the `api.tenant` middleware. It serves the Lectura Go
+  Flutter app in the parent directory — contracts in `docs/mobile-api/*.md`, conventions in `../CLAUDE.md`
 - Auth routes in `routes/auth.php` (Breeze + Google OAuth)
 - Tenant routes use `{tenant:slug}` prefix with middleware group: `auth`, `tenant`, `tenant.access`, `locale`
 - Route names prefixed with `tenant.` (e.g., `tenant.courses.index`, `tenant.assignments.show`)

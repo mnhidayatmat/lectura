@@ -24,7 +24,6 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     Route::get('auth/google', [GoogleController::class, 'redirect'])->name('auth.google');
-    Route::get('auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
@@ -38,6 +37,10 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
 });
+
+// Outside `guest`: the mobile app's in-app browser may already hold a web session
+Route::get('auth/google/mobile', [GoogleController::class, 'redirectMobile'])->name('auth.google.mobile');
+Route::get('auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
