@@ -20,7 +20,8 @@ export default function groupChat(postUrl, loadUrl, myUserId, channelName, prese
 
             // Listen for real-time messages via Echo
             if (typeof Echo !== 'undefined') {
-                Echo.channel(channelName).listen('GroupMessageSent', (e) => {
+                // Private channel: membership is authorised in routes/channels.php
+                Echo.private(channelName).listen('GroupMessageSent', (e) => {
                     e.is_mine = e.user_id === myUserId;
                     e.deleted = false;
                     e.is_edited = false;

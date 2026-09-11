@@ -13,8 +13,20 @@ use Illuminate\View\View;
 
 class PloController extends Controller
 {
+    /**
+     * Programme learning outcomes are accreditation data — staff only.
+     */
+    protected function authorizeStaff(): void
+    {
+        if (! auth()->user()->hasRoleInTenant(app('current_tenant')->id, ['admin', 'coordinator', 'lecturer'])) {
+            abort(403);
+        }
+    }
+
     public function index(string $tenantSlug, Programme $programme): View
     {
+        $this->authorizeStaff();
+
         $tenant = app('current_tenant');
         $plos = $programme->learningOutcomes;
 
@@ -23,6 +35,8 @@ class PloController extends Controller
 
     public function store(Request $request, string $tenantSlug, Programme $programme): RedirectResponse
     {
+        $this->authorizeStaff();
+
         $request->validate([
             'code' => ['required', 'string', 'max:20'],
             'description' => ['required', 'string', 'max:2000'],
@@ -43,6 +57,8 @@ class PloController extends Controller
 
     public function update(Request $request, string $tenantSlug, Programme $programme, ProgrammeLearningOutcome $plo): RedirectResponse
     {
+        $this->authorizeStaff();
+
         if ($plo->programme_id !== $programme->id) {
             abort(404);
         }
@@ -60,6 +76,8 @@ class PloController extends Controller
 
     public function destroy(string $tenantSlug, Programme $programme, ProgrammeLearningOutcome $plo): RedirectResponse
     {
+        $this->authorizeStaff();
+
         if ($plo->programme_id !== $programme->id) {
             abort(404);
         }

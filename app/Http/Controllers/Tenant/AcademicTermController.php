@@ -12,8 +12,20 @@ use Illuminate\View\View;
 
 class AcademicTermController extends Controller
 {
+    /**
+     * Semesters drive courses and sections, so only institution staff may manage them.
+     */
+    protected function authorizeStaff(): void
+    {
+        if (! auth()->user()->hasRoleInTenant(app('current_tenant')->id, ['admin', 'coordinator'])) {
+            abort(403);
+        }
+    }
+
     public function index(): View
     {
+        $this->authorizeStaff();
+
         $terms = AcademicTerm::withCount(['courses', 'sections'])
             ->orderByDesc('start_date')
             ->get();
@@ -23,6 +35,8 @@ class AcademicTermController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorizeStaff();
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50'],
@@ -53,6 +67,8 @@ class AcademicTermController extends Controller
 
     public function update(Request $request, string $tenantSlug, AcademicTerm $term): RedirectResponse
     {
+        $this->authorizeStaff();
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50'],
@@ -81,6 +97,8 @@ class AcademicTermController extends Controller
 
     public function destroy(string $tenantSlug, AcademicTerm $term): RedirectResponse
     {
+        $this->authorizeStaff();
+
         $tenant = app('current_tenant');
 
         if ($term->courses()->exists() || $term->sections()->exists()) {

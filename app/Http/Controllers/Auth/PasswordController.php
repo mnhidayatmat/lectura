@@ -24,6 +24,9 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        // Changing the password signs out mobile devices holding an API token.
+        $request->user()->tokens()->delete();
+
         return back()->with('status', 'password-updated');
     }
 }

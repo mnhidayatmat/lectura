@@ -22,8 +22,9 @@ class GroupMessageSent implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
+        // Private: group chat is only for members (see routes/channels.php)
         return [
-            new Channel('group.' . $this->message->student_group_id . '.chat'),
+            new PrivateChannel('group.' . $this->message->student_group_id . '.chat'),
         ];
     }
 

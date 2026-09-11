@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Tenant\WhiteboardController;
 use App\Models\ActiveLearningSession;
+use App\Models\StudentGroup;
 use App\Models\Whiteboard;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -31,6 +32,12 @@ Broadcast::channel('active-learning-session.{sessionId}', function ($user, int $
     }
 
     return false;
+});
+
+Broadcast::channel('group.{groupId}.chat', function ($user, int $groupId) {
+    $group = StudentGroup::find($groupId);
+
+    return $group && $group->isMember($user->id);
 });
 
 Broadcast::channel('whiteboard.{whiteboardId}', function ($user, int $whiteboardId) {

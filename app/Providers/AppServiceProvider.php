@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Mail\MailManager;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport;
 
@@ -29,5 +32,10 @@ class AppServiceProvider extends ServiceProvider
                 return new BrevoApiTransport($config['key']);
             });
         });
+
+        // Mobile API limit. Headroom for the app's polling (quiz state 2s, chat 4s,
+        // QR token 5s, live hub 15s) while still capping abuse; per user, else per IP.
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
+            ->by($request->user()?->id ?: $request->ip()));
     }
 }

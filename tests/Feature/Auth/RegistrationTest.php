@@ -26,6 +26,8 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // A new user belongs to no institution yet, so registration goes to onboarding
+        // (/dashboard would only bounce them there, and sits behind `verified`).
+        $response->assertRedirect(route('onboarding', absolute: false));
     }
 }

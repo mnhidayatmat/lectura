@@ -56,10 +56,11 @@
         </div>
     @endif
 
-    <div class="grid lg:grid-cols-5 gap-6">
+    <div class="grid lg:grid-cols-5 gap-6 lg:items-start">
 
-        {{-- ── LEFT: submission detail (3 cols) ── --}}
-        <div class="lg:col-span-3 space-y-4">
+        {{-- ── LEFT: submission detail (3 cols) — pinned, fixed viewport height so the file
+             viewer fills the panel and scrolls through pages via its own scrollbar ── --}}
+        <div class="lg:col-span-3 space-y-4 lg:sticky lg:top-6 lg:self-start lg:h-[calc(100vh-2rem)] lg:overflow-hidden lg:flex lg:flex-col lg:space-y-0 lg:gap-4">
 
             {{-- Student info --}}
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
@@ -94,8 +95,8 @@
                 @endif
             </div>
 
-            {{-- Submitted files --}}
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+            {{-- Submitted files — grows to fill the pinned panel so the preview stays large --}}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 lg:flex-1 lg:flex lg:flex-col lg:min-h-0">
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                     Submitted Files
@@ -156,14 +157,14 @@
                     {{-- Inline PDF preview --}}
                     @php $pdfFile = $submission->files->first(fn($f) => str_contains($f->file_type ?? '', 'pdf')); @endphp
                     @if($pdfFile)
-                        <div class="mt-4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                            <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div class="mt-4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 lg:flex-1 lg:flex lg:flex-col lg:min-h-0">
+                            <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
                                 <span class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ $pdfFile->file_name }}</span>
                                 <a href="{{ route('tenant.assessments.submissions.view-file', [$tenant->slug, $course, $assessment, $pdfFile]) }}"
                                    target="_blank" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">Open in tab</a>
                             </div>
                             <iframe src="{{ route('tenant.assessments.submissions.view-file', [$tenant->slug, $course, $assessment, $pdfFile]) }}#toolbar=1"
-                                    class="w-full bg-slate-100 dark:bg-slate-900" style="height: 560px;"></iframe>
+                                    class="w-full bg-slate-100 dark:bg-slate-900 h-[560px] lg:h-auto lg:flex-1 lg:min-h-0"></iframe>
                         </div>
                     @endif
                 @endif
@@ -210,9 +211,9 @@
             @endif
         </div>
 
-        {{-- ── RIGHT: grading panel (2 cols, sticky) ── --}}
+        {{-- ── RIGHT: grading panel (2 cols) — scrolls with the page while the file stays pinned ── --}}
         <div class="lg:col-span-2">
-            <div class="sticky top-6 space-y-4">
+            <div class="space-y-4">
 
                 {{-- Current grade banner (if already graded) --}}
                 @if($submission->score && $submission->score->finalized_at)

@@ -48,6 +48,9 @@ class NewPasswordController extends Controller
                     'remember_token' => Str::random(60),
                 ])->save();
 
+                // A reset is often a response to a lost device — revoke its API tokens.
+                $user->tokens()->delete();
+
                 event(new PasswordReset($user));
             }
         );

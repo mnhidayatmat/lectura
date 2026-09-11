@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
+        // routes/channels.php was never registered, so private/presence channels had
+        // no /broadcasting/auth endpoint and their authorization callbacks never ran.
+        channels: __DIR__.'/../routes/channels.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -25,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Mobile API: bind the tenant before route-model binding so tenant scopes apply to bound models
         $middleware->prependToPriorityList(SubstituteBindings::class, \App\Http\Middleware\ResolveApiTenant::class);
+
+        // Rate limit every API route (see RouteServiceProvider's `api` limiter)
+        $middleware->throttleApi();
 
         // MCP + OAuth endpoints — no CSRF cookie needed
         $middleware->validateCsrfTokens(except: [
