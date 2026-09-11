@@ -151,7 +151,7 @@
                                     <tr>
                                         <td class="px-6 py-3 font-medium text-slate-900">{{ $participation->quizSession->title }}</td>
                                         <td class="px-6 py-3 text-center font-bold text-violet-600">{{ $participation->total_score }}</td>
-                                        <td class="px-6 py-3 text-center text-slate-500">{{ $participation->quizSession->started_at->format('d M Y') }}</td>
+                                        <td class="px-6 py-3 text-center text-slate-500">{{ $participation->quizSession->started_at?->format('d M Y') ?? '—' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
