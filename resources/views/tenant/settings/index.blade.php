@@ -105,14 +105,8 @@
                         </div>
 
                         {{-- Root Folder Configuration --}}
-                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200" x-data="{ editing: false }">
-                            <div class="flex items-center justify-between mb-2">
-                                <h4 class="text-xs font-semibold text-slate-700 uppercase tracking-wider">Storage Folder</h4>
-                                <button @click="editing = !editing" type="button" class="text-xs text-blue-600 hover:text-blue-700 font-medium transition">
-                                    <span x-show="!editing">Change</span>
-                                    <span x-show="editing" x-cloak>Cancel</span>
-                                </button>
-                            </div>
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <h4 class="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Storage Folder</h4>
 
                             {{-- Current folder display --}}
                             <div class="flex items-center gap-2 mb-1">
@@ -123,33 +117,12 @@
                                 <p class="text-[11px] text-slate-400 ml-6 break-all">ID: {{ auth()->user()->drive_root_folder_id }}</p>
                             @endif
 
-                            {{-- Edit form --}}
-                            <div x-show="editing" x-cloak class="mt-3 pt-3 border-t border-slate-200 space-y-3">
-                                <form method="POST" action="{{ route('tenant.settings.drive.folder', $tenant->slug) }}">
-                                    @csrf
-                                    <div class="mb-3">
-                                        <label for="folder_input" class="block text-xs font-medium text-slate-600 mb-1">Folder ID or Google Drive URL</label>
-                                        <input
-                                            type="text"
-                                            name="folder_input"
-                                            id="folder_input"
-                                            placeholder="e.g. 1aBcD_efGhIjKlMnOp or https://drive.google.com/drive/folders/..."
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-300"
-                                            required
-                                        >
-                                        <p class="mt-1 text-[11px] text-slate-400">Paste a Google Drive folder URL or folder ID. The folder must be in your Drive.</p>
-                                    </div>
-                                    <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">
-                                        Set Folder
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('tenant.settings.drive.folder.reset', $tenant->slug) }}">
-                                    @csrf
-                                    <button type="submit" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-medium rounded-lg transition">
-                                        Reset to Default
-                                    </button>
-                                </form>
-                            </div>
+                            <form method="POST" action="{{ route('tenant.settings.drive.folder.reset', $tenant->slug) }}" class="mt-3 pt-3 border-t border-slate-200">
+                                @csrf
+                                <button type="submit" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-medium rounded-lg transition">
+                                    Reset to Default
+                                </button>
+                            </form>
                         </div>
 
                         {{-- Disconnect --}}
