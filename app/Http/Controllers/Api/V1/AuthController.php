@@ -118,6 +118,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
+    /**
+     * Close the account from inside the app, as the app stores require.
+     */
+    public function destroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->password) {
+            // Not the `current_password` rule: it resolves the user from the default
+            // guard, which is not the Sanctum-authenticated user on an API request.
+            $request->validate(['password' => ['required', 'string']]);
+
+            if (! Hash::check((string) $request->input('password'), $user->password)) {
+                throw ValidationException::withMessages(['password' => 'That password is incorrect.']);
+            }
+        } else {
+            // Google-only accounts have no password, so they confirm by typing their email.
+            $request->validate(['confirm_email' => ['required', 'string']]);
+
+            if (Str::lower(trim((string) $request->input('confirm_email'))) !== Str::lower($user->email)) {
+                throw ValidationException::withMessages([
+                    'confirm_email' => 'Enter your email address exactly to confirm.',
+                ]);
+            }
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json(['message' => 'Your account has been deleted.']);
+    }
+
     private function tokenResponse(User $user, ?string $deviceName, int $status = 200): JsonResponse
     {
         $token = $user->createToken($deviceName ?: 'Lectura Go')->plainTextToken;

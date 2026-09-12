@@ -90,6 +90,47 @@ class AuthApiTest extends ApiTestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
+    public function test_account_deletion_requires_the_current_password(): void
+    {
+        $user = User::factory()->create(['password' => bcrypt('secret-password')]);
+        $token = $user->createToken('phone')->plainTextToken;
+
+        $this->withToken($token)->deleteJson('/api/v1/me', ['password' => 'not-my-password'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('password');
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+        $this->assertNotSoftDeleted('users', ['id' => $user->id]);
+
+        $this->withToken($token)->deleteJson('/api/v1/me', ['password' => 'secret-password'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Your account has been deleted.');
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_google_only_account_is_deleted_by_confirming_the_email(): void
+    {
+        $user = User::factory()->create(['password' => null, 'google_id' => 'google-1']);
+
+        $this->actingAsApi($user)->getJson('/api/v1/me')
+            ->assertOk()
+            ->assertJsonPath('data.has_password', false);
+
+        $this->actingAsApi($user)->deleteJson('/api/v1/me', ['confirm_email' => 'someone@else.test'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('confirm_email');
+
+        $this->assertNotSoftDeleted('users', ['id' => $user->id]);
+
+        // Case-insensitive: the keyboard may capitalise the first letter.
+        $this->actingAsApi($user)->deleteJson('/api/v1/me', ['confirm_email' => strtoupper($user->email)])
+            ->assertOk();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
     public function test_google_code_can_be_exchanged_only_once(): void
     {
         $user = User::factory()->create();

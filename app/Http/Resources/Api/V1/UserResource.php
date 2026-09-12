@@ -37,6 +37,8 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'avatar_url' => $this->avatar_url,
             'locale' => $this->locale,
+            // Google-only accounts confirm destructive actions by email, not password.
+            'has_password' => $this->password !== null,
             'is_pro' => $this->isPro(),
             'is_super_admin' => (bool) $this->is_super_admin,
             'memberships' => $memberships,

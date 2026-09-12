@@ -15,6 +15,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me'])->name('me');
+        Route::delete('/me', [AuthController::class, 'destroy'])->name('me.destroy');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
         Route::get('/tenants', [OnboardingController::class, 'tenants'])->name('tenants');
