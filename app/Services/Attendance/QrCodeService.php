@@ -12,26 +12,47 @@ class QrCodeService
      */
     public function generateToken(string $secret, int $rotationSeconds = 30): string
     {
-        $window = (int) floor(time() / $rotationSeconds);
+        $rotationSeconds = max(1, $rotationSeconds);
+        $window = (int) floor(now()->getTimestamp() / $rotationSeconds);
+
         return hash_hmac('sha256', (string) $window, $secret);
     }
 
     /**
-     * Validate a token — accepts current window or previous window (grace period).
+     * Validate a token — accepts the current window, and the previous window only
+     * during the opening seconds of the current one.
+     *
+     * The previous-window grace exists so a student who scans just as the code
+     * rotates still checks in. Honouring it for the whole window doubled the life
+     * of a photographed code to 2 x rotation; limiting it to the hand-over moment
+     * keeps those scans working while shortening the replay window.
      */
     public function validateToken(string $token, string $secret, int $rotationSeconds = 30): bool
     {
-        $currentWindow = (int) floor(time() / $rotationSeconds);
+        $rotationSeconds = max(1, $rotationSeconds);
+        $now = now()->getTimestamp();
+        $currentWindow = (int) floor($now / $rotationSeconds);
 
-        // Check current window
         $currentToken = hash_hmac('sha256', (string) $currentWindow, $secret);
         if (hash_equals($currentToken, $token)) {
             return true;
         }
 
-        // Check previous window (grace period)
+        if ($now % $rotationSeconds >= $this->graceSeconds($rotationSeconds)) {
+            return false;
+        }
+
         $previousToken = hash_hmac('sha256', (string) ($currentWindow - 1), $secret);
+
         return hash_equals($previousToken, $token);
+    }
+
+    /**
+     * How long into a new window the superseded code is still honoured.
+     */
+    public function graceSeconds(int $rotationSeconds): int
+    {
+        return max(1, min(10, intdiv(max(1, $rotationSeconds), 3)));
     }
 
     /**
@@ -42,7 +63,7 @@ class QrCodeService
         return json_encode([
             's' => $sessionId,
             't' => $token,
-            'ts' => time(),
+            'ts' => now()->getTimestamp(),
         ]);
     }
 

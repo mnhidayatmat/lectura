@@ -6,6 +6,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Services\Attendance\QrCodeService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Api\V1\ApiTestCase;
 
@@ -110,6 +111,61 @@ class StudentAttendanceApiTest extends ApiTestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'You are not enrolled in this section.');
+    }
+
+    public function test_a_qr_mode_other_than_fixed_still_verifies_the_token(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $session = $this->createAttendanceSession($section, $lecturer, ['qr_mode' => 'legacy']);
+
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $this->payloadFor($session, 'forged-token'),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'QR code has expired. Please scan the latest code.');
+
+        $this->assertSame(0, AttendanceRecord::where('attendance_session_id', $session->id)->count());
+    }
+
+    public function test_superseded_code_is_honoured_during_the_hand_over_grace(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $session = $this->createAttendanceSession($section, $lecturer);
+
+        $windowStart = Carbon::createFromTimestamp(intdiv(now()->getTimestamp(), 30) * 30);
+
+        $this->travelTo($windowStart);
+        $superseded = $this->payloadFor($session);
+
+        // 5s into the next window — inside the hand-over grace.
+        $this->travelTo($windowStart->copy()->addSeconds(35));
+
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $superseded,
+        ])->assertOk();
+    }
+
+    public function test_superseded_code_stops_working_once_the_grace_has_passed(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $session = $this->createAttendanceSession($section, $lecturer);
+
+        $windowStart = Carbon::createFromTimestamp(intdiv(now()->getTimestamp(), 30) * 30);
+
+        $this->travelTo($windowStart);
+        $superseded = $this->payloadFor($session);
+
+        // 15s into the next window — past the grace, but still within the two full
+        // rotations the old implementation accepted.
+        $this->travelTo($windowStart->copy()->addSeconds(45));
+
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $superseded,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'QR code has expired. Please scan the latest code.');
+
+        $this->assertSame(0, AttendanceRecord::where('attendance_session_id', $session->id)->count());
     }
 
     public function test_lists_attendance_summaries_per_course(): void

@@ -135,7 +135,10 @@ class AttendanceController extends Controller
             return $this->failure('This attendance session has ended.');
         }
 
-        if ($session->qr_mode === 'rotating') {
+        // Verify unless the session is explicitly fixed-code. `qr_mode` is a plain
+        // string column, so testing for 'rotating' let any other value through
+        // unverified.
+        if ($session->qr_mode !== 'fixed') {
             $valid = $this->qrService->validateToken(
                 (string) $parsed['token'],
                 $session->qr_secret,
