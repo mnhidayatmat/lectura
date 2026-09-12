@@ -27,10 +27,15 @@ class QrCodeService
      * of a photographed code to 2 x rotation; limiting it to the hand-over moment
      * keeps those scans working while shortening the replay window.
      */
-    public function validateToken(string $token, string $secret, int $rotationSeconds = 30): bool
+    public function validateToken(string $token, string $secret, int $rotationSeconds = 30, ?int $atTimestamp = null): bool
     {
         $rotationSeconds = max(1, $rotationSeconds);
-        $now = now()->getTimestamp();
+
+        // A check-in queued while offline is validated against the moment it was
+        // scanned, not the moment it arrives — otherwise the token is always
+        // expired by the time the phone reconnects. Callers must bound how old
+        // that instant may be; this method trusts what it is given.
+        $now = $atTimestamp ?? now()->getTimestamp();
         $currentWindow = (int) floor($now / $rotationSeconds);
 
         $currentToken = hash_hmac('sha256', (string) $currentWindow, $secret);

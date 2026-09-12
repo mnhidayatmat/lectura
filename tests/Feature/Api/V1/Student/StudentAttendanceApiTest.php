@@ -168,6 +168,161 @@ class StudentAttendanceApiTest extends ApiTestCase
         $this->assertSame(0, AttendanceRecord::where('attendance_session_id', $session->id)->count());
     }
 
+    /** Window start, so the token arithmetic in these tests is exact. */
+    private function windowStart(): Carbon
+    {
+        return Carbon::createFromTimestamp(intdiv(now()->getTimestamp(), 30) * 30);
+    }
+
+    public function test_a_scan_queued_offline_is_accepted_after_the_session_ended(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $start = $this->windowStart();
+        $session = $this->createAttendanceSession($section, $lecturer, ['started_at' => $start]);
+
+        // Scanned ten minutes in, while the phone had no signal.
+        $scannedAt = $start->copy()->addMinutes(10);
+        $this->travelTo($scannedAt);
+        $payload = $this->payloadFor($session);
+
+        // The lecturer ends the class; the phone only reconnects on the way out.
+        $session->update(['status' => 'ended', 'ended_at' => $start->copy()->addMinutes(50)]);
+        $this->travelTo($start->copy()->addMinutes(55));
+
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $payload,
+            'scanned_at' => $scannedAt->toIso8601String(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'present');
+
+        $this->assertDatabaseHas('attendance_records', [
+            'attendance_session_id' => $session->id,
+            'user_id' => $student->id,
+            'status' => 'present',
+            'method' => 'qr_queued',
+        ]);
+    }
+
+    public function test_a_queued_scan_upgrades_the_absent_row_left_by_ending_the_session(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $start = $this->windowStart();
+        $session = $this->createAttendanceSession($section, $lecturer, ['started_at' => $start]);
+
+        $scannedAt = $start->copy()->addMinutes(5);
+        $this->travelTo($scannedAt);
+        $payload = $this->payloadFor($session);
+
+        // Exactly what end() writes for a student who never checked in.
+        $session->update(['status' => 'ended', 'ended_at' => $start->copy()->addMinutes(50)]);
+        AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'user_id' => $student->id,
+            'status' => 'absent',
+            'method' => 'manual',
+        ]);
+
+        $this->travelTo($start->copy()->addMinutes(52));
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $payload,
+            'scanned_at' => $scannedAt->toIso8601String(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'present');
+
+        $this->assertSame(1, AttendanceRecord::where('attendance_session_id', $session->id)->count());
+        $this->assertDatabaseHas('attendance_records', [
+            'attendance_session_id' => $session->id,
+            'user_id' => $student->id,
+            'status' => 'present',
+            'method' => 'qr_queued',
+        ]);
+    }
+
+    public function test_a_queued_scan_does_not_overwrite_a_status_the_lecturer_set(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $start = $this->windowStart();
+        $session = $this->createAttendanceSession($section, $lecturer, ['started_at' => $start]);
+
+        $scannedAt = $start->copy()->addMinutes(5);
+        $this->travelTo($scannedAt);
+        $payload = $this->payloadFor($session);
+
+        $session->update(['status' => 'ended', 'ended_at' => $start->copy()->addMinutes(50)]);
+        AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'user_id' => $student->id,
+            'status' => 'absent',
+            'method' => 'manual',
+            'override_by' => $lecturer->id,
+            'override_reason' => 'Seen leaving early',
+        ]);
+
+        $this->travelTo($start->copy()->addMinutes(52));
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $payload,
+            'scanned_at' => $scannedAt->toIso8601String(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'You have already checked in.')
+            ->assertJsonPath('data.status', 'absent');
+    }
+
+    public function test_a_queued_scan_is_refused_outside_the_session_and_past_the_grace(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $start = $this->windowStart();
+        $session = $this->createAttendanceSession($section, $lecturer, ['started_at' => $start]);
+        $url = $this->tenantApi($tenant, 'student/attendance/check-in');
+
+        $scannedAt = $start->copy()->addMinutes(10);
+        $this->travelTo($scannedAt);
+        $payload = $this->payloadFor($session);
+
+        $session->update(['status' => 'ended', 'ended_at' => $start->copy()->addMinutes(20)]);
+
+        // Claimed after the session closed.
+        $this->travelTo($start->copy()->addMinutes(30));
+        $this->actingAsApi($student)->postJson($url, [
+            'payload' => $payload,
+            'scanned_at' => $start->copy()->addMinutes(25)->toIso8601String(),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'That scan was taken outside this session.');
+
+        // Genuine instant, but far beyond the offline grace.
+        $this->travelTo($start->copy()->addHours(4));
+        $this->postJson($url, [
+            'payload' => $payload,
+            'scanned_at' => $scannedAt->toIso8601String(),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'This check-in is too old to submit. Ask your lecturer to mark you manually.');
+
+        $this->assertSame(0, AttendanceRecord::where('attendance_session_id', $session->id)->count());
+    }
+
+    public function test_a_queued_scan_still_needs_a_real_token(): void
+    {
+        [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
+        $start = $this->windowStart();
+        $session = $this->createAttendanceSession($section, $lecturer, ['started_at' => $start]);
+
+        $scannedAt = $start->copy()->addMinutes(10);
+        $this->travelTo($start->copy()->addMinutes(12));
+
+        $this->actingAsApi($student)->postJson($this->tenantApi($tenant, 'student/attendance/check-in'), [
+            'payload' => $this->payloadFor($session, 'forged-token'),
+            'scanned_at' => $scannedAt->toIso8601String(),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'QR code has expired. Please scan the latest code.');
+
+        $this->assertSame(0, AttendanceRecord::where('attendance_session_id', $session->id)->count());
+    }
+
     public function test_lists_attendance_summaries_per_course(): void
     {
         [$tenant, $lecturer, $student, $course, $section] = $this->enrolledStudent();

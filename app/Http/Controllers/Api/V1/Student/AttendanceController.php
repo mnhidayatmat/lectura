@@ -117,10 +117,19 @@ class AttendanceController extends Controller
         ]);
     }
 
+    /**
+     * How stale a scan queued offline may be before we stop trusting it. The
+     * rotating code normally expires in well under a minute; this is the only
+     * place that window is widened, so it stays short and is paired with the
+     * session-window check below.
+     */
+    private const OFFLINE_GRACE_MINUTES = 120;
+
     public function checkIn(Request $request): JsonResponse
     {
         $request->validate([
             'payload' => ['required', 'string'],
+            'scanned_at' => ['nullable', 'date'],
         ]);
 
         $parsed = $this->qrService->parsePayload($request->payload);
@@ -131,7 +140,27 @@ class AttendanceController extends Controller
 
         $session = AttendanceSession::with('section.course')->find($parsed['session_id']);
 
-        if (! $session || ! $session->isActive()) {
+        if (! $session) {
+            return $this->failure('This attendance session has ended.');
+        }
+
+        // A scan queued while the phone had no signal carries the instant it was
+        // taken. Students typically reconnect on the way out, after the lecturer
+        // has ended the session, so a queued scan is judged against the session's
+        // window rather than against "is it still running right now".
+        $scannedAt = $request->date('scanned_at');
+        $queued = $scannedAt !== null;
+        $at = $scannedAt ?? now();
+
+        if ($queued) {
+            if ($at->isFuture() || $at->lt(now()->subMinutes(self::OFFLINE_GRACE_MINUTES))) {
+                return $this->failure('This check-in is too old to submit. Ask your lecturer to mark you manually.');
+            }
+
+            if ($at->lt($session->started_at) || $at->gt($session->ended_at ?? now())) {
+                return $this->failure('That scan was taken outside this session.');
+            }
+        } elseif (! $session->isActive()) {
             return $this->failure('This attendance session has ended.');
         }
 
@@ -142,7 +171,8 @@ class AttendanceController extends Controller
             $valid = $this->qrService->validateToken(
                 (string) $parsed['token'],
                 $session->qr_secret,
-                $session->qr_rotation_seconds
+                $session->qr_rotation_seconds,
+                $queued ? $at->getTimestamp() : null,
             );
 
             if (! $valid) {
@@ -165,24 +195,40 @@ class AttendanceController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if ($existing) {
+        // Ending a session marks every no-show absent, so a queued scan that lands
+        // afterwards finds that sweep's row waiting for it. Upgrade that one, but
+        // never a status a lecturer set deliberately and never an excused record.
+        $fromAbsentSweep = $existing
+            && $queued
+            && $existing->status === 'absent'
+            && $existing->method === 'manual'
+            && $existing->override_by === null
+            && ! $existing->excuse()->exists();
+
+        if ($existing && ! $fromAbsentSweep) {
             return $this->checkInResponse('You have already checked in.', $existing, $session);
         }
 
-        $minutesSinceStart = $session->started_at->diffInMinutes(now());
+        $minutesSinceStart = $session->started_at->diffInMinutes($at);
         $status = $minutesSinceStart > $session->late_threshold_minutes ? 'late' : 'present';
 
-        $record = AttendanceRecord::create([
-            'attendance_session_id' => $session->id,
-            'user_id' => $user->id,
+        $attributes = [
             'status' => $status,
-            'checked_in_at' => now(),
-            'method' => 'qr_scan',
+            'checked_in_at' => $at,
+            'method' => $queued ? 'qr_queued' : 'qr_scan',
             'device_info' => [
                 'ip' => $request->ip(),
                 'user_agent' => substr($request->userAgent() ?? '', 0, 200),
+                'queued_seconds' => $queued ? (int) $at->diffInSeconds(now()) : null,
             ],
-        ]);
+        ];
+
+        $record = $existing
+            ? tap($existing)->update($attributes)
+            : AttendanceRecord::create($attributes + [
+                'attendance_session_id' => $session->id,
+                'user_id' => $user->id,
+            ]);
 
         return $this->checkInResponse(
             $status === 'late' ? 'Checked in (late).' : 'Checked in successfully!',
