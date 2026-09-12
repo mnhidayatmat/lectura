@@ -41,6 +41,21 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    // Sign in with Apple (mobile app): the audience of the identity token is the
+    // app's bundle id. Comma-separated so a second bundle (e.g. a beta app) can be
+    // accepted without a code change.
+    'apple' => [
+        'client_ids' => env('APPLE_CLIENT_IDS', 'com.lectura.go'),
+
+        // Revoking the token when an account is deleted is an App Store requirement,
+        // and the only part of Sign in with Apple that needs a signing key. Leave
+        // these empty and sign-in still works — nothing is revoked.
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
+    ],
+
     'google_drive' => [
         'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),

@@ -11,6 +11,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
         Route::post('/auth/google/exchange', [AuthController::class, 'googleExchange'])->name('auth.google.exchange');
+        Route::post('/auth/apple', [AuthController::class, 'apple'])->name('auth.apple');
     });
 
     Route::middleware('auth:sanctum')->group(function () {
