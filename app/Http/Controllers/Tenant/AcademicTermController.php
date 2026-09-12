@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AcademicTermController extends Controller
@@ -22,11 +23,29 @@ class AcademicTermController extends Controller
         }
     }
 
+    /**
+     * Web route-model binding runs before ResolveTenant binds `current_tenant`, and
+     * BelongsToTenant's global scope no-ops while nothing is bound — so a semester
+     * belonging to another institution does reach these methods. The mobile API
+     * avoids this by ordering ResolveApiTenant ahead of SubstituteBindings in
+     * bootstrap/app.php; the web stack has no such ordering, so check it here.
+     */
+    protected function authorizeTerm(AcademicTerm $term): void
+    {
+        if ($term->tenant_id !== app('current_tenant')->id) {
+            abort(404);
+        }
+    }
+
     public function index(): View
     {
         $this->authorizeStaff();
 
-        $terms = AcademicTerm::withCount(['courses', 'sections'])
+        $terms = AcademicTerm::withCount([
+            'courses',
+            'sections',
+            'courses as archived_courses_count' => fn ($query) => $query->where('status', 'archived'),
+        ])
             ->orderByDesc('start_date')
             ->get();
 
@@ -68,6 +87,7 @@ class AcademicTermController extends Controller
     public function update(Request $request, string $tenantSlug, AcademicTerm $term): RedirectResponse
     {
         $this->authorizeStaff();
+        $this->authorizeTerm($term);
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -95,9 +115,60 @@ class AcademicTermController extends Controller
             ->with('success', 'Semester updated successfully.');
     }
 
+    /**
+     * Closing a semester archives its courses, which is what "the session is over"
+     * means in practice: they drop out of every lecturer's current list but keep
+     * all their records and stay reachable under Archived.
+     *
+     * Sections, assessments and enrolments are deliberately left alone. A course's
+     * status is read in exactly one other place (the lecturer dashboard's active
+     * count), so cascading would not be closing a semester — it would be inventing
+     * new behaviour across several subsystems that nothing asks for today.
+     */
+    public function archiveCourses(string $tenantSlug, AcademicTerm $term): RedirectResponse
+    {
+        $this->authorizeStaff();
+        $this->authorizeTerm($term);
+
+        $tenant = app('current_tenant');
+
+        $archived = $term->courses()->where('status', '!=', 'archived')->update(['status' => 'archived']);
+
+        if ($archived === 0) {
+            return redirect()->route('tenant.academic-terms.index', $tenant->slug)
+                ->with('error', 'That semester has no open courses to close.');
+        }
+
+        return redirect()->route('tenant.academic-terms.index', $tenant->slug)
+            ->with('success', "Closed the semester and archived {$archived} ".Str::plural('course', $archived).'.');
+    }
+
+    /**
+     * The reverse of archiveCourses, so closing a semester by mistake is one click
+     * to undo rather than an edit per course.
+     */
+    public function reopenCourses(string $tenantSlug, AcademicTerm $term): RedirectResponse
+    {
+        $this->authorizeStaff();
+        $this->authorizeTerm($term);
+
+        $tenant = app('current_tenant');
+
+        $reopened = $term->courses()->where('status', 'archived')->update(['status' => 'active']);
+
+        if ($reopened === 0) {
+            return redirect()->route('tenant.academic-terms.index', $tenant->slug)
+                ->with('error', 'That semester has no archived courses to reopen.');
+        }
+
+        return redirect()->route('tenant.academic-terms.index', $tenant->slug)
+            ->with('success', "Reopened the semester and restored {$reopened} ".Str::plural('course', $reopened).'.');
+    }
+
     public function destroy(string $tenantSlug, AcademicTerm $term): RedirectResponse
     {
         $this->authorizeStaff();
+        $this->authorizeTerm($term);
 
         $tenant = app('current_tenant');
 

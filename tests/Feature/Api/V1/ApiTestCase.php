@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1;
 
+use App\Models\AcademicTerm;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\Tenant;
@@ -57,6 +58,18 @@ abstract class ApiTestCase extends TestCase
             'code' => 'SKM'.random_int(1000, 9999),
             'title' => 'Engineering Mathematics',
             'status' => 'active',
+        ], $attributes));
+    }
+
+    protected function createTerm(Tenant $tenant, array $attributes = []): AcademicTerm
+    {
+        return AcademicTerm::create(array_merge([
+            'tenant_id' => $tenant->id,
+            'name' => 'Semester 1, 2026/2027',
+            'code' => 'SEM'.random_int(1000, 9999),
+            'start_date' => '2026-09-01',
+            'end_date' => '2027-01-31',
+            'is_default' => false,
         ], $attributes));
     }
 

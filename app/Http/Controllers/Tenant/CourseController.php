@@ -38,10 +38,18 @@ class CourseController extends Controller
         $courses = Course::whereIn('id', $allCourseIds)
             ->withCount('sections')
             ->with(['academicTerm', 'faculty'])
+            // Newest semester first. Courses with no semester sort last on their
+            // own: both MySQL and SQLite place NULL at the end of a DESC ordering.
+            ->orderByDesc(AcademicTerm::select('start_date')->whereColumn('academic_terms.id', 'courses.academic_term_id'))
             ->latest()
             ->get();
 
-        return view('tenant.courses.index', compact('courses'));
+        [$archivedCourses, $currentCourses] = $courses->partition(fn (Course $course) => $course->status === 'archived');
+
+        // The query already orders by semester, so grouping preserves that order.
+        $courseGroups = $currentCourses->groupBy(fn (Course $course) => $course->academicTerm?->name ?? 'No semester');
+
+        return view('tenant.courses.index', compact('courses', 'courseGroups', 'archivedCourses'));
     }
 
     public function create(): View
