@@ -756,12 +756,13 @@ Route::prefix('{tenant:slug}')
         Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');
         Route::post('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'store'])->name('tenant.academic-terms.store');
         Route::put('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
+        Route::post('/semesters/{term}/archive-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'archiveCourses'])->name('tenant.academic-terms.archive-courses');
+        Route::post('/semesters/{term}/reopen-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'reopenCourses'])->name('tenant.academic-terms.reopen-courses');
         Route::delete('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
 
         // Settings
         Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
         Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
-        Route::post('/settings/drive/folder', [\App\Http\Controllers\Tenant\SettingsController::class, 'updateDriveFolder'])->name('tenant.settings.drive.folder');
         Route::post('/settings/drive/folder/reset', [\App\Http\Controllers\Tenant\SettingsController::class, 'resetDriveFolder'])->name('tenant.settings.drive.folder.reset');
         Route::post('/settings/drive/disconnect', [\App\Http\Controllers\Tenant\SettingsController::class, 'disconnectDrive'])->name('tenant.settings.drive.disconnect');
     });

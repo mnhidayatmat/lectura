@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Lecturer\Concerns\AuthorizesLecturerAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Lecturer\CourseDetailResource;
 use App\Http\Resources\Api\V1\Lecturer\CourseSummaryResource;
+use App\Models\AcademicTerm;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
@@ -30,6 +31,9 @@ class CourseController extends Controller
         $courses = Course::whereIn('id', $ownedCourseIds->merge($sectionCourseIds)->unique())
             ->withCount('sections')
             ->with(['academicTerm', 'faculty'])
+            // The app groups by semester but the payload carries no term dates, so
+            // it relies on this order. Keep the two in step if either changes.
+            ->orderByDesc(AcademicTerm::select('start_date')->whereColumn('academic_terms.id', 'courses.academic_term_id'))
             ->latest()
             ->get();
 

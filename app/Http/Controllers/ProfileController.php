@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\Auth\AppleTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,13 +41,21 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, AppleTokenService $apple): RedirectResponse
     {
         $request->validateWithBag('userDeletion', [
             'password' => ['required', 'current_password'],
         ]);
 
         $user = $request->user();
+
+        // Apple requires the token to be revoked when the account goes, but their
+        // servers must not be able to keep the user from leaving.
+        try {
+            $apple->revoke($user);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         Auth::logout();
 

@@ -25,6 +25,57 @@ class CourseApiTest extends LecturerApiTestCase
         $this->assertEqualsCanonicalizing([$owned->id, $assigned->id], collect($response->json('data'))->pluck('id')->all());
     }
 
+    public function test_index_orders_courses_by_semester_with_the_newest_first(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+
+        $older = $this->createTerm($tenant, [
+            'name' => 'Semester 2, 2025/2026',
+            'start_date' => '2026-02-01',
+            'end_date' => '2026-06-30',
+        ]);
+        $newer = $this->createTerm($tenant, [
+            'name' => 'Semester 1, 2026/2027',
+            'start_date' => '2026-09-01',
+            'end_date' => '2027-01-31',
+        ]);
+
+        // Created oldest-first on purpose: a plain ->latest() ordering would invert this.
+        $past = $this->createCourse($tenant, $lecturer, ['code' => 'SKM1001', 'academic_term_id' => $older->id]);
+        $current = $this->createCourse($tenant, $lecturer, ['code' => 'SKM2002', 'academic_term_id' => $newer->id]);
+        $unassigned = $this->createCourse($tenant, $lecturer, ['code' => 'SKM3003']);
+
+        $ids = collect(
+            $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/courses'))
+                ->assertOk()
+                ->json('data')
+        )->pluck('id')->all();
+
+        // The app groups by first appearance because the payload carries no term
+        // dates, so this order is load-bearing, not cosmetic.
+        $this->assertSame([$current->id, $past->id, $unassigned->id], $ids);
+    }
+
+    public function test_index_keeps_archived_courses_and_labels_them(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $active = $this->createCourse($tenant, $lecturer, ['code' => 'SKM1001']);
+        $archived = $this->createCourse($tenant, $lecturer, ['code' => 'SKM2002', 'status' => 'archived']);
+
+        $data = collect(
+            $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/courses'))
+                ->assertOk()
+                ->json('data')
+        );
+
+        // The app folds archived courses away itself; filtering them out here would
+        // make a closed semester unreachable on mobile.
+        $this->assertEqualsCanonicalizing([$active->id, $archived->id], $data->pluck('id')->all());
+        $this->assertSame('archived', $data->firstWhere('id', $archived->id)['status']);
+    }
+
     public function test_owner_sees_all_sections_with_counts_and_the_course_invite_code(): void
     {
         $tenant = $this->createTenant();

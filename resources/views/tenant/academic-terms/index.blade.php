@@ -106,6 +106,24 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
+                                {{-- Closing a semester archives its courses; nothing else changes --}}
+                                @if($term->courses_count > 0)
+                                    @if($term->archived_courses_count < $term->courses_count)
+                                        <form method="POST" action="{{ route('tenant.academic-terms.archive-courses', [app('current_tenant')->slug, $term]) }}" onsubmit="return confirm('Close this semester? Its courses move to Archived for every lecturer. Sections, assessments and enrolments are untouched, and you can reopen it.')" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition">
+                                                Close semester
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('tenant.academic-terms.reopen-courses', [app('current_tenant')->slug, $term]) }}" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition">
+                                                Reopen semester
+                                            </button>
+                                        </form>
+                                    @endif
+                                @endif
                                 <button @click="editingId = {{ $term->id }}" class="p-2 text-slate-400 hover:text-indigo-600 transition" title="Edit">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </button>

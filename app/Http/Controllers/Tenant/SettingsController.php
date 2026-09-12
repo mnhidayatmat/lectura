@@ -87,29 +87,6 @@ class SettingsController extends Controller
         }
     }
 
-    public function updateDriveFolder(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'folder_input' => ['required', 'string', 'max:500'],
-        ]);
-
-        $user = auth()->user();
-        $tenantSlug = app('current_tenant')->slug;
-
-        try {
-            $folderId = GoogleDriveService::extractFolderId($request->folder_input);
-            $folderInfo = $this->driveService->getFolderInfo($user, $folderId);
-
-            $user->update(['drive_root_folder_id' => $folderInfo['id']]);
-
-            return redirect()->route('tenant.settings', $tenantSlug)
-                ->with('success', 'Root folder set to "'.$folderInfo['name'].'".');
-        } catch (\Throwable $e) {
-            return redirect()->route('tenant.settings', $tenantSlug)
-                ->with('error', 'Could not set folder: '.$e->getMessage());
-        }
-    }
-
     public function resetDriveFolder(): RedirectResponse
     {
         $user = auth()->user();

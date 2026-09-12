@@ -42,6 +42,8 @@ class User extends Authenticatable
         'email',
         'password',
         'google_id',
+        'apple_id',
+        'apple_refresh_token',
         'avatar_url',
         'locale',
         'is_super_admin',
@@ -55,6 +57,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'apple_refresh_token',
         'drive_access_token',
         'drive_refresh_token',
     ];
@@ -66,6 +69,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
             'is_pro' => 'boolean',
+            'apple_refresh_token' => 'encrypted',
             'drive_token_expires_at' => 'datetime',
         ];
     }

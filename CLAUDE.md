@@ -49,7 +49,19 @@ npm run build
   - New users created with `google_id` + `avatar_url`; existing email users auto-linked to Google account
   - Requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` in `.env`
   - Config in `config/services.php` under `google` key
-- Users table has `google_id` (nullable, unique) and `avatar_url` fields for OAuth
+- **Sign in with Apple** is mobile-only (no web button): the iOS app posts the identity token from
+  the native sheet to `POST /api/v1/auth/apple`, which `App\Services\Auth\AppleIdentityToken`
+  verifies against `https://appleid.apple.com/auth/keys` (cached a day). No Socialite driver, client
+  secret or redirect URI — only `APPLE_CLIENT_IDS` (the bundle id) as the accepted audience.
+  - Deleting an account must revoke the Apple token (App Store requirement), and that *does* need a
+    signing key: `AppleTokenService` trades the sheet's authorization code for a refresh token at
+    sign-in (it expires in minutes, so it cannot wait) and posts it to Apple's revoke endpoint from
+    both `Api\V1\AuthController::destroy` and the web `ProfileController::destroy`. Needs
+    `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY_PATH` (the .p8); without them nothing is
+    exchanged or revoked and sign-in is unaffected. Neither call may block the deletion — a failure
+    is reported, never thrown.
+  - `users.apple_refresh_token` is an `encrypted` text column and `$hidden`.
+- Users table has `google_id` and `apple_id` (both nullable, unique) and `avatar_url` for OAuth
 - Password field is nullable to support passwordless Google-only accounts
 - **Onboarding** (`/onboarding`): new users with no tenant see role selection page
   - Choose existing institution from dropdown OR create a new one by typing name

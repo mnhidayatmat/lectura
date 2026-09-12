@@ -19,7 +19,7 @@ class GoogleDriveService
         $this->client->setClientId(config('services.google_drive.client_id'));
         $this->client->setClientSecret(config('services.google_drive.client_secret'));
         $this->client->setRedirectUri(config('services.google_drive.redirect'));
-        $this->client->addScope(GoogleDrive::DRIVE);
+        $this->client->addScope(GoogleDrive::DRIVE_FILE);
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
     }
@@ -110,31 +110,6 @@ class GoogleDriveService
             'id' => $file->getId(),
             'name' => $file->getName(),
         ];
-    }
-
-    /**
-     * Extract a Google Drive folder ID from a URL or return the raw ID.
-     */
-    public static function extractFolderId(string $input): string
-    {
-        $input = trim($input);
-
-        // Match: https://drive.google.com/drive/folders/{ID}
-        if (preg_match('#drive\.google\.com/drive/(?:u/\d+/)?folders/([a-zA-Z0-9_-]+)#', $input, $matches)) {
-            return $matches[1];
-        }
-
-        // Match: https://drive.google.com/open?id={ID}
-        if (preg_match('#drive\.google\.com/open\?id=([a-zA-Z0-9_-]+)#', $input, $matches)) {
-            return $matches[1];
-        }
-
-        // Assume raw folder ID (alphanumeric, hyphens, underscores)
-        if (preg_match('/^[a-zA-Z0-9_-]+$/', $input)) {
-            return $input;
-        }
-
-        throw new \RuntimeException('Could not extract a valid folder ID from the input.');
     }
 
     public function findOrCreateFolder(User $user, string $name, ?string $parentId = null): string
