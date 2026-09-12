@@ -29,6 +29,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Mobile API: bind the tenant before route-model binding so tenant scopes apply to bound models
         $middleware->prependToPriorityList(SubstituteBindings::class, \App\Http\Middleware\ResolveApiTenant::class);
 
+        // Same for the web. Without this, SubstituteBindings resolves models while
+        // `current_tenant` is still unbound, BelongsToTenant's global scope no-ops,
+        // and another institution's record binds happily — an admin could delete a
+        // semester belonging to a different institution. ResolveTenant still sorts
+        // after StartSession, which it needs because it writes `current_tenant_id`
+        // to the session.
+        $middleware->prependToPriorityList(SubstituteBindings::class, \App\Http\Middleware\ResolveTenant::class);
+
         // Rate limit every API route (see RouteServiceProvider's `api` limiter)
         $middleware->throttleApi();
 
