@@ -56,6 +56,13 @@ return [
         'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
     ],
 
+    // Firebase Cloud Messaging (mobile push). Points at the service-account JSON
+    // downloaded from Firebase console → Project settings → Service accounts. Left
+    // empty, notifications are still stored and shown in the app; none are pushed.
+    'fcm' => [
+        'credentials_path' => env('FCM_CREDENTIALS_PATH'),
+    ],
+
     'google_drive' => [
         'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),

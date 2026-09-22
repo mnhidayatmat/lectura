@@ -759,3 +759,39 @@ Paginated, 20 per page, newest first. Notifications are per user (not per instit
 ```json
 { "message": "All notifications marked as read.", "data": { "unread_count": 0 } }
 ```
+
+## Push notifications (Firebase Cloud Messaging)
+
+Not tenant-scoped: these sit at `/api/v1/devices`, beside `/me`.
+
+### POST `/api/v1/devices`
+
+Body `{ "token": "<FCM registration token>", "platform": "android" | "ios" }`. The app calls it after
+sign-in and whenever Firebase rotates the token. A token belongs to one install, so registering it
+again moves it to the signed-in user.
+
+```json
+{ "message": "Device registered.", "data": { "token": "…" } }
+```
+
+The token is tied to the Sanctum token of the request: `POST /auth/logout` and account deletion
+remove it, so a signed-out phone stops receiving pushes without a separate call.
+
+### DELETE `/api/v1/devices`
+
+Body `{ "token": "…" }`. Removes it if it is the user's own; always 200.
+
+### What is pushed
+
+Only the lecturer-facing notifications: `submission_received`, `assessment_submission_received` and
+`attendance_alert`. Title and body are the stored notification's `title` / `body`; the data payload
+carries string values only:
+
+```json
+{ "notification_id": "9d3f…", "kind": "submission_received", "assignment_id": "12" }
+```
+
+`notification_id` is the id used by `notifications/{id}/read`; the related keys are the same ones as
+`related` above (`assignment_id`, `assessment_id`, `course_id`, `course_code`, `level`) when present.
+Tokens FCM reports as `UNREGISTERED` are deleted. Without `FCM_CREDENTIALS_PATH` (a Firebase
+service-account JSON) nothing is pushed and notifications behave as before.

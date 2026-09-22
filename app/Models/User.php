@@ -93,6 +93,11 @@ class User extends Authenticatable
         return $this->hasMany(TenantUser::class);
     }
 
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
     public function sections(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Section::class, 'section_students')
