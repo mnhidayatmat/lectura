@@ -122,7 +122,7 @@ class CourseController extends Controller
         $isOwner = $this->isCourseOwner($course);
 
         $course->load([
-            'learningOutcomes',
+            'learningOutcomes.programmeLearningOutcomes',
             'topics',
             'sections' => fn ($q) => $q->with(['activeStudents', 'academicTerm', 'lecturers']),
             'activeLearningPlans',
@@ -130,9 +130,16 @@ class CourseController extends Controller
             'faculty',
             'programme',
             'academicTerm',
+            'assessments' => fn ($q) => $q->topLevel()->orderBy('sort_order'),
         ]);
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
+
+        $currentWeek = null;
+        $term = $course->academicTerm;
+        if ($term?->start_date && now()->gte($term->start_date) && (! $term->end_date || now()->lte($term->end_date->endOfDay()))) {
+            $currentWeek = min((int) floor($term->start_date->diffInDays(now()) / 7) + 1, (int) $course->num_weeks);
+        }
 
         $lecturers = collect();
         if ($isOwner) {
@@ -147,7 +154,7 @@ class CourseController extends Controller
                 ->values();
         }
 
-        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner'));
+        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner', 'currentWeek'));
     }
 
     public function edit(string $tenantSlug, Course $course): View
