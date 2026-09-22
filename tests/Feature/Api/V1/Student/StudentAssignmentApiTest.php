@@ -185,6 +185,24 @@ class StudentAssignmentApiTest extends ApiTestCase
             ->assertNotFound();
     }
 
+    public function test_closed_assignments_stay_viewable_but_refuse_submissions(): void
+    {
+        Storage::fake('local');
+        [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
+        $closed = $this->createAssignment($course, $lecturer, ['status' => 'marking']);
+
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/assignments/'.$closed->id))
+            ->assertOk()
+            ->assertJsonPath('data.can_submit', false)
+            ->assertJsonPath('data.blocked_reason', 'This assignment is no longer accepting submissions.');
+
+        $this->post(
+            $this->tenantApi($tenant, "student/assignments/{$closed->id}/submit"),
+            ['files' => [UploadedFile::fake()->create('report.pdf', 120, 'application/pdf')]],
+        )->assertStatus(422)
+            ->assertJsonPath('message', 'This assignment is no longer accepting submissions.');
+    }
+
     public function test_submits_files_and_notifies_the_lecturer(): void
     {
         Storage::fake('local');

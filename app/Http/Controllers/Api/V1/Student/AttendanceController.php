@@ -206,7 +206,13 @@ class AttendanceController extends Controller
             && ! $existing->excuse()->exists();
 
         if ($existing && ! $fromAbsentSweep) {
-            return $this->checkInResponse('You have already checked in.', $existing, $session);
+            $message = match ($existing->status) {
+                'absent' => 'Your lecturer has marked you absent for this session.',
+                'excused' => 'You are excused from this session.',
+                default => 'You have already checked in.',
+            };
+
+            return $this->checkInResponse($message, $existing, $session);
         }
 
         $minutesSinceStart = $session->started_at->diffInMinutes($at);

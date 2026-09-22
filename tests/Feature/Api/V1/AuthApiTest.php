@@ -33,6 +33,33 @@ class AuthApiTest extends ApiTestCase
         $this->assertDatabaseHas('personal_access_tokens', ['tokenable_id' => $user->id, 'name' => 'iPhone']);
     }
 
+    public function test_login_ignores_the_case_of_the_email(): void
+    {
+        $tenant = $this->createTenant();
+        $user = $this->createMember($tenant, 'student', ['email' => 'aina@example.com']);
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'Aina@Example.COM', 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $user->id);
+    }
+
+    public function test_auth_rate_limits_are_per_endpoint_and_per_email(): void
+    {
+        $tenant = $this->createTenant();
+        $this->createMember($tenant, 'student', ['email' => 'aina@example.com']);
+
+        // Invalid sign-ups still count, so no accounts are created along the way.
+        foreach (range(1, 11) as $i) {
+            $this->postJson('/api/v1/auth/register', ['email' => "student{$i}@example.com"])->assertStatus(422);
+        }
+        $this->postJson('/api/v1/auth/login', ['email' => 'aina@example.com', 'password' => 'password'])->assertOk();
+
+        foreach (range(1, 9) as $i) {
+            $this->postJson('/api/v1/auth/register', ['email' => 'student1@example.com'])->assertStatus(422);
+        }
+        $this->postJson('/api/v1/auth/register', ['email' => 'Student1@example.com'])->assertStatus(429);
+    }
+
     public function test_login_rejects_an_invalid_password(): void
     {
         User::factory()->create(['email' => 'aina@example.com']);

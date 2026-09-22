@@ -37,10 +37,11 @@ class StudentMaterialApiTest extends ApiTestCase
         ], $attributes));
     }
 
-    public function test_lists_courses_with_material_counts(): void
+    public function test_lists_courses_with_counts_of_visible_materials(): void
     {
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
         $this->addFile($course, $lecturer, $this->materialSection($course));
+        $this->addFile($course, $lecturer, $this->materialSection($course, ['is_visible' => false]), ['file_name' => 'Hidden.pdf']);
 
         $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/materials'))
             ->assertOk()

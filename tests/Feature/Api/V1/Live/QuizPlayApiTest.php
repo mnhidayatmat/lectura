@@ -137,6 +137,31 @@ class QuizPlayApiTest extends ApiTestCase
         $this->assertSame('2.00', QuizParticipant::where('user_id', $student->id)->value('total_score'));
     }
 
+    public function test_tied_players_share_a_leaderboard_rank(): void
+    {
+        [$tenant, $lecturer, $student, $section] = $this->classroom();
+        $rival = $this->createMember($tenant, 'student');
+        $trailing = $this->createMember($tenant, 'student');
+        $this->enroll($section, $rival);
+        $this->enroll($section, $trailing);
+        $quiz = $this->createQuiz($section, $lecturer);
+
+        foreach ([$rival, $student, $trailing] as $player) {
+            $this->actingAsApi($player)->getJson($this->tenantApi($tenant, "live/quizzes/{$quiz->id}"))->assertOk();
+        }
+        QuizParticipant::whereIn('user_id', [$student->id, $rival->id])->update(['total_score' => 4]);
+        QuizParticipant::where('user_id', $trailing->id)->update(['total_score' => 1]);
+        $this->closeQuestion($this->openQuestion($quiz));
+
+        $response = $this->actingAsApi($student)->getJson($this->tenantApi($tenant, "live/quizzes/{$quiz->id}/state"))
+            ->assertOk()
+            ->assertJsonPath('data.me.rank', 1);
+
+        $this->assertSame([1, 1, 3], array_column($response->json('data.leaderboard'), 'rank'));
+        $mine = collect($response->json('data.leaderboard'))->firstWhere('is_me', true);
+        $this->assertSame(1, $mine['rank']);
+    }
+
     public function test_respond_validation_and_authorization(): void
     {
         [$tenant, $lecturer, $student, $section] = $this->classroom();

@@ -32,6 +32,8 @@ class AssignmentController extends Controller
 {
     use InteractsWithEnrollments;
 
+    private const VISIBLE_STATUSES = ['published', 'closed', 'marking', 'completed'];
+
     /**
      * `assignments.parent_id` has no migration, so sub-assignments only exist on
      * installations where the column was added by hand.
@@ -281,11 +283,12 @@ class AssignmentController extends Controller
     }
 
     /**
-     * Students only see published assignments of courses they are enrolled in.
+     * Students see published assignments of courses they are enrolled in, plus closed and marked
+     * ones (the marks list links to them); only published ones accept submissions.
      */
     private function authorizeAssignment(Assignment $assignment, User $user): void
     {
-        if ($assignment->status !== 'published' || ! $assignment->course) {
+        if (! in_array($assignment->status, self::VISIBLE_STATUSES, true) || ! $assignment->course) {
             abort(404);
         }
 
@@ -405,6 +408,14 @@ class AssignmentController extends Controller
      */
     private function submissionGate(Assignment $assignment, User $user, array $group, bool $hasSubmission, int $attemptsUsed): array
     {
+        if ($assignment->status !== 'published') {
+            return [
+                'can_submit' => false,
+                'can_resubmit' => false,
+                'blocked_reason' => 'This assignment is no longer accepting submissions.',
+            ];
+        }
+
         if ($assignment->isGroupAssignment()) {
             if (! $group['model']) {
                 return [

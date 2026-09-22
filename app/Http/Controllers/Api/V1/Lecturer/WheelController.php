@@ -88,7 +88,7 @@ class WheelController extends Controller
                 'id' => $session->id,
                 'label' => ($session->isActive() ? 'LIVE — ' : '').
                     'W'.($session->week_number ?? '?').' '.ucfirst($session->session_type).
-                    ' — '.$session->started_at->format('d M Y, H:i'),
+                    ' — '.($session->started_at?->format('d M Y, H:i') ?? 'not started'),
                 'session_type' => $session->session_type,
                 'week_number' => $session->week_number !== null ? (int) $session->week_number : null,
                 'started_at' => $session->started_at?->toIso8601String(),

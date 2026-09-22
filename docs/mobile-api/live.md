@@ -265,7 +265,7 @@ Poll every ~2 s while the screen is visible; stop when `phase == "finished"`. Th
 | `question_total` | |
 | `question` | `answering`: open Question + `remaining_seconds` (int, informational — the lecturer closes the question). `reveal`: revealed Question + `remaining_seconds: null`. Otherwise `null` |
 | `me` | `joined`, `display_name`, `score`, `answered`, `selected_option_id`, `answer_text` (for the current question), `is_correct` + `points_earned` (reveal only; `null` if no answer = "Time's up"), `rank` (reveal/finished; ties share a rank) |
-| `leaderboard` | reveal/finished: top 10 `[{rank, name, score, is_me}]`, else `null`. Names are pseudonyms for anonymous quizzes |
+| `leaderboard` | reveal/finished: top 10 `[{rank, name, score, is_me}]`, else `null`; ties share a rank like `me.rank` (1, 1, 3). Names are pseudonyms for anonymous quizzes |
 
 Lobby:
 ```json

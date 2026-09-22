@@ -26,7 +26,8 @@ class MaterialController extends Controller
         $sectionIds = $this->enrolledSectionIds($request->user());
 
         $courses = Course::whereHas('sections', fn ($q) => $q->whereIn('id', $sectionIds))
-            ->withCount('files')
+            // Only files the course screen lists, i.e. those in visible sections.
+            ->withCount(['files' => fn ($q) => $q->whereHas('materialSection', fn ($q) => $q->where('is_visible', true))])
             ->with('lecturer')
             ->orderBy('code')
             ->get();

@@ -47,7 +47,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::whereRaw('LOWER(email) = ?', [$request->string('email')->trim()->lower()->value()])->first();
 
         if (! $user || ! $user->password || ! Hash::check($request->password, $user->password)) {
             RateLimiter::hit($throttleKey);

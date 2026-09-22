@@ -1,6 +1,7 @@
 # Lectura Go API — Student core + notifications
 
-All paths are relative to `/api/v1/t/{tenant}/` (tenant slug). Every request needs
+All paths are relative to `/api/v1/t/{tenant}/` (tenant slug), except the Devices and Account
+sections, which sit directly under `/api/v1/`. Every request needs
 `Authorization: Bearer <token>` and `Accept: application/json`. A multi-role user may send
 `X-Lectura-Role: student`.
 
@@ -10,7 +11,8 @@ Conventions
 - Validation errors: HTTP 422 `{"message": "...", "errors": {"field": ["..."]}}`.
 - Business-rule failures that are not field validation (check-in, excuse rules): HTTP 422 `{"message": "..."}` (no `errors`).
 - Permission failures: 403 `{"message": "..."}`. Records from another institution, or unknown ids: 404.
-- Timestamps are ISO-8601 with offset (`2026-09-11T08:00:00+08:00`). Decimals are JSON numbers
+- Timestamps are ISO-8601 with offset. The server runs in UTC (`config/app.php`), so it emits
+  `+00:00`; examples below show `+08:00` for readability, and any offset parses the same. Decimals are JSON numbers
   (`90` or `92.5`). Nullable fields are always present with `null`.
 - `course` fragment used everywhere: `{"id": 12, "code": "SKMM1203", "title": "Statics"}`.
 
@@ -193,6 +195,10 @@ non `A-Z0-9` characters are stripped before lookup (same as the web).
 
 Body: `{"payload": "<raw QR text>"}` (the scanned string, unchanged).
 
+Optional `scanned_at` (ISO-8601 **with offset**, e.g. UTC `Z`) marks a scan queued while offline: it is
+judged against the session's start/end window instead of "is the session running now", and the QR token
+is verified at that instant. The server parses an offset-less time as UTC, so always send one.
+
 200 — checked in:
 
 ```json
@@ -212,12 +218,16 @@ Body: `{"payload": "<raw QR text>"}` (the scanned string, unchanged).
 
 - Late (more than the session's late threshold after start): `message` = `"Checked in (late)."`, `status` = `"late"`.
 - Already checked in: HTTP **200**, `message` = `"You have already checked in."`, `data` holds the existing record (`checked_in_at` may be `null` if the lecturer set the status manually).
+  When that record is `absent` (set by the lecturer) the message is `"Your lecturer has marked you absent for this session."`;
+  when `excused`, `"You are excused from this session."`. Check `data.status`, not the HTTP code, before showing success.
 
 422 `{"message": ...}` (no `errors`):
 - `Invalid QR code.`
 - `This attendance session has ended.`
 - `QR code has expired. Please scan the latest code.`
 - `You are not enrolled in this section.`
+- `This check-in is too old to submit. Ask your lecturer to mark you manually.` (queued scan in the future or past the offline grace window)
+- `That scan was taken outside this session.` (queued scan)
 
 422 validation: `errors.payload` when missing.
 
@@ -353,6 +363,9 @@ Errors: 403 `This attendance record does not belong to you.` · 404 record of an
   ]
 }
 ```
+
+`materials_count` counts items in visible sections only — the same set `materials/courses/{course}`
+lists and `counts.materials` on the course detail reports.
 
 ### GET `student/materials/courses/{course}`
 
@@ -534,8 +547,11 @@ Drive-stored scripts redirect (302). 404 when not the student's score, not relea
 
 ## Assignments
 
-Students only see **published** assignments of courses they are enrolled in; a draft, or an
-assignment of another institution, returns 404. Not enrolled → 403 `You are not enrolled in this course.`
+The list shows **published** assignments of courses the student is enrolled in. Detail and downloads
+also open closed/marking/completed ones (the marks list links to them), with `can_submit: false` and
+`blocked_reason: "This assignment is no longer accepting submissions."`; submitting one returns 422 with
+that message. A draft, or an assignment of another institution, returns 404. Not enrolled → 403
+`You are not enrolled in this course.`
 
 ### GET `student/assignments`
 

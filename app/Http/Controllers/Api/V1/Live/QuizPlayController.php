@@ -339,18 +339,31 @@ class QuizPlayController extends Controller
         $leaderboard = null;
 
         if (in_array($phase, ['reveal', 'finished'], true)) {
+            // Ties share a rank ("1, 1, 3"), matching `me.rank` and the result screen.
+            $rank = 0;
+            $previousScore = null;
             $leaderboard = QuizParticipant::where('quiz_session_id', $session->id)
                 ->with('user:id,name')
                 ->orderByDesc('total_score')
+                ->orderBy('id')
                 ->take(10)
                 ->get()
                 ->values()
-                ->map(fn (QuizParticipant $p, int $i) => [
-                    'rank' => $i + 1,
-                    'participant_id' => $p->id,
-                    'name' => $session->is_anonymous ? $p->display_name : ($p->user?->name ?? $p->display_name),
-                    'score' => (float) $p->total_score,
-                ])
+                ->map(function (QuizParticipant $p, int $i) use ($session, &$rank, &$previousScore) {
+                    $score = (float) $p->total_score;
+
+                    if ($score !== $previousScore) {
+                        $rank = $i + 1;
+                        $previousScore = $score;
+                    }
+
+                    return [
+                        'rank' => $rank,
+                        'participant_id' => $p->id,
+                        'name' => $session->is_anonymous ? $p->display_name : ($p->user?->name ?? $p->display_name),
+                        'score' => $score,
+                    ];
+                })
                 ->all();
         }
 

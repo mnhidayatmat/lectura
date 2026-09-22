@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 // ── Mobile app API (Lectura Go) — Sanctum bearer tokens ──
 Route::prefix('v1')->name('api.v1.')->group(function () {
-    Route::middleware('throttle:10,1')->group(function () {
+    Route::middleware('throttle:mobile-auth')->group(function () {
         Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
         Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
         Route::post('/auth/google/exchange', [AuthController::class, 'googleExchange'])->name('auth.google.exchange');

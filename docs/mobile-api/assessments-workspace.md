@@ -541,7 +541,7 @@ Multipart:
 
 | Field | Rules |
 |---|---|
-| `file` | required; `pdf,jpg,jpeg,png,doc,docx,xls,xlsx,pptx` (config `lectura.uploads.allowed_types`); max 25 MB (`lectura.uploads.max_file_size_mb`) |
+| `file` | required; `pdf,jpg,jpeg,png,doc,docx,xls,xlsx,pptx` (config `lectura.uploads.allowed_types`); max 25,000 KB (`lectura.uploads.max_file_size_mb` × 1000 KB, so just under 25 MiB) |
 | `folder_id` | optional folder id of this group |
 | `description` | optional, max 500 |
 

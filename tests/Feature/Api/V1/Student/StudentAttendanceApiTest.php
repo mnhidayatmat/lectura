@@ -266,7 +266,7 @@ class StudentAttendanceApiTest extends ApiTestCase
             'scanned_at' => $scannedAt->toIso8601String(),
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'You have already checked in.')
+            ->assertJsonPath('message', 'Your lecturer has marked you absent for this session.')
             ->assertJsonPath('data.status', 'absent');
     }
 
