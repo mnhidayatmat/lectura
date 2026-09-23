@@ -31,8 +31,9 @@ class AssessmentPlanController extends Controller
         $tenant = app('current_tenant');
 
         $courses = Course::whereIn('id', $this->accessibleCourseIds())
-            ->with(['assessments', 'learningOutcomes'])
-            ->withCount('assessments')
+            ->with(['assessments', 'learningOutcomes', 'academicTerm'])
+            ->withCount(['assessments', 'sections' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('code')
             ->get()
             ->map(function ($course) {
                 $totalWeightage = $course->assessments->whereNull('parent_id')->sum('weightage');

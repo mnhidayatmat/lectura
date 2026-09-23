@@ -51,6 +51,8 @@ class WhiteboardController extends Controller
         }
 
         $courses = Course::whereIn('id', $courseIds)
+            ->with('academicTerm')
+            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
             ->orderBy('code')
             ->get();
 

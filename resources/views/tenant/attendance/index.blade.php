@@ -47,61 +47,23 @@
         @else
             @foreach(['Courses' => $currentCourses, 'Archived' => $archivedCourses] as $heading => $courses)
                 @continue($courses->isEmpty())
-                <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ $heading }}</h3>
-                        <span class="text-xs text-slate-400">{{ $courses->count() }} {{ Str::plural('course', $courses->count()) }}</span>
-                    </div>
-                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        @foreach($courses as $course)
-                            @php
-                                $stats = $course->attendance_stats;
-                                $rate = $stats['rate'];
-                                $rateColor = $rate === null ? 'bg-slate-200' : ($rate >= 80 ? 'bg-emerald-500' : ($rate >= 60 ? 'bg-amber-500' : 'bg-red-500'));
-                                $rateText = $rate === null ? 'text-slate-400' : ($rate >= 80 ? 'text-emerald-600' : ($rate >= 60 ? 'text-amber-600' : 'text-red-600'));
-                            @endphp
-                            <a href="{{ route('tenant.attendance.course', [$tenant->slug, $course]) }}"
-                               class="group flex flex-col bg-white rounded-2xl border border-slate-200 hover:border-emerald-200 hover:shadow-md p-5 transition-all {{ $heading === 'Archived' ? 'opacity-75 hover:opacity-100' : '' }}">
-                                <div class="flex items-start gap-4">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <p class="text-xs font-bold text-emerald-600">{{ $course->code }}</p>
-                                            @if($stats['live'] > 0)
-                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-semibold">
-                                                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                                    Live
-                                                </span>
-                                            @endif
-                                        </div>
-                                        <h4 class="text-sm font-semibold text-slate-900 truncate group-hover:text-emerald-700 transition">{{ $course->title }}</h4>
-                                        <p class="text-xs text-slate-400 mt-0.5 truncate">
-                                            {{ $stats['sections'] }} {{ Str::plural('section', $stats['sections']) }}
-                                            @if($course->academicTerm) &middot; {{ $course->academicTerm->name }} @endif
-                                        </p>
-                                    </div>
-                                    <svg class="w-5 h-5 text-slate-300 group-hover:text-emerald-400 transition flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                </div>
-
-                                <div class="mt-5 pt-4 border-t border-slate-100">
-                                    <div class="flex items-baseline justify-between mb-1.5">
-                                        <span class="text-xs text-slate-500">Avg. attendance</span>
-                                        <span class="text-sm font-bold {{ $rateText }}">{{ $rate === null ? '—' : $rate . '%' }}</span>
-                                    </div>
-                                    <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full rounded-full {{ $rateColor }}" style="width: {{ $rate ?? 0 }}%"></div>
-                                    </div>
-                                    <div class="flex items-center justify-between mt-3 text-xs text-slate-400">
-                                        <span>{{ $stats['sessions'] }} {{ Str::plural('session', $stats['sessions']) }}</span>
-                                        <span>{{ $stats['last'] ? 'Last ' . $stats['last']->diffForHumans() : 'No sessions yet' }}</span>
-                                    </div>
-                                </div>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
+                <x-course-grid :heading="$heading" :count="$courses->count()">
+                    @foreach($courses as $course)
+                        @php $stats = $course->attendance_stats; @endphp
+                        <x-course-card
+                            :href="route('tenant.attendance.course', [$tenant->slug, $course])"
+                            :course="$course"
+                            accent="emerald"
+                            icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                            :meta="$stats['sections'] . ' ' . Str::plural('section', $stats['sections']) . ($course->academicTerm ? ' · ' . $course->academicTerm->name : '')"
+                            :live="$stats['live']"
+                            metric-label="Avg. attendance"
+                            :metric-value="$stats['rate'] === null ? null : $stats['rate'] . '%'"
+                            :metric-percent="$stats['rate']"
+                            :footer-left="$stats['sessions'] . ' ' . Str::plural('session', $stats['sessions'])"
+                            :footer-right="$stats['last'] ? 'Last ' . $stats['last']->diffForHumans() : 'No sessions yet'" />
+                    @endforeach
+                </x-course-grid>
             @endforeach
         @endif
     </div>

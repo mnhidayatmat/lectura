@@ -7,7 +7,7 @@ return [
     'new_plan' => 'Pelan Baharu',
     'no_plans' => 'Tiada pelan pembelajaran aktif lagi',
     'no_plans_desc' => 'Cipta pelan pembelajaran aktif pertama anda untuk mereka bentuk aktiviti kelas yang menarik untuk pelajar.',
-    'all_plans_desc' => 'Semua pelan pembelajaran aktif merentas kursus anda',
+    'all_plans_desc' => 'Pilih kursus untuk melihat dan membina pelan pembelajaran aktifnya',
     'no_plans_all_desc' => 'Anda belum mencipta sebarang pelan pembelajaran aktif. Pergi ke kursus untuk mencipta satu.',
     'view_all' => 'Lihat Semua',
     'drafts' => 'Draf',

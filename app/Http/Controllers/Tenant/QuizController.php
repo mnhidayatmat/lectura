@@ -31,35 +31,50 @@ class QuizController extends Controller
      */
     public function index(): View
     {
-        $user = auth()->user();
         $courseIds = $this->accessibleCourseIds();
         $sectionIds = $this->allAccessibleSectionIds();
 
-        $folders = QuizFolder::where('lecturer_id', $user->id)
-            ->with(['sessions' => fn ($q) => $q->with(['section.course', 'participants'])->latest()])
-            ->orderBy('name')
-            ->get();
-
-        $unfoldered = QuizSession::whereIn('section_id', $sectionIds)
-            ->whereNull('quiz_folder_id')
-            ->with(['section.course', 'participants'])
-            ->latest()
-            ->get();
+        $sessionsByCourse = QuizSession::whereIn('section_id', $sectionIds)
+            ->with('section:id,course_id')
+            ->get()
+            ->groupBy(fn ($s) => $s->section?->course_id);
 
         $courses = Course::whereIn('id', $courseIds)
             ->whereHas('sections', fn ($q) => $q->where('is_active', true))
+            ->with('academicTerm')
+            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
             ->orderBy('code')
-            ->get();
+            ->get()
+            ->each(function (Course $course) use ($sessionsByCourse) {
+                $quizzes = $sessionsByCourse->get($course->id, collect());
+                $course->quiz_stats = [
+                    'quizzes' => $quizzes->count(),
+                    'live' => $quizzes->filter(fn ($s) => $s->category === 'live' && $s->isLive())->count(),
+                    'open' => $quizzes->filter(fn ($s) => $s->category === 'offline' && $s->status !== 'ended')->count(),
+                    'last' => $quizzes->max('created_at'),
+                ];
+            });
 
-        // Group all sessions by course_id for course-tab view
-        $allSessions = QuizSession::whereIn('section_id', $sectionIds)
-            ->with(['section.course', 'participants', 'folder', 'sessionQuestions'])
+        return view('tenant.quizzes.index', compact('courses'));
+    }
+
+    /**
+     * Quizzes for a single course.
+     */
+    public function course(string $tenantSlug, Course $course): View
+    {
+        $this->authorizeCourseAccess($course);
+
+        $sectionIds = Section::where('course_id', $course->id)
+            ->whereIn('id', $this->allAccessibleSectionIds())
+            ->pluck('id');
+
+        $sessions = QuizSession::whereIn('section_id', $sectionIds)
+            ->with(['section', 'participants', 'folder', 'sessionQuestions'])
             ->latest()
             ->get();
 
-        $sessionsByCourse = $allSessions->groupBy(fn ($s) => $s->section?->course_id);
-
-        return view('tenant.quizzes.index', compact('courses', 'folders', 'unfoldered', 'sessionsByCourse'));
+        return view('tenant.quizzes.course', compact('course', 'sessions'));
     }
 
     /** Store a new folder */
@@ -145,7 +160,9 @@ class QuizController extends Controller
             ->limit(100)
             ->get();
 
-        return view('tenant.quizzes.create', compact('sections', 'bankQuestions', 'folders'));
+        $selectedSectionId = $sections->firstWhere('course_id', (int) $request->query('course'))?->id;
+
+        return view('tenant.quizzes.create', compact('sections', 'bankQuestions', 'folders', 'selectedSectionId'));
     }
 
     /**
@@ -227,7 +244,7 @@ class QuizController extends Controller
         }
 
         if ($isOffline) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $session->section->course_id])
                 ->with('success', 'Offline quiz created. Students can access it from '.$session->available_from->format('d M Y H:i').'.');
         }
 
@@ -363,7 +380,7 @@ class QuizController extends Controller
         }
 
         if ($isOffline) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $session->section->course_id])
                 ->with('success', 'Offline quiz updated successfully.');
         }
 
@@ -400,9 +417,10 @@ class QuizController extends Controller
             $q->delete();
         });
 
+        $courseId = $session->section->course_id;
         $session->delete();
 
-        return redirect()->route('tenant.quizzes.index', $tenant->slug)
+        return redirect()->route('tenant.quizzes.course', [$tenant->slug, $courseId])
             ->with('success', 'Quiz deleted successfully.');
     }
 
@@ -599,7 +617,7 @@ class QuizController extends Controller
         }
 
         if ($newSession->isOffline()) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $newSession->section->course_id])
                 ->with('success', 'Offline quiz replayed — new session created.');
         }
 

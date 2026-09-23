@@ -30,7 +30,7 @@ class ActiveLearningPlanController extends Controller
         protected TierGateService $tierGate,
     ) {}
 
-    public function all(Request $request): View
+    public function all(): View
     {
         $tenant = app('current_tenant');
         $user = auth()->user();
@@ -39,17 +39,27 @@ class ActiveLearningPlanController extends Controller
         $sectionIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
         $courseIds = $ownedIds->merge($sectionIds)->unique();
 
-        $courses = Course::whereIn('id', $courseIds)->latest()->get();
+        $plans = ActiveLearningPlan::whereIn('course_id', $courseIds)
+            ->withCount('activities')
+            ->get();
+        $plansByCourse = $plans->groupBy('course_id');
 
-        $sort = $this->resolvePlanSort($request, 'active_learning_all_sort');
-        $plans = $this->applyPlanSort(
-            ActiveLearningPlan::whereIn('course_id', $courseIds)
-                ->withCount('activities')
-                ->with(['course', 'topic']),
-            $sort
-        )->get();
+        $courses = Course::whereIn('id', $courseIds)
+            ->with('academicTerm')
+            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('code')
+            ->get()
+            ->each(function (Course $course) use ($plansByCourse) {
+                $coursePlans = $plansByCourse->get($course->id, collect());
+                $course->plan_stats = [
+                    'plans' => $coursePlans->count(),
+                    'published' => $coursePlans->where('status', 'published')->count(),
+                    'activities' => $coursePlans->sum('activities_count'),
+                    'updated' => $coursePlans->max('updated_at'),
+                ];
+            });
 
-        return view('tenant.active-learning.all', compact('tenant', 'courses', 'plans', 'sort'));
+        return view('tenant.active-learning.all', compact('tenant', 'courses'));
     }
 
     public function index(Request $request, string $tenantSlug, Course $course): View

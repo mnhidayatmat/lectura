@@ -7,7 +7,7 @@ return [
     'new_plan' => 'New Plan',
     'no_plans' => 'No active learning plans yet',
     'no_plans_desc' => 'Create your first active learning plan to design engaging classroom activities for your students.',
-    'all_plans_desc' => 'All active learning plans across your courses',
+    'all_plans_desc' => 'Choose a course to view and build its active learning plans',
     'no_plans_all_desc' => 'You have not created any active learning plans yet. Go to a course to create one.',
     'view_all' => 'View All',
     'drafts' => 'Drafts',

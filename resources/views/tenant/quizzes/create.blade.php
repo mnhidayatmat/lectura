@@ -1,7 +1,7 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
-            <a href="{{ route('tenant.quizzes.index', app('current_tenant')->slug) }}" class="text-slate-400 hover:text-slate-600 transition">
+            <a href="{{ (request('course') ? route('tenant.quizzes.course', [app('current_tenant')->slug, request('course')]) : route('tenant.quizzes.index', app('current_tenant')->slug)) }}" class="text-slate-400 hover:text-slate-600 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
@@ -56,7 +56,7 @@
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Section *</label>
                     <select name="section_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         @foreach($sections as $s)
-                            <option value="{{ $s->id }}">{{ $s->course->code }} — {{ $s->name }}</option>
+                            <option value="{{ $s->id }}" @selected($s->id === $selectedSectionId)>{{ $s->course->code }} — {{ $s->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -180,7 +180,7 @@
         </div>
 
         <div class="flex items-center justify-end gap-3">
-            <a href="{{ route('tenant.quizzes.index', app('current_tenant')->slug) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition">Cancel</a>
+            <a href="{{ (request('course') ? route('tenant.quizzes.course', [app('current_tenant')->slug, request('course')]) : route('tenant.quizzes.index', app('current_tenant')->slug)) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition">Cancel</a>
             <button type="submit" :disabled="questions.length === 0" class="px-6 py-2.5 text-white text-sm font-medium rounded-xl shadow-sm transition disabled:opacity-50" :class="category === 'offline' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-indigo-600 hover:bg-indigo-700'" x-text="category === 'offline' ? 'Create Offline Quiz' : 'Create & Open Quiz'">
             </button>
         </div>
