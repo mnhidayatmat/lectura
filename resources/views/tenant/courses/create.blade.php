@@ -14,6 +14,17 @@
     <form method="POST" action="{{ route('tenant.courses.store', app('current_tenant')->slug) }}" x-data="courseForm()" class="space-y-8">
         @csrf
 
+        @if($errors->any())
+            <div class="px-5 py-4 rounded-2xl bg-red-50 border border-red-200">
+                <p class="text-sm font-semibold text-red-700">The course was not saved. Please fix the following:</p>
+                <ul class="mt-2 list-disc list-inside text-sm text-red-600 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         {{-- Basic Info --}}
         <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100">
@@ -60,30 +71,32 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Format</label>
                     <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center gap-2"><input type="checkbox" name="format[lecture]" value="1" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Lecture</span></label>
-                        <label class="flex items-center gap-2"><input type="checkbox" name="format[tutorial]" value="1" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Tutorial</span></label>
-                        <label class="flex items-center gap-2"><input type="checkbox" name="format[lab]" value="1" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Lab</span></label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="format[lecture]" value="1" {{ ! session()->hasOldInput() || old('format.lecture') ? 'checked' : '' }} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Lecture</span></label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="format[tutorial]" value="1" {{ old('format.tutorial') ? 'checked' : '' }} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Tutorial</span></label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="format[lab]" value="1" {{ old('format.lab') ? 'checked' : '' }} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><span class="text-sm text-slate-600">Lab</span></label>
                     </div>
                 </div>
 
-                @if($faculties->isNotEmpty())
+                @if($faculties->isNotEmpty() || $terms->isNotEmpty())
                     <div class="grid sm:grid-cols-2 gap-5">
-                        <div>
-                            <label for="faculty_id" class="block text-sm font-medium text-slate-700 mb-1.5">Faculty</label>
-                            <select name="faculty_id" id="faculty_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="">-- Optional --</option>
-                                @foreach($faculties as $f)
-                                    <option value="{{ $f->id }}">{{ $f->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        @if($faculties->isNotEmpty())
+                            <div>
+                                <label for="faculty_id" class="block text-sm font-medium text-slate-700 mb-1.5">Faculty</label>
+                                <select name="faculty_id" id="faculty_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="">-- Optional --</option>
+                                    @foreach($faculties as $f)
+                                        <option value="{{ $f->id }}" {{ (string) old('faculty_id') === (string) $f->id ? 'selected' : '' }}>{{ $f->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
                         @if($terms->isNotEmpty())
                             <div>
                                 <label for="academic_term_id" class="block text-sm font-medium text-slate-700 mb-1.5">Academic Term</label>
                                 <select name="academic_term_id" id="academic_term_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                     <option value="">-- Optional --</option>
                                     @foreach($terms as $t)
-                                        <option value="{{ $t->id }}" {{ $t->is_default ? 'selected' : '' }}>{{ $t->name }}</option>
+                                        <option value="{{ $t->id }}" {{ (old('academic_term_id') !== null ? (string) old('academic_term_id') === (string) $t->id : $t->is_default) ? 'selected' : '' }}>{{ $t->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -135,13 +148,30 @@
                 </template>
                 <div class="space-y-3">
                     <template x-for="(topic, index) in topics" :key="index">
-                        <div class="flex items-center gap-3">
-                            <input type="hidden" :name="'topics['+index+'][week_number]'" :value="topic.week">
-                            <span class="w-16 text-xs font-semibold text-slate-500 text-right flex-shrink-0" x-text="'Week ' + topic.week"></span>
-                            <input type="text" :name="'topics['+index+'][title]'" x-model="topic.title" placeholder="Topic title..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                            <button type="button" @click="topics.splice(index, 1)" class="p-1.5 text-slate-400 hover:text-red-500 transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
+                        <div class="rounded-xl border border-slate-100 p-3 space-y-2">
+                            <div class="flex items-center gap-3">
+                                <input type="hidden" :name="'topics['+index+'][week_number]'" :value="topic.week">
+                                <span class="w-16 text-xs font-semibold text-slate-500 text-right flex-shrink-0" x-text="'Week ' + topic.week"></span>
+                                <input type="text" :name="'topics['+index+'][title]'" x-model="topic.title" maxlength="255" placeholder="Topic title..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                <button type="button" @click="topic.showDetails = !topic.showDetails" class="text-xs text-slate-500 hover:text-indigo-600 font-medium flex-shrink-0" x-text="topic.showDetails ? 'Hide subtopics' : 'Subtopics'"></button>
+                                <button type="button" @click="topics.splice(index, 1)" class="p-1.5 text-slate-400 hover:text-red-500 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <div x-show="topic.showDetails" class="sm:pl-[4.75rem]">
+                                <textarea :name="'topics['+index+'][description]'" x-model="topic.description" rows="3" placeholder="Subtopics, one per line..." class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 sm:pl-[4.75rem]" x-show="clos.some(c => c.code)">
+                                <span class="text-[11px] text-slate-400 mr-1">CLOs:</span>
+                                <template x-for="clo in clos.filter(c => c.code)" :key="clo.code">
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" class="sr-only" :name="'topics['+index+'][clos][]'" :value="clo.code" :checked="topic.clos.includes(clo.code)" @change="toggleClo(topic, clo.code)">
+                                        <span class="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold border transition"
+                                              :class="topic.clos.includes(clo.code) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-500 hover:border-indigo-400'"
+                                              x-text="clo.code"></span>
+                                    </label>
+                                </template>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -161,17 +191,30 @@
     <script>
         function courseForm() {
             return {
-                numWeeks: {{ old('num_weeks', 14) }},
-                clos: [],
-                topics: [],
+                numWeeks: {{ (int) old('num_weeks', 14) }},
+                // Restored from old input so a failed save keeps what was typed
+                clos: @json(array_values(old('clos', []))).map(c => ({ code: c.code ?? '', description: c.description ?? '' })),
+                topics: @json(array_values(old('topics', []))).map(t => ({
+                    week: t.week_number,
+                    title: t.title ?? '',
+                    description: t.description ?? '',
+                    clos: t.clos ?? [],
+                    showDetails: !! t.description,
+                })),
                 addClo() {
                     const num = this.clos.length + 1;
                     this.clos.push({ code: 'CLO' + num, description: '' });
                 },
+                toggleClo(topic, code) {
+                    topic.clos = topic.clos.includes(code)
+                        ? topic.clos.filter(c => c !== code)
+                        : [...topic.clos, code];
+                },
                 generateWeeks() {
+                    const existing = Object.fromEntries(this.topics.map(t => [t.week, t]));
                     this.topics = [];
                     for (let i = 1; i <= this.numWeeks; i++) {
-                        this.topics.push({ week: i, title: '' });
+                        this.topics.push(existing[i] ?? { week: i, title: '', description: '', clos: [], showDetails: false });
                     }
                 }
             }

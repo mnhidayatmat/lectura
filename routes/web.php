@@ -381,6 +381,7 @@ Route::prefix('{tenant:slug}')
 
         // Topics
         Route::post('/courses/{course}/topics', [TopicController::class, 'store'])->name('tenant.courses.topics.store');
+        Route::put('/courses/{course}/topics/{topic}', [TopicController::class, 'update'])->name('tenant.courses.topics.update');
         Route::delete('/courses/{course}/topics/{topic}', [TopicController::class, 'destroy'])->name('tenant.courses.topics.destroy');
 
         // Sections

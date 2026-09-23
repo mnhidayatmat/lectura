@@ -81,27 +81,37 @@ class CourseController extends Controller
         ]);
 
         // Create CLOs
+        $cloIdsByCode = [];
         if ($request->clos) {
-            foreach ($request->clos as $i => $clo) {
+            foreach (array_values($request->clos) as $i => $clo) {
                 if (! empty($clo['code']) && ! empty($clo['description'])) {
-                    CourseLearningOutcome::create([
+                    $cloIdsByCode[$clo['code']] = CourseLearningOutcome::create([
                         'course_id' => $course->id,
                         'code' => $clo['code'],
                         'description' => $clo['description'],
                         'sort_order' => $i,
-                    ]);
+                    ])->id;
                 }
             }
         }
 
-        // Create topics
+        // Create topics; the form links weeks to CLOs by code because the CLOs have no ids yet
         if ($request->topics) {
-            foreach ($request->topics as $i => $topic) {
+            foreach (array_values($request->topics) as $i => $topic) {
                 if (! empty($topic['title'])) {
+                    $cloIds = collect($topic['clos'] ?? [])
+                        ->map(fn ($code) => $cloIdsByCode[$code] ?? null)
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
                     CourseTopic::create([
                         'course_id' => $course->id,
                         'week_number' => $topic['week_number'] ?? ($i + 1),
                         'title' => $topic['title'],
+                        'description' => $topic['description'] ?? null,
+                        'clo_ids' => $cloIds ?: null,
                         'sort_order' => $i,
                     ]);
                 }

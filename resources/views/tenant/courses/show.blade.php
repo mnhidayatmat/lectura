@@ -455,18 +455,50 @@
                 <div class="px-5 py-8 text-center text-sm text-slate-400">No weekly topics defined yet.</div>
             @else
                 <div class="grid sm:grid-cols-2 gap-px bg-slate-100">
+                    @php $closById = $course->learningOutcomes->keyBy('id'); @endphp
                     @foreach($course->topics as $topic)
                         @php
                             $isCurrent = $currentWeek && (int) $topic->week_number === $currentWeek;
                             $isPast = $currentWeek && (int) $topic->week_number < $currentWeek;
+                            $topicCloIds = collect($topic->clo_ids ?? [])->map(fn ($id) => (int) $id);
+                            $topicClos = $topicCloIds->map(fn ($id) => $closById->get($id))->filter();
                         @endphp
-                        <div class="px-5 py-3 flex items-center justify-between group transition {{ $isCurrent ? 'bg-teal-50' : 'bg-white hover:bg-slate-50/50' }}">
-                            <div class="flex items-center gap-3 min-w-0">
+                        <div class="px-5 py-3 flex items-start justify-between gap-2 group transition {{ $isCurrent ? 'bg-teal-50' : 'bg-white hover:bg-slate-50/50' }}" x-data="{ editClos: false }">
+                            <div class="flex items-start gap-3 min-w-0 flex-1">
                                 <span class="inline-flex items-center justify-center w-9 h-7 text-[10px] font-bold rounded-md flex-shrink-0 {{ $isCurrent ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-700' }}">W{{ $topic->week_number }}</span>
-                                <span class="text-sm truncate {{ $isPast ? 'text-slate-400' : 'text-slate-700' }} {{ $isCurrent ? 'font-semibold' : '' }}">{{ $topic->title }}</span>
-                                @if($isCurrent)
-                                    <span class="text-[10px] font-semibold text-teal-700 uppercase tracking-wider flex-shrink-0">Now</span>
-                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="text-sm truncate {{ $isPast ? 'text-slate-400' : 'text-slate-700' }} {{ $isCurrent ? 'font-semibold' : '' }}" @if($topic->description) title="{{ $topic->description }}" @endif>{{ $topic->title }}</span>
+                                        @if($isCurrent)
+                                            <span class="text-[10px] font-semibold text-teal-700 uppercase tracking-wider flex-shrink-0">Now</span>
+                                        @endif
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-1" x-show="!editClos">
+                                        @forelse($topicClos as $clo)
+                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700" title="{{ $clo->description }}">{{ $clo->code }}</span>
+                                        @empty
+                                            @if($course->learningOutcomes->isNotEmpty())
+                                                <span class="text-[10px] text-amber-600">No CLO linked</span>
+                                            @endif
+                                        @endforelse
+                                        @if($course->learningOutcomes->isNotEmpty())
+                                            <button type="button" @click="editClos = true" class="text-[10px] text-slate-400 hover:text-indigo-600 font-medium opacity-0 group-hover:opacity-100 transition">Edit CLOs</button>
+                                        @endif
+                                    </div>
+                                    @if($course->learningOutcomes->isNotEmpty())
+                                        <form x-show="editClos" x-cloak method="POST" action="{{ route('tenant.courses.topics.update', [$tenant->slug, $course, $topic]) }}" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                            @csrf @method('PUT')
+                                            @foreach($course->learningOutcomes as $clo)
+                                                <label class="cursor-pointer" title="{{ $clo->description }}">
+                                                    <input type="checkbox" name="clo_ids[]" value="{{ $clo->id }}" class="peer sr-only" {{ $topicCloIds->contains($clo->id) ? 'checked' : '' }}>
+                                                    <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border border-slate-300 text-slate-500 peer-checked:bg-indigo-600 peer-checked:border-indigo-600 peer-checked:text-white transition">{{ $clo->code }}</span>
+                                                </label>
+                                            @endforeach
+                                            <button type="submit" class="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-medium rounded">Save</button>
+                                            <button type="button" @click="editClos = false" class="text-[10px] text-slate-400 hover:text-slate-600">Cancel</button>
+                                        </form>
+                                    @endif
+                                </div>
                             </div>
                             <form method="POST" action="{{ route('tenant.courses.topics.destroy', [$tenant->slug, $course, $topic]) }}" class="opacity-0 group-hover:opacity-100 transition flex-shrink-0">
                                 @csrf @method('DELETE')
