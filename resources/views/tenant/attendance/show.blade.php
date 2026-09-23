@@ -14,7 +14,14 @@
                             @if($session->week_number) &middot; Week {{ $session->week_number }} @endif
                             &middot; {{ $session->started_at->format('d M Y, H:i') }}
                         </p>
-                        <button type="button" @click="editing = true" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Edit</button>
+                        @if($session->isLocked())
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600" title="{{ $session->lockMessage() }}">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Locked
+                            </span>
+                        @else
+                            <button type="button" @click="editing = true" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Edit</button>
+                        @endif
                     </div>
                     <form x-show="editing" x-cloak method="POST" action="{{ route('tenant.attendance.update', [app('current_tenant')->slug, $session]) }}" class="flex items-center gap-2 mt-1">
                         @csrf @method('PUT')
@@ -30,7 +37,7 @@
                     </form>
                 </div>
             </div>
-            @if($session->status === 'ended')
+            @if($session->status === 'ended' && ! $session->isLocked())
                 <div class="flex items-center gap-2">
                     <form method="POST" action="{{ route('tenant.attendance.reopen', [app('current_tenant')->slug, $session]) }}">
                         @csrf
@@ -61,6 +68,11 @@
     @endphp
 
     <div class="space-y-6">
+        @if($session->isLocked())
+            <div class="px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-600">
+                {{ $session->lockMessage() }}
+            </div>
+        @endif
         {{-- Stats --}}
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center">
@@ -131,6 +143,9 @@
                                 <td class="px-6 py-3 text-center text-xs text-slate-400">{{ ucfirst($record->method) }}</td>
                                 <td class="px-6 py-3 text-right text-xs text-slate-400">{{ $record->checked_in_at?->format('H:i:s') ?? '--' }}</td>
                                 <td class="px-6 py-3 text-right">
+                                    @if($session->isLocked())
+                                        <span class="text-xs text-slate-300">—</span>
+                                    @else
                                     <form method="POST" action="{{ route('tenant.attendance.override', [app('current_tenant')->slug, $session, $record]) }}" class="inline-flex items-center gap-1" x-data="{ open: false }">
                                         @csrf @method('PUT')
                                         <button type="button" @click="open = !open" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Edit</button>
@@ -144,6 +159,7 @@
                                             <button type="submit" class="px-2 py-1 bg-indigo-600 text-white text-xs rounded">Save</button>
                                         </div>
                                     </form>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicTerm;
+use App\Models\AttendanceSession;
+use App\Services\Attendance\AttendanceSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -120,27 +122,43 @@ class AcademicTermController extends Controller
      * means in practice: they drop out of every lecturer's current list but keep
      * all their records and stay reachable under Archived.
      *
-     * Sections, assessments and enrolments are deliberately left alone. A course's
-     * status is read in exactly one other place (the lecturer dashboard's active
-     * count), so cascading would not be closing a semester — it would be inventing
-     * new behaviour across several subsystems that nothing asks for today.
+     * Sections, assessments and enrolments are deliberately left alone. Attendance
+     * is the exception: an archived course locks its sessions (AttendanceSession::
+     * lockReason), and any session still running is ended first so a forgotten QR
+     * code stops accepting scans and its no-shows are recorded.
      */
-    public function archiveCourses(string $tenantSlug, AcademicTerm $term): RedirectResponse
+    public function archiveCourses(string $tenantSlug, AcademicTerm $term, AttendanceSessionService $sessionService): RedirectResponse
     {
         $this->authorizeStaff();
         $this->authorizeTerm($term);
 
         $tenant = app('current_tenant');
 
-        $archived = $term->courses()->where('status', '!=', 'archived')->update(['status' => 'archived']);
+        $openCourseIds = $term->courses()->where('status', '!=', 'archived')->pluck('id');
 
-        if ($archived === 0) {
+        if ($openCourseIds->isEmpty()) {
             return redirect()->route('tenant.academic-terms.index', $tenant->slug)
                 ->with('error', 'That semester has no open courses to close.');
         }
 
+        $running = AttendanceSession::where('status', 'active')
+            ->whereHas('section', fn ($q) => $q->whereIn('course_id', $openCourseIds))
+            ->get();
+
+        foreach ($running as $session) {
+            $sessionService->end($session);
+        }
+
+        $archived = $term->courses()->whereIn('id', $openCourseIds)->update(['status' => 'archived']);
+
+        $message = "Closed the semester and archived {$archived} ".Str::plural('course', $archived).'.';
+
+        if ($running->isNotEmpty()) {
+            $message .= " Ended {$running->count()} running attendance ".Str::plural('session', $running->count()).'.';
+        }
+
         return redirect()->route('tenant.academic-terms.index', $tenant->slug)
-            ->with('success', "Closed the semester and archived {$archived} ".Str::plural('course', $archived).'.');
+            ->with('success', $message);
     }
 
     /**

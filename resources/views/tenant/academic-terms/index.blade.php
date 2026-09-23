@@ -109,7 +109,7 @@
                                 {{-- Closing a semester archives its courses; nothing else changes --}}
                                 @if($term->courses_count > 0)
                                     @if($term->archived_courses_count < $term->courses_count)
-                                        <form method="POST" action="{{ route('tenant.academic-terms.archive-courses', [app('current_tenant')->slug, $term]) }}" onsubmit="return confirm('Close this semester? Its courses move to Archived for every lecturer. Sections, assessments and enrolments are untouched, and you can reopen it.')" class="inline">
+                                        <form method="POST" action="{{ route('tenant.academic-terms.archive-courses', [app('current_tenant')->slug, $term]) }}" onsubmit="return confirm('Close this semester? Its courses move to Archived for every lecturer, running attendance sessions are ended and past attendance is locked. Sections, assessments and enrolments are untouched, and you can reopen it.')" class="inline">
                                             @csrf
                                             <button type="submit" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition">
                                                 Close semester

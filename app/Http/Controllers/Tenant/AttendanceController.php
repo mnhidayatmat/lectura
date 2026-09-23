@@ -11,7 +11,7 @@ use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
-use App\Services\Attendance\AttendanceWarningService;
+use App\Services\Attendance\AttendanceSessionService;
 use App\Services\Attendance\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,7 +25,7 @@ class AttendanceController extends Controller
 
     public function __construct(
         protected QrCodeService $qrService,
-        protected AttendanceWarningService $warningService,
+        protected AttendanceSessionService $sessionService,
     ) {}
 
     /**
@@ -91,7 +91,7 @@ class AttendanceController extends Controller
             ->get();
 
         $sessions = AttendanceSession::whereIn('section_id', $sections->pluck('id'))
-            ->with('section')
+            ->with('section.course')
             ->withCount([
                 'records',
                 'records as present_count' => fn ($q) => $q->where('status', 'present'),
@@ -143,6 +143,10 @@ class AttendanceController extends Controller
 
         if (! $canAccess) {
             abort(403);
+        }
+
+        if ($course->status === 'archived') {
+            return back()->with('error', 'This course is archived, so no new attendance sessions can be started. Reopen the semester first.');
         }
 
         // Check no active session for this section
@@ -251,7 +255,7 @@ class AttendanceController extends Controller
 
         $session = AttendanceSession::find($parsed['session_id']);
 
-        if (! $session || ! $session->isActive()) {
+        if (! $session || ! $session->isActive() || $session->isLocked()) {
             return response()->json(['error' => 'This attendance session has ended.'], 422);
         }
 
@@ -325,32 +329,10 @@ class AttendanceController extends Controller
     {
         $this->authorizeSession($session);
 
-        $session->update([
-            'status' => 'ended',
-            'ended_at' => now(),
-        ]);
-
-        // Mark absent students
-        $checkedInUserIds = $session->records()->pluck('user_id');
-        $enrolledStudents = SectionStudent::where('section_id', $session->section_id)
-            ->where('is_active', true)
-            ->whereNotIn('user_id', $checkedInUserIds)
-            ->pluck('user_id');
-
-        foreach ($enrolledStudents as $userId) {
-            AttendanceRecord::create([
-                'attendance_session_id' => $session->id,
-                'user_id' => $userId,
-                'status' => 'absent',
-                'method' => 'manual',
-            ]);
-        }
-
-        // Check and issue attendance warnings
-        $this->warningService->checkAndIssueWarnings($session->section->course);
+        $markedAbsent = $this->sessionService->end($session);
 
         return redirect()->route('tenant.attendance.course', [app('current_tenant')->slug, $session->section->course_id])
-            ->with('success', 'Session ended. ' . $enrolledStudents->count() . ' students marked absent.');
+            ->with('success', 'Session ended. ' . $markedAbsent . ' students marked absent.');
     }
 
     /**
@@ -362,6 +344,10 @@ class AttendanceController extends Controller
 
         if ($session->status !== 'ended') {
             return back()->with('error', 'Only ended sessions can be reopened.');
+        }
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
         }
 
         // Remove auto-generated absent records (so late students can re-scan).
@@ -388,6 +374,16 @@ class AttendanceController extends Controller
      */
     public function override(Request $request, string $tenantSlug, AttendanceSession $session, AttendanceRecord $record): RedirectResponse
     {
+        $this->authorizeSession($session);
+
+        if ($record->attendance_session_id !== $session->id) {
+            abort(404);
+        }
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
+        }
+
         $request->validate([
             'status' => ['required', 'in:present,late,absent,excused'],
             'reason' => ['nullable', 'string', 'max:255'],
@@ -409,6 +405,10 @@ class AttendanceController extends Controller
     public function update(Request $request, string $tenantSlug, AttendanceSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
+        }
 
         $validated = $request->validate([
             'session_type' => ['required', 'in:lecture,tutorial,lab,extra,replacement'],
@@ -442,6 +442,10 @@ class AttendanceController extends Controller
         // Don't allow deleting active sessions — end them first
         if ($session->status === 'active') {
             return back()->with('error', 'Cannot delete an active session. End it first.');
+        }
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
         }
 
         $courseId = $session->section->course_id;

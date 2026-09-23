@@ -240,6 +240,8 @@ Errors: 404 `This student is not enrolled in this section.`
   "id": 2,
   "status": "active",
   "is_active": true,
+  "is_locked": false,
+  "lock_reason": null,
   "session_type": "lecture",
   "week_number": 3,
   "started_at": "2026-09-08T10:18:00+00:00",
@@ -251,6 +253,13 @@ Errors: 404 `This student is not enrolled in this section.`
 }
 ```
 `checked_in` = present + late. `total_students` = active students in the section. Absent records only exist after the session ends.
+
+`is_locked` = the session's attendance can no longer be changed; hide reopen, edit, override and delete. `lock_reason`:
+- `semester_closed` — the course is archived (its semester was closed). Unlocks when the semester is reopened.
+- `edit_window_passed` — the session ended more than `ATTENDANCE_LOCK_AFTER_DAYS` (default 14) days ago.
+
+Reopen, update, override and delete on a locked session return
+409 `{"message": "...", "data": {"lock_reason": "semester_closed"}}`.
 
 ### AttendanceSession detail (show / start / update / reopen / end)
 
@@ -314,6 +323,7 @@ Errors:
   ```json
   { "message": "An active session already exists for this section.", "data": { "session_id": 2 } }
   ```
+- 409 `{"message": "This course is archived, so no new attendance sessions can be started. Reopen the semester first."}`
 - 422 validation (`section_id`, `session_type`, `week_number`)
 - 404 section of another institution; 403 no section access
 
@@ -370,6 +380,7 @@ No body. Deletes auto-generated absences (keeps real scans and lecturer override
 
 Errors:
 - 409 `{"message": "Only ended sessions can be reopened."}`
+- 409 session is locked (see `is_locked`)
 - 409 another session is active for the section:
   ```json
   { "message": "Another attendance session is already active for this section.", "data": { "session_id": 2 } }

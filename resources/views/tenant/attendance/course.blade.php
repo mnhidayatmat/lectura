@@ -142,6 +142,11 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                                            @if($session->isLocked())
+                                                <span class="inline-flex p-1.5 text-slate-300" title="{{ $session->lockMessage() }}">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                </span>
+                                            @else
                                             <form method="POST" action="{{ route('tenant.attendance.destroy', [$tenant->slug, $session]) }}" onsubmit="return confirm('Delete this session and all its records? This cannot be undone.')">
                                                 @csrf
                                                 @method('DELETE')
@@ -149,6 +154,7 @@
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                 </button>
                                             </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -165,7 +171,9 @@
                         <h3 class="font-semibold text-slate-900">Start New Session</h3>
                     </div>
                     <div class="p-6">
-                        @if($activeSections->isEmpty())
+                        @if($course->status === 'archived')
+                            <p class="text-sm text-slate-400 text-center py-2">This course is archived. Reopen the semester to start new sessions.</p>
+                        @elseif($activeSections->isEmpty())
                             <p class="text-sm text-slate-400 text-center py-2">No active sections in this course.</p>
                         @else
                             <form method="POST" action="{{ route('tenant.attendance.start', $tenant->slug) }}" class="space-y-4">

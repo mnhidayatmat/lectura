@@ -50,6 +50,8 @@ return [
         'qr_rotation_seconds' => env('QR_ROTATION_SECONDS', 30),
         'late_threshold_minutes' => env('ATTENDANCE_LATE_MINUTES', 15),
         'absence_alert_threshold' => 3, // consecutive absences to trigger alert
+        // Days after a session ends before its records can no longer be changed; 0 disables
+        'lock_after_days' => (int) env('ATTENDANCE_LOCK_AFTER_DAYS', 14),
     ],
 
     /*

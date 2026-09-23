@@ -75,7 +75,9 @@
                     </div>
 
                     {{-- Review Actions --}}
-                    @if($excuse->status === 'pending')
+                    @if($excuse->status === 'pending' && $excuse->record->session->section->course->status === 'archived')
+                        <p class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">Semester closed — reopen the semester to review this excuse.</p>
+                    @elseif($excuse->status === 'pending')
                         <div class="mt-4 ml-13 pl-13 pt-4 border-t border-slate-100" x-data="{ note: '' }">
                             <div class="mb-3">
                                 <input type="text" x-model="note" placeholder="Optional note to student..."

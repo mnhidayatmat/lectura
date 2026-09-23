@@ -228,6 +228,7 @@ is verified at that instant. The server parses an offset-less time as UTC, so al
 - `You are not enrolled in this section.`
 - `This check-in is too old to submit. Ask your lecturer to mark you manually.` (queued scan in the future or past the offline grace window)
 - `That scan was taken outside this session.` (queued scan)
+- `This attendance session is closed.` (course archived, or a queued scan for a session past its edit window)
 
 422 validation: `errors.payload` when missing.
 
@@ -315,7 +316,7 @@ One entry per enrolled course. Not paginated.
 - `status`: `present` | `late` | `absent` | `excused` | `no_record`.
 - `session_type`: `lecture` | `tutorial` | `lab` | `extra` | `replacement`.
 - `excuse.status`: `pending` | `approved` | `rejected`.
-- `can_submit_excuse` is true only for an `absent` record without an excuse.
+- `can_submit_excuse` is true only for an `absent` record without an excuse whose session is not locked (semester closed, or ended more than 14 days ago).
 
 ### POST `student/attendance/records/{record}/excuse`
 
@@ -348,6 +349,7 @@ One entry per enrolled course. Not paginated.
 Errors: 403 `This attendance record does not belong to you.` · 404 record of another institution ·
 422 `{"message": "You can only submit excuses for absent records."}` ·
 422 `{"message": "An excuse has already been submitted for this session."}` ·
+422 `{"message": "This session is closed, so excuses can no longer be submitted. Contact your lecturer."}` ·
 422 validation on `reason` / `category` / `attachment`.
 
 ---

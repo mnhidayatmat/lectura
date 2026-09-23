@@ -13,9 +13,8 @@ use App\Http\Resources\Api\V1\Lecturer\AttendanceSessionResource;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Section;
-use App\Models\SectionStudent;
 use App\Models\User;
-use App\Services\Attendance\AttendanceWarningService;
+use App\Services\Attendance\AttendanceSessionService;
 use App\Services\Attendance\QrCodeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +32,7 @@ class AttendanceController extends Controller
 
     public function __construct(
         protected QrCodeService $qrService,
-        protected AttendanceWarningService $warningService,
+        protected AttendanceSessionService $sessionService,
     ) {}
 
     public function index(): JsonResponse
@@ -93,6 +92,12 @@ class AttendanceController extends Controller
 
         if (! $this->canAccessSection($section)) {
             abort(403, 'You do not have access to this section.');
+        }
+
+        if ($section->course->status === 'archived') {
+            return response()->json([
+                'message' => 'This course is archived, so no new attendance sessions can be started. Reopen the semester first.',
+            ], 409);
         }
 
         $existing = AttendanceSession::where('section_id', $section->id)
@@ -189,34 +194,12 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'This session has already ended.'], 409);
         }
 
-        $session->update([
-            'status' => 'ended',
-            'ended_at' => now(),
-        ]);
-
-        $checkedInUserIds = $session->records()->pluck('user_id');
-        $absentUserIds = SectionStudent::where('section_id', $session->section_id)
-            ->where('is_active', true)
-            ->whereNotIn('user_id', $checkedInUserIds)
-            ->pluck('user_id');
-
-        foreach ($absentUserIds as $userId) {
-            AttendanceRecord::create([
-                'attendance_session_id' => $session->id,
-                'user_id' => $userId,
-                'status' => 'absent',
-                'method' => 'manual',
-            ]);
-        }
-
-        if ($course = $session->section->course) {
-            $this->warningService->checkAndIssueWarnings($course);
-        }
+        $markedAbsent = $this->sessionService->end($session);
 
         return response()->json([
-            'message' => 'Session ended. '.$absentUserIds->count().' students marked absent.',
+            'message' => 'Session ended. '.$markedAbsent.' students marked absent.',
             'data' => [
-                'marked_absent' => $absentUserIds->count(),
+                'marked_absent' => $markedAbsent,
                 'session' => $this->detail($session),
             ],
         ]);
@@ -229,6 +212,10 @@ class AttendanceController extends Controller
 
         if ($session->status !== 'ended') {
             return response()->json(['message' => 'Only ended sessions can be reopened.'], 409);
+        }
+
+        if ($locked = $this->lockedResponse($session)) {
+            return $locked;
         }
 
         $otherActive = AttendanceSession::where('section_id', $session->section_id)
@@ -267,6 +254,10 @@ class AttendanceController extends Controller
         $this->ensureLecturer();
         $this->authorizeSession($session);
 
+        if ($locked = $this->lockedResponse($session)) {
+            return $locked;
+        }
+
         $validated = $request->validate([
             'session_type' => ['required', 'in:lecture,tutorial,lab,extra,replacement'],
             'week_number' => ['nullable', 'integer', 'min:1'],
@@ -287,6 +278,10 @@ class AttendanceController extends Controller
 
         if ($record->attendance_session_id !== $session->id) {
             abort(404, 'Attendance record not found.');
+        }
+
+        if ($locked = $this->lockedResponse($session)) {
+            return $locked;
         }
 
         $request->validate([
@@ -318,6 +313,10 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Cannot delete an active session. End it first.'], 409);
         }
 
+        if ($locked = $this->lockedResponse($session)) {
+            return $locked;
+        }
+
         $sessionId = $session->id;
 
         $session->records()->delete();
@@ -329,12 +328,24 @@ class AttendanceController extends Controller
         ]);
     }
 
+    private function lockedResponse(AttendanceSession $session): ?JsonResponse
+    {
+        if (! $session->isLocked()) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => $session->lockMessage(),
+            'data' => ['lock_reason' => $session->lockReason()],
+        ], 409);
+    }
+
     private function sessionsQuery(Collection $sectionIds): Builder
     {
         return AttendanceSession::whereIn('section_id', $sectionIds)
             ->with([
                 'section' => fn ($query) => $query->withCount('activeStudents'),
-                'section.course:id,code,title',
+                'section.course:id,code,title,status',
             ])
             ->withCount([
                 'records as present_count' => fn ($query) => $query->where('status', 'present'),
@@ -348,7 +359,7 @@ class AttendanceController extends Controller
     {
         $session->load([
             'section' => fn ($query) => $query->withCount('activeStudents'),
-            'section.course:id,code,title',
+            'section.course:id,code,title,status',
             'section.activeStudents',
             'records.user',
             'records.excuse',

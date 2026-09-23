@@ -47,6 +47,40 @@ class AttendanceSession extends Model
         return $this->status === 'active';
     }
 
+    /**
+     * Why the session's attendance can no longer be changed, or null if it still can.
+     * An archived course (a closed semester) locks every session in it; otherwise an
+     * ended session locks once `lectura.attendance.lock_after_days` have passed.
+     */
+    public function lockReason(): ?string
+    {
+        if ($this->section?->course?->status === 'archived') {
+            return 'semester_closed';
+        }
+
+        $days = (int) config('lectura.attendance.lock_after_days');
+
+        if ($days > 0 && $this->status === 'ended' && $this->ended_at?->lt(now()->subDays($days))) {
+            return 'edit_window_passed';
+        }
+
+        return null;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->lockReason() !== null;
+    }
+
+    public function lockMessage(): ?string
+    {
+        return match ($this->lockReason()) {
+            'semester_closed' => 'This course is archived, so its attendance is locked. Reopen the semester to make changes.',
+            'edit_window_passed' => 'This session ended more than '.(int) config('lectura.attendance.lock_after_days').' days ago, so its attendance is locked.',
+            default => null,
+        };
+    }
+
     public function checkedInCount(): int
     {
         return $this->records()->whereIn('status', ['present', 'late'])->count();

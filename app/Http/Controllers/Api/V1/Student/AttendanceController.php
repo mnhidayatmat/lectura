@@ -73,7 +73,7 @@ class AttendanceController extends Controller
 
         $sessions = AttendanceSession::whereIn('section_id', $mySectionIds)
             ->where('status', 'ended')
-            ->with('section')
+            ->with('section.course')
             ->orderByDesc('started_at')
             ->get();
 
@@ -108,7 +108,7 @@ class AttendanceController extends Controller
                         'record' => $record ? [
                             'id' => $record->id,
                             'checked_in_at' => $record->checked_in_at?->toIso8601String(),
-                            'can_submit_excuse' => $record->status === 'absent' && ! $record->excuse,
+                            'can_submit_excuse' => $record->status === 'absent' && ! $record->excuse && ! $session->isLocked(),
                             'excuse' => $record->excuse ? StudentPresenter::excuse($record->excuse) : null,
                         ] : null,
                     ];
@@ -142,6 +142,10 @@ class AttendanceController extends Controller
 
         if (! $session) {
             return $this->failure('This attendance session has ended.');
+        }
+
+        if ($session->isLocked()) {
+            return $this->failure('This attendance session is closed.');
         }
 
         // A scan queued while the phone had no signal carries the instant it was
@@ -261,6 +265,10 @@ class AttendanceController extends Controller
 
         if ($record->excuse) {
             return $this->failure('An excuse has already been submitted for this session.');
+        }
+
+        if ($record->session->isLocked()) {
+            return $this->failure('This session is closed, so excuses can no longer be submitted. Contact your lecturer.');
         }
 
         $request->validate([
