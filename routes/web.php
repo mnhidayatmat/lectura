@@ -400,6 +400,7 @@ Route::prefix('{tenant:slug}')
 
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('tenant.attendance.index');
+        Route::get('/attendance/course/{course}', [AttendanceController::class, 'course'])->name('tenant.attendance.course');
         Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('tenant.attendance.start');
         Route::get('/attendance/{session}/qr', [AttendanceController::class, 'qr'])->name('tenant.attendance.qr');
         Route::get('/attendance/{session}/token', [AttendanceController::class, 'refreshToken'])->name('tenant.attendance.token');
