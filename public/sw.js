@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lectura-v3';
+const CACHE_NAME = 'lectura-v4';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to pre-cache on install
