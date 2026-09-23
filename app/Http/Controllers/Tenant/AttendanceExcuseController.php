@@ -116,13 +116,14 @@ class AttendanceExcuseController extends Controller
 
     /**
      * Pending excuses stay reviewable after the edit window passes, so one submitted
-     * near its end can still be decided; only closing the semester stops review.
+     * near its end can still be decided; only closing the semester (or archiving
+     * the course) stops review.
      */
     protected function semesterClosedError(AttendanceExcuse $excuse): ?string
     {
         $session = $excuse->record->session;
 
-        return $session->lockReason() === 'semester_closed' ? $session->lockMessage() : null;
+        return in_array($session->lockReason(), ['semester_closed', 'course_archived'], true) ? $session->lockMessage() : null;
     }
 
     protected function authorizeExcuse(AttendanceExcuse $excuse): void

@@ -96,7 +96,13 @@ class AttendanceController extends Controller
 
         if ($section->course->status === 'archived') {
             return response()->json([
-                'message' => 'This course is archived, so no new attendance sessions can be started. Reopen the semester first.',
+                'message' => 'This course is archived, so no new attendance sessions can be started.',
+            ], 409);
+        }
+
+        if ($section->term()?->isClosed()) {
+            return response()->json([
+                'message' => "This section's semester is closed, so no new attendance sessions can be started.",
             ], 409);
         }
 

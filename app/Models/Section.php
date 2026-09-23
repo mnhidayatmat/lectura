@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,6 +52,29 @@ class Section extends Model
     public function academicTerm(): BelongsTo
     {
         return $this->belongsTo(AcademicTerm::class);
+    }
+
+    /**
+     * The semester this section runs in. A course is offered across many
+     * semesters through its sections; sections created before that carry no
+     * semester of their own and fall back to the course's.
+     */
+    public function term(): ?AcademicTerm
+    {
+        return $this->academicTerm ?? $this->course?->academicTerm;
+    }
+
+    /**
+     * Sections that run in the given semester, including older sections that
+     * only inherit it from their course.
+     */
+    public function scopeInTerm(Builder $query, AcademicTerm $term): Builder
+    {
+        return $query->where(function (Builder $q) use ($term) {
+            $q->where('academic_term_id', $term->id)
+                ->orWhere(fn (Builder $q) => $q->whereNull('academic_term_id')
+                    ->whereHas('course', fn (Builder $c) => $c->where('academic_term_id', $term->id)));
+        });
     }
 
     public function sectionStudents(): HasMany

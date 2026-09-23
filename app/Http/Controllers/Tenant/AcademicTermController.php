@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicTerm;
 use App\Models\AttendanceSession;
+use App\Models\Section;
 use App\Services\Attendance\AttendanceSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,13 +44,15 @@ class AcademicTermController extends Controller
     {
         $this->authorizeStaff();
 
-        $terms = AcademicTerm::withCount([
-            'courses',
-            'sections',
-            'courses as archived_courses_count' => fn ($query) => $query->where('status', 'archived'),
-        ])
+        $terms = AcademicTerm::withCount(['courses', 'sections'])
             ->orderByDesc('start_date')
             ->get();
+
+        // Courses are offered in a semester through their sections
+        $terms->each(function (AcademicTerm $term) {
+            $term->setAttribute('offered_sections_count', Section::inTerm($term)->count());
+            $term->setAttribute('offered_courses_count', Section::inTerm($term)->distinct()->count('course_id'));
+        });
 
         return view('tenant.academic-terms.index', compact('terms'));
     }
@@ -118,40 +121,35 @@ class AcademicTermController extends Controller
     }
 
     /**
-     * Closing a semester archives its courses, which is what "the session is over"
-     * means in practice: they drop out of every lecturer's current list but keep
-     * all their records and stay reachable under Archived.
-     *
-     * Sections, assessments and enrolments are deliberately left alone. Attendance
-     * is the exception: an archived course locks its sessions (AttendanceSession::
-     * lockReason), and any session still running is ended first so a forgotten QR
-     * code stops accepting scans and its no-shows are recorded.
+     * Closing a semester locks the attendance of every section running in it
+     * (AttendanceSession::lockReason). Courses are not touched: a course lives on
+     * across semesters, and only its sections belong to one. Any attendance
+     * session still running is ended first, so a forgotten QR code stops
+     * accepting scans and its no-shows are recorded.
      */
-    public function archiveCourses(string $tenantSlug, AcademicTerm $term, AttendanceSessionService $sessionService): RedirectResponse
+    public function close(string $tenantSlug, AcademicTerm $term, AttendanceSessionService $sessionService): RedirectResponse
     {
         $this->authorizeStaff();
         $this->authorizeTerm($term);
 
         $tenant = app('current_tenant');
 
-        $openCourseIds = $term->courses()->where('status', '!=', 'archived')->pluck('id');
-
-        if ($openCourseIds->isEmpty()) {
+        if ($term->isClosed()) {
             return redirect()->route('tenant.academic-terms.index', $tenant->slug)
-                ->with('error', 'That semester has no open courses to close.');
+                ->with('error', 'That semester is already closed.');
         }
 
         $running = AttendanceSession::where('status', 'active')
-            ->whereHas('section', fn ($q) => $q->whereIn('course_id', $openCourseIds))
+            ->whereHas('section', fn ($q) => $q->inTerm($term))
             ->get();
 
         foreach ($running as $session) {
             $sessionService->end($session);
         }
 
-        $archived = $term->courses()->whereIn('id', $openCourseIds)->update(['status' => 'archived']);
+        $term->update(['closed_at' => now()]);
 
-        $message = "Closed the semester and archived {$archived} ".Str::plural('course', $archived).'.';
+        $message = "Closed {$term->name}. Its attendance is now locked.";
 
         if ($running->isNotEmpty()) {
             $message .= " Ended {$running->count()} running attendance ".Str::plural('session', $running->count()).'.';
@@ -162,25 +160,24 @@ class AcademicTermController extends Controller
     }
 
     /**
-     * The reverse of archiveCourses, so closing a semester by mistake is one click
-     * to undo rather than an edit per course.
+     * The reverse of close, so closing a semester by mistake is one click to undo.
      */
-    public function reopenCourses(string $tenantSlug, AcademicTerm $term): RedirectResponse
+    public function reopen(string $tenantSlug, AcademicTerm $term): RedirectResponse
     {
         $this->authorizeStaff();
         $this->authorizeTerm($term);
 
         $tenant = app('current_tenant');
 
-        $reopened = $term->courses()->where('status', 'archived')->update(['status' => 'active']);
-
-        if ($reopened === 0) {
+        if (! $term->isClosed()) {
             return redirect()->route('tenant.academic-terms.index', $tenant->slug)
-                ->with('error', 'That semester has no archived courses to reopen.');
+                ->with('error', 'That semester is not closed.');
         }
 
+        $term->update(['closed_at' => null]);
+
         return redirect()->route('tenant.academic-terms.index', $tenant->slug)
-            ->with('success', "Reopened the semester and restored {$reopened} ".Str::plural('course', $reopened).'.');
+            ->with('success', "Reopened {$term->name}. Its attendance can be changed again.");
     }
 
     public function destroy(string $tenantSlug, AcademicTerm $term): RedirectResponse

@@ -53,10 +53,10 @@
                             <span class="break-words">{{ $course->programme->name }}</span>
                         </span>
                     @endif
-                    @if($course->academicTerm)
+                    @if($semesters->isNotEmpty())
                         <span class="inline-flex items-center gap-1.5 min-w-0">
                             <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            <span class="break-words">{{ $course->academicTerm->name }}</span>
+                            <span class="break-words">{{ $semesters->pluck('name')->implode(', ') }}</span>
                         </span>
                     @endif
                     @if($course->teaching_mode)
@@ -104,7 +104,7 @@
                         @endif
                     </div>
                     @if($currentWeek)
-                        <p class="mt-2 text-sm text-slate-600">Week <span class="font-bold text-slate-900">{{ $currentWeek }}</span> of {{ $numWeeks }}</p>
+                        <p class="mt-2 text-sm text-slate-600">Week <span class="font-bold text-slate-900">{{ $currentWeek }}</span> of {{ $numWeeks }}<span class="text-slate-400"> · {{ $currentTerm->name }}</span></p>
                         <div class="mt-2 flex gap-0.5">
                             @for($w = 1; $w <= $numWeeks; $w++)
                                 <div class="h-2 flex-1 rounded-sm {{ $w < $currentWeek ? 'bg-teal-400' : ($w === $currentWeek ? 'bg-teal-600' : 'bg-slate-100') }}"></div>
@@ -115,7 +115,7 @@
                         @endif
                     @else
                         <p class="mt-2 text-sm text-slate-400">
-                            {{ $course->academicTerm?->start_date && now()->lt($course->academicTerm->start_date) ? 'Starts '.$course->academicTerm->start_date->format('j M Y') : 'Not in an active semester.' }}
+                            {{ $upcomingTerm ? $upcomingTerm->name.' starts '.$upcomingTerm->start_date->format('j M Y') : 'Not in an active semester.' }}
                         </p>
                     @endif
                 </div>
@@ -247,8 +247,20 @@
                     </div>
                     @endif
                 </div>
-                <div class="divide-y divide-slate-50 max-h-96 overflow-y-auto rounded-b-2xl">
-                    @forelse($course->sections as $section)
+                <div class="max-h-[32rem] overflow-y-auto rounded-b-2xl">
+                    @forelse($semesterGroups as $group)
+                        <div class="sticky top-0 z-10 px-5 py-2 bg-slate-50/95 backdrop-blur border-b border-slate-100 flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-700">{{ $group['term']?->name ?? 'No semester' }}</span>
+                            @if($group['term']?->isCurrent())
+                                <span class="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">Current</span>
+                            @endif
+                            @if($group['term']?->isClosed())
+                                <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">Closed</span>
+                            @endif
+                            <span class="text-[11px] text-slate-400 ml-auto">{{ $group['sections']->count() }} {{ Str::plural('section', $group['sections']->count()) }} · {{ $group['sections']->sum(fn ($s) => $s->activeStudents->count()) }} students</span>
+                        </div>
+                        <div class="divide-y divide-slate-50">
+                    @foreach($group['sections'] as $section)
                         @php
                             $enrolled = $section->activeStudents->count();
                             $fill = $section->capacity ? min(100, (int) round($enrolled / $section->capacity * 100)) : null;
@@ -274,9 +286,6 @@
                                             <span x-show="!copied">Student code: <code class="font-mono font-bold break-all">{{ $section->invite_code }}</code></span>
                                             <span x-show="copied" x-cloak>Copied!</span>
                                         </button>
-                                        @if($section->academicTerm)
-                                            <span class="bg-amber-50 text-amber-700 px-1 py-0.5 rounded text-[10px] font-medium break-words">{{ $section->academicTerm->name }}</span>
-                                        @endif
                                         @if($section->lecturers->isNotEmpty())
                                             @foreach($section->lecturers as $sectionLecturer)
                                                 <span class="bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded text-[10px] font-medium break-words">{{ $sectionLecturer->name }}</span>
@@ -315,8 +324,10 @@
                                 <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                             </div>
                         </div>
+                    @endforeach
+                        </div>
                     @empty
-                        <div class="px-5 py-8 text-center text-sm text-slate-400">No sections yet. Add one to start enrolling students.</div>
+                        <div class="px-5 py-8 text-center text-sm text-slate-400">No sections yet. Add a section for the semester you are teaching to start enrolling students.</div>
                     @endforelse
                 </div>
             </div>

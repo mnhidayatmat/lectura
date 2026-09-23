@@ -759,8 +759,8 @@ Route::prefix('{tenant:slug}')
         Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');
         Route::post('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'store'])->name('tenant.academic-terms.store');
         Route::put('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
-        Route::post('/semesters/{term}/archive-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'archiveCourses'])->name('tenant.academic-terms.archive-courses');
-        Route::post('/semesters/{term}/reopen-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'reopenCourses'])->name('tenant.academic-terms.reopen-courses');
+        Route::post('/semesters/{term}/close', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'close'])->name('tenant.academic-terms.close');
+        Route::post('/semesters/{term}/reopen', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'reopen'])->name('tenant.academic-terms.reopen');
         Route::delete('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
 
         // Settings

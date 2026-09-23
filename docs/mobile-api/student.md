@@ -228,7 +228,7 @@ is verified at that instant. The server parses an offset-less time as UTC, so al
 - `You are not enrolled in this section.`
 - `This check-in is too old to submit. Ask your lecturer to mark you manually.` (queued scan in the future or past the offline grace window)
 - `That scan was taken outside this session.` (queued scan)
-- `This attendance session is closed.` (course archived, or a queued scan for a session past its edit window)
+- `This attendance session is closed.` (semester closed, course archived, or a queued scan for a session past its edit window)
 
 422 validation: `errors.payload` when missing.
 

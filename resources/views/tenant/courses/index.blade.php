@@ -77,24 +77,15 @@
             </div>
         </div>
     @else
-        {{-- Course list, grouped by semester with the most recent first --}}
-        @foreach($courseGroups as $termName => $group)
-            <div class="mb-8">
-                <div class="flex items-center gap-3 mb-4">
-                    <h3 class="text-sm font-semibold text-slate-900 shrink-0">{{ $termName }}</h3>
-                    <span class="text-xs text-slate-400 shrink-0">{{ $group->count() }} {{ Str::plural('course', $group->count()) }}</span>
-                    <div class="flex-1 h-px bg-slate-200"></div>
-                </div>
-                <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    @foreach($group as $course)
-                        @include('tenant.courses._card', ['course' => $course])
-                    @endforeach
-                </div>
-            </div>
-        @endforeach
+        {{-- One card per course; its semesters are listed on the card and inside the course --}}
+        <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+            @foreach($currentCourses as $course)
+                @include('tenant.courses._card', ['course' => $course])
+            @endforeach
+        </div>
 
         @if($archivedCourses->isNotEmpty())
-            {{-- Closed semesters stay reachable, just folded away --}}
+            {{-- Archived courses stay reachable, just folded away --}}
             <div x-data="{ showArchived: false }" class="mt-10 pt-6 border-t border-slate-200">
                 <button @click="showArchived = !showArchived" class="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition">
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': showArchived }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>

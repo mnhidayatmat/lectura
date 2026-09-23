@@ -87,6 +87,7 @@ class AttendanceController extends Controller
 
         $sections = Section::where('course_id', $course->id)
             ->whereIn('id', $sectionIds)
+            ->with(['academicTerm', 'course.academicTerm'])
             ->orderBy('name')
             ->get();
 
@@ -115,7 +116,10 @@ class AttendanceController extends Controller
             'last' => $sessions->max('started_at'),
         ];
 
-        $activeSections = $sections->where('is_active', true)->values();
+        // Sections in a closed semester can't take attendance any more
+        $activeSections = $sections->where('is_active', true)
+            ->reject(fn (Section $section) => $section->term()?->isClosed())
+            ->values();
 
         return view('tenant.attendance.course', compact('course', 'sections', 'activeSections', 'activeSessions', 'pastSessions', 'stats'));
     }
@@ -146,7 +150,11 @@ class AttendanceController extends Controller
         }
 
         if ($course->status === 'archived') {
-            return back()->with('error', 'This course is archived, so no new attendance sessions can be started. Reopen the semester first.');
+            return back()->with('error', 'This course is archived, so no new attendance sessions can be started.');
+        }
+
+        if ($section->term()?->isClosed()) {
+            return back()->with('error', "This section's semester is closed, so no new attendance sessions can be started.");
         }
 
         // Check no active session for this section

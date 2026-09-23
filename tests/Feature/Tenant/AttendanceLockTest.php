@@ -12,8 +12,8 @@ use App\Models\User;
 use Tests\Feature\Api\V1\Lecturer\LecturerApiTestCase;
 
 /**
- * Past attendance is locked once its semester is closed (course archived) or once
- * the session ended more than `lectura.attendance.lock_after_days` ago.
+ * Past attendance is locked once its section's semester is closed, its course is
+ * archived, or the session ended more than `lectura.attendance.lock_after_days` ago.
  */
 class AttendanceLockTest extends LecturerApiTestCase
 {
@@ -62,7 +62,7 @@ class AttendanceLockTest extends LecturerApiTestCase
     private function closeSemester(): void
     {
         $this->actingAs($this->admin)
-            ->post($this->web("/semesters/{$this->term->id}/archive-courses"))
+            ->post($this->web("/semesters/{$this->term->id}/close"))
             ->assertRedirect($this->web('/semesters'));
     }
 
@@ -128,13 +128,46 @@ class AttendanceLockTest extends LecturerApiTestCase
         $record = $this->markAttendance($session, $this->zul, 'absent');
 
         $this->closeSemester();
-        $this->actingAs($this->admin)->post($this->web("/semesters/{$this->term->id}/reopen-courses"));
+        $this->actingAs($this->admin)->post($this->web("/semesters/{$this->term->id}/reopen"));
 
         $this->actingAs($this->lecturer)
             ->put($this->web("/attendance/{$session->id}/records/{$record->id}"), ['status' => 'present'])
             ->assertSessionHas('success');
 
         $this->assertSame('present', $record->fresh()->status);
+    }
+
+    public function test_closing_a_semester_leaves_the_same_courses_other_semesters_open(): void
+    {
+        $next = $this->createTerm($this->tenant, ['name' => 'Semester 2, 2026/2027', 'start_date' => '2027-03-01', 'end_date' => '2027-07-31']);
+        $nextSection = $this->createSection($this->course, ['name' => 'Section 02', 'code' => '02', 'academic_term_id' => $next->id]);
+        $this->enroll($nextSection, $this->aina);
+
+        $thisTerm = $this->endedSession();
+        $nextTerm = $this->startAttendance($nextSection, $this->lecturer, [
+            'status' => 'ended',
+            'started_at' => now()->subDay()->subHour(),
+            'ended_at' => now()->subDay(),
+        ]);
+
+        $this->closeSemester();
+
+        $this->assertSame('semester_closed', $thisTerm->fresh()->lockReason());
+        $this->assertNull($nextTerm->fresh()->lockReason());
+        $this->assertSame('active', $this->course->fresh()->status);
+
+        $this->actingAs($this->lecturer)
+            ->post($this->web('/attendance/start'), ['section_id' => $nextSection->id, 'session_type' => 'lecture'])
+            ->assertRedirect();
+        $this->assertSame(1, AttendanceSession::where('section_id', $nextSection->id)->where('status', 'active')->count());
+    }
+
+    public function test_archiving_a_course_locks_its_attendance(): void
+    {
+        $session = $this->endedSession();
+        $this->course->update(['status' => 'archived']);
+
+        $this->assertSame('course_archived', $session->fresh()->lockReason());
     }
 
     public function test_the_web_override_checks_session_access_and_record_ownership(): void

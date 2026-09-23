@@ -19,4 +19,15 @@
         </span>
         <span>{{ str_replace('_', ' ', ucfirst($course->teaching_mode)) }}</span>
     </div>
+    @php
+        $semesters = $course->sections->map(fn ($section) => $section->academicTerm ?? $course->academicTerm)
+            ->filter()->unique('id')->sortByDesc('start_date');
+    @endphp
+    @if($semesters->isNotEmpty())
+        <div class="mt-3 flex flex-wrap gap-1">
+            @foreach($semesters as $semester)
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {{ $semester->isCurrent() ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-500' }}">{{ $semester->name }}</span>
+            @endforeach
+        </div>
+    @endif
 </a>

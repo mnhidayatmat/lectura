@@ -81,17 +81,30 @@ class CourseCreateTest extends ApiTestCase
         $this->assertNull(Course::withoutGlobalScopes()->where('code', 'BTG3333')->first());
     }
 
-    public function test_the_term_can_be_picked_without_any_faculties(): void
+    public function test_the_course_page_groups_sections_by_semester_newest_first(): void
     {
+        $this->travelTo('2026-09-23');
+
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
-        $this->createTerm($tenant, ['name' => 'Semester 1, 2026/2027']);
+        $course = $this->createCourse($tenant, $lecturer);
+
+        $older = $this->createTerm($tenant, ['name' => 'Semester 1, 2025/2026', 'start_date' => '2025-10-01', 'end_date' => '2026-02-28']);
+        $newer = $this->createTerm($tenant, ['name' => 'Semester 2, 2026/2027', 'start_date' => '2027-03-01', 'end_date' => '2027-07-31']);
+
+        $this->createSection($course, ['name' => 'Old Section A', 'code' => 'A', 'academic_term_id' => $older->id]);
+        $this->createSection($course, ['name' => 'New Section B', 'code' => 'B', 'academic_term_id' => $newer->id]);
+        $this->createSection($course, ['name' => 'Loose Section C', 'code' => 'C']);
 
         $this->actingAs($lecturer)
-            ->get("/{$tenant->slug}/courses/create")
+            ->get("/{$tenant->slug}/courses/{$course->id}")
             ->assertOk()
-            ->assertSee('name="academic_term_id"', false)
-            ->assertSee('Semester 1, 2026/2027');
+            ->assertSeeInOrder([
+                'Semester 2, 2026/2027', 'New Section B',
+                'Semester 1, 2025/2026', 'Old Section A',
+                'No semester', 'Loose Section C',
+            ])
+            ->assertSee('Semester 2, 2026/2027 starts 1 Mar 2027');
     }
 
     public function test_a_weeks_clos_can_be_changed_but_only_to_the_courses_own_clos(): void

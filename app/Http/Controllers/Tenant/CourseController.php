@@ -35,29 +35,23 @@ class CourseController extends Controller
 
         $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
 
+        // One entry per course; the semesters it runs in come from its sections
         $courses = Course::whereIn('id', $allCourseIds)
             ->withCount('sections')
-            ->with(['academicTerm', 'faculty'])
-            // Newest semester first. Courses with no semester sort last on their
-            // own: both MySQL and SQLite place NULL at the end of a DESC ordering.
-            ->orderByDesc(AcademicTerm::select('start_date')->whereColumn('academic_terms.id', 'courses.academic_term_id'))
-            ->latest()
+            ->with(['academicTerm', 'faculty', 'sections.academicTerm'])
+            ->orderBy('code')
             ->get();
 
         [$archivedCourses, $currentCourses] = $courses->partition(fn (Course $course) => $course->status === 'archived');
 
-        // The query already orders by semester, so grouping preserves that order.
-        $courseGroups = $currentCourses->groupBy(fn (Course $course) => $course->academicTerm?->name ?? 'No semester');
-
-        return view('tenant.courses.index', compact('courses', 'courseGroups', 'archivedCourses'));
+        return view('tenant.courses.index', compact('courses', 'currentCourses', 'archivedCourses'));
     }
 
     public function create(): View
     {
         $faculties = Faculty::orderBy('name')->get();
-        $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        return view('tenant.courses.create', compact('faculties', 'terms'));
+        return view('tenant.courses.create', compact('faculties'));
     }
 
     public function store(StoreCourseRequest $request): RedirectResponse
@@ -76,7 +70,6 @@ class CourseController extends Controller
             'format' => $request->format,
             'faculty_id' => $request->faculty_id,
             'programme_id' => $request->programme_id,
-            'academic_term_id' => $request->academic_term_id,
             'status' => 'active',
         ]);
 
@@ -145,11 +138,27 @@ class CourseController extends Controller
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        $currentWeek = null;
-        $term = $course->academicTerm;
-        if ($term?->start_date && now()->gte($term->start_date) && (! $term->end_date || now()->lte($term->end_date->endOfDay()))) {
-            $currentWeek = min((int) floor($term->start_date->diffInDays(now()) / 7) + 1, (int) $course->num_weeks);
-        }
+        $course->sections->each->setRelation('course', $course);
+
+        // A course runs in many semesters through its sections: group them by
+        // semester, newest first, with sections that have none at the end.
+        $semesterGroups = $course->sections
+            ->groupBy(fn (Section $section) => $section->term()?->id ?? 0)
+            ->map(fn ($sections) => ['term' => $sections->first()->term(), 'sections' => $sections->values()])
+            ->sortByDesc(fn ($group) => $group['term']?->start_date?->timestamp ?? PHP_INT_MIN)
+            ->values();
+
+        $semesters = $semesterGroups->pluck('term')->filter()
+            ->whenEmpty(fn ($terms) => collect([$course->academicTerm])->filter());
+
+        $currentTerm = $semesters->first(fn (AcademicTerm $term) => $term->isCurrent());
+        $upcomingTerm = $semesters->filter(fn (AcademicTerm $term) => $term->start_date && now()->lt($term->start_date))
+            ->sortBy('start_date')
+            ->first();
+
+        $currentWeek = $currentTerm
+            ? min((int) floor($currentTerm->start_date->diffInDays(now()) / 7) + 1, (int) $course->num_weeks)
+            : null;
 
         $lecturers = collect();
         if ($isOwner) {
@@ -164,7 +173,7 @@ class CourseController extends Controller
                 ->values();
         }
 
-        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner', 'currentWeek'));
+        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner', 'currentWeek', 'semesterGroups', 'semesters', 'currentTerm', 'upcomingTerm'));
     }
 
     public function edit(string $tenantSlug, Course $course): View

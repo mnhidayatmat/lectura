@@ -172,9 +172,9 @@
                     </div>
                     <div class="p-6">
                         @if($course->status === 'archived')
-                            <p class="text-sm text-slate-400 text-center py-2">This course is archived. Reopen the semester to start new sessions.</p>
+                            <p class="text-sm text-slate-400 text-center py-2">This course is archived, so no new sessions can be started.</p>
                         @elseif($activeSections->isEmpty())
-                            <p class="text-sm text-slate-400 text-center py-2">No active sections in this course.</p>
+                            <p class="text-sm text-slate-400 text-center py-2">No active sections in an open semester.</p>
                         @else
                             <form method="POST" action="{{ route('tenant.attendance.start', $tenant->slug) }}" class="space-y-4">
                                 @csrf
@@ -182,7 +182,7 @@
                                     <label class="block text-xs font-medium text-slate-500 mb-1.5">Section</label>
                                     <select name="section_id" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                                         @foreach($activeSections as $section)
-                                            <option value="{{ $section->id }}">{{ $section->name }}</option>
+                                            <option value="{{ $section->id }}">{{ $section->name }}@if($section->term()) — {{ $section->term()->name }}@endif</option>
                                         @endforeach
                                     </select>
                                 </div>

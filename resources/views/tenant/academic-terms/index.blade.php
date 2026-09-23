@@ -79,7 +79,7 @@
                     <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 </div>
                 <p class="text-sm text-slate-500 dark:text-slate-400">No semesters created yet.</p>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Add a semester to organise your courses by academic term.</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Add a semester, then give each course a section in it.</p>
             </div>
         @else
             <div class="space-y-3">
@@ -97,32 +97,33 @@
                                         @if($term->is_default)
                                             <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full">Default</span>
                                         @endif
+                                        @if($term->isClosed())
+                                            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full">Closed</span>
+                                        @endif
                                     </div>
                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                         <span class="font-medium">{{ $term->code }}</span>
                                         &middot; {{ $term->start_date->format('d M Y') }} — {{ $term->end_date->format('d M Y') }}
-                                        &middot; {{ $term->courses_count }} {{ Str::plural('course', $term->courses_count) }}, {{ $term->sections_count }} {{ Str::plural('section', $term->sections_count) }}
+                                        &middot; {{ $term->offered_courses_count }} {{ Str::plural('course', $term->offered_courses_count) }}, {{ $term->offered_sections_count }} {{ Str::plural('section', $term->offered_sections_count) }}
                                     </p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
-                                {{-- Closing a semester archives its courses; nothing else changes --}}
-                                @if($term->courses_count > 0)
-                                    @if($term->archived_courses_count < $term->courses_count)
-                                        <form method="POST" action="{{ route('tenant.academic-terms.archive-courses', [app('current_tenant')->slug, $term]) }}" onsubmit="return confirm('Close this semester? Its courses move to Archived for every lecturer, running attendance sessions are ended and past attendance is locked. Sections, assessments and enrolments are untouched, and you can reopen it.')" class="inline">
-                                            @csrf
-                                            <button type="submit" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition">
-                                                Close semester
-                                            </button>
-                                        </form>
-                                    @else
-                                        <form method="POST" action="{{ route('tenant.academic-terms.reopen-courses', [app('current_tenant')->slug, $term]) }}" class="inline">
-                                            @csrf
-                                            <button type="submit" class="px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition">
-                                                Reopen semester
-                                            </button>
-                                        </form>
-                                    @endif
+                                {{-- Closing a semester locks its sections' attendance; courses carry on --}}
+                                @if($term->isClosed())
+                                    <form method="POST" action="{{ route('tenant.academic-terms.reopen', [app('current_tenant')->slug, $term]) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition">
+                                            Reopen semester
+                                        </button>
+                                    </form>
+                                @else
+                                    <form method="POST" action="{{ route('tenant.academic-terms.close', [app('current_tenant')->slug, $term]) }}" onsubmit="return confirm('Close this semester? Running attendance sessions in its sections are ended and its attendance is locked. Courses, assessments and enrolments are untouched, and you can reopen it.')" class="inline">
+                                        @csrf
+                                        <button type="submit" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition">
+                                            Close semester
+                                        </button>
+                                    </form>
                                 @endif
                                 <button @click="editingId = {{ $term->id }}" class="p-2 text-slate-400 hover:text-indigo-600 transition" title="Edit">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
