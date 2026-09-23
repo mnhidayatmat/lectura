@@ -110,7 +110,7 @@ class AttendanceExcuseController extends Controller
             abort(404);
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('local')
+        return \Illuminate\Support\Facades\Storage::disk('uploads')
             ->download($excuse->attachment_path, $excuse->attachment_filename);
     }
 

@@ -23,7 +23,7 @@ class AttendanceExcuseService
         ];
 
         if ($attachment) {
-            $path = $attachment->store("attendance-excuses/{$record->id}", 'local');
+            $path = $attachment->store("attendance-excuses/{$record->id}", 'uploads');
             $excuseData['attachment_path'] = $path;
             $excuseData['attachment_filename'] = $attachment->getClientOriginalName();
         }

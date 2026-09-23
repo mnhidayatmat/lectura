@@ -212,7 +212,7 @@ class CourseMaterialController extends Controller
         $displayName = $request->input('display_name');
 
         foreach ($files as $file) {
-            $path = $file->store("course-files/{$course->id}/{$folder->id}", 'local');
+            $path = $file->store("course-files/{$course->id}/{$folder->id}", 'uploads');
 
             CourseFile::create([
                 'course_folder_id'    => $folder->id,
@@ -320,7 +320,7 @@ class CourseMaterialController extends Controller
             abort(404);
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
     }
 
     private function deleteFileStorage(CourseFile $file): void
@@ -335,7 +335,7 @@ class CourseMaterialController extends Controller
                 // Drive delete failure should not block the record delete
             }
         } elseif ($file->storage_path) {
-            Storage::disk('local')->delete($file->storage_path);
+            Storage::disk('uploads')->delete($file->storage_path);
         }
     }
 

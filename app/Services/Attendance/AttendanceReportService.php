@@ -135,7 +135,7 @@ class AttendanceReportService
         $pdf->setPaper('a4', 'landscape');
 
         $path = "attendance-reports/{$course->id}/report_" . now()->format('Y_m_d_His') . '.pdf';
-        Storage::disk('local')->put($path, $pdf->output());
+        Storage::disk('uploads')->put($path, $pdf->output());
 
         return $path;
     }
@@ -164,7 +164,7 @@ class AttendanceReportService
             'material_type' => 'file',
             'file_name' => $course->code . '_attendance_report.pdf',
             'file_type' => 'pdf',
-            'file_size_bytes' => Storage::disk('local')->size($path),
+            'file_size_bytes' => Storage::disk('uploads')->size($path),
             'storage_path' => $path,
             'description' => 'Auto-generated attendance report',
         ]);

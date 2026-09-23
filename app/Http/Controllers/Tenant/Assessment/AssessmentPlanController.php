@@ -216,7 +216,7 @@ class AssessmentPlanController extends Controller
         if ($request->hasFile('instruction_file')) {
             $file = $request->file('instruction_file');
             $assessment->update([
-                'instruction_file_path' => $file->store('assessment-instructions', 'local'),
+                'instruction_file_path' => $file->store('assessment-instructions', 'uploads'),
                 'instruction_file_name' => $file->getClientOriginalName(),
             ]);
         }
@@ -224,7 +224,7 @@ class AssessmentPlanController extends Controller
         if ($request->hasFile('answer_scheme_file')) {
             $file = $request->file('answer_scheme_file');
             $assessment->update([
-                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'uploads'),
                 'answer_scheme_filename' => $file->getClientOriginalName(),
             ]);
         }
@@ -325,32 +325,32 @@ class AssessmentPlanController extends Controller
         // Handle instruction file: new upload replaces existing; remove_instruction deletes without replacing.
         if ($request->hasFile('instruction_file')) {
             if ($assessment->instruction_file_path) {
-                Storage::disk('local')->delete($assessment->instruction_file_path);
+                Storage::disk('uploads')->delete($assessment->instruction_file_path);
             }
             $file = $request->file('instruction_file');
             $assessment->update([
-                'instruction_file_path' => $file->store('assessment-instructions', 'local'),
+                'instruction_file_path' => $file->store('assessment-instructions', 'uploads'),
                 'instruction_file_name' => $file->getClientOriginalName(),
             ]);
         } elseif ($request->boolean('remove_instruction')) {
             if ($assessment->instruction_file_path) {
-                Storage::disk('local')->delete($assessment->instruction_file_path);
+                Storage::disk('uploads')->delete($assessment->instruction_file_path);
             }
             $assessment->update(['instruction_file_path' => null, 'instruction_file_name' => null]);
         }
 
         if ($request->hasFile('answer_scheme_file')) {
             if ($assessment->answer_scheme_path) {
-                Storage::disk('local')->delete($assessment->answer_scheme_path);
+                Storage::disk('uploads')->delete($assessment->answer_scheme_path);
             }
             $file = $request->file('answer_scheme_file');
             $assessment->update([
-                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'uploads'),
                 'answer_scheme_filename' => $file->getClientOriginalName(),
             ]);
         } elseif ($request->boolean('remove_answer_scheme')) {
             if ($assessment->answer_scheme_path) {
-                Storage::disk('local')->delete($assessment->answer_scheme_path);
+                Storage::disk('uploads')->delete($assessment->answer_scheme_path);
             }
             $assessment->update(['answer_scheme_path' => null, 'answer_scheme_filename' => null]);
         }
@@ -372,20 +372,20 @@ class AssessmentPlanController extends Controller
 
         // Delete instruction file if present
         if ($assessment->instruction_file_path) {
-            Storage::disk('local')->delete($assessment->instruction_file_path);
+            Storage::disk('uploads')->delete($assessment->instruction_file_path);
         }
         if ($assessment->answer_scheme_path) {
-            Storage::disk('local')->delete($assessment->answer_scheme_path);
+            Storage::disk('uploads')->delete($assessment->answer_scheme_path);
         }
 
         // If this is a parent assessment, cascade delete children (and their files)
         if ($assessment->isParent()) {
             foreach ($assessment->children as $child) {
                 if ($child->instruction_file_path) {
-                    Storage::disk('local')->delete($child->instruction_file_path);
+                    Storage::disk('uploads')->delete($child->instruction_file_path);
                 }
                 if ($child->answer_scheme_path) {
-                    Storage::disk('local')->delete($child->answer_scheme_path);
+                    Storage::disk('uploads')->delete($child->answer_scheme_path);
                 }
                 $child->delete();
             }
@@ -402,30 +402,27 @@ class AssessmentPlanController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($assessment->instruction_file_path)) {
+        if (! Storage::disk('uploads')->exists($assessment->instruction_file_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assessment->instruction_file_path,
             $assessment->instruction_file_name ?? 'instruction'
         );
     }
 
-    public function viewInstruction(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function viewInstruction(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
     {
         if ($assessment->course_id !== $course->id || ! $assessment->instruction_file_path) {
             abort(404);
         }
 
-        $absolutePath = Storage::disk('local')->path($assessment->instruction_file_path);
-
-        if (! file_exists($absolutePath)) {
+        if (! Storage::disk('uploads')->exists($assessment->instruction_file_path)) {
             abort(404);
         }
 
-        // response()->file() sets Content-Disposition: inline so the browser renders it.
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response($assessment->instruction_file_path, $assessment->instruction_file_name);
     }
 
     public function downloadAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
@@ -435,30 +432,28 @@ class AssessmentPlanController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($assessment->answer_scheme_path)) {
+        if (! Storage::disk('uploads')->exists($assessment->answer_scheme_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assessment->answer_scheme_path,
             $assessment->answer_scheme_filename ?? 'answer-scheme.pdf'
         );
     }
 
-    public function viewAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function viewAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
     {
         $this->authorizeCourseAccess($course);
         if ($assessment->course_id !== $course->id || ! $assessment->answer_scheme_path) {
             abort(404);
         }
 
-        $absolutePath = Storage::disk('local')->path($assessment->answer_scheme_path);
-
-        if (! file_exists($absolutePath)) {
+        if (! Storage::disk('uploads')->exists($assessment->answer_scheme_path)) {
             abort(404);
         }
 
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response($assessment->answer_scheme_path, $assessment->answer_scheme_filename);
     }
 
     /**

@@ -92,8 +92,7 @@ class PortfolioController extends Controller
         $file = $request->file('photo');
         $tenant = app('current_tenant');
 
-        // Store original photo to public disk
-        $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'public');
+        $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'media');
 
         // Generate thumbnail using GD
         $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
@@ -137,7 +136,7 @@ class PortfolioController extends Controller
         $count = 0;
 
         foreach ($request->file('photos') as $file) {
-            $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'public');
+            $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'media');
             $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
 
             PortfolioPhoto::create([
@@ -169,11 +168,11 @@ class PortfolioController extends Controller
             abort(403);
         }
 
-        if (Storage::disk('public')->exists($photo->file_path)) {
-            Storage::disk('public')->delete($photo->file_path);
+        if (Storage::disk('media')->exists($photo->file_path)) {
+            Storage::disk('media')->delete($photo->file_path);
         }
-        if ($photo->thumbnail_path && Storage::disk('public')->exists($photo->thumbnail_path)) {
-            Storage::disk('public')->delete($photo->thumbnail_path);
+        if ($photo->thumbnail_path && Storage::disk('media')->exists($photo->thumbnail_path)) {
+            Storage::disk('media')->delete($photo->thumbnail_path);
         }
 
         $photo->delete();
@@ -217,7 +216,7 @@ class PortfolioController extends Controller
             imagedestroy($source);
             imagedestroy($thumb);
 
-            Storage::disk('public')->put($thumbnailPath, file_get_contents($tempPath));
+            Storage::disk('media')->put($thumbnailPath, file_get_contents($tempPath));
             @unlink($tempPath);
 
             return $thumbnailPath;

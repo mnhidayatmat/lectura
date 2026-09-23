@@ -45,7 +45,7 @@ class SubmissionReportStampingService
                 continue;
             }
 
-            if (! Storage::disk('local')->exists($file->storage_path)) {
+            if (! Storage::disk('uploads')->exists($file->storage_path)) {
                 continue;
             }
 
@@ -62,8 +62,8 @@ class SubmissionReportStampingService
 
             // Clean up any previous graded copy before swapping in the new one.
             if ($file->graded_file_path && $file->graded_file_path !== $gradedPath
-                && Storage::disk('local')->exists($file->graded_file_path)) {
-                Storage::disk('local')->delete($file->graded_file_path);
+                && Storage::disk('uploads')->exists($file->graded_file_path)) {
+                Storage::disk('uploads')->delete($file->graded_file_path);
             }
 
             $file->update([
@@ -75,8 +75,18 @@ class SubmissionReportStampingService
 
     protected function buildStampedCopy(AssessmentSubmission $submission, string $sourceRelativePath, Assessment $assessment): string
     {
-        $sourceAbsolute = Storage::disk('local')->path($sourceRelativePath);
+        $sourceAbsolute = tempnam(sys_get_temp_dir(), 'stamp-src-');
+        file_put_contents($sourceAbsolute, Storage::disk('uploads')->get($sourceRelativePath));
 
+        try {
+            return $this->renderStampedCopy($submission, $sourceAbsolute, $assessment);
+        } finally {
+            @unlink($sourceAbsolute);
+        }
+    }
+
+    protected function renderStampedCopy(AssessmentSubmission $submission, string $sourceAbsolute, Assessment $assessment): string
+    {
         $pdf = new Fpdi('P', 'mm', 'A4');
         $pdf->SetAutoPageBreak(true, 15);
 
@@ -107,9 +117,7 @@ class SubmissionReportStampingService
             Str::random(8)
         );
 
-        Storage::disk('local')->makeDirectory(dirname($destinationRelative));
-        $destinationAbsolute = Storage::disk('local')->path($destinationRelative);
-        $pdf->Output('F', $destinationAbsolute);
+        Storage::disk('uploads')->put($destinationRelative, $pdf->Output('S'));
 
         return $destinationRelative;
     }

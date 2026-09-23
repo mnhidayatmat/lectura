@@ -90,10 +90,10 @@ class StudentMaterialApiTest extends ApiTestCase
 
     public function test_downloads_a_stored_material(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
         $file = $this->addFile($course, $lecturer, $this->materialSection($course));
-        Storage::disk('local')->put($file->storage_path, '%PDF-1.4');
+        Storage::disk('uploads')->put($file->storage_path, '%PDF-1.4');
 
         $this->actingAsApi($student)
             ->get($this->tenantApi($tenant, "student/materials/courses/{$course->id}/files/{$file->id}/download"))
@@ -103,10 +103,10 @@ class StudentMaterialApiTest extends ApiTestCase
 
     public function test_student_not_enrolled_cannot_view_or_download_materials(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, , $course] = $this->enrolledStudent();
         $file = $this->addFile($course, $lecturer, $this->materialSection($course));
-        Storage::disk('local')->put($file->storage_path, '%PDF-1.4');
+        Storage::disk('uploads')->put($file->storage_path, '%PDF-1.4');
         $stranger = $this->createMember($tenant, 'student');
 
         $this->actingAsApi($stranger)->getJson($this->tenantApi($tenant, 'student/materials/courses/'.$course->id))

@@ -19,6 +19,7 @@ use App\Services\ActiveLearning\TierGateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ActiveLearningPlanController extends Controller
@@ -291,9 +292,11 @@ class ActiveLearningPlanController extends Controller
                     $chunk .= "\nDescription: {$file->description}";
                 }
                 if ($file->storage_path && str_contains($file->file_type ?? '', 'pdf')) {
-                    $fullPath = storage_path('app/' . $file->storage_path);
-                    if (file_exists($fullPath)) {
+                    if (Storage::disk('uploads')->exists($file->storage_path)) {
+                        $fullPath = tempnam(sys_get_temp_dir(), 'al-pdf-');
+                        file_put_contents($fullPath, Storage::disk('uploads')->get($file->storage_path));
                         $extracted = $this->extractPdfTextFromPath($fullPath);
+                        @unlink($fullPath);
                         if ($extracted) {
                             $chunk .= "\n" . $extracted;
                         }

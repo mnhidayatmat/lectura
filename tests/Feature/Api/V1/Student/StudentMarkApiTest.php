@@ -150,9 +150,9 @@ class StudentMarkApiTest extends ApiTestCase
 
     public function test_downloads_a_released_answer_script(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, , $student, $course] = $this->enrolledStudent();
-        Storage::disk('local')->put('answer-scripts/script.pdf', '%PDF-1.4');
+        Storage::disk('uploads')->put('answer-scripts/script.pdf', '%PDF-1.4');
 
         $score = AssessmentScore::create([
             'tenant_id' => $tenant->id,

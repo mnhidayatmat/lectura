@@ -205,7 +205,7 @@ class AssessmentScoreController extends Controller
                     $this->driveService->deleteFile($lecturer, $score->answer_script_drive_file_id);
                 }
                 if ($score->answer_script_path) {
-                    Storage::disk('local')->delete($score->answer_script_path);
+                    Storage::disk('uploads')->delete($score->answer_script_path);
                 }
 
                 $score->answer_script_drive_file_id = null;
@@ -433,12 +433,14 @@ class AssessmentScoreController extends Controller
             abort(404);
         }
 
-        $absolutePath = Storage::disk('local')->path($score->answer_script_path);
-        if (! file_exists($absolutePath)) {
+        if (! Storage::disk('uploads')->exists($score->answer_script_path)) {
             abort(404);
         }
 
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response(
+            $score->answer_script_path,
+            $score->answer_script_filename ?? 'answer-script.pdf'
+        );
     }
 
     public function downloadAnswerScript(string $tenantSlug, Course $course, Assessment $assessment, AssessmentScore $score)
@@ -452,11 +454,11 @@ class AssessmentScoreController extends Controller
             return redirect()->away($score->answer_script_drive_link);
         }
 
-        if (! $score->answer_script_path || ! Storage::disk('local')->exists($score->answer_script_path)) {
+        if (! $score->answer_script_path || ! Storage::disk('uploads')->exists($score->answer_script_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $score->answer_script_path,
             $score->answer_script_filename ?? 'answer-script.pdf'
         );

@@ -135,7 +135,7 @@ class CourseFileController extends Controller
         $folder = CourseFolder::findOrFail($request->folder_id);
 
         foreach ($request->file('files') as $file) {
-            $path = $file->store("course-files/{$course->id}/{$folder->id}", 'local');
+            $path = $file->store("course-files/{$course->id}/{$folder->id}", 'uploads');
 
             $courseFile = CourseFile::create([
                 'course_folder_id' => $folder->id,

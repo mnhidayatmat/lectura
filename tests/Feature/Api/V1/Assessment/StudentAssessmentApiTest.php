@@ -37,7 +37,7 @@ class StudentAssessmentApiTest extends ApiTestCase
     {
         parent::setUp();
 
-        Storage::fake('local');
+        Storage::fake('uploads');
         Notification::fake();
 
         $this->tenant = $this->createTenant();
@@ -81,7 +81,7 @@ class StudentAssessmentApiTest extends ApiTestCase
             'instruction_file_path' => 'assessment_instructions/brief.pdf',
             'instruction_file_name' => 'brief.pdf',
         ]);
-        Storage::disk('local')->put('assessment_instructions/brief.pdf', 'brief');
+        Storage::disk('uploads')->put('assessment_instructions/brief.pdf', 'brief');
 
         $this->actingAsApi($this->student)->getJson($this->showUrl($assessment))
             ->assertOk()
@@ -118,7 +118,7 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonPath('data.can_resubmit', true);
 
         $file = AssessmentSubmissionFile::where('file_name', 'report.pdf')->firstOrFail();
-        Storage::disk('local')->assertExists($file->storage_path);
+        Storage::disk('uploads')->assertExists($file->storage_path);
         Notification::assertSentTo($this->lecturer, AssessmentSubmissionReceived::class);
 
         $this->get($response->json('data.submission.files.0.download_url'))->assertOk();
@@ -205,7 +205,7 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonCount(1, 'data.submission.files')
             ->assertJsonPath('data.submission.files.0.name', 'v2.pdf');
 
-        Storage::disk('local')->assertMissing($oldPath);
+        Storage::disk('uploads')->assertMissing($oldPath);
         $this->assertDatabaseCount('assessment_submissions', 1);
     }
 

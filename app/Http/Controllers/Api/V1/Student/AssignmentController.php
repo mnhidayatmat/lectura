@@ -250,11 +250,11 @@ class AssignmentController extends Controller
             return redirect()->away($assignment->instruction_drive_web_link);
         }
 
-        if (! Storage::disk('local')->exists($assignment->instruction_file_path)) {
+        if (! Storage::disk('uploads')->exists($assignment->instruction_file_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assignment->instruction_file_path,
             $assignment->instruction_filename ?? 'assignment-instructions'
         );
@@ -264,22 +264,22 @@ class AssignmentController extends Controller
     {
         $this->authorizeSubmissionFile($assignment, $file, $request->user());
 
-        if (! $file->storage_path || ! Storage::disk('local')->exists($file->storage_path)) {
+        if (! $file->storage_path || ! Storage::disk('uploads')->exists($file->storage_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
     }
 
     public function downloadAnnotated(Request $request, Assignment $assignment, SubmissionFile $file): mixed
     {
         $this->authorizeSubmissionFile($assignment, $file, $request->user());
 
-        if (! $file->annotated_image_path || ! Storage::disk('local')->exists($file->annotated_image_path)) {
+        if (! $file->annotated_image_path || ! Storage::disk('uploads')->exists($file->annotated_image_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->response($file->annotated_image_path);
+        return Storage::disk('uploads')->response($file->annotated_image_path);
     }
 
     /**
@@ -477,7 +477,7 @@ class AssignmentController extends Controller
         }
 
         foreach ($files as $file) {
-            $path = $file->store('submissions/'.$assignment->id, 'local');
+            $path = $file->store('submissions/'.$assignment->id, 'uploads');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {

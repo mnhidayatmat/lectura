@@ -99,10 +99,10 @@ class MaterialController extends Controller
             return redirect()->away($file->url);
         }
 
-        if ($file->isLink() || ! $file->storage_path || ! Storage::disk('local')->exists($file->storage_path)) {
+        if ($file->isLink() || ! $file->storage_path || ! Storage::disk('uploads')->exists($file->storage_path)) {
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
     }
 }
