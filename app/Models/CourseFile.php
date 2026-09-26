@@ -66,6 +66,12 @@ class CourseFile extends Model
         return in_array($this->material_type, ['file', 'drive'], true);
     }
 
+    /** Files a browser can show inline: PDFs and images. */
+    public function isPreviewable(): bool
+    {
+        return $this->file_type === 'application/pdf' || str_starts_with((string) $this->file_type, 'image/');
+    }
+
     public function isDriveFile(): bool
     {
         return $this->material_type === 'drive';

@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class CourseMaterialController extends Controller
 {
@@ -307,8 +308,27 @@ class CourseMaterialController extends Controller
         return back()->with('success', 'Material removed.');
     }
 
+    public function view(string $tenantSlug, Course $course, CourseFile $file): mixed
+    {
+        return $this->serveFile($course, $file, inline: true);
+    }
+
     public function download(string $tenantSlug, Course $course, CourseFile $file): mixed
     {
+        return $this->serveFile($course, $file, inline: false);
+    }
+
+    /**
+     * Lecturers and enrolled students get the file straight from object
+     * storage through a short-lived signed link instead of PHP streaming it:
+     * inline to view in the browser, or as an attachment to download.
+     */
+    private function serveFile(Course $course, CourseFile $file, bool $inline): mixed
+    {
+        if ((int) $file->course_id !== (int) $course->id) {
+            abort(404);
+        }
+
         $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', auth()->id()))->exists();
         $isStudent = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', auth()->id())
@@ -327,7 +347,23 @@ class CourseMaterialController extends Controller
             abort(404);
         }
 
-        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
+        $inline = $inline && $file->isPreviewable();
+        $disk = Storage::disk('uploads');
+
+        if ($disk->providesTemporaryUrls()) {
+            return redirect()->away($disk->temporaryUrl($file->storage_path, now()->addMinutes(30), [
+                'ResponseContentType' => $file->file_type ?: 'application/octet-stream',
+                'ResponseContentDisposition' => HeaderUtils::makeDisposition(
+                    $inline ? HeaderUtils::DISPOSITION_INLINE : HeaderUtils::DISPOSITION_ATTACHMENT,
+                    $file->file_name,
+                    Str::ascii($file->file_name) ?: 'file',
+                ),
+            ]));
+        }
+
+        return $inline
+            ? $disk->response($file->storage_path, $file->file_name)
+            : $disk->download($file->storage_path, $file->file_name);
     }
 
     private function deleteFileStorage(CourseFile $file): void

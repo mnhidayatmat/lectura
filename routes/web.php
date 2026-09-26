@@ -541,6 +541,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/materials/course/{course}/link', [CourseMaterialController::class, 'storeLink'])->name('tenant.materials.store-link');
         Route::patch('/materials/course/{course}/{file}', [CourseMaterialController::class, 'updateMaterial'])->name('tenant.materials.update');
         Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');
+        Route::get('/materials/course/{course}/file/{file}/view', [CourseMaterialController::class, 'view'])->name('tenant.materials.view');
         Route::get('/materials/course/{course}/file/{file}/download', [CourseMaterialController::class, 'download'])->name('tenant.materials.download');
 
         // Course Materials (Student)
