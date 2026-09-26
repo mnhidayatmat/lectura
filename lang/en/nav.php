@@ -33,7 +33,6 @@ return [
     'search_courses' => 'Search courses…',
     'no_course_match' => 'No course matches your search.',
     'course_overview' => 'Course overview',
-    'teaching_plan' => 'Teaching Plan',
     'materials' => 'Materials',
     'whiteboards' => 'Whiteboards',
     'classroom' => 'Classroom',

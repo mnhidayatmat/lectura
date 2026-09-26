@@ -45,7 +45,6 @@ use App\Http\Controllers\Tenant\StudentCourseController;
 use App\Http\Controllers\Tenant\StudentGroupController;
 use App\Http\Controllers\Tenant\StudentMarkController;
 use App\Http\Controllers\Tenant\SubmissionAnnotationController;
-use App\Http\Controllers\Tenant\TeachingPlanController;
 use App\Http\Controllers\Tenant\TopicController;
 use App\Http\Controllers\Tenant\WhiteboardController;
 use App\Http\Controllers\Tenant\Workspace\WorkspaceChatController;
@@ -347,13 +346,6 @@ Route::prefix('{tenant:slug}')
         Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('tenant.courses.edit');
         Route::put('/courses/{course}', [CourseController::class, 'update'])->name('tenant.courses.update');
         Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('tenant.courses.destroy');
-
-        // Teaching Plans
-        Route::get('/courses/{course}/teaching-plan', [TeachingPlanController::class, 'show'])->name('tenant.teaching-plan.show');
-        Route::post('/courses/{course}/teaching-plan/generate', [TeachingPlanController::class, 'generate'])->name('tenant.teaching-plan.generate');
-        Route::put('/courses/{course}/teaching-plan/weeks/{week}', [TeachingPlanController::class, 'updateWeek'])->name('tenant.teaching-plan.update-week');
-        Route::post('/courses/{course}/teaching-plan/{plan}/publish', [TeachingPlanController::class, 'publish'])->name('tenant.teaching-plan.publish');
-        Route::get('/courses/{course}/teaching-plan/{plan}', [TeachingPlanController::class, 'version'])->name('tenant.teaching-plan.version');
 
         // CLOs
         Route::post('/courses/{course}/clos', [CloController::class, 'store'])->name('tenant.courses.clos.store');

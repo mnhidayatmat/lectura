@@ -33,7 +33,6 @@ return [
     'search_courses' => 'Cari kursus…',
     'no_course_match' => 'Tiada kursus sepadan dengan carian anda.',
     'course_overview' => 'Gambaran kursus',
-    'teaching_plan' => 'Rancangan Pengajaran',
     'materials' => 'Bahan',
     'whiteboards' => 'Papan Putih',
     'classroom' => 'Bilik Darjah',
