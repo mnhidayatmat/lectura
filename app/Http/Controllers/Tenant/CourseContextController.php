@@ -80,7 +80,7 @@ class CourseContextController extends Controller
 
         $this->courseContext->set($request->user(), $tenant, $course);
 
-        $redirect = $this->safeRedirect($validated['redirect'] ?? null, $tenant->slug);
+        $redirect = $this->safeRedirect($validated['redirect'] ?? null, $tenant->slug, $course);
 
         return redirect($redirect);
     }
@@ -95,15 +95,15 @@ class CourseContextController extends Controller
     /**
      * Only relative, same-host paths are allowed as redirect targets so the
      * select endpoint can't be used as an open redirect. The default is the
-     * course home.
+     * course overview.
      */
-    protected function safeRedirect(?string $target, string $tenantSlug): string
+    protected function safeRedirect(?string $target, string $tenantSlug, Course $course): string
     {
         if ($target && str_starts_with($target, '/') && ! str_starts_with($target, '//') && ! str_starts_with($target, '/\\')) {
             return $target;
         }
 
-        return route('tenant.dashboard', $tenantSlug);
+        return route('tenant.courses.show', ['tenant' => $tenantSlug, 'course' => $course->id]);
     }
 
     /**

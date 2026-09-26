@@ -119,14 +119,14 @@ class CourseContextService
 
     /**
      * Where switching to $target should land: the same course page for the new
-     * course when the current page is a plain course page, the course home when
+     * course when the current page is a plain course page, its overview when
      * it is deeper (a specific session, plan or section of the old course), and
      * the current page otherwise.
      */
     public function switchUrl(Request $request, Tenant $tenant, Course $target): string
     {
         $route = $request->route();
-        $home = route('tenant.dashboard', $tenant->slug, false);
+        $home = route('tenant.courses.show', ['tenant' => $tenant->slug, 'course' => $target->id], false);
 
         if (! $route || $request->method() !== 'GET') {
             return $home;

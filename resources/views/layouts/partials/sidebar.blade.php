@@ -85,8 +85,7 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-            <x-sidebar-link :href="$prefix.'/dashboard'" :active="$on('tenant.dashboard')" :icon="$icons['home']">{{ __('nav.course_home') }}</x-sidebar-link>
-            <x-sidebar-link :href="$courseRoute('tenant.courses.show')" :active="$on('tenant.courses.show', 'tenant.courses.edit', 'tenant.courses.sections.*', 'tenant.courses.attendance-policy.*')" :icon="$icons['info']">{{ __('nav.course_overview') }}</x-sidebar-link>
+            <x-sidebar-link :href="$courseRoute('tenant.courses.show')" :active="$on('tenant.courses.show', 'tenant.courses.edit', 'tenant.courses.sections.*', 'tenant.courses.attendance-policy.*')" :icon="$icons['home']">{{ __('nav.course_overview') }}</x-sidebar-link>
 
             <p class="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.teaching') }}</p>
             <x-sidebar-link :href="$courseRoute('tenant.teaching-plan.show')" :active="$on('tenant.teaching-plan.*')" :icon="$icons['plan']">{{ __('nav.teaching_plan') }}</x-sidebar-link>

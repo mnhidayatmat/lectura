@@ -111,7 +111,6 @@
                         <form method="POST" action="{{ route('tenant.course-context.select', $tenant->slug) }}">
                             @csrf
                             <input type="hidden" name="course_id" value="{{ $course->id }}">
-                            <input type="hidden" name="redirect" value="{{ route('tenant.dashboard', $tenant->slug, false) }}">
                             <button type="submit" :tabindex="manage ? -1 : 0"
                                     class="block w-full text-left rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-100 dark:focus-visible:ring-offset-[#1c2333]">
                                 <div class="relative transition duration-200 ease-out group-hover:-translate-y-1 group-hover:scale-[1.03]">

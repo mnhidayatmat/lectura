@@ -30,7 +30,7 @@ class CourseContextTest extends ApiTestCase
             ->assertRedirect("/{$tenant->slug}/attendance/course/{$course->id}");
     }
 
-    public function test_select_without_redirect_lands_on_course_home(): void
+    public function test_select_without_redirect_lands_on_course_overview(): void
     {
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
@@ -38,7 +38,7 @@ class CourseContextTest extends ApiTestCase
 
         $this->actingAs($lecturer)
             ->post("/{$tenant->slug}/course-context", ['course_id' => $course->id])
-            ->assertRedirect("/{$tenant->slug}/dashboard");
+            ->assertRedirect("/{$tenant->slug}/courses/{$course->id}");
     }
 
     public function test_select_rejects_an_external_redirect(): void
@@ -52,7 +52,7 @@ class CourseContextTest extends ApiTestCase
                 'course_id' => $course->id,
                 'redirect' => 'https://evil.example.com',
             ])
-            ->assertRedirect("/{$tenant->slug}/dashboard");
+            ->assertRedirect("/{$tenant->slug}/courses/{$course->id}");
     }
 
     public function test_selecting_an_inaccessible_course_is_forbidden(): void
@@ -147,13 +147,12 @@ class CourseContextTest extends ApiTestCase
 
         $this->actingAs($lecturer)
             ->post("/{$tenant->slug}/course-context", ['course_id' => $first->id])
-            ->assertRedirect("/{$tenant->slug}/dashboard");
+            ->assertRedirect("/{$tenant->slug}/courses/{$first->id}");
 
+        // With a course selected, the main page is that course's overview.
         $this->actingAs($lecturer)
             ->get("/{$tenant->slug}/dashboard")
-            ->assertOk()
-            ->assertViewIs('tenant.course-home')
-            ->assertSee($first->title);
+            ->assertRedirect("/{$tenant->slug}/courses/{$first->id}");
     }
 
     public function test_lecturer_without_courses_gets_the_plain_dashboard(): void
