@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lectura is a multi-tenant SaaS platform built with Laravel for managing the full teaching cycle: courses, teaching plans, active learning plans (with AI generation), assignments with AI marking, live quizzes, QR attendance, course materials, random student wheel, and course file management. Supports per-user Pro subscription — Pro enables AI-assisted features. Lecturers can connect personal Google Drive for file storage. See `docs/SRS-Lectura.md`, `docs/Architecture-Lectura.md`, `docs/Workflow-Lectura.md` for full specs.
+Lectura is a multi-tenant SaaS platform built with Laravel for managing the full teaching cycle: courses, active learning plans (with AI generation), assignments with AI marking, live quizzes, QR attendance, course materials, random student wheel, and course file management. Supports per-user Pro subscription — Pro enables AI-assisted features. Lecturers can connect personal Google Drive for file storage. See `docs/SRS-Lectura.md`, `docs/Architecture-Lectura.md`, `docs/Workflow-Lectura.md` for full specs.
 
 ## Commands
 
@@ -84,6 +84,17 @@ npm run build
 - Admin routes under `/admin` prefix with inline super_admin check
 - Google Drive callback at `/settings/drive/callback` (outside tenant prefix, Google redirects here directly)
 
+### Course Context (Netflix-style course picker)
+
+- Lecturers pick a course once and the whole lecturer UI follows it. `App\Services\Course\CourseContextService` (singleton) stores the course id per tenant in `session('course_context_{tenantId}')`, with the same access rules as `AuthorizesCourseAccess` (other tenant → 404, not owner/section lecturer/admin → 403)
+- `ResolveCourseContext` middleware (alias `course.context`, in the tenant web group after `tenant.access`) binds `current_course`, shares `currentCourse` and `accessibleCoursesForSwitcher` with views, auto-selects a lecturer's only course, and skips students. Any route with a `{course}` parameter the user may open becomes the context, so the sidebar never shows a different course from the page
+- `/dashboard` for a lecturer: course selected → redirect to its course overview (`tenant.courses.show`); several courses and none selected → the full-screen picker at `/choose-course` (`CourseContextController@picker`, `tenant/course-context/picker.blade.php`); no courses → the plain dashboard. There is no separate course home page — the course overview is the course landing page
+- Select/clear via `POST /course-context` and `/course-context/clear`. The `redirect` field only accepts relative paths (open-redirect guard), so build it with `route(..., false)`; `CourseContextService::switchUrl()` keeps the lecturer on the same tool when switching (same route for the new course when the route's only parameters are tenant + course, else the new course's overview)
+- Flat feature indexes (attendance, quizzes, materials, files, portfolio, performance, active learning, assessments, whiteboards) redirect into the context course via the `RedirectsToCourseContext` trait
+- UI: course switcher is one command-palette modal (`layouts/partials/course-switcher.blade.php`) opened from the sidebar course card, the topbar pill, or Cmd/Ctrl+K (`open-course-switcher` window event). With a course selected, the sidebar is that course's menu (Teaching / Classroom / Assess / Records); `<x-sidebar-link>` renders its items
+- Each course has a stable colour identity from `App\View\CourseAccent` (palette keyed by course id) rendered through `<x-course-avatar :course size="xs|sm|md|lg|xl">`. `tailwind.config.js` scans `app/View/**` so those classes are generated
+- Dark mode's Dimmed palette overrides `.bg-white`; on coloured surfaces that must stay white use `bg-[#fff]`
+
 ### Subscription Model (Per-User Pro)
 
 - Pro tier is **per-user**, not per-institution. `users.is_pro` boolean column
@@ -157,11 +168,21 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 
 ### Course Materials
 
-- Weekly-organized material system (separate from folder-based Course Files)
-- Lecturers upload files or add external links (video URLs, etc.) organized by week number
-- Students see read-only weekly accordion view of their enrolled courses
-- `CourseFile` model supports both `material_type='file'` and `material_type='link'`
+- Weekly-organized material system (separate from folder-based Course Files): `CourseMaterialSection` rows (e.g. "Week 1") hold `CourseFile` records via `material_section_id`
+- `CourseFile.material_type`: `file` (on the `uploads` disk), `drive` (uploader has Google Drive connected — web uploads go to Drive instead of object storage), or `link`
+- Students see a read-only weekly accordion of their enrolled courses
+- **View and Download**: `tenant.materials.view` (PDFs/images, `CourseFile::isPreviewable()`, opens inline in a new tab) and `tenant.materials.download` share `CourseMaterialController::serveFile()`. It checks the file belongs to the course and the user teaches or is enrolled, then redirects to a 30-minute signed `temporaryUrl()` with `ResponseContentType`/`ResponseContentDisposition` overrides, so the file comes straight from object storage instead of streaming through PHP. Disks without temporary URLs fall back to `response()`/`download()`
+- The mobile API (`Api\V1\Student\MaterialController@download`) still streams through PHP: some HTTP clients forward the bearer token on redirect, which S3 rejects
 - Routes: `/materials` (lecturer), `/my-materials` (student)
+
+### File Storage
+
+- User uploads use the `uploads` disk (`config/filesystems.php`): `UPLOADS_DISK=contabo` makes it Contabo S3 object storage (bucket private, `sin1.contabostorage.com`); anything else keeps the private local disk (tests, offline dev). The `media` disk is the public counterpart
+- Serve private files with a short-lived `temporaryUrl()` redirect rather than `Storage::download()` where the client is a browser
+
+### Teaching Plan (removed)
+
+- The Teaching Plan page, its routes, controller and AI generator were removed because they duplicated the weekly topics on the course overview and Active Learning activities. The `teaching_plans` / `teaching_plan_weeks` tables, models and existing data are kept but nothing reads them
 
 ### Assignments & Marking
 
@@ -251,9 +272,9 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Activity logging via `spatie/laravel-activitylog` on key models
 
 ### Naming
-- Models: singular PascalCase (`Course`, `TeachingPlan`, `ActiveLearningPlan`)
+- Models: singular PascalCase (`Course`, `CourseTopic`, `ActiveLearningPlan`)
 - Controllers: `{Model}Controller` (tenant controllers in `Tenant\` namespace, sub-features in `Tenant\{Feature}\`)
-- Jobs: verb-based (`GenerateTeachingPlan`, `GenerateActiveLearningPlan`, `ArrangeGroupsWithAi`)
+- Jobs: verb-based (`GenerateActiveLearningPlan`, `ArrangeGroupsWithAi`, `GeneratePerformanceSuggestions`)
 - Events: past-tense (`QuizResponseReceived`)
 - Route names: `tenant.{resource}.{action}` (e.g., `tenant.active-learning.index`, `tenant.active-learning.activities.store`)
 - Translation files: `snake_case` module name (e.g., `active_learning.php`)
@@ -287,6 +308,14 @@ GOOGLE_REDIRECT_URI=${APP_URL}/auth/google/callback
 GOOGLE_DRIVE_CLIENT_ID=
 GOOGLE_DRIVE_CLIENT_SECRET=
 GOOGLE_DRIVE_REDIRECT_URI=${APP_URL}/settings/drive/callback
+
+# Object storage for uploads (Contabo S3)
+UPLOADS_DISK=contabo
+CONTABO_SPACES_KEY=
+CONTABO_SPACES_SECRET=
+CONTABO_SPACES_ENDPOINT=
+CONTABO_SPACES_BUCKET=lectura
+CONTABO_SPACES_CDN_URL=
 
 # AI Providers
 AI_DEFAULT_PROVIDER=claude
