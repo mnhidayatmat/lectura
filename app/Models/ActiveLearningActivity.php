@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class ActiveLearningActivity extends Model
 {
@@ -67,6 +68,22 @@ class ActiveLearningActivity extends Model
     public function isGrouped(): bool
     {
         return in_array($this->type, ['pair', 'group']);
+    }
+
+    /**
+     * Lecture slides attached to a teaching step, stored in content_meta['slides']
+     * as [{number, title, path}] on the public media disk.
+     */
+    public function getSlidesAttribute(): array
+    {
+        return array_map(fn (array $slide) => [
+            'number' => $slide['number'] ?? null,
+            'title' => $slide['title'] ?? '',
+            'url' => Storage::disk('media')->url($slide['path']),
+        ], array_values(array_filter(
+            $this->content_meta['slides'] ?? [],
+            fn ($slide) => is_array($slide) && ! empty($slide['path'])
+        )));
     }
 
     public function getContentFocusBadgeAttribute(): ?array

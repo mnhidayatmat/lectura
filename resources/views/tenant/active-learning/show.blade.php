@@ -126,6 +126,8 @@
                                         <p class="text-sm text-slate-600 mb-3">{{ $activity->description }}</p>
                                     @endif
 
+                                    @include('tenant.active-learning._slides', ['class' => 'mb-3'])
+
                                     @if($activity->instructions)
                                         <div class="bg-slate-50 rounded-xl p-4 mb-3 border border-slate-100">
                                             <h5 class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{{ __('active_learning.instructions') }}</h5>

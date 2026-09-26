@@ -210,4 +210,13 @@ return [
     'your_response' => 'Your Response',
     'no_response_submitted' => 'No response submitted.',
 
+    // Teaching slides
+    'slides_to_teach' => 'Slides to teach',
+    'slide' => 'Slide',
+    'slide_n' => 'Slide :n',
+    'open_full_size' => 'Open full size',
+    'close' => 'Close',
+    'previous' => 'Previous',
+    'next' => 'Next',
+
 ];

@@ -210,4 +210,13 @@ return [
     'your_response' => 'Respons Anda',
     'no_response_submitted' => 'Tiada respons dihantar.',
 
+    // Teaching slides
+    'slides_to_teach' => 'Slaid untuk diajar',
+    'slide' => 'Slaid',
+    'slide_n' => 'Slaid :n',
+    'open_full_size' => 'Buka saiz penuh',
+    'close' => 'Tutup',
+    'previous' => 'Sebelumnya',
+    'next' => 'Seterusnya',
+
 ];

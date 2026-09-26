@@ -182,6 +182,8 @@
                         </div>
 
                         <div x-show="expanded" x-cloak x-transition class="mt-4 space-y-4">
+                            @include('tenant.active-learning._slides')
+
                             {{-- Activity Details --}}
                             @if($activity->instructions)
                                 <div>
