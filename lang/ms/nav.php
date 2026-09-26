@@ -18,4 +18,12 @@ return [
     'home' => 'Utama',
     'scan' => 'Imbas QR',
     'marks' => 'Markah',
+    'pick_course_title' => 'Siapa yang anda ajar hari ini?',
+    'pick_course_subtitle' => 'Pilih kursus untuk masuk ke papan pemukanya.',
+    'switch_course' => 'Tukar kursus',
+    'browse_courses' => 'Lihat semua kursus',
+    'all_courses' => 'Semua kursus',
+    'manage_courses' => 'Urus kursus',
+    'no_semester' => 'Tiada semester',
+    'sections_count' => '{0} Tiada seksyen|{1} :count seksyen|[2,*] :count seksyen',
 ];

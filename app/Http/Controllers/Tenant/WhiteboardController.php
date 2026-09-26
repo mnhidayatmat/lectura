@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Events\WhiteboardSceneUpdated;
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\ActiveLearningGroup;
 use App\Models\Course;
@@ -14,19 +15,25 @@ use App\Models\Whiteboard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class WhiteboardController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     /**
      * Cross-course menu — every course the user can access, with its boards
      * grouped under it. Used by the main sidebar entry.
      */
-    public function all(): View
+    public function all(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.whiteboards.index')) {
+            return $redirect;
+        }
+
         $user = auth()->user();
         $tenant = app('current_tenant');
         $isAdmin = $user->hasRoleInTenant($tenant->id, ['admin']);
@@ -341,7 +348,7 @@ class WhiteboardController extends Controller
     /**
      * Groups for which the current user can create a whiteboard.
      */
-    protected function groupsAvailableForCreation(Course $course, bool $isLecturer): \Illuminate\Support\Collection
+    protected function groupsAvailableForCreation(Course $course, bool $isLecturer): Collection
     {
         $query = ActiveLearningGroup::query()
             ->select('active_learning_groups.id', 'active_learning_groups.name', 'active_learning_groups.color_tag')

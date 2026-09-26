@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseFile;
@@ -18,16 +19,21 @@ use Illuminate\View\View;
 class CourseFileController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected FolderService $folderService,
     ) {}
 
     /**
-     * Course file manager — select a course first.
+     * Course file manager — redirects into the active course context when set.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.files.manage')) {
+            return $redirect;
+        }
+
         $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->withCount('sections')
             ->get();
@@ -175,6 +181,7 @@ class CourseFileController extends Controller
     public function deleteFile(string $tenantSlug, Course $course, CourseFile $file): RedirectResponse
     {
         $file->delete();
+
         return back()->with('success', 'File deleted.');
     }
 

@@ -5,34 +5,46 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\StorePlanRequest;
 use App\Http\Requests\ActiveLearning\UpdatePlanRequest;
-use App\Jobs\GenerateActiveLearningPlan;
 use App\Models\ActiveLearningPlan;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\CourseFile;
 use App\Models\Section;
+use App\Models\SectionStudent;
 use App\Services\ActiveLearning\ActiveLearningPlanService;
 use App\Services\ActiveLearning\TierGateService;
+use App\Services\AI\ActiveLearningGeneratorService;
+use App\Services\AI\AiServiceManager;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Smalot\PdfParser\Parser;
 
 class ActiveLearningPlanController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected ActiveLearningPlanService $planService,
         protected TierGateService $tierGate,
     ) {}
 
-    public function all(): View
+    public function all(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.active-learning.index')) {
+            return $redirect;
+        }
+
         $tenant = app('current_tenant');
         $user = auth()->user();
 
@@ -99,15 +111,15 @@ class ActiveLearningPlanController extends Controller
         return in_array($stored, $allowed, true) ? $stored : 'latest';
     }
 
-    protected function applyPlanSort(\Illuminate\Database\Eloquent\Builder $query, string $sort): \Illuminate\Database\Eloquent\Builder
+    protected function applyPlanSort(Builder $query, string $sort): Builder
     {
         return match ($sort) {
-            'oldest'     => $query->orderBy('created_at', 'asc'),
-            'title_asc'  => $query->orderBy('title', 'asc'),
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            'title_asc' => $query->orderBy('title', 'asc'),
             'title_desc' => $query->orderBy('title', 'desc'),
-            'week'       => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
-            'duration'   => $query->orderBy('duration_minutes', 'desc'),
-            default      => $query->latest(),
+            'week' => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
+            'duration' => $query->orderBy('duration_minutes', 'desc'),
+            default => $query->latest(),
         };
     }
 
@@ -243,19 +255,19 @@ class ActiveLearningPlanController extends Controller
         }
 
         $request->validate([
-            'lecture_notes'       => ['nullable', 'string', 'max:50000'],
-            'lecture_notes_file'  => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'material_file_ids'   => ['nullable', 'array'],
+            'lecture_notes' => ['nullable', 'string', 'max:50000'],
+            'lecture_notes_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'material_file_ids' => ['nullable', 'array'],
             'material_file_ids.*' => ['integer', 'exists:course_files,id'],
-            'student_count'       => ['nullable', 'integer', 'min:1', 'max:500'],
-            'total_duration'      => ['nullable', 'integer', 'min:5', 'max:480'],
+            'student_count' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'total_duration' => ['nullable', 'integer', 'min:5', 'max:480'],
             'teaching_preferences' => ['nullable', 'string', 'max:1000'],
-            'content_focus'       => ['nullable', 'string', 'in:mixed,case_study,technical_problem,general'],
+            'content_focus' => ['nullable', 'string', 'in:mixed,case_study,technical_problem,general'],
         ]);
 
         // Use user-provided values or fall back to auto-detected
         $studentCount = $request->integer('student_count')
-            ?: \App\Models\SectionStudent::whereHas(
+            ?: SectionStudent::whereHas(
                 'section',
                 fn ($q) => $q->where('course_id', $course->id)
             )->where('is_active', true)->distinct('user_id')->count('user_id');
@@ -271,13 +283,13 @@ class ActiveLearningPlanController extends Controller
 
         // Prepend teaching preferences if provided
         if ($request->filled('teaching_preferences')) {
-            $lectureNotes = "Teaching Preferences: {$request->input('teaching_preferences')}\n\n" . $lectureNotes;
+            $lectureNotes = "Teaching Preferences: {$request->input('teaching_preferences')}\n\n".$lectureNotes;
         }
 
         // Append text from uploaded PDF
         if ($request->hasFile('lecture_notes_file')) {
             $pdfText = $this->extractPdfText($request->file('lecture_notes_file'));
-            $lectureNotes = trim($lectureNotes . "\n\n" . $pdfText);
+            $lectureNotes = trim($lectureNotes."\n\n".$pdfText);
         }
 
         // Append content from selected course materials
@@ -298,13 +310,13 @@ class ActiveLearningPlanController extends Controller
                         $extracted = $this->extractPdfTextFromPath($fullPath);
                         @unlink($fullPath);
                         if ($extracted) {
-                            $chunk .= "\n" . $extracted;
+                            $chunk .= "\n".$extracted;
                         }
                     }
                 } elseif ($file->url) {
                     $chunk .= "\nURL: {$file->url}";
                 }
-                $lectureNotes = trim($lectureNotes . "\n\n" . $chunk);
+                $lectureNotes = trim($lectureNotes."\n\n".$chunk);
             }
         }
 
@@ -317,8 +329,8 @@ class ActiveLearningPlanController extends Controller
         ]);
 
         try {
-            app(\App\Services\AI\AiServiceManager::class)->resetProvider();
-            app(\App\Services\AI\ActiveLearningGeneratorService::class)
+            app(AiServiceManager::class)->resetProvider();
+            app(ActiveLearningGeneratorService::class)
                 ->generate($plan, $lectureNotes ?: null, $studentCount, $request->input('content_focus', 'mixed'));
 
             $plan->update([
@@ -331,14 +343,14 @@ class ActiveLearningPlanController extends Controller
 
             return back()->with('success', "AI generated {$activityCount} activities. Review them below and accept or adjust.");
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Active learning AI generation failed', [
+            Log::error('Active learning AI generation failed', [
                 'plan_id' => $plan->id,
                 'error' => $e->getMessage(),
             ]);
 
             $plan->update(['ai_generation_status' => 'failed']);
 
-            return back()->withErrors(['ai' => 'AI generation failed: ' . $e->getMessage()]);
+            return back()->withErrors(['ai' => 'AI generation failed: '.$e->getMessage()]);
         }
     }
 
@@ -366,7 +378,7 @@ class ActiveLearningPlanController extends Controller
         return back()->with('success', __('active_learning.ai_draft_discarded'));
     }
 
-    protected function extractPdfText(\Illuminate\Http\UploadedFile $file): string
+    protected function extractPdfText(UploadedFile $file): string
     {
         return $this->extractPdfTextFromPath($file->getRealPath());
     }
@@ -374,16 +386,17 @@ class ActiveLearningPlanController extends Controller
     protected function extractPdfTextFromPath(string $path): string
     {
         try {
-            $parser = new \Smalot\PdfParser\Parser();
-            $pdf    = $parser->parseFile($path);
-            $text   = $pdf->getText();
+            $parser = new Parser;
+            $pdf = $parser->parseFile($path);
+            $text = $pdf->getText();
 
             // Limit to 50K chars to avoid prompt overflow
             return mb_substr($text, 0, 50000);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('PDF text extraction failed', [
+            Log::warning('PDF text extraction failed', [
                 'error' => $e->getMessage(),
             ]);
+
             return '';
         }
     }

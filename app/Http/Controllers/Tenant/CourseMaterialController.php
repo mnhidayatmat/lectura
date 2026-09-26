@@ -5,28 +5,35 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseFile;
 use App\Models\CourseFolder;
 use App\Models\CourseMaterialSection;
+use App\Models\Section;
 use App\Models\SectionStudent;
+use App\Models\User;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CourseMaterialController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     // ── Lecturer ──
 
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.materials.manage')) {
+            return $redirect;
+        }
+
         $tenant = app('current_tenant');
         $courses = Course::whereIn('id', $this->accessibleCourseIds())
             ->withCount('files')
@@ -61,7 +68,7 @@ class CourseMaterialController extends Controller
 
         CourseMaterialSection::create([
             'course_id' => $course->id,
-            'title'     => $request->input('title'),
+            'title' => $request->input('title'),
             'sort_order' => $maxOrder + 1,
             'is_visible' => true,
         ]);
@@ -134,14 +141,14 @@ class CourseMaterialController extends Controller
 
         $request->validate([
             'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
-            'files'               => ['required', 'array', 'min:1'],
-            'files.*'             => ['file', 'max:25600'],
-            'display_name'        => ['nullable', 'string', 'max:255'],
-            'description'         => ['nullable', 'string', 'max:500'],
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['file', 'max:25600'],
+            'display_name' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:500'],
         ]);
 
         $sectionId = (int) $request->input('material_section_id');
-        $user      = auth()->user();
+        $user = auth()->user();
 
         if ($user->isDriveConnected()) {
             return $this->uploadToDrive($request, $course, $sectionId, $user);
@@ -152,14 +159,14 @@ class CourseMaterialController extends Controller
 
     private function uploadToDrive(Request $request, Course $course, int $sectionId, $user): RedirectResponse
     {
-        $section     = CourseMaterialSection::findOrFail($sectionId);
+        $section = CourseMaterialSection::findOrFail($sectionId);
         $driveService = app(GoogleDriveService::class);
 
         try {
-            $courseFolderId  = $driveService->findOrCreateFolder($user, "{$course->code} — {$course->title}");
+            $courseFolderId = $driveService->findOrCreateFolder($user, "{$course->code} — {$course->title}");
             $sectionFolderId = $driveService->findOrCreateFolder($user, $section->title, $courseFolderId);
         } catch (\Throwable $e) {
-            return back()->withErrors(['files' => 'Could not create folder on Google Drive: ' . $e->getMessage()]);
+            return back()->withErrors(['files' => 'Could not create folder on Google Drive: '.$e->getMessage()]);
         }
 
         $uploaded = 0;
@@ -178,26 +185,26 @@ class CourseMaterialController extends Controller
                 );
 
                 CourseFile::create([
-                    'course_id'           => $course->id,
-                    'uploaded_by'         => auth()->id(),
-                    'material_type'       => 'drive',
-                    'file_name'           => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
-                    'file_type'           => $file->getMimeType(),
-                    'file_size_bytes'     => $file->getSize(),
-                    'url'                 => $result['web_view_link'],
-                    'drive_file_id'       => $result['id'],
-                    'description'         => $request->input('description'),
+                    'course_id' => $course->id,
+                    'uploaded_by' => auth()->id(),
+                    'material_type' => 'drive',
+                    'file_name' => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
+                    'file_type' => $file->getMimeType(),
+                    'file_size_bytes' => $file->getSize(),
+                    'url' => $result['web_view_link'],
+                    'drive_file_id' => $result['id'],
+                    'description' => $request->input('description'),
                     'material_section_id' => $sectionId,
-                    'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
+                    'sort_order' => CourseFile::where('material_section_id', $sectionId)->count(),
                 ]);
 
                 $uploaded++;
             } catch (\Throwable $e) {
-                return back()->withErrors(['files' => 'Google Drive upload failed: ' . $e->getMessage()]);
+                return back()->withErrors(['files' => 'Google Drive upload failed: '.$e->getMessage()]);
             }
         }
 
-        return back()->with('success', $uploaded . ' ' . Str::plural('file', $uploaded) . ' uploaded to Google Drive.');
+        return back()->with('success', $uploaded.' '.Str::plural('file', $uploaded).' uploaded to Google Drive.');
     }
 
     private function uploadToLocal(Request $request, Course $course, int $sectionId): RedirectResponse
@@ -215,17 +222,17 @@ class CourseMaterialController extends Controller
             $path = $file->store("course-files/{$course->id}/{$folder->id}", 'uploads');
 
             CourseFile::create([
-                'course_folder_id'    => $folder->id,
-                'course_id'           => $course->id,
-                'uploaded_by'         => auth()->id(),
-                'material_type'       => 'file',
-                'file_name'           => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
-                'file_type'           => $file->getMimeType(),
-                'file_size_bytes'     => $file->getSize(),
-                'storage_path'        => $path,
-                'description'         => $request->input('description'),
+                'course_folder_id' => $folder->id,
+                'course_id' => $course->id,
+                'uploaded_by' => auth()->id(),
+                'material_type' => 'file',
+                'file_name' => ($isSingle && $displayName) ? $displayName : $file->getClientOriginalName(),
+                'file_type' => $file->getMimeType(),
+                'file_size_bytes' => $file->getSize(),
+                'storage_path' => $path,
+                'description' => $request->input('description'),
                 'material_section_id' => $sectionId,
-                'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
+                'sort_order' => CourseFile::where('material_section_id', $sectionId)->count(),
             ]);
         }
 
@@ -238,22 +245,22 @@ class CourseMaterialController extends Controller
 
         $request->validate([
             'material_section_id' => ['required', 'integer', 'exists:course_material_sections,id'],
-            'title'               => ['required', 'string', 'max:255'],
-            'url'                 => ['required', 'url', 'max:2048'],
-            'description'         => ['nullable', 'string', 'max:500'],
+            'title' => ['required', 'string', 'max:255'],
+            'url' => ['required', 'url', 'max:2048'],
+            'description' => ['nullable', 'string', 'max:500'],
         ]);
 
         $sectionId = (int) $request->input('material_section_id');
 
         CourseFile::create([
-            'course_id'           => $course->id,
-            'uploaded_by'         => auth()->id(),
-            'material_type'       => 'link',
-            'file_name'           => $request->input('title'),
-            'url'                 => $request->input('url'),
-            'description'         => $request->input('description'),
+            'course_id' => $course->id,
+            'uploaded_by' => auth()->id(),
+            'material_type' => 'link',
+            'file_name' => $request->input('title'),
+            'url' => $request->input('url'),
+            'description' => $request->input('description'),
             'material_section_id' => $sectionId,
-            'sort_order'          => CourseFile::where('material_section_id', $sectionId)->count(),
+            'sort_order' => CourseFile::where('material_section_id', $sectionId)->count(),
         ]);
 
         return back()->with('success', 'Link added successfully.');
@@ -265,24 +272,24 @@ class CourseMaterialController extends Controller
 
         if ($file->isLink()) {
             $request->validate([
-                'title'       => ['required', 'string', 'max:255'],
-                'url'         => ['required', 'url', 'max:2048'],
+                'title' => ['required', 'string', 'max:255'],
+                'url' => ['required', 'url', 'max:2048'],
                 'description' => ['nullable', 'string', 'max:500'],
             ]);
 
             $file->update([
-                'file_name'   => $request->input('title'),
-                'url'         => $request->input('url'),
+                'file_name' => $request->input('title'),
+                'url' => $request->input('url'),
                 'description' => $request->input('description'),
             ]);
         } else {
             $request->validate([
-                'title'       => ['required', 'string', 'max:255'],
+                'title' => ['required', 'string', 'max:255'],
                 'description' => ['nullable', 'string', 'max:500'],
             ]);
 
             $file->update([
-                'file_name'   => $request->input('title'),
+                'file_name' => $request->input('title'),
                 'description' => $request->input('description'),
             ]);
         }
@@ -302,8 +309,8 @@ class CourseMaterialController extends Controller
 
     public function download(string $tenantSlug, Course $course, CourseFile $file): mixed
     {
-        $isLecturer = $this->isCourseOwner($course) || \App\Models\Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', auth()->id()))->exists();
-        $isStudent  = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+        $isLecturer = $this->isCourseOwner($course) || Section::where('course_id', $course->id)->whereHas('lecturers', fn ($q) => $q->where('user_id', auth()->id()))->exists();
+        $isStudent = ! $isLecturer && SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', auth()->id())
             ->where('is_active', true)
             ->exists();
@@ -327,7 +334,7 @@ class CourseMaterialController extends Controller
     {
         if ($file->isDriveFile() && $file->drive_file_id) {
             try {
-                $uploader = \App\Models\User::find($file->uploaded_by);
+                $uploader = User::find($file->uploaded_by);
                 if ($uploader?->isDriveConnected()) {
                     app(GoogleDriveService::class)->deleteFile($uploader, $file->drive_file_id);
                 }
@@ -344,7 +351,7 @@ class CourseMaterialController extends Controller
     public function studentIndex(): View
     {
         $tenant = app('current_tenant');
-        $user   = auth()->user();
+        $user = auth()->user();
 
         $sectionIds = SectionStudent::where('user_id', $user->id)
             ->where('is_active', true)
@@ -361,7 +368,7 @@ class CourseMaterialController extends Controller
     public function studentCourse(string $tenantSlug, Course $course): View
     {
         $tenant = app('current_tenant');
-        $user   = auth()->user();
+        $user = auth()->user();
 
         $isEnrolled = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
             ->where('user_id', $user->id)

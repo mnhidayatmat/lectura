@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Question;
@@ -25,12 +26,17 @@ use Illuminate\View\View;
 class QuizController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     /**
      * Quiz list for lecturer — grouped by course, then by folder.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.quizzes.course')) {
+            return $redirect;
+        }
+
         $courseIds = $this->accessibleCourseIds();
         $sectionIds = $this->allAccessibleSectionIds();
 

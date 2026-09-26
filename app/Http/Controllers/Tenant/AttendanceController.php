@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -18,10 +19,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AttendanceController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected QrCodeService $qrService,
@@ -29,10 +32,15 @@ class AttendanceController extends Controller
     ) {}
 
     /**
-     * Attendance overview — pick a course to manage its sessions.
+     * Attendance overview — with a course context set this redirects straight
+     * into that course's attendance page.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.attendance.course')) {
+            return $redirect;
+        }
+
         $sectionIds = $this->allAccessibleSectionIds();
 
         $sections = Section::whereIn('id', $sectionIds)->get(['id', 'course_id', 'is_active']);
@@ -211,7 +219,7 @@ class AttendanceController extends Controller
     {
         try {
             $this->authorizeSession($session);
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+        } catch (HttpException) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         if (! $session->isActive()) {
@@ -340,7 +348,7 @@ class AttendanceController extends Controller
         $markedAbsent = $this->sessionService->end($session);
 
         return redirect()->route('tenant.attendance.course', [app('current_tenant')->slug, $session->section->course_id])
-            ->with('success', 'Session ended. ' . $markedAbsent . ' students marked absent.');
+            ->with('success', 'Session ended. '.$markedAbsent.' students marked absent.');
     }
 
     /**

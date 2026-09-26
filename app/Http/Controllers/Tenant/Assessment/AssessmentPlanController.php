@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant\Assessment;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
+use App\Models\Assignment;
 use App\Models\Course;
+use App\Models\QuizSession;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
@@ -25,8 +27,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class AssessmentPlanController extends Controller
 {
     use AuthorizesCourseAccess;
-    public function overview(): View
+    use RedirectsToCourseContext;
+
+    public function overview(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.assessments.index')) {
+            return $redirect;
+        }
+
         $user = auth()->user();
         $tenant = app('current_tenant');
 
@@ -85,7 +93,7 @@ class AssessmentPlanController extends Controller
         return view('tenant.assessments.index', compact('tenant', 'course', 'totalWeightage', 'coveredCloIds', 'totalStudents'));
     }
 
-    public function create(string $tenantSlug, Course $course, Assessment $parent = null): View
+    public function create(string $tenantSlug, Course $course, ?Assessment $parent = null): View
     {
         $this->authorizeCourseAccess($course);
 
@@ -148,31 +156,31 @@ class AssessmentPlanController extends Controller
         $this->authorizeCourseAccess($course);
 
         $request->validate([
-            'parent_id'        => ['nullable', 'exists:assessments,id'],
-            'title'            => ['required', 'string', 'max:255'],
-            'type'             => ['required', 'string', 'in:' . implode(',', Assessment::TYPES)],
-            'method'           => ['nullable', 'string', 'in:' . implode(',', Assessment::METHODS)],
-            'weightage'        => ['required', 'numeric', 'min:0', 'max:100'],
-            'total_marks'      => ['required', 'numeric', 'min:1'],
-            'bloom_level'      => ['nullable', 'string', 'in:' . implode(',', Assessment::BLOOM_LEVELS)],
-            'description'      => ['nullable', 'string', 'max:2000'],
-            'clo_ids'          => ['nullable', 'array'],
-            'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
+            'parent_id' => ['nullable', 'exists:assessments,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:'.implode(',', Assessment::TYPES)],
+            'method' => ['nullable', 'string', 'in:'.implode(',', Assessment::METHODS)],
+            'weightage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'total_marks' => ['required', 'numeric', 'min:1'],
+            'bloom_level' => ['nullable', 'string', 'in:'.implode(',', Assessment::BLOOM_LEVELS)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'clo_ids' => ['nullable', 'array'],
+            'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
-            'due_date'         => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
-            'criteria'                   => ['nullable', 'array'],
-            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
-            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
-            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
-            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'criteria.*.levels'          => ['nullable', 'array'],
-            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria' => ['nullable', 'array'],
+            'criteria.*.title' => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'criteria.*.levels' => ['nullable', 'array'],
+            'criteria.*.levels.*.label' => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
-            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
+            'criteria.*.levels.*.marks' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $this->validateAssessmentGroupSet($request, $course);
@@ -183,7 +191,7 @@ class AssessmentPlanController extends Controller
         $parent = null;
         if ($request->filled('parent_id')) {
             $parent = Assessment::find($request->parent_id);
-            if (!$parent || $parent->course_id !== $course->id) {
+            if (! $parent || $parent->course_id !== $course->id) {
                 return back()->withErrors(['parent_id' => 'Invalid parent assessment.'])->withInput();
             }
         }
@@ -196,21 +204,21 @@ class AssessmentPlanController extends Controller
         $initialStatus = $parent ? $parent->status : 'draft';
 
         $assessment = Assessment::create([
-            'tenant_id'    => $tenant->id,
-            'course_id'    => $course->id,
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
             'student_group_set_id' => $requiresGroupSubmission ? $request->student_group_set_id : null,
-            'parent_id'    => $request->parent_id,
-            'title'        => $request->title,
-            'type'         => $request->type,
-            'method'       => $request->method,
-            'weightage'    => $request->weightage,
-            'total_marks'  => $request->total_marks,
-            'bloom_level'  => $request->bloom_level,
-            'description'  => $request->description,
+            'parent_id' => $request->parent_id,
+            'title' => $request->title,
+            'type' => $request->type,
+            'method' => $request->method,
+            'weightage' => $request->weightage,
+            'total_marks' => $request->total_marks,
+            'bloom_level' => $request->bloom_level,
+            'description' => $request->description,
             'requires_submission' => $requiresSubmission,
-            'due_date'     => $request->due_date,
-            'sort_order'   => $course->assessments()->count(),
-            'status'       => $initialStatus,
+            'due_date' => $request->due_date,
+            'sort_order' => $course->assessments()->count(),
+            'status' => $initialStatus,
         ]);
 
         if ($request->hasFile('instruction_file')) {
@@ -263,8 +271,8 @@ class AssessmentPlanController extends Controller
         $course->load('learningOutcomes');
         $assessment->load(['clos', 'children', 'parent', 'rubric.criteria.levels']);
 
-        $assignments = $course->hasMany(\App\Models\Assignment::class)->get(['id', 'title']);
-        $quizzes = \App\Models\QuizSession::where('lecturer_id', auth()->id())
+        $assignments = $course->hasMany(Assignment::class)->get(['id', 'title']);
+        $quizzes = QuizSession::where('lecturer_id', auth()->id())
             ->whereIn('section_id', $this->lecturerSectionIds($course))
             ->get(['id', 'title']);
 
@@ -279,31 +287,31 @@ class AssessmentPlanController extends Controller
         }
 
         $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
-            'type'             => ['required', 'string', 'in:' . implode(',', Assessment::TYPES)],
-            'method'           => ['nullable', 'string', 'in:' . implode(',', Assessment::METHODS)],
-            'weightage'        => ['required', 'numeric', 'min:0', 'max:100'],
-            'total_marks'      => ['required', 'numeric', 'min:1'],
-            'bloom_level'      => ['nullable', 'string', 'in:' . implode(',', Assessment::BLOOM_LEVELS)],
-            'description'      => ['nullable', 'string', 'max:2000'],
-            'status'           => ['nullable', 'string', 'in:' . implode(',', Assessment::STATUSES)],
-            'clo_ids'          => ['nullable', 'array'],
-            'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:'.implode(',', Assessment::TYPES)],
+            'method' => ['nullable', 'string', 'in:'.implode(',', Assessment::METHODS)],
+            'weightage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'total_marks' => ['required', 'numeric', 'min:1'],
+            'bloom_level' => ['nullable', 'string', 'in:'.implode(',', Assessment::BLOOM_LEVELS)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'status' => ['nullable', 'string', 'in:'.implode(',', Assessment::STATUSES)],
+            'clo_ids' => ['nullable', 'array'],
+            'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
-            'due_date'         => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
-            'criteria'                   => ['nullable', 'array'],
-            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
-            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
-            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
-            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'criteria.*.levels'          => ['nullable', 'array'],
-            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria' => ['nullable', 'array'],
+            'criteria.*.title' => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'criteria.*.levels' => ['nullable', 'array'],
+            'criteria.*.levels.*.label' => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
-            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
+            'criteria.*.levels.*.marks' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $this->validateAssessmentGroupSet($request, $course);

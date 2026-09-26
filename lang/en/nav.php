@@ -18,4 +18,12 @@ return [
     'home' => 'Home',
     'scan' => 'Scan QR',
     'marks' => 'Marks',
+    'pick_course_title' => 'Who are you teaching today?',
+    'pick_course_subtitle' => 'Pick a course to jump into its dashboard.',
+    'switch_course' => 'Switch course',
+    'browse_courses' => 'Browse all courses',
+    'all_courses' => 'All courses',
+    'manage_courses' => 'Manage courses',
+    'no_semester' => 'No semester',
+    'sections_count' => '{0} No sections|{1} :count section|[2,*] :count sections',
 ];

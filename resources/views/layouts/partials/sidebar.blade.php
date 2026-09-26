@@ -13,6 +13,12 @@
 
     // Course sub-pages that have their own sidebar entry — that entry wins, Courses yields.
     $courseSubPages = ['*/active-learning*', '*/assessments*', '*/whiteboards*', '*/attendance-policy*'];
+
+    // With an active course context, feature links jump straight into that course.
+    $contextCourse = app()->bound('current_course') ? app('current_course') : null;
+    $featureUrl = fn (string $flat, string $route) => $contextCourse
+        ? route($route, ['tenant' => $tenant->slug, 'course' => $contextCourse->id])
+        : $prefix.$flat;
 @endphp
 
 {{-- Sidebar --}}
@@ -29,6 +35,25 @@
             @endif
         </div>
     </div>
+
+    {{-- Active course chip --}}
+    @php $contextCourse = app()->bound('current_course') ? app('current_course') : null; @endphp
+    @if($contextCourse)
+        @php
+            $chipMonogram = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $contextCourse->code) ?: 'C', 0, 2));
+        @endphp
+        <a href="{{ route('tenant.courses.index', $tenant->slug) }}" title="{{ __('nav.switch_course') }}"
+           class="mx-4 mt-4 flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 transition group">
+            <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-xs font-extrabold text-white flex-shrink-0">
+                {{ $chipMonogram }}
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-white truncate leading-tight">{{ $contextCourse->code }}</p>
+                <p class="text-[11px] text-slate-500 truncate leading-tight">{{ $contextCourse->academicTerm?->name ?? __('nav.no_semester') }}</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        </a>
+    @endif
 
     {{-- Navigation --}}
     <nav class="flex-1 overflow-y-auto px-4 py-5 space-y-1.5">
@@ -54,7 +79,7 @@
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.teaching') }}</p>
         </div>
 
-        <a href="{{ $prefix }}/attendance"
+        <a href="{{ $featureUrl('/attendance', 'tenant.attendance.course') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/attendance*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/attendance*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
@@ -68,21 +93,21 @@
             Random Wheel
         </a>
 
-        <a href="{{ $prefix }}/quizzes"
+        <a href="{{ $featureUrl('/quizzes', 'tenant.quizzes.course') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/quizzes*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/quizzes*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {{ __('nav.quizzes') }}
         </a>
 
-        <a href="{{ $prefix }}/assessments"
+        <a href="{{ $featureUrl('/assessments', 'tenant.assessments.index') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/assessments*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/assessments*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
             Assessment
         </a>
 
-        <a href="{{ $prefix }}/active-learning"
+        <a href="{{ $featureUrl('/active-learning', 'tenant.active-learning.index') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/active-learning*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/active-learning*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -96,7 +121,7 @@
             Student Groups
         </a>
 
-        <a href="{{ $prefix }}/whiteboards"
+        <a href="{{ $featureUrl('/whiteboards', 'tenant.whiteboards.index') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/whiteboards*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/whiteboards*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
@@ -108,28 +133,28 @@
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.management') }}</p>
         </div>
 
-        <a href="{{ $prefix }}/materials"
+        <a href="{{ $featureUrl('/materials', 'tenant.materials.manage') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/materials*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/materials*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             Course Materials
         </a>
 
-        <a href="{{ $prefix }}/files"
+        <a href="{{ $featureUrl('/files', 'tenant.files.manage') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/files*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/files*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
             {{ __('nav.course_files') }}
         </a>
 
-        <a href="{{ $prefix }}/portfolio"
+        <a href="{{ $featureUrl('/portfolio', 'tenant.portfolio.course') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/portfolio*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/portfolio*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             Portfolio
         </a>
 
-        <a href="{{ $prefix }}/performance"
+        <a href="{{ $featureUrl('/performance', 'tenant.performance.course') }}"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/performance*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-800' }}">
             <svg class="w-5 h-5 {{ $active('*/performance*') ? 'text-white' : 'text-slate-500 group-hover:text-slate-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
