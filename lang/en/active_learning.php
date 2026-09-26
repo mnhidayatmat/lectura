@@ -211,6 +211,8 @@ return [
     'no_response_submitted' => 'No response submitted.',
 
     // Teaching slides
+    'session_flow' => 'Session flow',
+    'slides_range' => 'Slides :range',
     'slides_to_teach' => 'Slides to teach',
     'slide' => 'Slide',
     'slide_n' => 'Slide :n',

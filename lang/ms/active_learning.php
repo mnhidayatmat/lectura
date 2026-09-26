@@ -211,6 +211,8 @@ return [
     'no_response_submitted' => 'Tiada respons dihantar.',
 
     // Teaching slides
+    'session_flow' => 'Aliran sesi',
+    'slides_range' => 'Slaid :range',
     'slides_to_teach' => 'Slaid untuk diajar',
     'slide' => 'Slaid',
     'slide_n' => 'Slaid :n',

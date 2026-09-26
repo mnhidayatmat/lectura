@@ -73,7 +73,33 @@
             </div>
             @if($plan->description)
                 <div class="px-5 py-4 border-t border-slate-100">
-                    <p class="text-sm text-slate-600 leading-relaxed">{{ $plan->description }}</p>
+                    <div class="prose prose-sm prose-slate max-w-none text-slate-600 prose-p:my-2 prose-ul:my-1 prose-li:my-0.5 [&_p:has(+ul)]:mb-1 [&_p:has(+ul)]:mt-4 [&_p:has(+ul)]:text-xs [&_p:has(+ul)]:font-semibold [&_p:has(+ul)]:uppercase [&_p:has(+ul)]:tracking-wider [&_p:has(+ul)]:text-slate-500">{!! clean_html($plan->description) !!}</div>
+                </div>
+            @endif
+            @if($plan->activities->isNotEmpty())
+                <div class="px-5 py-4 border-t border-slate-100">
+                    <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{{ __('active_learning.session_flow') }}</h4>
+                    <ol class="divide-y divide-slate-100">
+                        @php $clock = 0; @endphp
+                        @foreach($plan->activities as $activity)
+                            @php
+                                $typeBadge = $activity->typeBadge;
+                                $slideNumbers = array_filter(array_column($activity->slides, 'number'));
+                            @endphp
+                            <li>
+                                <a href="#activity-{{ $activity->id }}" class="flex items-center gap-3 py-2 text-sm hover:bg-slate-50 rounded-lg -mx-2 px-2 transition">
+                                    <span class="w-10 flex-shrink-0 font-mono text-xs text-slate-400 tabular-nums">{{ intdiv($clock, 60) }}:{{ str_pad((string) ($clock % 60), 2, '0', STR_PAD_LEFT) }}</span>
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0 bg-{{ $typeBadge['color'] }}-400" title="{{ $typeBadge['label'] }}"></span>
+                                    <span class="flex-1 min-w-0 truncate text-slate-800">{{ $activity->title }}</span>
+                                    @if($slideNumbers)
+                                        <span class="hidden sm:inline text-[11px] text-indigo-600 flex-shrink-0">{{ __('active_learning.slides_range', ['range' => min($slideNumbers) === max($slideNumbers) ? min($slideNumbers) : min($slideNumbers).'–'.max($slideNumbers)]) }}</span>
+                                    @endif
+                                    <span class="w-14 text-right text-xs text-slate-400 flex-shrink-0">{{ $activity->duration_minutes ? $activity->duration_minutes.' '.__('active_learning.min') : '' }}</span>
+                                </a>
+                            </li>
+                            @php $clock += (int) $activity->duration_minutes; @endphp
+                        @endforeach
+                    </ol>
                 </div>
             @endif
             @if($plan->prerequisites)
@@ -94,7 +120,7 @@
                 <div class="space-y-3">
                     @php $runningTime = 0; @endphp
                     @foreach($plan->activities as $activity)
-                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-slate-300 transition">
+                        <div id="activity-{{ $activity->id }}" class="scroll-mt-20 bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-slate-300 transition">
                             <div class="px-5 py-4 flex items-start gap-4">
                                 {{-- Activity Number + Timeline --}}
                                 <div class="flex flex-col items-center flex-shrink-0">
