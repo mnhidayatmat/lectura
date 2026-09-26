@@ -9,30 +9,68 @@
     @endphp
 
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                <a href="{{ route('tenant.courses.index', $tenant->slug) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition flex-shrink-0">
-                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                </a>
-                <x-course-avatar :course="$course" size="md" class="hidden sm:flex" />
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h2 class="text-2xl font-bold text-slate-900 break-all">{{ $course->code }}</h2>
-                        @php $badge = $course->statusBadge; @endphp
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700 flex-shrink-0">{{ $badge['label'] }}</span>
+        @php $accent = \App\View\CourseAccent::for($course); $badge = $course->statusBadge; @endphp
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $accent['hero'] }} shadow-lg shadow-indigo-900/10">
+            <div class="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10 pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-10 w-56 h-56 rounded-full bg-black/10 pointer-events-none"></div>
+            <div class="relative px-5 py-6 sm:px-8">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-5">
+                    <div class="flex items-start gap-4 min-w-0 flex-1">
+                        <a href="{{ route('tenant.courses.index', $tenant->slug) }}" class="w-9 h-9 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition flex-shrink-0" title="Back to courses">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </a>
+                        <x-course-avatar :course="$course" size="lg" class="hidden sm:flex ring-2 ring-white/30" />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 class="text-2xl font-extrabold text-white tracking-tight break-all">{{ $course->code }}</h2>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white flex-shrink-0">{{ $badge['label'] }}</span>
+                            </div>
+                            <p class="mt-0.5 text-sm text-white/80 break-words">{{ $course->title }}</p>
+                            <div class="mt-3 flex items-center gap-x-2 gap-y-1.5 flex-wrap text-xs text-white/90">
+                                @if($course->faculty)
+                                    <span class="inline-flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-lg bg-white/10 break-words">
+                                        <svg class="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                        <span class="break-words">{{ $course->faculty->name }}</span>
+                                    </span>
+                                @endif
+                                @if($course->programme)
+                                    <span class="inline-flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-lg bg-white/10 break-words">
+                                        <svg class="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                                        <span class="break-words">{{ $course->programme->name }}</span>
+                                    </span>
+                                @endif
+                                @if($semesters->isNotEmpty())
+                                    <span class="inline-flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-lg bg-white/10 break-words">
+                                        <svg class="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span class="break-words">{{ $semesters->pluck('name')->implode(', ') }}</span>
+                                    </span>
+                                @endif
+                                @if($course->teaching_mode)
+                                    <span class="inline-flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-lg bg-white/10 break-words">
+                                        <svg class="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                        <span class="break-words">{{ str_replace('_', ' ', ucfirst($course->teaching_mode)) }}</span>
+                                    </span>
+                                @endif
+                                @if($course->format)
+                                    <span class="inline-flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-lg bg-white/10 break-words">
+                                        <svg class="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                                        <span class="break-words">{{ collect($course->format)->filter()->keys()->map(fn($f) => ucfirst($f))->implode(', ') }}</span>
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                    <p class="mt-0.5 text-sm text-slate-500 break-words">{{ $course->title }}</p>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="{{ route('tenant.teaching-plan.show', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-indigo-700 bg-white rounded-xl hover:bg-indigo-50 shadow-sm transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            Teaching Plan
+                        </a>
+                        <a href="{{ route('tenant.courses.edit', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-white/10 border border-white/25 rounded-xl hover:bg-white/20 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            Edit
+                        </a>
+                    </div>
                 </div>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <a href="{{ route('tenant.teaching-plan.show', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-sm transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    Teaching Plan
-                </a>
-                <a href="{{ route('tenant.courses.edit', [$tenant->slug, $course]) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    Edit
-                </a>
             </div>
         </div>
     </x-slot>
@@ -41,55 +79,26 @@
         {{-- Overview --}}
         <div class="grid lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 overflow-hidden">
-                <div class="flex items-center gap-x-5 gap-y-2 flex-wrap text-sm text-slate-600">
-                    @if($course->faculty)
-                        <span class="inline-flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                            <span class="break-words">{{ $course->faculty->name }}</span>
-                        </span>
-                    @endif
-                    @if($course->programme)
-                        <span class="inline-flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
-                            <span class="break-words">{{ $course->programme->name }}</span>
-                        </span>
-                    @endif
-                    @if($semesters->isNotEmpty())
-                        <span class="inline-flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            <span class="break-words">{{ $semesters->pluck('name')->implode(', ') }}</span>
-                        </span>
-                    @endif
-                    @if($course->teaching_mode)
-                        <span class="inline-flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            <span class="break-words">{{ str_replace('_', ' ', ucfirst($course->teaching_mode)) }}</span>
-                        </span>
-                    @endif
-                    @if($course->format)
-                        <span class="inline-flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                            <span class="break-words">{{ collect($course->format)->filter()->keys()->map(fn($f) => ucfirst($f))->implode(', ') }}</span>
-                        </span>
-                    @endif
-                </div>
 
                 @if($course->description)
-                    <p class="mt-3 text-sm text-slate-600 leading-relaxed break-words whitespace-pre-line line-clamp-3" x-data="{ open: false }" :class="open && 'line-clamp-none'" @click="open = !open">{{ $course->description }}</p>
+                    <p class="text-sm text-slate-600 leading-relaxed break-words whitespace-pre-line line-clamp-3" x-data="{ open: false }" :class="open && 'line-clamp-none'" @click="open = !open">{{ $course->description }}</p>
                 @endif
 
                 <div class="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-3">
                     @foreach([
-                        ['Students', $totalStudents, 'text-indigo-700'],
-                        ['Sections', $course->sections->count(), 'text-slate-900'],
-                        ['CLOs', $course->learningOutcomes->count(), 'text-slate-900'],
-                        ['Topics', $course->topics->count(), 'text-slate-900'],
-                        ['Credits', $course->credit_hours ?? '--', 'text-slate-900'],
-                        ['Weeks', $course->num_weeks, 'text-slate-900'],
-                    ] as [$label, $value, $color])
-                        <div class="rounded-xl bg-slate-50 px-3 py-2.5 overflow-hidden">
-                            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">{{ $label }}</p>
-                            <p class="text-xl font-bold {{ $color }} mt-0.5 truncate">{{ $value }}</p>
+                        ['Students', $totalStudents, 'text-indigo-600', 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z'],
+                        ['Sections', $course->sections->count(), 'text-emerald-600', 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'],
+                        ['CLOs', $course->learningOutcomes->count(), 'text-violet-600', 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0013.5 20.25h-3a3.374 3.374 0 00-1.483-2.543l-.548-.547z'],
+                        ['Topics', $course->topics->count(), 'text-teal-600', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
+                        ['Credits', $course->credit_hours ?? '--', 'text-amber-600', 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'],
+                        ['Weeks', $course->num_weeks, 'text-sky-600', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                    ] as [$label, $value, $color, $icon])
+                        <div class="rounded-xl bg-slate-50 px-3 py-2.5 overflow-hidden hover:bg-slate-100 transition">
+                            <p class="flex items-center gap-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">
+                                <svg class="w-3.5 h-3.5 {{ $color }} flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"/></svg>
+                                <span class="truncate">{{ $label }}</span>
+                            </p>
+                            <p class="text-xl font-bold text-slate-900 mt-0.5 truncate">{{ $value }}</p>
                         </div>
                     @endforeach
                 </div>

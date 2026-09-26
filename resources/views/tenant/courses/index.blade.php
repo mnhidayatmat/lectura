@@ -86,10 +86,20 @@
         </div>
     @else
         {{-- One card per course; its semesters are listed on the card and inside the course --}}
-        <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-            @foreach($currentCourses as $course)
-                @include('tenant.courses._card', ['course' => $course])
-            @endforeach
+        <div x-data="{ q: '', courses: {{ Illuminate\Support\Js::from($currentCourses->map(fn ($c) => strtolower($c->code.' '.$c->title))) }},
+            visible() { const needle = this.q.trim().toLowerCase(); return needle === '' ? this.courses.length : this.courses.filter(c => c.includes(needle)).length; } }">
+            <div class="relative mb-5 max-w-md">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" x-model.debounce.150ms="q" placeholder="Search by code or title..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+            </div>
+            <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+                @foreach($currentCourses as $course)
+                    <div x-show="q.trim() === '' || {{ Illuminate\Support\Js::from(strtolower($course->code.' '.$course->title)) }}.includes(q.trim().toLowerCase())" x-transition.duration.150ms>
+                        @include('tenant.courses._card', ['course' => $course])
+                    </div>
+                @endforeach
+            </div>
+            <p x-cloak x-show="q.trim() !== '' && visible() === 0" class="mt-6 text-center text-sm text-slate-400">No courses match your search.</p>
         </div>
 
         @if($archivedCourses->isNotEmpty())

@@ -1,4 +1,6 @@
-<a href="{{ route('tenant.courses.show', [app('current_tenant')->slug, $course]) }}" class="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md hover:border-indigo-200 transition group">
+@php $accent = \App\View\CourseAccent::for($course); @endphp
+<a href="{{ route('tenant.courses.show', [app('current_tenant')->slug, $course]) }}" class="group relative bg-white rounded-2xl border border-slate-200 p-6 pt-7 overflow-hidden hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 hover:border-indigo-200 transition-all duration-300">
+    <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r {{ $accent['gradient'] }}"></div>
     <div class="flex items-start justify-between mb-4">
         <x-course-avatar :course="$course" size="md" class="group-hover:scale-105 transition" />
         @php $badge = $course->statusBadge; @endphp
@@ -28,4 +30,8 @@
             @endforeach
         </div>
     @endif
+    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <span class="text-xs font-medium text-slate-400 group-hover:text-indigo-600 transition">Open course</span>
+        <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+    </div>
 </a>
