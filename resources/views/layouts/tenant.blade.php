@@ -61,6 +61,7 @@
 
             @if(! $isStudent)
                 @include('layouts.partials.sidebar')
+                @include('layouts.partials.course-switcher')
 
                 <div class="lg:pl-72">
                     @include('layouts.partials.topbar')

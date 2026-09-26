@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tenant;
 
+use Illuminate\Support\Str;
 use Tests\Feature\Api\V1\ApiTestCase;
 
 /**
@@ -37,7 +38,8 @@ class CourseIndexTest extends ApiTestCase
             ->assertOk()
             ->assertSeeInOrder(['SKMM1111', 'SKMM2222', 'Semester 2, 2026/2027', 'Semester 1, 2025/2026']);
 
-        $this->assertSame(1, substr_count($response->getContent(), '>SKMM2222<'));
+        // Counted inside <main>: the layout's course switcher lists every course too.
+        $this->assertSame(1, substr_count(Str::after($response->getContent(), '<main'), '>SKMM2222<'));
     }
 
     public function test_archived_courses_are_folded_into_their_own_list(): void

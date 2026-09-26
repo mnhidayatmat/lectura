@@ -1,56 +1,24 @@
 <x-tenant-layout>
-    @php
-        $monogram = fn (string $code) => strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $code) ?: 'C', 0, 2));
-        $palette = [
-            'bg-indigo-500', 'bg-violet-500', 'bg-teal-500', 'bg-rose-500',
-            'bg-amber-500', 'bg-sky-500', 'bg-emerald-500', 'bg-fuchsia-500',
-        ];
-        $courseColor = fn ($course) => $palette[crc32((string) $course->id) % count($palette)];
-    @endphp
-
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-                <h2 class="text-2xl font-bold text-slate-900">{{ __('nav.pick_course_title') }}</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ __('nav.pick_course_subtitle') }}</p>
+                <h2 class="text-2xl font-bold text-slate-900">{{ __('nav.all_courses') }}</h2>
+                <p class="mt-1 text-sm text-slate-500">Manage your courses, sections, and students</p>
             </div>
+            <div class="flex items-center gap-2">
+            @if($currentCourses->isNotEmpty())
+                <a href="{{ route('tenant.course-context.picker', app('current_tenant')->slug) }}" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    {{ __('nav.course_picker') }}
+                </a>
+            @endif
             <a href="{{ route('tenant.courses.create', app('current_tenant')->slug) }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm shadow-indigo-500/20 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Create Course
             </a>
-        </div>
-    </x-slot>
-
-    {{-- Netflix-style course picker --}}
-    @if($currentCourses->isNotEmpty())
-        <div class="mb-10">
-            <div class="flex flex-wrap justify-center gap-6 sm:gap-10">
-                @foreach($currentCourses as $course)
-                    <form method="POST" action="{{ route('tenant.course-context.select', app('current_tenant')->slug) }}" class="group flex flex-col items-center gap-3 w-36">
-                        @csrf
-                        <input type="hidden" name="course_id" value="{{ $course->id }}">
-                        <input type="hidden" name="redirect" value="{{ route('tenant.courses.show', ['tenant' => app('current_tenant')->slug, 'course' => $course->id]) }}">
-                        <button type="submit"
-                                class="w-32 h-32 sm:w-36 sm:h-36 rounded-3xl {{ $courseColor($course) }} flex items-center justify-center text-white text-4xl font-extrabold tracking-wide ring-4 ring-transparent group-hover:ring-white dark:group-hover:ring-slate-600 group-hover:scale-105 transition-all duration-200 shadow-lg">
-                            {{ $monogram($course->code) }}
-                        </button>
-                        <div class="text-center">
-                            <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">{{ $course->title }}</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                {{ $course->sections->map(fn ($s) => $s->term()?->name ?? $course->academicTerm?->name)->filter()->unique()->first() ?? __('nav.no_semester') }}
-                            </p>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ trans_choice('nav.sections_count', $course->sections_count, ['count' => $course->sections_count]) }}</p>
-                        </div>
-                    </form>
-                @endforeach
             </div>
         </div>
-
-        {{-- Course management --}}
-        <div class="pt-6 border-t border-slate-200 dark:border-[#354158]">
-            <h3 class="text-sm font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-5">{{ __('nav.manage_courses') }}</h3>
-        </div>
-    @endif
+    </x-slot>
 
     {{-- Join a Course --}}
     <div class="mb-6 bg-white rounded-2xl border border-slate-200 p-5" x-data="{ showJoin: false }">

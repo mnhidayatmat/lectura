@@ -6,7 +6,7 @@
         </button>
 
         {{-- Left: User greeting --}}
-        <div class="flex items-center gap-3 min-w-0 flex-shrink-0">
+        <div class="hidden sm:flex items-center gap-3 min-w-0 flex-shrink-0">
             <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">
                 {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
             </div>
@@ -52,59 +52,26 @@
         </div>
         @endif
 
-        {{-- Center: Course switcher --}}
-        @php
-            $topbarCourse = app()->bound('current_course') ? app('current_course') : null;
-            $topbarCourses = $accessibleCoursesForSwitcher ?? collect();
-        @endphp
-        <div class="hidden md:block flex-1 max-w-md mx-auto">
+        {{-- Center: Course switcher pill --}}
+        @php $topbarCourse = app()->bound('current_course') ? app('current_course') : null; @endphp
+        <div class="flex-1 min-w-0 flex justify-center">
             @if($topbarCourse)
-                @php
-                    $topbarMonogram = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $topbarCourse->code) ?: 'C', 0, 2));
-                    $currentUrl = request()->getRequestUri();
-                    $otherCourses = $topbarCourses->where('id', '!=', $topbarCourse->id);
-                @endphp
-                <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open"
-                            class="w-full flex items-center gap-3 pl-2 pr-3 py-1.5 bg-slate-50 dark:bg-[#2a3548] border border-slate-200 dark:border-[#354158] rounded-xl hover:border-indigo-300 dark:hover:border-indigo-700 transition">
-                        <span class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-[11px] font-extrabold text-white flex-shrink-0">{{ $topbarMonogram }}</span>
-                        <span class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{{ $topbarCourse->code }}</span>
-                        <span class="text-xs text-slate-400 dark:text-slate-500 truncate flex-1 text-left hidden sm:block">{{ $topbarCourse->title }}</span>
-                        <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div x-show="open" x-cloak @click.away="open = false" x-transition
-                         class="absolute left-0 right-0 mt-1 bg-white dark:bg-[#242d3d] rounded-xl shadow-lg border border-slate-200 dark:border-[#354158] z-50 py-1 max-h-80 overflow-y-auto">
-                        <p class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{{ __('nav.switch_course') }}</p>
-                        @foreach($otherCourses as $course)
-                            <form method="POST" action="{{ route('tenant.course-context.select', $currentTenant->slug) }}">
-                                @csrf
-                                <input type="hidden" name="course_id" value="{{ $course->id }}">
-                                <input type="hidden" name="redirect" value="{{ $currentUrl }}">
-                                <button type="submit" class="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#2a3548] transition text-left">
-                                    <span class="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">{{ strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $course->code) ?: 'C', 0, 2)) }}</span>
-                                    <span class="truncate">{{ $course->code }}</span>
-                                </button>
-                            </form>
-                        @endforeach
-                        <div class="border-t border-slate-100 dark:border-[#354158] mt-1 pt-1">
-                            <a href="{{ route('tenant.courses.index', $currentTenant->slug) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-[#2a3548] transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10"/></svg>
-                                {{ __('nav.browse_courses') }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            @else
-                <a href="{{ route('tenant.courses.index', $currentTenant->slug) }}"
+                <button type="button" @click="$dispatch('open-course-switcher')"
+                        class="min-w-0 max-w-md w-full flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 bg-slate-50 dark:bg-[#2a3548] border border-slate-200 dark:border-[#354158] rounded-xl hover:border-indigo-300 dark:hover:border-indigo-700 transition text-left">
+                    <x-course-avatar :course="$topbarCourse" size="xs" />
+                    <span class="text-sm font-semibold text-slate-800 dark:text-slate-100 flex-shrink-0">{{ $topbarCourse->code }}</span>
+                    <span class="text-xs text-slate-400 dark:text-slate-500 truncate flex-1 hidden sm:block">{{ $topbarCourse->title }}</span>
+                    <kbd class="hidden lg:inline-flex px-1.5 py-0.5 rounded border border-slate-200 dark:border-[#354158] text-[10px] font-medium text-slate-400 flex-shrink-0" x-text="/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'">⌘K</kbd>
+                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+                </button>
+            @elseif(($accessibleCoursesForSwitcher ?? collect())->isNotEmpty())
+                <a href="{{ route('tenant.course-context.picker', $currentTenant->slug) }}"
                    class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 dark:bg-[#2a3548] border border-slate-200 dark:border-[#354158] rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                    {{ __('nav.browse_courses') }}
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    <span class="hidden sm:inline">{{ __('nav.course_picker') }}</span>
                 </a>
             @endif
         </div>
-
-        {{-- Spacer for mobile --}}
-        <div class="flex-1 md:hidden"></div>
 
         {{-- Right: Actions --}}
         <div class="flex items-center gap-1.5 flex-shrink-0">

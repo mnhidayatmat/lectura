@@ -28,6 +28,7 @@ use App\Http\Controllers\Tenant\AttendancePolicyController;
 use App\Http\Controllers\Tenant\AttendanceReportController;
 use App\Http\Controllers\Tenant\CloController;
 use App\Http\Controllers\Tenant\CourseContextController;
+use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\CourseController;
 use App\Http\Controllers\Tenant\CourseFileController;
 use App\Http\Controllers\Tenant\CourseMaterialController;
@@ -56,10 +57,7 @@ use App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController;
 use App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController;
 use App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController;
 use App\Models\AiUsageLog;
-use App\Models\AttendanceSession;
 use App\Models\Course;
-use App\Models\Section;
-use App\Models\SectionStudent;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -333,83 +331,10 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 Route::prefix('{tenant:slug}')
     ->middleware(['auth', 'tenant', 'tenant.access', 'course.context', 'locale'])
     ->group(function () {
-        Route::get('/dashboard', function () {
-            $tenant = app('current_tenant');
-            $user = auth()->user();
-            $role = $user->roleInTenant($tenant->id);
-
-            $courseCount = 0;
-            $studentCount = 0;
-            $avgAttendance = null;
-            $courses = collect();
-            $todaySchedule = collect();
-
-            if ($role !== 'student') {
-                // Match CourseController@index: owned courses + courses where user is a section lecturer
-                $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-                $sectionCourseIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
-                $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
-
-                $courses = Course::whereIn('id', $allCourseIds)
-                    ->withCount('sections')
-                    ->latest()->get();
-                $courseCount = $courses->where('status', 'active')->count();
-
-                $sectionIds = Section::whereIn('course_id', $courses->pluck('id'))
-                    ->where('is_active', true)
-                    ->pluck('id');
-                $studentCount = SectionStudent::whereIn('section_id', $sectionIds)
-                    ->where('is_active', true)
-                    ->distinct('user_id')
-                    ->count('user_id');
-
-                // Avg attendance across ended sessions in the lecturer's sections
-                $endedSessions = AttendanceSession::whereIn('section_id', $sectionIds)
-                    ->where('status', 'ended')
-                    ->withCount([
-                        'records as attended_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
-                        'records as total_count',
-                    ])
-                    ->get();
-
-                if ($endedSessions->isNotEmpty()) {
-                    $rates = $endedSessions
-                        ->filter(fn ($s) => $s->total_count > 0)
-                        ->map(fn ($s) => $s->attended_count / $s->total_count);
-                    if ($rates->isNotEmpty()) {
-                        $avgAttendance = (int) round($rates->avg() * 100);
-                    }
-                }
-
-                // Today's schedule from section schedules
-                $today = strtolower(now()->format('l')); // e.g. "monday"
-                $sections = Section::whereIn('course_id', $courses->pluck('id'))
-                    ->whereNotNull('schedule')
-                    ->where('is_active', true)
-                    ->with('course:id,code,title')
-                    ->get();
-
-                $todaySchedule = $sections->flatMap(function ($section) use ($today) {
-                    $slots = collect($section->schedule ?? [])
-                        ->filter(fn ($slot) => ($slot['day'] ?? '') === $today);
-
-                    return $slots->map(fn ($slot) => (object) [
-                        'course_code' => $section->course->code,
-                        'course_title' => $section->course->title,
-                        'section_name' => $section->name,
-                        'start_time' => $slot['start_time'],
-                        'end_time' => $slot['end_time'],
-                        'location' => $slot['location'] ?? null,
-                        'type' => $slot['type'] ?? 'lecture',
-                        'course_id' => $section->course_id,
-                    ]);
-                })->sortBy('start_time')->values();
-            }
-
-            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'avgAttendance', 'courses', 'todaySchedule'));
-        })->name('tenant.dashboard');
+        Route::get('/dashboard', DashboardController::class)->name('tenant.dashboard');
 
         // Course Context (Netflix-style picker)
+        Route::get('/choose-course', [CourseContextController::class, 'picker'])->name('tenant.course-context.picker');
         Route::post('/course-context', [CourseContextController::class, 'select'])->name('tenant.course-context.select');
         Route::post('/course-context/clear', [CourseContextController::class, 'clear'])->name('tenant.course-context.clear');
 

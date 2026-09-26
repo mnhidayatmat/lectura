@@ -33,6 +33,12 @@ class RandomWheelController extends Controller
 
         $sectionIds = $this->allAccessibleSectionIds();
 
+        // With a course context, default to that course's latest session.
+        if (app()->bound('current_course')) {
+            $contextSectionIds = $courses->firstWhere('id', app('current_course')->id)?->sections->pluck('id');
+            $sectionIds = $contextSectionIds?->isNotEmpty() ? $contextSectionIds : $sectionIds;
+        }
+
         $latestSession = AttendanceSession::whereIn('section_id', $sectionIds)
             ->orderByDesc('started_at')
             ->with('section')

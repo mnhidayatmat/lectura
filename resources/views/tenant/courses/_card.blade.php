@@ -1,8 +1,6 @@
 <a href="{{ route('tenant.courses.show', [app('current_tenant')->slug, $course]) }}" class="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md hover:border-indigo-200 transition group">
     <div class="flex items-start justify-between mb-4">
-        <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition">
-            <span class="text-sm font-bold text-indigo-700">{{ strtoupper(substr($course->code, 0, 2)) }}</span>
-        </div>
+        <x-course-avatar :course="$course" size="md" class="group-hover:scale-105 transition" />
         @php $badge = $course->statusBadge; @endphp
         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ $badge['color'] }}-100 text-{{ $badge['color'] }}-700">{{ $badge['label'] }}</span>
     </div>
