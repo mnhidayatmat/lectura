@@ -48,7 +48,7 @@
 
             {{-- Instructions --}}
             <div class="px-5 py-4 bg-indigo-50/50">
-                <div class="prose prose-sm prose-slate max-w-none" x-html="state.current_activity?.instructions || state.current_activity?.description || ''"></div>
+                <div class="prose prose-sm prose-slate max-w-none" x-html="state.current_activity?.instructions_html || ''"></div>
             </div>
 
             {{-- Response Area --}}

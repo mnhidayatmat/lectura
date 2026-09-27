@@ -74,7 +74,7 @@
 
             {{-- Instructions --}}
             <div class="px-6 py-4 bg-slate-50/50">
-                <p class="text-sm text-slate-700 whitespace-pre-line" x-text="state.current_activity?.instructions || state.current_activity?.description"></p>
+                <div class="prose prose-sm prose-slate max-w-none text-slate-700" x-html="state.current_activity?.instructions_html || ''"></div>
             </div>
 
             {{-- Poll Results (live bar chart for MCQ) --}}

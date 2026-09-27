@@ -197,6 +197,7 @@ class SessionService
                 'type' => $activity->type,
                 'instructions' => $activity->instructions,
                 'description' => $activity->description,
+                'instructions_html' => clean_html($activity->instructions ?: $activity->description),
                 'duration_minutes' => $activity->duration_minutes,
                 'response_mode' => $activity->response_mode,
                 'response_type' => $activity->response_type,
