@@ -210,6 +210,11 @@ return [
     'your_response' => 'Respons Anda',
     'no_response_submitted' => 'Tiada respons dihantar.',
 
+    // Plan list order
+    'sort_manual' => 'Susunan manual',
+    'manual_order_hint' => 'Seret pemegang atau guna anak panah untuk menyusun pelan.',
+    'arrange_manually' => 'Susun secara manual',
+
     // Quiz slot
     'quiz' => 'Kuiz',
     'quiz_time' => 'Masa kuiz',

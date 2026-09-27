@@ -95,12 +95,12 @@ class ActiveLearningPlanController extends Controller
 
     protected function resolvePlanSort(Request $request, string $sessionKey): string
     {
-        $allowed = ['latest', 'oldest', 'title_asc', 'title_desc', 'week', 'duration'];
+        $allowed = ['manual', 'latest', 'oldest', 'title_asc', 'title_desc', 'week', 'duration'];
 
         if ($request->query->has('sort')) {
-            $sort = (string) $request->query('sort', 'latest');
+            $sort = (string) $request->query('sort', 'manual');
             if (! in_array($sort, $allowed, true)) {
-                $sort = 'latest';
+                $sort = 'manual';
             }
             session()->put($sessionKey, $sort);
 
@@ -109,7 +109,7 @@ class ActiveLearningPlanController extends Controller
 
         $stored = session($sessionKey);
 
-        return in_array($stored, $allowed, true) ? $stored : 'latest';
+        return in_array($stored, $allowed, true) ? $stored : 'manual';
     }
 
     protected function applyPlanSort(Builder $query, string $sort): Builder
@@ -120,8 +120,25 @@ class ActiveLearningPlanController extends Controller
             'title_desc' => $query->orderBy('title', 'desc'),
             'week' => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
             'duration' => $query->orderBy('duration_minutes', 'desc'),
-            default => $query->latest(),
+            'latest' => $query->latest(),
+            default => $query->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')->orderBy('sort_order')
+                ->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number')->orderBy('id'),
         };
+    }
+
+    public function reorder(Request $request, string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
+
+        $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer'],
+        ]);
+
+        $this->planService->reorderPlans($course, $request->input('ordered_ids'));
+        session()->put("active_learning_index_sort.{$course->id}", 'manual');
+
+        return response()->json(['success' => true]);
     }
 
     public function create(string $tenantSlug, Course $course): View

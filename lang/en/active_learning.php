@@ -210,6 +210,11 @@ return [
     'your_response' => 'Your Response',
     'no_response_submitted' => 'No response submitted.',
 
+    // Plan list order
+    'sort_manual' => 'Manual order',
+    'manual_order_hint' => 'Drag the handle or use the arrows to arrange the plans.',
+    'arrange_manually' => 'Arrange manually',
+
     // Quiz slot
     'quiz' => 'Quiz',
     'quiz_time' => 'Quiz time',

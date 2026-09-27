@@ -16,7 +16,7 @@ class ActiveLearningPlan extends Model
     use BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'course_topic_id', 'week_number',
+        'tenant_id', 'course_id', 'course_topic_id', 'week_number', 'sort_order',
         'title', 'description', 'prerequisites', 'duration_minutes',
         'status', 'source', 'ai_generation_status',
         'ai_generated_at', 'ai_prompt_summary',
@@ -29,6 +29,17 @@ class ActiveLearningPlan extends Model
             'ai_generated_at' => 'datetime',
             'published_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // New plans join the end of the course's manual order.
+        static::creating(function (self $plan) {
+            if ($plan->sort_order === null && $plan->course_id) {
+                $max = static::withoutGlobalScopes()->where('course_id', $plan->course_id)->max('sort_order');
+                $plan->sort_order = $max === null ? 0 : $max + 1;
+            }
+        });
     }
 
     public function course(): BelongsTo

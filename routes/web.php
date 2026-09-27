@@ -577,6 +577,7 @@ Route::prefix('{tenant:slug}')
             Route::get('/', [ActiveLearningPlanController::class, 'index'])->name('tenant.active-learning.index');
             Route::get('/create', [ActiveLearningPlanController::class, 'create'])->name('tenant.active-learning.create');
             Route::post('/', [ActiveLearningPlanController::class, 'store'])->name('tenant.active-learning.store');
+            Route::post('/reorder', [ActiveLearningPlanController::class, 'reorder'])->name('tenant.active-learning.reorder');
             Route::get('/{plan}', [ActiveLearningPlanController::class, 'show'])->name('tenant.active-learning.show');
             Route::get('/{plan}/edit', [ActiveLearningPlanController::class, 'edit'])->name('tenant.active-learning.edit');
             Route::put('/{plan}', [ActiveLearningPlanController::class, 'update'])->name('tenant.active-learning.update');
