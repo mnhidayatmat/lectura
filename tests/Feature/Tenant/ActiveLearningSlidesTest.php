@@ -125,4 +125,83 @@ class ActiveLearningSlidesTest extends ApiTestCase
             ->assertOk()
             ->assertDontSee('Slides to teach');
     }
+
+    public function test_lecturer_can_reorder_activities_from_the_plan_pages(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+
+        $plan = ActiveLearningPlan::create([
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
+            'title' => 'S1',
+            'created_by' => $lecturer->id,
+        ]);
+
+        [$first, $second, $third] = collect(['Teach', 'Mini', 'Core'])->map(fn ($title, $i) => ActiveLearningActivity::create([
+            'active_learning_plan_id' => $plan->id,
+            'sort_order' => $i,
+            'title' => $title,
+            'type' => 'pair',
+        ]))->all();
+
+        $otherPlan = ActiveLearningPlan::create([
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
+            'title' => 'Other',
+            'created_by' => $lecturer->id,
+        ]);
+        $foreign = ActiveLearningActivity::create([
+            'active_learning_plan_id' => $otherPlan->id,
+            'sort_order' => 5,
+            'title' => 'Elsewhere',
+            'type' => 'pair',
+        ]);
+
+        $base = "/{$tenant->slug}/courses/{$course->id}/active-learning/{$plan->id}";
+
+        foreach ([$base, "{$base}/edit"] as $url) {
+            $this->actingAs($lecturer)
+                ->get($url)
+                ->assertOk()
+                ->assertSee('activitySorter', false)
+                ->assertSee('data-activity-id="'.$first->id.'"', false)
+                ->assertSee('Move up');
+        }
+
+        $this->actingAs($lecturer)
+            ->postJson("{$base}/activities/reorder", ['ordered_ids' => [$third->id, $first->id, $foreign->id, $second->id]])
+            ->assertOk();
+
+        $this->assertSame(['Core', 'Teach', 'Mini'], $plan->activities()->pluck('title')->all());
+        $this->assertSame(5, $foreign->fresh()->sort_order);
+    }
+
+    public function test_another_lecturer_cannot_reorder_the_plan(): void
+    {
+        $tenant = $this->createTenant();
+        $owner = $this->createMember($tenant, 'lecturer');
+        $stranger = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $owner);
+
+        $plan = ActiveLearningPlan::create([
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
+            'title' => 'S1',
+            'created_by' => $owner->id,
+        ]);
+        $activity = ActiveLearningActivity::create([
+            'active_learning_plan_id' => $plan->id,
+            'sort_order' => 3,
+            'title' => 'Teach',
+            'type' => 'pair',
+        ]);
+
+        $this->actingAs($stranger)
+            ->postJson("/{$tenant->slug}/courses/{$course->id}/active-learning/{$plan->id}/activities/reorder", ['ordered_ids' => [$activity->id]])
+            ->assertForbidden();
+
+        $this->assertSame(3, $activity->fresh()->sort_order);
+    }
 }

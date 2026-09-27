@@ -16,7 +16,7 @@ class ActiveLearningActivity extends Model
         'description', 'instructions', 'solution', 'duration_minutes',
         'clo_ids', 'materials', 'grouping_strategy',
         'max_group_size', 'response_mode', 'response_type',
-        'poll_config', 'content_meta', 'ai_generated',
+        'poll_config', 'content_meta', 'quiz_session_id', 'ai_generated',
     ];
 
     protected function casts(): array
@@ -53,6 +53,11 @@ class ActiveLearningActivity extends Model
     public function groups(): HasMany
     {
         return $this->hasMany(ActiveLearningGroup::class, 'active_learning_activity_id')->orderBy('sort_order');
+    }
+
+    public function quizSession(): BelongsTo
+    {
+        return $this->belongsTo(QuizSession::class);
     }
 
     public function pollOptions(): HasMany

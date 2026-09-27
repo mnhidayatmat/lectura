@@ -13,6 +13,7 @@ use App\Models\ActiveLearningPlan;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\CourseFile;
+use App\Models\QuizSession;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Services\ActiveLearning\ActiveLearningPlanService;
@@ -153,7 +154,7 @@ class ActiveLearningPlanController extends Controller
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
-        $plan->load(['activities.groups.students', 'topic', 'creator']);
+        $plan->load(['activities.groups.students', 'activities.quizSession' => fn ($q) => $q->withCount('sessionQuestions'), 'topic', 'creator']);
         $course->load('learningOutcomes');
         $tenant = app('current_tenant');
 
@@ -166,7 +167,7 @@ class ActiveLearningPlanController extends Controller
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
-        $plan->load(['activities.groups.students', 'topic']);
+        $plan->load(['activities.groups.students', 'activities.quizSession' => fn ($q) => $q->withCount('sessionQuestions'), 'topic']);
         $course->load(['topics', 'learningOutcomes', 'sections']);
         $tenant = app('current_tenant');
 
@@ -195,8 +196,12 @@ class ActiveLearningPlanController extends Controller
             ->get()
             ->filter(fn ($s) => $s->files->isNotEmpty());
 
+        $courseQuizzes = QuizSession::whereIn('section_id', $sectionIds)
+            ->latest()
+            ->get(['id', 'title', 'status', 'join_code']);
+
         return view('tenant.active-learning.edit', compact(
-            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles', 'materialSections'
+            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles', 'materialSections', 'courseQuizzes'
         ));
     }
 

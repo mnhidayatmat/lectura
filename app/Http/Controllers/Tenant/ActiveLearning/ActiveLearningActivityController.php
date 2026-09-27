@@ -44,6 +44,28 @@ class ActiveLearningActivityController extends Controller
         return back()->with('success', __('active_learning.activity_updated'));
     }
 
+    public function startQuiz(string $tenantSlug, Course $course, ActiveLearningPlan $plan, ActiveLearningActivity $activity): RedirectResponse
+    {
+        $this->authorizeAndValidate($course, $plan);
+        $this->assertActivityBelongsToPlan($activity, $plan);
+
+        $quiz = $activity->quizSession ?? abort(404);
+        abort_unless($quiz->lecturer_id === auth()->id(), 403);
+
+        // A finished quiz (or the never-run master) runs again as a fresh copy,
+        // and the slot follows the newest run.
+        if ($quiz->status === 'ended') {
+            $quiz = $quiz->copyForNewRun(auth()->user());
+            $activity->update(['quiz_session_id' => $quiz->id]);
+        }
+
+        if ($quiz->isOffline()) {
+            return redirect()->route('tenant.quizzes.course', [$tenantSlug, $course]);
+        }
+
+        return redirect()->route('tenant.quizzes.control', [$tenantSlug, $quiz]);
+    }
+
     public function destroy(string $tenantSlug, Course $course, ActiveLearningPlan $plan, ActiveLearningActivity $activity): RedirectResponse
     {
         $this->authorizeAndValidate($course, $plan);

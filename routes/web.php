@@ -594,6 +594,7 @@ Route::prefix('{tenant:slug}')
             Route::put('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'update'])->name('tenant.active-learning.activities.update');
             Route::delete('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'destroy'])->name('tenant.active-learning.activities.destroy');
             Route::post('/{plan}/activities/reorder', [ActiveLearningActivityController::class, 'reorder'])->name('tenant.active-learning.activities.reorder');
+            Route::post('/{plan}/activities/{activity}/quiz', [ActiveLearningActivityController::class, 'startQuiz'])->name('tenant.active-learning.activities.quiz');
 
             // Groups
             Route::post('/{plan}/activities/{activity}/groups', [ActiveLearningGroupController::class, 'store'])->name('tenant.active-learning.groups.store');

@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class QuizSession extends Model
@@ -99,5 +100,67 @@ class QuizSession extends Model
             && $now->gte($this->available_from)
             && $now->lte($this->available_until)
             && $this->status !== 'ended';
+    }
+
+    /**
+     * A fresh session with copies of the same questions, ready to run again.
+     * The original keeps its participants and results.
+     */
+    public function copyForNewRun(User $lecturer): self
+    {
+        $this->loadMissing('sessionQuestions.question.options');
+
+        return DB::transaction(function () use ($lecturer) {
+            $offline = $this->isOffline();
+
+            $copy = self::create([
+                'tenant_id' => $this->tenant_id,
+                'section_id' => $this->section_id,
+                'lecturer_id' => $lecturer->id,
+                'title' => $this->title,
+                'category' => $this->category,
+                'mode' => $this->mode,
+                'is_anonymous' => $this->is_anonymous,
+                'status' => $offline ? 'active' : 'waiting',
+                'available_from' => $this->available_from,
+                'available_until' => $this->available_until,
+                'started_at' => $offline ? now() : null,
+            ]);
+
+            foreach ($this->sessionQuestions as $sessionQuestion) {
+                $original = $sessionQuestion->question;
+
+                $question = Question::create([
+                    'tenant_id' => $this->tenant_id,
+                    'created_by' => $lecturer->id,
+                    'question_type' => $original->question_type,
+                    'text' => $original->text,
+                    'explanation' => $original->explanation,
+                    'time_limit_seconds' => $original->time_limit_seconds,
+                    'points' => $original->points,
+                    'is_bank' => true,
+                ]);
+
+                foreach ($original->options as $option) {
+                    QuestionOption::create([
+                        'question_id' => $question->id,
+                        'label' => $option->label,
+                        'text' => $option->text,
+                        'is_correct' => $option->is_correct,
+                        'sort_order' => $option->sort_order,
+                    ]);
+                }
+
+                QuizSessionQuestion::create([
+                    'quiz_session_id' => $copy->id,
+                    'question_id' => $question->id,
+                    'sort_order' => $sessionQuestion->sort_order,
+                    'status' => $offline ? 'active' : 'pending',
+                    'opened_at' => $offline ? now() : null,
+                ]);
+            }
+
+            return $copy;
+        });
     }
 }
