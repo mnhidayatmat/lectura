@@ -8,10 +8,12 @@
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold
                             {{ $session->status === 'active' ? 'bg-emerald-100 text-emerald-700' : ($session->status === 'reviewing' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700') }}">
                             <span class="w-1.5 h-1.5 rounded-full animate-pulse {{ $session->status === 'active' ? 'bg-emerald-500' : ($session->status === 'reviewing' ? 'bg-amber-500' : 'bg-indigo-500') }}"></span>
-                            {{ ucfirst($session->status) }}
+                            {{ $session->hasNeverRun() ? 'Not run yet' : ucfirst($session->status) }}
                         </span>
                     </div>
-                    <p class="text-sm text-slate-500">Join Code: <code class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold text-lg">{{ $session->join_code }}</code></p>
+                    @if($session->isLive())
+                        <p class="text-sm text-slate-500">Join Code: <code class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold text-lg">{{ $session->join_code }}</code></p>
+                    @endif
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -43,6 +45,18 @@
                             </button>
                         </form>
                     @endif
+                @endif
+                @if($session->status === 'ended')
+                    @unless($session->hasNeverRun())
+                        <a href="{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}" class="px-4 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition">Results</a>
+                    @endunless
+                    <form method="POST" action="{{ route('tenant.quizzes.replay', [app('current_tenant')->slug, $session]) }}" x-data="{ busy: false }" @submit="busy = true">
+                        @csrf
+                        <button type="submit" :disabled="busy" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            {{ $session->hasNeverRun() ? 'Start quiz' : 'Run again' }}
+                        </button>
+                    </form>
                 @endif
                 @if($session->isLive())
                     <form method="POST" action="{{ route('tenant.quizzes.end', [app('current_tenant')->slug, $session]) }}">
@@ -226,6 +240,16 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
                 <h3 class="text-xl font-bold text-slate-900 mb-2">All questions completed!</h3>
                 <p class="text-sm text-slate-500">Click "End Quiz" to finalize scores and see results.</p>
+            </div>
+        @elseif($session->status === 'ended')
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 text-center">
+                @if($session->hasNeverRun())
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Not run yet</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">This is a master copy. Press "Start quiz" to open a fresh lobby with its own join code.</p>
+                @else
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">This run has ended</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">See the results, or run it again as a new session with the same questions.</p>
+                @endif
             </div>
         @endif
 

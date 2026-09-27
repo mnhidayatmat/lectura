@@ -51,12 +51,20 @@
             </div>
             <div class="divide-y divide-slate-100 dark:divide-slate-700">
                 @foreach($sessions as $session)
-                    <div class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
+                    @php
+                        $neverRun = $session->hasNeverRun();
+                        $isOwner = $session->lecturer_id === auth()->id();
+                    @endphp
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 px-5 py-3 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
                         {{-- Status indicator --}}
                         <div class="flex-shrink-0">
                             @if($session->category === 'live' && $session->isLive())
                                 <span class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                                     <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse"></span>
+                                </span>
+                            @elseif($neverRun)
+                                <span class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                 </span>
                             @elseif($session->category === 'offline' && $session->status !== 'ended')
                                 <span class="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
@@ -77,18 +85,24 @@
                                     <span class="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex-shrink-0">{{ $session->folder->name }}</span>
                                 @endif
                             </div>
-                            <div class="flex items-center gap-3 mt-0.5">
+                            <div class="flex flex-wrap items-center gap-x-3 mt-0.5">
                                 <span class="text-[11px] text-slate-400">{{ $session->section?->name }}</span>
                                 <span class="text-[11px] {{ $session->category === 'live' ? 'text-indigo-500' : 'text-teal-500' }} font-medium capitalize">{{ $session->category }}</span>
-                                <span class="text-[11px] text-slate-400">{{ $session->sessionQuestions->count() }} {{ Str::plural('question', $session->sessionQuestions->count()) }}</span>
-                                <span class="text-[11px] text-slate-400">{{ $session->participants->count() }} {{ Str::plural('participant', $session->participants->count()) }}</span>
+                                <span class="text-[11px] text-slate-400">{{ $session->session_questions_count }} {{ Str::plural('question', $session->session_questions_count) }}</span>
+                                @unless($neverRun)
+                                    <span class="text-[11px] text-slate-400">{{ $session->participants_count }} {{ Str::plural('participant', $session->participants_count) }}</span>
+                                @endunless
                             </div>
                         </div>
 
                         {{-- Status badge --}}
                         <div class="flex-shrink-0">
-                            @if($session->category === 'live' && $session->isLive())
+                            @if($session->category === 'live' && $session->status === 'waiting')
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">Lobby open</span>
+                            @elseif($session->category === 'live' && $session->isLive())
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">Live</span>
+                            @elseif($neverRun)
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Not run yet</span>
                             @elseif($session->status === 'ended')
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">Ended</span>
                             @elseif($session->category === 'offline')
@@ -99,27 +113,43 @@
                         </div>
 
                         {{-- Actions --}}
-                        <div class="flex items-center gap-1 flex-shrink-0">
+                        <div class="flex items-center gap-1 flex-shrink-0 ml-auto sm:ml-0">
                             @if($session->category === 'live' && $session->isLive())
-                                <a href="{{ route('tenant.quizzes.control', [app('current_tenant')->slug, $session]) }}" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">Control</a>
+                                @if($isOwner)
+                                    <a href="{{ route('tenant.quizzes.control', [app('current_tenant')->slug, $session]) }}" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition">Control</a>
+                                @endif
+                            @elseif($neverRun)
+                                @if($isOwner)
+                                    <form method="POST" action="{{ route('tenant.quizzes.replay', [app('current_tenant')->slug, $session]) }}" class="inline" x-data="{ busy: false }" @submit="busy = true">
+                                        @csrf
+                                        <button type="submit" :disabled="busy" class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-medium rounded-lg transition" title="Open a fresh lobby with these questions">
+                                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            Start
+                                        </button>
+                                    </form>
+                                @endif
                             @elseif($session->status === 'ended')
-                                <a href="{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Results</a>
+                                <a href="{{ route('tenant.quizzes.results', [app('current_tenant')->slug, $session]) }}" class="px-2 text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium">Results</a>
                             @endif
-                            <a href="{{ route('tenant.quizzes.edit', [app('current_tenant')->slug, $session]) }}" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition" title="Edit">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            </a>
-                            <form method="POST" action="{{ route('tenant.quizzes.replay', [app('current_tenant')->slug, $session]) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600 transition" title="Replay — create new session with same questions">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('tenant.quizzes.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this quiz and all its responses?')" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition" title="Delete">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
-                            </form>
+                            @if($isOwner)
+                                <a href="{{ route('tenant.quizzes.edit', [app('current_tenant')->slug, $session]) }}" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition" title="Edit">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                </a>
+                                @unless($neverRun)
+                                    <form method="POST" action="{{ route('tenant.quizzes.replay', [app('current_tenant')->slug, $session]) }}" class="inline" x-data="{ busy: false }" @submit="busy = true">
+                                        @csrf
+                                        <button type="submit" :disabled="busy" class="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600 disabled:opacity-50 transition" title="Replay — create new session with same questions">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        </button>
+                                    </form>
+                                @endunless
+                                <form method="POST" action="{{ route('tenant.quizzes.destroy', [app('current_tenant')->slug, $session]) }}" onsubmit="return confirm('Delete this quiz and all its responses?')" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition" title="Delete">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 @endforeach

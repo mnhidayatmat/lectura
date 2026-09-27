@@ -82,6 +82,17 @@ class QuizSession extends Model
         return $this->category === 'offline';
     }
 
+    /**
+     * A closed quiz that nobody has ever taken — a master copy kept to be
+     * started (replayed) later, not a finished run with results.
+     */
+    public function hasNeverRun(): bool
+    {
+        return $this->status === 'ended'
+            && $this->started_at === null
+            && ($this->participants_count ?? $this->participants()->count()) === 0;
+    }
+
     public function assessmentItems(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(AssessmentItem::class, 'assessable');
