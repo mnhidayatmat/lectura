@@ -76,6 +76,30 @@ class CourseApiTest extends LecturerApiTestCase
         $this->assertSame('archived', $data->firstWhere('id', $archived->id)['status']);
     }
 
+    public function test_an_active_course_whose_semester_has_ended_is_labelled_ended(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $over = $this->createTerm($tenant, ['start_date' => '2025-02-01', 'end_date' => '2025-06-30']);
+        $running = $this->createTerm($tenant, ['start_date' => '2025-02-01', 'end_date' => now()->addMonth()->toDateString()]);
+
+        $ended = $this->createCourse($tenant, $lecturer, ['code' => 'SKM1001', 'academic_term_id' => $over->id]);
+        $live = $this->createCourse($tenant, $lecturer, ['code' => 'SKM2002', 'academic_term_id' => $running->id]);
+        $none = $this->createCourse($tenant, $lecturer, ['code' => 'SKM3003']);
+
+        $data = collect(
+            $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/courses'))
+                ->assertOk()
+                ->json('data')
+        );
+
+        $this->assertSame('Ended', $data->firstWhere('id', $ended->id)['status_label']);
+        $this->assertSame('active', $data->firstWhere('id', $ended->id)['status']);
+        $this->assertTrue($data->firstWhere('id', $ended->id)['term_ended']);
+        $this->assertSame('Active', $data->firstWhere('id', $live->id)['status_label']);
+        $this->assertSame('Active', $data->firstWhere('id', $none->id)['status_label']);
+    }
+
     public function test_owner_sees_all_sections_with_counts_and_the_course_invite_code(): void
     {
         $tenant = $this->createTenant();

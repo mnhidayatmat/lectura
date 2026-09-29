@@ -90,7 +90,7 @@ All accessible courses, newest first (not paginated — mirrors the web list).
   ]
 }
 ```
-`status` ∈ `draft|active|inactive|archived` (labels Draft/Active/Inactive/Archived, colors amber/emerald/red/slate). `academic_term`/`faculty` are `{"id","name"}` or `null`.
+`status` ∈ `draft|active|inactive|archived` (labels Draft/Active/Inactive/Archived, colors amber/emerald/red/slate). `academic_term`/`faculty` are `{"id","name"}` or `null`. An `active` course whose term's `end_date` has passed reports `status_label` "Ended" (amber) and `term_ended: true`; `status` stays `active`.
 
 ### GET `lecturer/courses/{course}`
 

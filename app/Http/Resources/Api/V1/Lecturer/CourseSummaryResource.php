@@ -16,6 +16,12 @@ class CourseSummaryResource extends JsonResource
         $attributes = $this->resource->getAttributes();
         $badge = $this->resource->status_badge;
 
+        $term = $this->resource->relationLoaded('academicTerm') ? $this->resource->academicTerm : null;
+        $termEnded = $this->status === 'active' && $term?->end_date !== null && $term->end_date->endOfDay()->isPast();
+        if ($termEnded) {
+            $badge = ['label' => 'Ended', 'color' => 'amber'];
+        }
+
         return [
             'id' => $this->id,
             'code' => $this->code,
@@ -23,6 +29,7 @@ class CourseSummaryResource extends JsonResource
             'status' => $this->status,
             'status_label' => $badge['label'],
             'status_color' => $badge['color'],
+            'term_ended' => $termEnded,
             'teaching_mode' => $this->teaching_mode,
             'num_weeks' => (int) $this->num_weeks,
             'credit_hours' => $this->credit_hours !== null ? (int) $this->credit_hours : null,
