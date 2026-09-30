@@ -17,6 +17,7 @@ use App\Models\Section;
 use App\Models\TenantUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CourseController extends Controller
@@ -44,7 +45,37 @@ class CourseController extends Controller
 
         [$archivedCourses, $currentCourses] = $courses->partition(fn (Course $course) => $course->status === 'archived');
 
-        return view('tenant.courses.index', compact('courses', 'currentCourses', 'archivedCourses'));
+        $studentCounts = DB::table('section_students')
+            ->join('sections', 'sections.id', '=', 'section_students.section_id')
+            ->whereIn('sections.course_id', $courses->pluck('id'))
+            ->where('section_students.is_active', true)
+            ->groupBy('sections.course_id')
+            ->selectRaw('sections.course_id, count(distinct section_students.user_id) as total')
+            ->pluck('total', 'course_id');
+
+        // A course runs this semester when any of its sections (or the course itself) is in the current term
+        $runningNow = $currentCourses
+            ->filter(fn (Course $course) => $course->sections->contains(fn (Section $section) => ($section->academicTerm ?? $course->academicTerm)?->isCurrent())
+                || ($course->sections->isEmpty() && $course->academicTerm?->isCurrent()))
+            ->pluck('id');
+
+        $stats = [
+            'courses' => $currentCourses->count(),
+            'sections' => $currentCourses->sum('sections_count'),
+            'students' => DB::table('section_students')
+                ->join('sections', 'sections.id', '=', 'section_students.section_id')
+                ->whereIn('sections.course_id', $currentCourses->pluck('id'))
+                ->where('section_students.is_active', true)
+                ->distinct()
+                ->count('section_students.user_id'),
+            'running' => $runningNow->count(),
+        ];
+
+        $currentCourseId = app()->bound('current_course') ? app('current_course')->id : null;
+
+        return view('tenant.courses.index', compact(
+            'courses', 'currentCourses', 'archivedCourses', 'studentCounts', 'runningNow', 'stats', 'currentCourseId'
+        ));
     }
 
     public function create(): View

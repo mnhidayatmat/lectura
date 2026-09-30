@@ -135,7 +135,7 @@
                 <div class="flex items-center gap-2">
                     <h3 class="font-semibold text-slate-900">{{ __('active_learning.activities') }}</h3>
                     <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">{{ $plan->activities->count() }}</span>
-                    @include('tenant.active-learning._sort-status')
+                    <x-sort-status />
                 </div>
                 @php
                     $usedMinutes = $plan->activities->sum('duration_minutes') ?? 0;
@@ -182,7 +182,7 @@
                                 </div>
                             </div>
                             <div class="flex items-start gap-2 flex-shrink-0">
-                                @include('tenant.active-learning._sort-controls', ['first' => $loop->first, 'last' => $loop->last])
+                                <x-sort-controls item="activity-id" :first="$loop->first" :last="$loop->last" />
                                 <svg class="w-4 h-4 text-slate-400 transition-transform flex-shrink-0 mt-1" :class="expanded && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </div>
                         </div>

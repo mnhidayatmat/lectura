@@ -81,10 +81,37 @@ class QuizController extends Controller
         $sessions = QuizSession::whereIn('section_id', $sectionIds)
             ->with(['section', 'folder'])
             ->withCount(['participants', 'sessionQuestions'])
-            ->latest()
+            ->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
         return view('tenant.quizzes.course', compact('course', 'sessions'));
+    }
+
+    /**
+     * Save the manual order of a course's quizzes; ids from other courses are ignored.
+     */
+    public function reorder(Request $request, string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
+
+        $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer'],
+        ]);
+
+        $sectionIds = Section::where('course_id', $course->id)
+            ->whereIn('id', $this->allAccessibleSectionIds())
+            ->pluck('id');
+
+        foreach (array_values($request->input('ordered_ids')) as $index => $sessionId) {
+            QuizSession::where('id', $sessionId)
+                ->whereIn('section_id', $sectionIds)
+                ->update(['sort_order' => $index]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /** Store a new folder */

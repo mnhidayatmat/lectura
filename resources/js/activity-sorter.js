@@ -25,6 +25,10 @@ export default function activitySorter({ url }) {
             card.draggable = true;
         },
 
+        release(card) {
+            card.draggable = false;
+        },
+
         dragStart(event, card) {
             this.dragged = card;
             event.dataTransfer.effectAllowed = 'move';

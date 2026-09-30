@@ -121,7 +121,7 @@
             <div x-data="activitySorter({ url: @js(route('tenant.active-learning.activities.reorder', [$tenant->slug, $course, $plan])) })">
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">{{ __('active_learning.activities') }}</h3>
-                    @include('tenant.active-learning._sort-status')
+                    <x-sort-status />
                 </div>
                 <div class="space-y-3" x-ref="list">
                     @php $runningTime = 0; @endphp
@@ -233,7 +233,7 @@
                                     @endif
                                 </div>
 
-                                @include('tenant.active-learning._sort-controls', ['first' => $loop->first, 'last' => $loop->last])
+                                <x-sort-controls item="activity-id" :first="$loop->first" :last="$loop->last" />
                             </div>
                         </div>
                     @endforeach

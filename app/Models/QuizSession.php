@@ -16,7 +16,7 @@ class QuizSession extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'section_id', 'lecturer_id', 'quiz_folder_id', 'title', 'join_code',
+        'tenant_id', 'section_id', 'lecturer_id', 'quiz_folder_id', 'title', 'sort_order', 'join_code',
         'category', 'mode', 'is_anonymous', 'status', 'settings',
         'available_from', 'available_until', 'started_at', 'ended_at',
     ];
@@ -38,6 +38,15 @@ class QuizSession extends Model
         static::creating(function (self $session) {
             if (! $session->join_code) {
                 $session->join_code = strtoupper(Str::random(6));
+            }
+
+            // New quizzes join the end of the course's manual order.
+            if ($session->sort_order === null && $session->section_id) {
+                $sectionIds = Section::withoutGlobalScopes()
+                    ->where('course_id', Section::withoutGlobalScopes()->whereKey($session->section_id)->value('course_id'))
+                    ->select('id');
+                $max = static::withoutGlobalScopes()->whereIn('section_id', $sectionIds)->max('sort_order');
+                $session->sort_order = $max === null ? 0 : $max + 1;
             }
         });
     }

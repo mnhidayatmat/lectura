@@ -18,16 +18,12 @@
     </x-slot>
 
     @php $manual = ($sort ?? 'manual') === 'manual'; @endphp
-    <div class="space-y-8" @if($manual) x-data="planSorter({ url: @js(route('tenant.active-learning.reorder', [app('current_tenant')->slug, $course])) })" @endif>
+    <div class="space-y-8" @if($manual) x-data="listSorter({ url: @js(route('tenant.active-learning.reorder', [app('current_tenant')->slug, $course])) })" @endif>
         @if($plans->isNotEmpty())
             <form method="GET" class="flex flex-wrap items-center justify-end gap-2">
                 @if($manual)
-                    <span class="mr-auto text-xs text-slate-400">{{ __('active_learning.manual_order_hint') }}</span>
-                    <span class="text-[11px] font-medium" aria-live="polite">
-                        <span x-show="status === 'saving'" x-cloak class="text-slate-400">{{ __('active_learning.order_saving') }}</span>
-                        <span x-show="status === 'saved'" x-cloak class="text-emerald-600">{{ __('active_learning.order_saved') }}</span>
-                        <span x-show="status === 'error'" x-cloak class="text-red-600">{{ __('active_learning.order_failed') }}</span>
-                    </span>
+                    <span class="mr-auto text-xs text-slate-400">{{ __('sorting.hint', ['items' => __('sorting.items_plans')]) }}</span>
+                    <x-sort-status />
                 @else
                     <a href="?sort=manual" class="mr-auto text-xs font-medium text-indigo-600 hover:text-indigo-800">{{ __('active_learning.arrange_manually') }}</a>
                 @endif

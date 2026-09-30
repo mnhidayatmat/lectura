@@ -38,8 +38,9 @@
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Create your first quiz to get started.</p>
         </div>
     @else
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+             x-data="listSorter({ url: @js(route('tenant.quizzes.reorder', [app('current_tenant')->slug, $course])) })">
+            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-3">
                 <h3 class="font-semibold text-slate-900 dark:text-white">All Quizzes</h3>
                 <span class="text-xs text-slate-400">{{ $sessions->count() }} {{ Str::plural('quiz', $sessions->count()) }}</span>
                 @if($liveCount > 0)
@@ -48,14 +49,20 @@
                         {{ $liveCount }} live
                     </span>
                 @endif
+                <span class="ml-auto text-xs text-slate-400">{{ __('sorting.hint', ['items' => __('sorting.items_quizzes')]) }}</span>
+                <x-sort-status />
             </div>
-            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+            <div class="divide-y divide-slate-100 dark:divide-slate-700" data-sort-list>
                 @foreach($sessions as $session)
                     @php
                         $neverRun = $session->hasNeverRun();
                         $isOwner = $session->lecturer_id === auth()->id();
                     @endphp
-                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 px-5 py-3 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition">
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 px-5 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition"
+                         data-sort-id="{{ $session->id }}" @dragstart.self="dragStart($event, $el)" @dragover="dragOver($event, $el)" @drop.prevent @dragend.self="dragEnd()">
+                        {{-- Arrange --}}
+                        <x-sort-controls class="-ml-2" :first="$loop->first" :last="$loop->last" />
+
                         {{-- Status indicator --}}
                         <div class="flex-shrink-0">
                             @if($session->category === 'live' && $session->isLive())

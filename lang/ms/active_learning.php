@@ -212,7 +212,6 @@ return [
 
     // Plan list order
     'sort_manual' => 'Susunan manual',
-    'manual_order_hint' => 'Seret pemegang atau guna anak panah untuk menyusun pelan.',
     'arrange_manually' => 'Susun secara manual',
 
     // Quiz slot
@@ -232,12 +231,6 @@ return [
     'quiz_link_help' => 'Pautkan salah satu kuiz kursus ini; kad akan mendapat butang untuk membukanya.',
 
     // Teaching slides
-    'move_up' => 'Naik',
-    'move_down' => 'Turun',
-    'drag_to_reorder' => 'Seret untuk menyusun',
-    'order_saving' => 'Menyimpan susunan…',
-    'order_saved' => 'Susunan disimpan',
-    'order_failed' => 'Susunan tidak dapat disimpan — muat semula dan cuba lagi',
     'session_flow' => 'Aliran sesi',
     'slides_range' => 'Slaid :range',
     'slides_to_teach' => 'Slaid untuk diajar',

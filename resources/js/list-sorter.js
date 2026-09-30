@@ -1,7 +1,7 @@
-// Manual order for the active learning plan list. Cards move within their
-// own status group ([data-sort-list]) by drag handle or up/down buttons; the
-// whole course order (drafts, then published, then archived) is saved.
-export default function planSorter({ url }) {
+// Manual order for a list of cards ([data-sort-id]), e.g. active learning
+// plans or quizzes. Cards move within their own group ([data-sort-list]) by
+// drag handle or up/down buttons; the ids of every group, in page order, are saved.
+export default function listSorter({ url }) {
     return {
         url,
         dragged: null,
@@ -12,12 +12,12 @@ export default function planSorter({ url }) {
         },
 
         cards(list) {
-            return [...list.querySelectorAll(':scope > [data-plan-id]')];
+            return [...list.querySelectorAll(':scope > [data-sort-id]')];
         },
 
         move(card, direction) {
             const sibling = direction < 0 ? card.previousElementSibling : card.nextElementSibling;
-            if (!sibling?.dataset.planId) {
+            if (!sibling?.dataset.sortId) {
                 return;
             }
             direction < 0 ? sibling.before(card) : sibling.after(card);
@@ -36,7 +36,7 @@ export default function planSorter({ url }) {
         dragStart(event, card) {
             this.dragged = card;
             event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', card.dataset.planId);
+            event.dataTransfer.setData('text/plain', card.dataset.sortId);
             requestAnimationFrame(() => card.classList.add('opacity-40'));
         },
 
@@ -83,7 +83,7 @@ export default function planSorter({ url }) {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
                     body: JSON.stringify({
-                        ordered_ids: this.lists().flatMap((list) => this.cards(list).map((card) => Number(card.dataset.planId))),
+                        ordered_ids: this.lists().flatMap((list) => this.cards(list).map((card) => Number(card.dataset.sortId))),
                     }),
                 });
                 this.status = response.ok ? 'saved' : 'error';

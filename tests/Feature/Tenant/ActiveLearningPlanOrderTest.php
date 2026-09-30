@@ -27,7 +27,7 @@ class ActiveLearningPlanOrderTest extends ApiTestCase
         $this->actingAs($lecturer)
             ->get("/{$tenant->slug}/courses/{$course->id}/active-learning")
             ->assertOk()
-            ->assertSee('planSorter', false)
+            ->assertSee('listSorter', false)
             ->assertSee('Manual order')
             ->assertSee('Move up')
             ->assertSeeInOrder(['Alpha', 'Beta', 'Gamma']);
@@ -45,7 +45,7 @@ class ActiveLearningPlanOrderTest extends ApiTestCase
             ->get("/{$tenant->slug}/courses/{$course->id}/active-learning?sort=title_desc")
             ->assertOk()
             ->assertSeeInOrder(['Beta', 'Alpha'])
-            ->assertDontSee('planSorter', false)
+            ->assertDontSee('listSorter', false)
             ->assertDontSee('Move up')
             ->assertSee('Arrange manually');
     }

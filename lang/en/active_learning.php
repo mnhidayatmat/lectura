@@ -212,7 +212,6 @@ return [
 
     // Plan list order
     'sort_manual' => 'Manual order',
-    'manual_order_hint' => 'Drag the handle or use the arrows to arrange the plans.',
     'arrange_manually' => 'Arrange manually',
 
     // Quiz slot
@@ -232,12 +231,6 @@ return [
     'quiz_link_help' => 'Link one of this course\'s quizzes; the card gets a button that opens it.',
 
     // Teaching slides
-    'move_up' => 'Move up',
-    'move_down' => 'Move down',
-    'drag_to_reorder' => 'Drag to reorder',
-    'order_saving' => 'Saving order…',
-    'order_saved' => 'Order saved',
-    'order_failed' => 'Could not save the order — refresh and try again',
     'session_flow' => 'Session flow',
     'slides_range' => 'Slides :range',
     'slides_to_teach' => 'Slides to teach',

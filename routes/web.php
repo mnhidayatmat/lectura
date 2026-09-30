@@ -412,6 +412,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');
         Route::get('/quizzes/create', [QuizController::class, 'create'])->name('tenant.quizzes.create');
         Route::get('/quizzes/course/{course}', [QuizController::class, 'course'])->name('tenant.quizzes.course');
+        Route::post('/quizzes/course/{course}/reorder', [QuizController::class, 'reorder'])->name('tenant.quizzes.reorder');
         Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
         // Quiz Folders
         Route::post('/quizzes/folders', [QuizController::class, 'storeFolder'])->name('tenant.quizzes.folders.store');
