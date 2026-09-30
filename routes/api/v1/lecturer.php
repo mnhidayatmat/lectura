@@ -33,4 +33,5 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::get('/wheel', [WheelController::class, 'index'])->name('wheel.index');
     Route::get('/wheel/sessions', [WheelController::class, 'sessions'])->name('wheel.sessions');
     Route::get('/wheel/present-students', [WheelController::class, 'presentStudents'])->name('wheel.present-students');
+    Route::post('/wheel/spins', [WheelController::class, 'storeSpin'])->name('wheel.spins.store');
 });

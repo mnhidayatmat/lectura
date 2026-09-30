@@ -486,6 +486,21 @@ Errors: 422 `section_id` required; 404 section of another institution; 403 cours
 ```
 Errors: 422 `session_id` required; 404 session of another institution; 403 course access.
 
+### POST `lecturer/wheel/spins`
+
+Shares a spin the app has just chosen, as it starts animating, so enrolled students can watch it (`student/wheel`)
+and their phones are alerted once it lands. The web wheel posts the same thing to `/{tenant}/random-wheel/spins`.
+```json
+{ "session_id": 2, "candidate_ids": [3, 7, 9], "winner_id": 7, "turns": 6, "duration_ms": 5200 }
+```
+`candidate_ids` are the wheel's names in segment order; every one must be `present`/`late` in that session and
+`winner_id` must be among them (422 otherwise). `turns` 1–20, `duration_ms` 1000–15000.
+Response `{"message": "Spin shared with the class.", "data": {"id": 14}}`. 403 course access.
+
+The push (`kind: random_wheel_pick`, data `spin_id`, `course_id`, `course_code`, `is_winner` `"1"|"0"`) is queued with a
+delay of `duration_ms`, so it arrives as the wheel stops. It goes to every active student of the section; only the
+picked student also gets a database notification. On Android it uses the app's `random_wheel` channel (high importance).
+
 ---
 
 ## Differences from the web app (intentional)

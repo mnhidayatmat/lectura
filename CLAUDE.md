@@ -210,6 +210,12 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Auto-remove winner, spin history with timestamps, session persistence via `sessionStorage`
 - Fullscreen mode for projector/classroom use
 - Route: `/{tenant}/random-wheel`
+- **Live for students**: each spin is posted (`POST /random-wheel/spins`, mobile `lecturer/wheel/spins`) as it starts
+  and stored in `random_wheel_spins` (names in segment order, winner index, turns, duration). `WheelSpinService`
+  checks every name is checked in to the session, then queues `RandomWheelPicked` to the section's students with a
+  delay of the spin's duration, so phones are alerted (FCM, `random_wheel` Android channel) as the wheel stops; only
+  the winner gets a database notification. Students watch at `/{tenant}/live-wheel` (polls `/live-wheel/state`
+  every 2s) or in Lectura Go's Live tab (`student/wheel`); spins older than 3 hours are not shown
 
 ### Admin Panel
 

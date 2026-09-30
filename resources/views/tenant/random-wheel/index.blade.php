@@ -70,6 +70,10 @@
                     <input type="checkbox" x-model="includeLate" @change="if(sessionId) loadStudents()">
                     Include late students
                 </label>
+                <span class="ml-auto inline-flex items-center gap-1.5 text-xs" :class="shareFailed ? 'text-red-600' : 'text-slate-500'">
+                    <span class="w-2 h-2 rounded-full" :class="shareFailed ? 'bg-red-500' : 'bg-emerald-500'"></span>
+                    <span x-text="shareFailed ? @js(__('random_wheel.share_failed')) : @js(__('random_wheel.share_hint'))"></span>
+                </span>
             </div>
         </div>
 
@@ -224,6 +228,7 @@
             loadingSessions: false,
             loadingStudents: false,
             currentAngle: 0,
+            shareFailed: false,
 
             async init() {
                 if (LATEST_DEFAULTS) {
@@ -414,6 +419,7 @@
                 const startAngle = this.currentAngle;
                 const totalDelta = finalAngle - startAngle;
                 const duration = 4500 + Math.random() * 1500; // 4.5–6s
+                this.shareSpin(winnerIdx, spins, duration);
                 const start = performance.now();
 
                 const animate = (now) => {
@@ -437,6 +443,26 @@
                     }
                 };
                 requestAnimationFrame(animate);
+            },
+
+            // Students watch the same spin on their phones and are alerted once it lands.
+            async shareSpin(winnerIdx, turns, duration) {
+                try {
+                    const res = await fetch(`/${SLUG}/random-wheel/spins`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                        body: JSON.stringify({
+                            session_id: this.sessionId,
+                            candidate_ids: this.wheelStudents.map(s => s.id),
+                            winner_id: this.wheelStudents[winnerIdx].id,
+                            turns,
+                            duration_ms: Math.round(duration),
+                        }),
+                    });
+                    this.shareFailed = !res.ok;
+                } catch (e) {
+                    this.shareFailed = true;
+                }
             },
 
             removeWinner() {

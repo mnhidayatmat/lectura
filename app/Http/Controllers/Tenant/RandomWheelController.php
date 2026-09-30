@@ -10,6 +10,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
+use App\Services\RandomWheel\WheelSpinService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -71,9 +72,9 @@ class RandomWheelController extends Controller
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
-                'label' => ($s->isActive() ? '🟢 LIVE — ' : '') .
-                    'W' . ($s->week_number ?? '?') . ' ' . ucfirst($s->session_type) .
-                    ' — ' . $s->started_at->format('d M Y, H:i'),
+                'label' => ($s->isActive() ? '🟢 LIVE — ' : '').
+                    'W'.($s->week_number ?? '?').' '.ucfirst($s->session_type).
+                    ' — '.$s->started_at->format('d M Y, H:i'),
                 'is_active' => $s->isActive(),
                 'checked_in' => $s->checkedInCount(),
             ]);
@@ -118,6 +119,43 @@ class RandomWheelController extends Controller
                 'section' => $session->section->name,
             ],
         ]);
+    }
+
+    /**
+     * Publishes a spin the lecturer's wheel has just chosen, so the class can watch it land.
+     */
+    public function storeSpin(Request $request, string $tenantSlug, WheelSpinService $spins): JsonResponse
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'integer', 'exists:attendance_sessions,id'],
+            'candidate_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'candidate_ids.*' => ['integer'],
+            'winner_id' => ['required', 'integer'],
+            'turns' => ['required', 'integer', 'min:1', 'max:20'],
+            'duration_ms' => ['required', 'integer', 'min:1000', 'max:15000'],
+        ]);
+
+        $session = AttendanceSession::with('section.course')->findOrFail($data['session_id']);
+        $this->authorizeCourseAccess($session->section->course);
+
+        $spin = $spins->record($session, $request->user(), $data['candidate_ids'], (int) $data['winner_id'], (int) $data['turns'], (int) $data['duration_ms']);
+
+        return response()->json(['id' => $spin->id]);
+    }
+
+    /**
+     * Student view: the wheel the lecturer is spinning in any of the student's classes.
+     */
+    public function live(): View
+    {
+        return view('tenant.random-wheel.live', ['tenant' => app('current_tenant')]);
+    }
+
+    public function liveState(Request $request, string $tenantSlug, WheelSpinService $spins): JsonResponse
+    {
+        $spin = $spins->latestFor($request->user());
+
+        return response()->json(['spin' => $spin ? $spins->present($spin, $request->user()) : null]);
     }
 
     private function authorizeSection(Section $section): void

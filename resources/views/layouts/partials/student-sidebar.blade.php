@@ -51,6 +51,13 @@
             {{ __('nav.live_session') }}
         </a>
 
+        <a href="{{ $prefix }}/live-wheel"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/live-wheel') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/live-wheel') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            {{ __('nav.live_wheel') }}
+        </a>
+
         <div class="pt-5 pb-1 px-3">
             <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Learning</p>
         </div>

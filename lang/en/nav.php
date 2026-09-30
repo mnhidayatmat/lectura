@@ -9,6 +9,7 @@ return [
     'assignments' => 'Assignments',
     'active_learning' => 'Active Learning',
     'live_session' => 'Live Session',
+    'live_wheel' => 'Live Wheel',
     'management' => 'Management',
     'course_files' => 'Course Files',
     'admin' => 'Administration',

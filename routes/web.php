@@ -370,6 +370,9 @@ Route::prefix('{tenant:slug}')
         Route::get('/random-wheel', [RandomWheelController::class, 'index'])->name('tenant.random-wheel');
         Route::get('/random-wheel/sessions', [RandomWheelController::class, 'sessions'])->name('tenant.random-wheel.sessions');
         Route::get('/random-wheel/present-students', [RandomWheelController::class, 'presentStudents'])->name('tenant.random-wheel.present-students');
+        Route::post('/random-wheel/spins', [RandomWheelController::class, 'storeSpin'])->name('tenant.random-wheel.spins.store');
+        Route::get('/live-wheel', [RandomWheelController::class, 'live'])->name('tenant.random-wheel.live');
+        Route::get('/live-wheel/state', [RandomWheelController::class, 'liveState'])->name('tenant.random-wheel.live-state');
 
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('tenant.attendance.index');

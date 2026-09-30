@@ -35,9 +35,10 @@ class FcmClient
      * Sends one message to one registration token.
      *
      * @param  array<string, string>  $data  FCM only accepts string values
+     * @param  string|null  $androidChannel  a channel the app creates, e.g. a high-importance one that rings
      * @return bool false when FCM says the token is no longer valid, so the caller can drop it
      */
-    public function send(string $token, string $title, string $body, array $data = []): bool
+    public function send(string $token, string $title, string $body, array $data = [], ?string $androidChannel = null): bool
     {
         $response = Http::withToken($this->accessToken())
             ->timeout(10)
@@ -46,7 +47,10 @@ class FcmClient
                     'token' => $token,
                     'notification' => ['title' => $title, 'body' => $body],
                     'data' => (object) $data,
-                    'android' => ['priority' => 'high'],
+                    'android' => array_filter([
+                        'priority' => 'high',
+                        'notification' => $androidChannel ? ['channel_id' => $androidChannel, 'sound' => 'default'] : null,
+                    ]),
                     'apns' => ['payload' => ['aps' => ['sound' => 'default']]],
                 ],
             ]);

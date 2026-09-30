@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notification;
  */
 class FcmChannel
 {
-    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level'];
+    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level', 'spin_id', 'is_winner'];
 
     public function __construct(private FcmClient $fcm) {}
 
@@ -37,11 +37,12 @@ class FcmChannel
             'kind' => $payload['type'] ?? null,
             ...array_intersect_key($payload, array_flip(self::RELATED_KEYS)),
         ], fn ($value) => $value !== null));
+        $androidChannel = method_exists($notification, 'fcmAndroidChannel') ? $notification->fcmAndroidChannel() : null;
 
         foreach ($devices as $device) {
             // A failed push must never break the request that raised the notification.
             try {
-                if (! $this->fcm->send($device->token, $payload['title'] ?? 'Lectura', $payload['message'] ?? '', $data)) {
+                if (! $this->fcm->send($device->token, $payload['title'] ?? 'Lectura', $payload['message'] ?? '', $data, $androidChannel)) {
                     $device->delete();
                 }
             } catch (\Throwable $e) {

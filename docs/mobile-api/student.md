@@ -714,6 +714,34 @@ Streams the lecturer's annotated copy of that file (inline image), when one exis
 
 ---
 
+## Random wheel
+
+### GET `student/wheel`
+
+The lecturer's latest random-wheel spin in any section I'm actively enrolled in, from the last 3 hours; `{"data": null}` otherwise.
+```json
+{
+  "data": {
+    "id": 14,
+    "course": { "id": 6, "code": "BTG3333", "title": "Piping Systems" },
+    "section_name": "Section 01",
+    "candidates": [ { "id": 3, "name": "Aina Sofea" }, { "id": 7, "name": "Zul Hakim" } ],
+    "winner": { "id": 7, "name": "Zul Hakim" },
+    "winner_index": 1,
+    "turns": 6,
+    "duration_ms": 5200,
+    "spun_at": "2026-09-30T09:12:04+08:00",
+    "elapsed_ms": 1830,
+    "is_me": false
+  }
+}
+```
+Replay: rotation `0 → targetRotation(winner_index, turns)` with cubic ease-out over `duration_ms`, starting at
+`elapsed_ms / duration_ms` (server clock, so a phone with the wrong time still joins at the right point). Once
+`elapsed_ms >= duration_ms` the spin has landed. The web equivalent is `/{tenant}/live-wheel` (state at `/live-wheel/state`).
+
+---
+
 ## Notifications (any role)
 
 ### GET `notifications?page=1`

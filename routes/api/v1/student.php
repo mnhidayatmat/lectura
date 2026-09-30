@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Student\CourseController;
 use App\Http\Controllers\Api\V1\Student\DashboardController;
 use App\Http\Controllers\Api\V1\Student\MarkController;
 use App\Http\Controllers\Api\V1\Student\MaterialController;
+use App\Http\Controllers\Api\V1\Student\WheelController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('student')->name('student.')->group(function () {
@@ -30,6 +31,8 @@ Route::prefix('student')->name('student.')->group(function () {
     Route::get('/assignments/{assignment}/instruction', [AssignmentController::class, 'downloadInstruction'])->name('assignments.instruction');
     Route::get('/assignments/{assignment}/files/{file}/download', [AssignmentController::class, 'downloadFile'])->name('assignments.files.download');
     Route::get('/assignments/{assignment}/files/{file}/annotated', [AssignmentController::class, 'downloadAnnotated'])->name('assignments.files.annotated');
+
+    Route::get('/wheel', [WheelController::class, 'show'])->name('wheel.show');
 
     Route::get('/marks', [MarkController::class, 'index'])->name('marks.index');
     Route::get('/marks/assessment-scores/{score}/answer-script', [MarkController::class, 'downloadAnswerScript'])->name('marks.answer-script');

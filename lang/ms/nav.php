@@ -9,6 +9,7 @@ return [
     'assignments' => 'Tugasan',
     'active_learning' => 'Pembelajaran Aktif',
     'live_session' => 'Sesi Langsung',
+    'live_wheel' => 'Roda Langsung',
     'management' => 'Pengurusan',
     'course_files' => 'Fail Kursus',
     'admin' => 'Pentadbiran',
