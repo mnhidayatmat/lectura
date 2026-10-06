@@ -41,7 +41,14 @@ class WatchMediaController extends Controller
 
     public function caption(EpisodeCaption $caption): Response
     {
-        return $this->serve($caption->disk, $caption->path, 'text/vtt; charset=utf-8');
+        $storage = EpisodeMedia::disk($caption->disk);
+        abort_unless($storage->exists($caption->path), 404, 'File not found.');
+
+        // Served inline from any disk so the web player can fetch() it same-origin.
+        return response((string) $storage->get($caption->path), 200, [
+            'Content-Type' => 'text/vtt; charset=utf-8',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
     }
 
     private function serve(string $disk, string $path, ?string $mime = null): Response

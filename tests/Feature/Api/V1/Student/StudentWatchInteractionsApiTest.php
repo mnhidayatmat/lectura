@@ -239,4 +239,31 @@ class StudentWatchInteractionsApiTest extends ApiTestCase
         $signed = url(URL::temporarySignedRoute('api.v1.watch.episodes.stream', now()->addHour(), ['episode' => $episode->id], absolute: false));
         $this->withHeaders(['Authorization' => ''])->get($signed)->assertNotFound();
     }
+
+    public function test_a_public_media_disk_serves_plain_urls_but_captions_stay_same_origin(): void
+    {
+        config(['lectura.episodes.disk' => 'media']);
+        Storage::fake('media');
+        [$tenant, , $student, $course] = $this->enrolledStudent();
+        $episode = $this->episode($this->series($course), 1, [
+            'video_disk' => 'media',
+            'video_path' => 'episodes/1/ep1.mp4',
+            'poster_path' => 'episodes/1/posters/ep1.jpg',
+        ]);
+        Storage::disk('media')->put('episodes/1/captions/1-en.vtt', "WEBVTT\n\n00:00.000 --> 00:01.000\nHello\n");
+        EpisodeCaption::create(['episode_id' => $episode->id, 'language' => 'en', 'disk' => 'media', 'path' => 'episodes/1/captions/1-en.vtt']);
+
+        $data = $this->actingAsApi($student)->getJson($this->tenantApi($tenant, "student/watch/episodes/{$episode->id}"))
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame(Storage::disk('media')->url('episodes/1/ep1.mp4'), $data['stream_url']);
+        $this->assertSame(Storage::disk('media')->url('episodes/1/posters/ep1.jpg'), $data['poster_url']);
+        $this->assertStringContainsString('/api/v1/watch/captions/', $data['captions'][0]['url']);
+
+        $this->app['auth']->forgetGuards();
+        $caption = $this->withHeaders(['Authorization' => ''])->get($data['captions'][0]['url']);
+        $caption->assertOk();
+        $this->assertStringContainsString('Hello', $caption->getContent());
+    }
 }

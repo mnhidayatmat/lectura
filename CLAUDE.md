@@ -199,9 +199,11 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   from the Materials page). The browser reads the video length into `duration_seconds` before upload;
   `publish_at` is entered in the institution's timezone and stored in UTC
 - Files go on `config('lectura.episodes.disk')` (`EPISODES_DISK`, default `local`), each row keeps its
-  own `video_disk`. `EpisodeMedia` hands out pre-signed links: an S3-driver disk gets a bucket
-  `temporaryUrl`, anything else a `signed:relative` route under `/api/v1/watch/…` served as a
-  `BinaryFileResponse`, which honours HTTP Range so players can seek. Never stream video through
+  own `video_disk`. `EpisodeMedia` picks the link: a public disk with a `url` (production uses
+  `EPISODES_DISK=media`, public Contabo storage) gets plain cacheable URLs; another S3-driver disk a
+  bucket `temporaryUrl`; anything else a `signed:relative` route under `/api/v1/watch/…` served as a
+  `BinaryFileResponse`, which honours HTTP Range so players can seek. Captions always go through the
+  signed route and are served inline, so the web player can fetch() them without bucket CORS. Never stream video through
   `Storage::download()` (no Range). Those media routes skip `throttle:api` on purpose: a class behind
   one campus IP would exhaust the per-IP limit
 - Upload ceiling is `EPISODES_MAX_VIDEO_MB` (default 300) but PHP's `upload_max_filesize`/`post_max_size`

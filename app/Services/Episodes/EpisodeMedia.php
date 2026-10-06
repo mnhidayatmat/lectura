@@ -34,6 +34,12 @@ final class EpisodeMedia
         return config("filesystems.disks.{$disk}.driver") === 's3';
     }
 
+    public static function isPublicUrlDisk(string $disk): bool
+    {
+        return config("filesystems.disks.{$disk}.visibility") === 'public'
+            && filled(config("filesystems.disks.{$disk}.url"));
+    }
+
     public static function expiresAt(): Carbon
     {
         return now()->addMinutes((int) config('lectura.episodes.link_ttl_minutes'));
@@ -48,9 +54,13 @@ final class EpisodeMedia
         return self::link($episode->video_disk, $episode->video_path, $expires, 'api.v1.watch.episodes.stream', ['episode' => $episode->id]);
     }
 
+    /**
+     * Captions always come through our own signed route: the web player fetch()es
+     * them, and a bucket or CDN URL on another origin would need CORS rules.
+     */
     public static function captionUrl(EpisodeCaption $caption, ?Carbon $expires = null): string
     {
-        return self::link($caption->disk, $caption->path, $expires, 'api.v1.watch.captions', ['caption' => $caption->id]);
+        return url(URL::temporarySignedRoute('api.v1.watch.captions', $expires ?? self::expiresAt(), ['caption' => $caption->id], absolute: false));
     }
 
     public static function posterUrl(Episode $episode): ?string
@@ -74,6 +84,12 @@ final class EpisodeMedia
     private static function link(string $disk, string $path, ?Carbon $expires, string $route, array $params): string
     {
         $expires ??= self::expiresAt();
+
+        // A public disk with a URL (EPISODES_DISK=media: public object storage or a CDN in front
+        // of it) serves plain, cacheable URLs. Signed URLs are unique per request and defeat caching.
+        if (self::isPublicUrlDisk($disk)) {
+            return self::disk($disk)->url($path);
+        }
 
         if (self::isObjectStorage($disk)) {
             return self::disk($disk)->temporaryUrl($path, $expires);
