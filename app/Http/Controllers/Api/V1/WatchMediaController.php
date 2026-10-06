@@ -20,6 +20,8 @@ class WatchMediaController extends Controller
 {
     public function stream(Episode $episode): Response
     {
+        abort_if($episode->isYouTube() || ! $episode->video_path, 404, 'This episode plays from YouTube.');
+
         return $this->serve($episode->video_disk, $episode->video_path, $episode->video_mime);
     }
 
@@ -27,7 +29,7 @@ class WatchMediaController extends Controller
     {
         abort_unless($episode->poster_path, 404);
 
-        return $this->serve($episode->video_disk, $episode->poster_path);
+        return $this->serve($episode->video_disk ?? config('lectura.episodes.disk'), $episode->poster_path);
     }
 
     public function cover(CourseSeries $series): Response

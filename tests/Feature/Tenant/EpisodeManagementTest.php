@@ -26,7 +26,7 @@ class EpisodeManagementTest extends ApiTestCase
         $this->actingAs($lecturer)
             ->get("/{$tenant->slug}/materials/course/{$course->id}/episodes")
             ->assertOk()
-            ->assertSee('Upload an episode');
+            ->assertSee('Add an episode');
 
         $this->actingAs($lecturer)
             ->post("/{$tenant->slug}/materials/course/{$course->id}/episodes", [
@@ -141,5 +141,95 @@ class EpisodeManagementTest extends ApiTestCase
         $this->actingAs($lecturer)->delete("{$base}/{$episode->id}")->assertRedirect();
         $this->assertSame(0, Episode::count());
         Storage::disk('local')->assertMissing($episode->video_path);
+    }
+
+    public function test_lecturer_adds_a_youtube_episode(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+
+        $this->actingAs($lecturer)->post("/{$tenant->slug}/materials/course/{$course->id}/episodes", [
+            'source' => 'youtube',
+            'youtube_url' => 'https://youtu.be/dQw4w9WgXcQ?si=share',
+            'length' => '4:35',
+            'title' => 'Titis Leaves Home',
+            'episode_number' => 1,
+            'status' => 'published',
+            'allow_download' => '1',
+        ])->assertSessionHasNoErrors()->assertSessionHas('success', 'Episode 1 added.');
+
+        $episode = Episode::sole();
+        $this->assertTrue($episode->isYouTube());
+        $this->assertSame('dQw4w9WgXcQ', $episode->youtube_video_id);
+        $this->assertSame(275, $episode->duration_seconds);
+        $this->assertNull($episode->video_path);
+        $this->assertFalse($episode->canDownload());
+
+        $this->actingAs($lecturer)->get("/{$tenant->slug}/materials/course/{$course->id}/episodes")
+            ->assertOk()
+            ->assertSee('i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', false)
+            ->assertSee('youtube-nocookie.com/embed/dQw4w9WgXcQ', false);
+        $this->actingAs($lecturer)->get("/{$tenant->slug}/materials/course/{$course->id}/episodes/{$episode->id}")
+            ->assertOk()
+            ->assertSee('Plays from YouTube');
+    }
+
+    public function test_rejects_links_that_are_not_youtube_videos(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+
+        $this->actingAs($lecturer)->post("/{$tenant->slug}/materials/course/{$course->id}/episodes", [
+            'source' => 'youtube',
+            'youtube_url' => 'https://www.youtube.com/@lectura',
+            'title' => 'Channel',
+            'episode_number' => 1,
+            'status' => 'draft',
+        ])->assertSessionHasErrors('youtube_url');
+
+        $this->assertSame(0, Episode::count());
+    }
+
+    public function test_switching_an_uploaded_episode_to_youtube_deletes_the_file(): void
+    {
+        Storage::fake('local');
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $base = "/{$tenant->slug}/materials/course/{$course->id}/episodes";
+
+        $this->actingAs($lecturer)->post($base, [
+            'title' => 'Titis Leaves Home',
+            'episode_number' => 1,
+            'status' => 'draft',
+            'duration_seconds' => 275,
+            'video' => UploadedFile::fake()->create('EP01.mp4', 100, 'video/mp4'),
+        ])->assertSessionHasNoErrors();
+        $episode = Episode::sole();
+        $file = $episode->video_path;
+
+        $this->actingAs($lecturer)->patch("{$base}/{$episode->id}", [
+            'source' => 'youtube',
+            'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'title' => 'Titis Leaves Home',
+            'episode_number' => 1,
+            'status' => 'published',
+        ])->assertSessionHasNoErrors();
+
+        $episode->refresh();
+        $this->assertTrue($episode->isYouTube());
+        $this->assertNull($episode->video_path);
+        $this->assertNull($episode->duration_seconds);
+        Storage::disk('local')->assertMissing($file);
+
+        // Back to an upload needs a file.
+        $this->actingAs($lecturer)->patch("{$base}/{$episode->id}", [
+            'source' => 'upload',
+            'title' => 'Titis Leaves Home',
+            'episode_number' => 1,
+            'status' => 'published',
+        ])->assertSessionHasErrors('video');
     }
 }

@@ -34,6 +34,7 @@ use App\Http\Controllers\Tenant\CourseFileController;
 use App\Http\Controllers\Tenant\CourseMaterialController;
 use App\Http\Controllers\Tenant\EpisodeContentController;
 use App\Http\Controllers\Tenant\EpisodeController;
+use App\Http\Controllers\Tenant\StudentWatchController;
 use App\Http\Controllers\Tenant\NotificationController;
 use App\Http\Controllers\Tenant\PerformanceController;
 use App\Http\Controllers\Tenant\PortfolioController;
@@ -563,6 +564,13 @@ Route::prefix('{tenant:slug}')
         Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');
         Route::get('/materials/course/{course}/file/{file}/view', [CourseMaterialController::class, 'view'])->name('tenant.materials.view');
         Route::get('/materials/course/{course}/file/{file}/download', [CourseMaterialController::class, 'download'])->name('tenant.materials.download');
+
+        // Watch (Student) — animated episodes; same data and progress as the app
+        Route::get('/watch', [StudentWatchController::class, 'index'])->name('tenant.watch.index');
+        Route::get('/watch/series/{series}', [StudentWatchController::class, 'series'])->name('tenant.watch.series');
+        Route::get('/watch/episodes/{episode}', [StudentWatchController::class, 'episode'])->name('tenant.watch.episode');
+        Route::post('/watch/episodes/{episode}/progress', [StudentWatchController::class, 'progress'])->name('tenant.watch.progress');
+        Route::post('/watch/checks/{check}/answer', [StudentWatchController::class, 'answer'])->name('tenant.watch.answer');
 
         // Course Materials (Student)
         Route::get('/my-materials', [CourseMaterialController::class, 'studentIndex'])->name('tenant.materials.student-index');

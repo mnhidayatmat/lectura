@@ -116,6 +116,7 @@ class WatchController extends Controller
             'id' => $episode->id,
             'episode_number' => $episode->episode_number,
             'title' => $episode->title,
+            'source' => $episode->source ?? Episode::SOURCE_UPLOAD,
             'week_number' => $episode->week_number,
             'status' => $episode->status,
             'is_available' => $episode->isAvailable(),

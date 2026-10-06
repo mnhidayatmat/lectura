@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Services\Course\CourseContextService;
+use App\Services\Episodes\WatchCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -46,6 +47,8 @@ class DashboardController extends Controller
             'avgAttendance' => null,
             'courses' => collect(),
             'todaySchedule' => collect(),
+            // The Watch banner must never break the dashboard.
+            'watchFeatured' => $role === 'student' ? rescue(fn () => app(WatchCatalog::class)->home(auth()->user())['featured'], null, report: true) : null,
         ]);
     }
 }

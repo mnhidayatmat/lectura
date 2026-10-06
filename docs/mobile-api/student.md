@@ -455,6 +455,7 @@ are never listed and return 404.
   "course": { "id": 12, "code": "BTG3333", "title": "Process Piping" },
   "episode_number": 1,
   "title": "Titis Leaves Home",
+  "source": "youtube",
   "synopsis": "What piping is, why a leak is a fire, and where ASME B31.3 draws the line.",
   "week_number": 2,
   "topic": { "id": 5, "week_number": 2, "title": "Introduction to piping" },
@@ -482,8 +483,11 @@ are never listed and return 404.
   lecture. `is_overdue`: `required_by` has passed and the episode is not completed.
 - `quick_checks`: the episode's in-video questions and the student's latest answers. `answered` and
   `correct` count checks, not attempts. `answered > correct` means at least one check to redo.
+- `source`: `youtube` (the lecturer linked a YouTube video) or `upload` (a video file stored by
+  Lectura). It decides how the player plays it; see the episode endpoint.
 - `poster_url` / `cover_url` are pre-signed (valid 6 hours, no bearer token needed), so a plain
-  image widget can load them. Re-fetch the screen for fresh links.
+  image widget can load them. Re-fetch the screen for fresh links. A YouTube episode without its own
+  poster uses YouTube's thumbnail (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`, not signed).
 - `watched_percent` is 0–100 (integer): the position as a share of `duration_seconds`, `100` once
   completed, `0` when the duration is unknown.
 
@@ -570,10 +574,11 @@ available yet.` for a scheduled episode · 404 for drafts.
   "data": {
     "…episode": "…",
     "series": { "id": 2, "title": "Titis: A Piping Story" },
-    "stream_url": "https://lectura.example/api/v1/watch/episodes/7/stream?expires=…&signature=…",
-    "stream_expires_at": "2026-10-08T03:14:00+08:00",
-    "mime_type": "video/mp4",
-    "size_bytes": 26107639,
+    "youtube": { "video_id": "dQw4w9WgXcQ", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+    "stream_url": null,
+    "stream_expires_at": null,
+    "mime_type": null,
+    "size_bytes": null,
     "can_download": true,
     "next_episode": { "…episode": "…" },
     "scenes": [
@@ -600,7 +605,12 @@ available yet.` for a scheduled episode · 404 for drafts.
 }
 ```
 
-- `stream_url` is pre-signed and valid 6 hours; it needs no bearer token and supports HTTP `Range`
+- `source: "youtube"`: play `youtube.video_id` with YouTube's official embedded (IFrame) player and
+  its own controls; `stream_url`, `stream_expires_at`, `mime_type`, `size_bytes` are `null` and
+  `can_download` is always `false` (YouTube's terms forbid saving or extracting the stream). Scenes,
+  checks, captions, progress and rewinds work the same, driven by the player's current time.
+  `youtube` is `null` for uploaded episodes.
+- `source: "upload"`: `stream_url` is pre-signed and valid 6 hours; it needs no bearer token and supports HTTP `Range`
   requests, so the player can seek. When the server stores videos on object storage it is a direct
   pre-signed bucket URL instead. Either way, hand it to the player as is.
 - `next_episode`: the next published episode in the series by episode number (may be unavailable,

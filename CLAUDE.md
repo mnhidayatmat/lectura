@@ -190,6 +190,11 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   tagline, cover) → `Episode` (number, week, optional `CourseTopic`, `draft`/`published`, optional
   `publish_at` for a scheduled release) → `EpisodeProgress` (per student: position, furthest point,
   sticky `completed_at` at 90 % of the duration)
+- Source per episode (`episodes.source`): `youtube` (default in the form; `YouTubeLink` parses the
+  pasted link into `youtube_video_id`, the poster falls back to YouTube's thumbnail, no stream route,
+  `canDownload()` is always false because YouTube's terms forbid saving or extracting the stream; the
+  app plays it in YouTube's official IFrame player) or `upload` (the mp4 file flow below). Switching an
+  episode to YouTube deletes its uploaded file
 - Lecturers manage them at `/materials/course/{course}/episodes` (`Tenant\EpisodeController`, linked
   from the Materials page). The browser reads the video length into `duration_seconds` before upload;
   `publish_at` is entered in the institution's timezone and stored in UTC
@@ -224,6 +229,12 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   form error
 - `allow_download` lets the app save the mp4 for offline viewing; progress saves queued offline send
   `watched_at`, and an older save never moves the position back
+- Students also watch on the web: `/watch`, `/watch/series/{series}`, `/watch/episodes/{episode}`
+  (`Tenant\StudentWatchController`, sidebar "Watch", plus a banner on the student dashboard). Web and
+  API both go through `App\Services\Episodes\WatchCatalog`, so rows, progress and Quick Check answers
+  match the app. The Watch panels are always dark, and the Dimmed theme remaps `bg-white`,
+  `bg-white/95` and `text-slate-300…900` in dark mode — inside those panels use fixed values
+  (`bg-[#ffffff]`, `text-[#cbd5e1]`, …) or they turn dark-on-dark
 - Contracts: `docs/mobile-api/student.md` → Watch, `docs/mobile-api/lecturer.md` → Watch analytics
 
 ### Assignments & Marking

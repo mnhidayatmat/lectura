@@ -83,6 +83,13 @@
             Course Materials
         </a>
 
+        <a href="{{ $prefix }}/watch"
+           class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+                  {{ $active('*/watch*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+            <svg class="w-5 h-5 {{ $active('*/watch*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Watch
+        </a>
+
         <a href="{{ $prefix }}/my-assessments"
            class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
                   {{ $active('*/my-assessments*') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">

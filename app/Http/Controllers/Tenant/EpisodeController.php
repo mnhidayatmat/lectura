@@ -12,11 +12,14 @@ use App\Models\CourseTopic;
 use App\Models\Episode;
 use App\Services\Episodes\EpisodeAnnouncer;
 use App\Services\Episodes\EpisodeMedia;
+use App\Services\Episodes\StoryboardParser;
+use App\Services\Episodes\YouTubeLink;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -77,10 +80,16 @@ class EpisodeController extends Controller
     {
         $this->authorizeCourseAccess($course);
 
+        if (! $request->filled('source')) {
+            $request->merge(['source' => $request->filled('youtube_url') ? Episode::SOURCE_YOUTUBE : Episode::SOURCE_UPLOAD]);
+        }
+
         $validated = $request->validate([
             ...$this->episodeRules($course),
-            'video' => ['required', ...$this->videoRules()],
+            ...$this->sourceRules(),
+            'video' => ['required_if:source,upload', 'nullable', ...$this->videoRules()],
         ], $this->messages());
+        $videoId = $this->youtubeId($validated);
 
         $series = $course->series ?? CourseSeries::create([
             'tenant_id' => $course->tenant_id,
@@ -88,20 +97,21 @@ class EpisodeController extends Controller
             'title' => $course->title,
         ]);
 
-        $disk = config('lectura.episodes.disk');
-        $video = $request->file('video');
-
         $episode = new Episode([
             'tenant_id' => $course->tenant_id,
             'course_series_id' => $series->id,
             'course_id' => $course->id,
             'uploaded_by' => $request->user()->id,
-            'video_disk' => $disk,
-            'video_path' => $this->storeMedia($video, "episodes/{$course->id}"),
-            'video_mime' => $video->getMimeType() ?: 'video/mp4',
-            'video_size_bytes' => $video->getSize(),
+            // Posters (and uploaded videos) live on this disk for both sources.
+            'video_disk' => config('lectura.episodes.disk'),
         ]);
         $this->fillEpisode($episode, $validated, $course, $series);
+
+        if ($videoId) {
+            $this->useYouTube($episode, $videoId, $validated);
+        } else {
+            $this->useUpload($episode, $request->file('video'), $course, $validated);
+        }
 
         if ($request->hasFile('poster')) {
             $episode->poster_path = $this->storeMedia($request->file('poster'), "episodes/{$course->id}/posters");
@@ -110,7 +120,7 @@ class EpisodeController extends Controller
         $episode->save();
         $announced = $announcer->announceIfDue($episode);
 
-        return back()->with('success', "Episode {$episode->episode_number} uploaded.".($announced ? ' Students were notified.' : ''));
+        return back()->with('success', "Episode {$episode->episode_number} ".($videoId ? 'added' : 'uploaded').'.'.($announced ? ' Students were notified.' : ''));
     }
 
     public function update(Request $request, string $tenantSlug, Course $course, Episode $episode, EpisodeAnnouncer $announcer): RedirectResponse
@@ -118,23 +128,28 @@ class EpisodeController extends Controller
         $this->authorizeCourseAccess($course);
         $this->ensureEpisodeOfCourse($course, $episode);
 
+        if (! $request->filled('source')) {
+            $request->merge(['source' => $episode->source ?? Episode::SOURCE_UPLOAD]);
+        }
+
+        $needsFile = $request->input('source') === Episode::SOURCE_UPLOAD && ! $episode->video_path;
         $validated = $request->validate([
             ...$this->episodeRules($course),
-            'video' => ['nullable', ...$this->videoRules()],
+            ...$this->sourceRules(),
+            'video' => [$needsFile ? 'required' : 'nullable', ...$this->videoRules()],
             'remove_poster' => ['nullable', 'boolean'],
         ], $this->messages());
+        $videoId = $this->youtubeId($validated);
 
         $this->fillEpisode($episode, $validated, $course, $episode->series);
 
-        if ($request->hasFile('video')) {
-            $video = $request->file('video');
-            $this->deleteMedia($episode->video_disk, $episode->video_path);
-            $episode->video_disk = config('lectura.episodes.disk');
-            $episode->video_path = $this->storeMedia($video, "episodes/{$course->id}");
-            $episode->video_mime = $video->getMimeType() ?: 'video/mp4';
-            $episode->video_size_bytes = $video->getSize();
-            // The browser re-reads the new file's length into duration_seconds; never keep the old one.
-            $episode->duration_seconds = isset($validated['duration_seconds']) ? (int) $validated['duration_seconds'] : null;
+        if ($videoId) {
+            $this->useYouTube($episode, $videoId, $validated);
+        } elseif ($request->hasFile('video')) {
+            $this->useUpload($episode, $request->file('video'), $course, $validated);
+        } elseif ($episode->isYouTube()) {
+            // Switching an existing YouTube episode to "upload" needs a file, which validation required.
+            $episode->source = Episode::SOURCE_UPLOAD;
         }
 
         if ($request->hasFile('poster') || $request->boolean('remove_poster')) {
@@ -163,6 +178,79 @@ class EpisodeController extends Controller
         $episode->delete();
 
         return back()->with('success', 'Episode deleted.');
+    }
+
+    private function sourceRules(): array
+    {
+        return [
+            'source' => ['required', Rule::in([Episode::SOURCE_YOUTUBE, Episode::SOURCE_UPLOAD])],
+            'youtube_url' => ['required_if:source,youtube', 'nullable', 'string', 'max:255'],
+            'length' => ['nullable', 'string', 'max:10'],
+        ];
+    }
+
+    /**
+     * The YouTube video id when the lecturer chose YouTube, or null for an upload.
+     */
+    private function youtubeId(array $validated): ?string
+    {
+        if ($validated['source'] !== Episode::SOURCE_YOUTUBE) {
+            return null;
+        }
+
+        $id = YouTubeLink::videoId($validated['youtube_url'] ?? null);
+        if ($id === null) {
+            throw ValidationException::withMessages([
+                'youtube_url' => 'That doesn\'t look like a YouTube video link. Copy it from the video\'s Share button, for example https://youtu.be/abc123XYZ_0.',
+            ]);
+        }
+
+        if (! empty($validated['length']) && StoryboardParser::seconds($validated['length']) === null) {
+            throw ValidationException::withMessages(['length' => 'Enter the length as minutes:seconds, for example 4:35.']);
+        }
+
+        return $id;
+    }
+
+    /**
+     * Switch the episode to a YouTube video. Any uploaded file is deleted; the
+     * app reports the real length on first play when the lecturer gives none.
+     */
+    private function useYouTube(Episode $episode, string $videoId, array $validated): void
+    {
+        if ($episode->video_path) {
+            $this->deleteMedia($episode->video_disk, $episode->video_path);
+        }
+
+        // A typed length wins; the same video keeps its known length; a new video waits for the app.
+        $length = ! empty($validated['length'])
+            ? StoryboardParser::seconds($validated['length'])
+            : ($episode->youtube_video_id === $videoId ? $episode->duration_seconds : null);
+
+        $episode->fill([
+            'source' => Episode::SOURCE_YOUTUBE,
+            'youtube_video_id' => $videoId,
+            'video_path' => null,
+            'video_size_bytes' => null,
+            'duration_seconds' => $length,
+            'allow_download' => false,
+        ]);
+    }
+
+    private function useUpload(Episode $episode, UploadedFile $video, Course $course, array $validated): void
+    {
+        $this->deleteMedia($episode->video_disk, $episode->video_path);
+
+        $episode->fill([
+            'source' => Episode::SOURCE_UPLOAD,
+            'youtube_video_id' => null,
+            'video_disk' => config('lectura.episodes.disk'),
+            'video_path' => $this->storeMedia($video, "episodes/{$course->id}"),
+            'video_mime' => $video->getMimeType() ?: 'video/mp4',
+            'video_size_bytes' => $video->getSize(),
+            // The browser reads the new file's length into duration_seconds; never keep the old one.
+            'duration_seconds' => isset($validated['duration_seconds']) ? (int) $validated['duration_seconds'] : null,
+        ]);
     }
 
     private function episodeRules(Course $course): array
@@ -244,7 +332,7 @@ class EpisodeController extends Controller
             'allow_download' => (bool) ($validated['allow_download'] ?? true),
         ]);
 
-        if (! empty($validated['duration_seconds'])) {
+        if (! empty($validated['duration_seconds']) && ($validated['source'] ?? null) !== Episode::SOURCE_YOUTUBE) {
             $episode->duration_seconds = (int) $validated['duration_seconds'];
         }
     }

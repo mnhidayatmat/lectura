@@ -11,6 +11,7 @@ use App\Models\EpisodeCheck;
 use App\Models\EpisodeProgress;
 use App\Models\EpisodeRewind;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\Feature\Api\V1\ApiTestCase;
 
 class StudentWatchInteractionsApiTest extends ApiTestCase
@@ -208,5 +209,34 @@ class StudentWatchInteractionsApiTest extends ApiTestCase
         $this->postJson($url, ['rewinds' => array_fill(0, 51, ['from_seconds' => 20, 'to_seconds' => 1]), 'position_seconds' => 1])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('rewinds');
+    }
+
+    public function test_youtube_episodes_play_from_youtube_and_cannot_be_downloaded(): void
+    {
+        [$tenant, , $student, $course] = $this->enrolledStudent();
+        $series = $this->series($course);
+        $episode = $this->episode($series, 1, [
+            'source' => Episode::SOURCE_YOUTUBE,
+            'youtube_video_id' => 'dQw4w9WgXcQ',
+            'video_path' => null,
+            'allow_download' => true,
+        ]);
+
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, "student/watch/episodes/{$episode->id}"))
+            ->assertOk()
+            ->assertJsonPath('data.source', 'youtube')
+            ->assertJsonPath('data.youtube', ['video_id' => 'dQw4w9WgXcQ', 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'])
+            ->assertJsonPath('data.stream_url', null)
+            ->assertJsonPath('data.stream_expires_at', null)
+            ->assertJsonPath('data.mime_type', null)
+            ->assertJsonPath('data.can_download', false)
+            ->assertJsonPath('data.poster_url', 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+
+        $this->getJson($this->tenantApi($tenant, 'student/watch'))
+            ->assertJsonPath('data.series.0.episodes.0.source', 'youtube');
+
+        $this->app['auth']->forgetGuards();
+        $signed = url(URL::temporarySignedRoute('api.v1.watch.episodes.stream', now()->addHour(), ['episode' => $episode->id], absolute: false));
+        $this->withHeaders(['Authorization' => ''])->get($signed)->assertNotFound();
     }
 }

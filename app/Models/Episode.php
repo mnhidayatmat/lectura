@@ -19,6 +19,10 @@ class Episode extends Model
 
     public const STATUS_PUBLISHED = 'published';
 
+    public const SOURCE_UPLOAD = 'upload';
+
+    public const SOURCE_YOUTUBE = 'youtube';
+
     protected $fillable = [
         'tenant_id',
         'course_series_id',
@@ -30,6 +34,8 @@ class Episode extends Model
         'title',
         'synopsis',
         'status',
+        'source',
+        'youtube_video_id',
         'publish_at',
         'required_by',
         'notify_students',
@@ -108,6 +114,16 @@ class Episode extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PUBLISHED);
+    }
+
+    public function isYouTube(): bool
+    {
+        return $this->source === self::SOURCE_YOUTUBE;
+    }
+
+    public function canDownload(): bool
+    {
+        return ! $this->isYouTube() && (bool) $this->allow_download;
     }
 
     public function isPublished(): bool

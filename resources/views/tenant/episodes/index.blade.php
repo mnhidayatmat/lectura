@@ -70,20 +70,14 @@
             </form>
 
             <form method="POST" action="{{ route('tenant.episodes.store', [$tenant->slug, $course]) }}" enctype="multipart/form-data"
-                  x-data="episodeUpload()" @submit="uploading = true"
+                  x-data="episodeUpload('{{ old('source', 'youtube') }}')" @submit="uploading = true"
                   class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-3">
                 @csrf
                 <div>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Upload an episode</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">MP4 (H.264), up to {{ $maxVideoMb }} MB. Export with "fast start" so playback begins before the whole file loads.</p>
+                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Add an episode</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Link a YouTube video, or upload the video file.</p>
                 </div>
-                <div>
-                    <label for="new_video" class="{{ $label }}">Video</label>
-                    <input id="new_video" type="file" name="video" required accept="video/mp4,video/quicktime,video/x-m4v" @change="read($event)" class="block w-full text-xs text-slate-500 dark:text-slate-400">
-                    <input type="hidden" name="duration_seconds" :value="duration">
-                    <p x-show="duration" x-cloak class="mt-1 text-xs text-slate-500 dark:text-slate-400">Length <span x-text="label"></span></p>
-                    <p x-show="tooBig" x-cloak class="mt-1 text-xs text-red-600 dark:text-red-400">This file is over {{ $maxVideoMb }} MB and will be rejected.</p>
-                </div>
+                @include('tenant.episodes._source-fields', ['prefix' => 'new', 'youtubeUrl' => old('youtube_url'), 'length' => old('length'), 'videoRequired' => true, 'videoLabel' => 'Video file'])
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label for="new_number" class="{{ $label }}">Episode</label>
@@ -143,12 +137,12 @@
                 </label>
                 <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                     <input type="hidden" name="allow_download" value="0">
-                    <input type="checkbox" name="allow_download" value="1" class="rounded" @checked(old('allow_download', '1') === '1')>
-                    Let students download it to watch offline
+                    <input type="checkbox" name="allow_download" value="1" class="rounded" @checked(old('allow_download', '1') === '1') :disabled="source === 'youtube'">
+                    <span x-text="source === 'youtube' ? 'YouTube episodes can only be watched online' : 'Let students download it to watch offline'">Let students download it to watch offline</span>
                 </label>
                 <button type="submit" :disabled="uploading || tooBig" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-xl transition">
-                    <span x-show="!uploading">Upload episode</span>
-                    <span x-show="uploading" x-cloak>Uploading… keep this tab open</span>
+                    <span x-show="!uploading">Add episode</span>
+                    <span x-show="uploading" x-cloak x-text="source === 'upload' ? 'Uploading… keep this tab open' : 'Saving…'"></span>
                 </button>
             </form>
         </div>
@@ -175,8 +169,8 @@
                 <div x-data="{ editing: false, preview: false }" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="p-4 flex gap-4">
                         <button type="button" @click="preview = !preview" class="relative w-36 shrink-0 aspect-video rounded-lg overflow-hidden bg-slate-800 group" aria-label="Preview episode {{ $episode->episode_number }}">
-                            @if($episode->poster_path)
-                                <img src="{{ \App\Services\Episodes\EpisodeMedia::posterUrl($episode) }}" alt="" class="w-full h-full object-cover">
+                            @if($poster = \App\Services\Episodes\EpisodeMedia::posterUrl($episode))
+                                <img src="{{ $poster }}" alt="" class="w-full h-full object-cover">
                             @else
                                 <span class="absolute inset-0 bg-gradient-to-br from-teal-700 to-slate-900"></span>
                                 <span class="absolute left-2 bottom-1 text-3xl font-extrabold text-white/90">{{ $episode->episode_number }}</span>
@@ -200,7 +194,7 @@
                                 {{ $episode->week_number ? 'Week '.$episode->week_number : 'No week' }}
                                 @if($episode->topic) · {{ $episode->topic->title }} @endif
                                 · {{ $fmt($episode->duration_seconds) }}
-                                @if($episode->video_size_bytes) · {{ number_format($episode->video_size_bytes / 1048576, 1) }} MB @endif
+                                @if($episode->isYouTube()) · YouTube @elseif($episode->video_size_bytes) · {{ number_format($episode->video_size_bytes / 1048576, 1) }} MB @endif
                             </p>
                             @if($episode->synopsis)
                                 <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">{{ $episode->synopsis }}</p>
@@ -224,12 +218,18 @@
 
                     <template x-if="preview">
                         <div class="px-4 pb-4">
-                            <video controls preload="metadata" class="w-full rounded-xl bg-black" src="{{ \App\Services\Episodes\EpisodeMedia::streamUrl($episode) }}"></video>
+                            @if($episode->isYouTube())
+                                <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
+                                    <iframe class="absolute inset-0 w-full h-full" src="{{ \App\Services\Episodes\YouTubeLink::embedUrl($episode->youtube_video_id) }}" title="{{ $episode->title }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                                </div>
+                            @else
+                                <video controls preload="metadata" class="w-full rounded-xl bg-black" src="{{ \App\Services\Episodes\EpisodeMedia::streamUrl($episode) }}"></video>
+                            @endif
                         </div>
                     </template>
 
                     <form x-show="editing" x-cloak method="POST" action="{{ route('tenant.episodes.update', [$tenant->slug, $course, $episode]) }}" enctype="multipart/form-data"
-                          x-data="episodeUpload()" @submit="uploading = true"
+                          x-data="episodeUpload('{{ $episode->source ?? 'upload' }}')" @submit="uploading = true"
                           class="border-t border-slate-200 dark:border-slate-700 p-4 grid grid-cols-1 sm:grid-cols-6 gap-3">
                         @csrf
                         @method('PATCH')
@@ -283,8 +283,8 @@
                         <div class="sm:col-span-6">
                             <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                 <input type="hidden" name="allow_download" value="0">
-                                <input type="checkbox" name="allow_download" value="1" class="rounded" @checked($episode->allow_download)>
-                                Let students download it to watch offline
+                                <input type="checkbox" name="allow_download" value="1" class="rounded" @checked($episode->allow_download) @disabled($episode->isYouTube())>
+                                {{ $episode->isYouTube() ? 'YouTube episodes can only be watched online' : 'Let students download it to watch offline' }}
                             </label>
                         </div>
                         <div class="sm:col-span-3">
@@ -294,11 +294,14 @@
                                 <label class="mt-1 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400"><input type="checkbox" name="remove_poster" value="1" class="rounded"> Remove poster</label>
                             @endif
                         </div>
-                        <div class="sm:col-span-3">
-                            <label for="ep{{ $episode->id }}_video" class="{{ $label }}">Replace video</label>
-                            <input id="ep{{ $episode->id }}_video" type="file" name="video" accept="video/mp4,video/quicktime,video/x-m4v" @change="read($event)" class="block w-full text-xs text-slate-500 dark:text-slate-400">
-                            <input type="hidden" name="duration_seconds" :value="duration">
-                            <p x-show="tooBig" x-cloak class="mt-1 text-xs text-red-600 dark:text-red-400">This file is over {{ $maxVideoMb }} MB and will be rejected.</p>
+                        <div class="sm:col-span-6 space-y-3">
+                            @include('tenant.episodes._source-fields', [
+                                'prefix' => 'ep'.$episode->id,
+                                'youtubeUrl' => $episode->youtube_video_id ? \App\Services\Episodes\YouTubeLink::watchUrl($episode->youtube_video_id) : '',
+                                'length' => $episode->isYouTube() && $episode->duration_seconds ? $fmt($episode->duration_seconds) : '',
+                                'videoRequired' => ! $episode->video_path,
+                                'videoLabel' => $episode->video_path ? 'Replace video file' : 'Video file',
+                            ])
                         </div>
                         <div class="sm:col-span-6 flex justify-end gap-2">
                             <button type="button" @click="editing = false" class="px-3 py-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
@@ -314,8 +317,9 @@
     </div>
 
     <script>
-        function episodeUpload() {
+        function episodeUpload(source) {
             return {
+                source: source || 'youtube',
                 duration: '',
                 label: '',
                 tooBig: false,

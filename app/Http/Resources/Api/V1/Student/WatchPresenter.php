@@ -73,6 +73,7 @@ final class WatchPresenter
             'course' => StudentPresenter::course($episode->course),
             'episode_number' => $episode->episode_number,
             'title' => $episode->title,
+            'source' => $episode->source ?? Episode::SOURCE_UPLOAD,
             'synopsis' => $episode->synopsis,
             'week_number' => $episode->week_number,
             'topic' => $topic ? [

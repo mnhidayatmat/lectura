@@ -39,8 +39,12 @@ final class EpisodeMedia
         return now()->addMinutes((int) config('lectura.episodes.link_ttl_minutes'));
     }
 
-    public static function streamUrl(Episode $episode, ?Carbon $expires = null): string
+    public static function streamUrl(Episode $episode, ?Carbon $expires = null): ?string
     {
+        if ($episode->isYouTube() || ! $episode->video_path) {
+            return null;
+        }
+
         return self::link($episode->video_disk, $episode->video_path, $expires, 'api.v1.watch.episodes.stream', ['episode' => $episode->id]);
     }
 
@@ -51,8 +55,12 @@ final class EpisodeMedia
 
     public static function posterUrl(Episode $episode): ?string
     {
-        return $episode->poster_path
-            ? self::link($episode->video_disk, $episode->poster_path, null, 'api.v1.watch.episodes.poster', ['episode' => $episode->id])
+        if ($episode->poster_path) {
+            return self::link($episode->video_disk ?? config('lectura.episodes.disk'), $episode->poster_path, null, 'api.v1.watch.episodes.poster', ['episode' => $episode->id]);
+        }
+
+        return $episode->isYouTube() && $episode->youtube_video_id
+            ? YouTubeLink::thumbnailUrl($episode->youtube_video_id)
             : null;
     }
 

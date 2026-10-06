@@ -533,6 +533,7 @@ attendance index.
         "id": 7,
         "episode_number": 1,
         "title": "Titis Leaves Home",
+        "source": "youtube",
         "week_number": 2,
         "status": "published",
         "is_available": true,

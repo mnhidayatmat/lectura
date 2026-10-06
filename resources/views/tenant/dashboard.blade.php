@@ -245,6 +245,30 @@
                 </div>
             </div>
 
+            {{-- Watch: the episode for this week, or the one due next --}}
+            @if($watchFeatured ?? null)
+                @php $wf = $watchFeatured; @endphp
+                <a href="{{ route($wf['is_available'] ? 'tenant.watch.episode' : 'tenant.watch.series', [$tenant->slug, $wf['is_available'] ? $wf['id'] : $wf['series_id']]) }}"
+                   class="group relative block overflow-hidden rounded-2xl bg-slate-950 text-white min-h-[9rem]">
+                    @if($wf['poster_url'])
+                        <img src="{{ $wf['poster_url'] }}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-70 transition duration-300 group-hover:scale-105">
+                    @endif
+                    <span class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent"></span>
+                    <span class="relative flex items-center gap-4 p-5">
+                        <span class="w-12 h-12 shrink-0 rounded-full bg-[#fffffff2] flex items-center justify-center"><svg class="w-5 h-5 text-slate-950 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+                        <span class="min-w-0">
+                            <span class="block text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-400">Watch · {{ $wf['series_title'] }}</span>
+                            <span class="block text-lg font-bold leading-tight">EP {{ $wf['episode_number'] }} · {{ $wf['title'] }}</span>
+                            <span class="block text-xs text-[#cbd5e1] mt-0.5">
+                                {{ $wf['course']['code'] }}
+                                @if($wf['week_number']) · Week {{ $wf['week_number'] }} @endif
+                                @if($wf['progress'] && ! $wf['progress']['completed']) · {{ $wf['progress']['watched_percent'] }}% watched @endif
+                            </span>
+                        </span>
+                    </span>
+                </a>
+            @endif
+
             {{-- Quick Actions --}}
             <div class="grid grid-cols-2 gap-3">
                 <a href="{{ '/' . $tenant->slug }}/scan" class="bg-white rounded-2xl border border-slate-200 p-4 text-center hover:shadow-md transition group">

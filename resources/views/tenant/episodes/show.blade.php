@@ -108,10 +108,20 @@
         @endif
     </section>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" x-data="{ seek(s) { const v = $refs.player; v.currentTime = s; v.play(); } }">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" x-data="episodePreview('{{ $episode->isYouTube() ? $episode->youtube_video_id : '' }}')" x-init="init()">
         <div class="space-y-6">
             <div class="{{ $card }} space-y-3">
-                <video x-ref="player" controls preload="metadata" class="w-full rounded-xl bg-black" src="{{ \App\Services\Episodes\EpisodeMedia::streamUrl($episode) }}"></video>
+                @if($episode->isYouTube())
+                    <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
+                        <div id="yt-preview" class="absolute inset-0 w-full h-full"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Plays from YouTube ·
+                        <a href="{{ \App\Services\Episodes\YouTubeLink::watchUrl($episode->youtube_video_id) }}" target="_blank" rel="noopener" class="text-indigo-600 dark:text-indigo-400 hover:underline">Open on YouTube</a>
+                    </p>
+                @else
+                    <video x-ref="player" controls preload="metadata" class="w-full rounded-xl bg-black" src="{{ \App\Services\Episodes\EpisodeMedia::streamUrl($episode) }}"></video>
+                @endif
                 @if($episode->scenes->isNotEmpty())
                     <div class="flex flex-wrap gap-1.5">
                         @foreach($episode->scenes as $scene)
@@ -243,4 +253,34 @@
             </div>
         </div>
     </div>
+    <script>
+        function episodePreview(youtubeId) {
+            return {
+                yt: null,
+                init() {
+                    if (!youtubeId) return;
+                    const make = () => {
+                        this.yt = new YT.Player('yt-preview', {
+                            host: 'https://www.youtube-nocookie.com',
+                            videoId: youtubeId,
+                            width: '100%',
+                            height: '100%',
+                            playerVars: { rel: 0, playsinline: 1 },
+                        });
+                    };
+                    if (window.YT && window.YT.Player) { make(); return; }
+                    const previous = window.onYouTubeIframeAPIReady;
+                    window.onYouTubeIframeAPIReady = () => { if (previous) previous(); make(); };
+                    const tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(tag);
+                },
+                seek(s) {
+                    if (this.yt && this.yt.seekTo) { this.yt.seekTo(s, true); this.yt.playVideo(); return; }
+                    const v = this.$refs.player;
+                    if (v) { v.currentTime = s; v.play(); }
+                },
+            };
+        }
+    </script>
 </x-tenant-layout>
