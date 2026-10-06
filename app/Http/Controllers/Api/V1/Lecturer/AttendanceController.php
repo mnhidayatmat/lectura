@@ -12,11 +12,13 @@ use App\Http\Resources\Api\V1\Lecturer\AttendanceSessionDetailResource;
 use App\Http\Resources\Api\V1\Lecturer\AttendanceSessionResource;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
+use App\Models\Episode;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\User;
 use App\Services\Attendance\AttendanceWarningService;
 use App\Services\Attendance\QrCodeService;
+use App\Services\Episodes\EpisodeAnalytics;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -375,7 +377,41 @@ class AttendanceController extends Controller
                 ->all()
             : [];
 
-        return (new AttendanceSessionDetailResource($session))->withNotCheckedIn($notCheckedIn);
+        return (new AttendanceSessionDetailResource($session))
+            ->withNotCheckedIn($notCheckedIn)
+            ->withEpisodeWatch($this->episodeWatch($session, $students->pluck('id')->merge($records->pluck('user_id'))->unique()->values()));
+    }
+
+    /**
+     * The week's Watch episode and each student's watch state, shown beside attendance.
+     */
+    private function episodeWatch(AttendanceSession $session, Collection $studentIds): ?array
+    {
+        $courseId = $session->section?->course_id;
+        if (! $session->week_number || ! $courseId) {
+            return null;
+        }
+
+        $episode = Episode::published()
+            ->where('course_id', $courseId)
+            ->where('week_number', $session->week_number)
+            ->orderBy('episode_number')
+            ->first();
+        if (! $episode) {
+            return null;
+        }
+
+        $progress = EpisodeAnalytics::progressOf($episode, $studentIds);
+
+        return [
+            'episode' => ['id' => $episode->id, 'episode_number' => $episode->episode_number, 'title' => $episode->title],
+            'students' => $studentIds->map(fn (int $id) => [
+                'user_id' => $id,
+                'status' => EpisodeAnalytics::status($progress->get($id)),
+                'watched_percent' => EpisodeAnalytics::watchedPercent($progress->get($id), $episode->duration_seconds),
+                'last_watched_at' => $progress->get($id)?->last_watched_at?->toIso8601String(),
+            ])->values()->all(),
+        ];
     }
 
     /**

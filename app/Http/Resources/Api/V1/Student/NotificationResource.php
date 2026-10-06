@@ -12,7 +12,7 @@ use Illuminate\Support\Arr;
 /** @mixin DatabaseNotification */
 class NotificationResource extends JsonResource
 {
-    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level'];
+    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level', 'episode_id', 'series_id'];
 
     public function toArray(Request $request): array
     {

@@ -436,6 +436,240 @@ students and the course's lecturers/admins. `drive` items redirect (302) to the 
 
 ---
 
+## Watch (animated episodes)
+
+A course can carry one animated **series** made of **episodes** (short mp4 videos, one per
+teaching week). Lecturers upload and publish them on the web (Materials → Episodes). Students only
+see `published` episodes of courses they are actively enrolled in. An episode whose `publish_at`
+is still in the future is listed with `is_available: false` (no stream, shown as locked); drafts
+are never listed and return 404.
+
+`episode` fragment, used in every response below:
+
+```json
+{
+  "id": 7,
+  "series_id": 2,
+  "course": { "id": 12, "code": "BTG3333", "title": "Process Piping" },
+  "episode_number": 1,
+  "title": "Titis Leaves Home",
+  "synopsis": "What piping is, why a leak is a fire, and where ASME B31.3 draws the line.",
+  "week_number": 2,
+  "topic": { "id": 5, "week_number": 2, "title": "Introduction to piping" },
+  "duration_seconds": 275,
+  "poster_url": "https://lectura.example/api/v1/watch/episodes/7/poster?expires=…&signature=…",
+  "is_available": true,
+  "available_at": "2026-10-06T09:00:00+08:00",
+  "is_new": true,
+  "required_by": "2026-10-14T08:00:00+08:00",
+  "is_overdue": false,
+  "quick_checks": { "total": 1, "answered": 1, "correct": 0 },
+  "progress": {
+    "position_seconds": 143,
+    "watched_percent": 52,
+    "completed": false,
+    "last_watched_at": "2026-10-07T21:14:00+08:00"
+  }
+}
+```
+
+- `topic`, `week_number`, `duration_seconds`, `poster_url`, `synopsis` and `progress` may be `null`.
+  `progress` is `null` until the student first plays the episode.
+- `is_new`: available within the last 14 days and never played.
+- `required_by` (or `null`): the lecturer wants it watched before this time, usually the next
+  lecture. `is_overdue`: `required_by` has passed and the episode is not completed.
+- `quick_checks`: the episode's in-video questions and the student's latest answers. `answered` and
+  `correct` count checks, not attempts. `answered > correct` means at least one check to redo.
+- `poster_url` / `cover_url` are pre-signed (valid 6 hours, no bearer token needed), so a plain
+  image widget can load them. Re-fetch the screen for fresh links.
+- `watched_percent` is 0–100 (integer): the position as a share of `duration_seconds`, `100` once
+  completed, `0` when the duration is unknown.
+
+`series` fragment:
+
+```json
+{
+  "id": 2,
+  "course": { "id": 12, "code": "BTG3333", "title": "Process Piping" },
+  "title": "Titis: A Piping Story",
+  "tagline": "One drop of oil, fourteen weeks of piping.",
+  "description": "…",
+  "cover_url": "https://lectura.example/api/v1/watch/series/2/cover?expires=…&signature=…",
+  "lecturer_name": "Dr Hidayat",
+  "current_week": 4,
+  "episodes_count": 14,
+  "available_count": 3,
+  "completed_count": 1
+}
+```
+
+- `current_week`: teaching week today, from the course's custom start date or its academic term's
+  start date, clamped to `1…num_weeks`; `null` when neither date is set.
+- `episodes_count` counts published episodes, including scheduled ones.
+
+### GET `student/watch`
+
+The Watch home. `series` lists every series of the student's enrolled courses that has at least one
+published episode, by course code, each with its episodes in episode order.
+
+```json
+{
+  "data": {
+    "featured": { "…episode": "…", "series_title": "Titis: A Piping Story" },
+    "continue_watching": [ { "…episode": "…" } ],
+    "new_episodes": [ { "…episode": "…" } ],
+    "because_you_missed": [
+      {
+        "week_number": 3,
+        "missed_on": "2026-09-24T08:02:11+08:00",
+        "episode": { "…episode": "…" }
+      }
+    ],
+    "series": [ { "…series": "…", "episodes": [ { "…episode": "…" } ] } ]
+  }
+}
+```
+
+- `featured` (or `null`): the unfinished available episode with the soonest future `required_by`;
+  otherwise the first unfinished available episode whose `week_number` is its course's
+  `current_week`; otherwise the most recently released unfinished available episode; otherwise the
+  most recently released available one.
+- `continue_watching`: available, played, not completed; newest `last_watched_at` first, max 10.
+- `new_episodes`: available episodes with `is_new: true`, newest first, max 10.
+- `because_you_missed`: for each attendance session the student was marked `absent` in (excused
+  absences don't count) that carries a `week_number`, the available, not completed episodes of that
+  course and week. One entry per episode, most recent absence first, max 10.
+
+### GET `student/watch/series/{series}`
+
+403 `You are not enrolled in this course.` · 404 for a series with no published episodes.
+
+```json
+{
+  "data": {
+    "…series": "…",
+    "learning_outcomes": [ { "code": "CLO1", "description": "Explain the scope of ASME B31.3." } ],
+    "up_next": { "…episode": "…" },
+    "episodes": [ { "…episode": "…" } ]
+  }
+}
+```
+
+- `up_next` (or `null`): the first available, not completed episode in episode order (the one the
+  "Play" / "Resume" button opens).
+
+### GET `student/watch/episodes/{episode}`
+
+Everything the player needs. 403 `You are not enrolled in this course.` · 403 `This episode is not
+available yet.` for a scheduled episode · 404 for drafts.
+
+```json
+{
+  "data": {
+    "…episode": "…",
+    "series": { "id": 2, "title": "Titis: A Piping Story" },
+    "stream_url": "https://lectura.example/api/v1/watch/episodes/7/stream?expires=…&signature=…",
+    "stream_expires_at": "2026-10-08T03:14:00+08:00",
+    "mime_type": "video/mp4",
+    "size_bytes": 26107639,
+    "can_download": true,
+    "next_episode": { "…episode": "…" },
+    "scenes": [
+      { "code": "S01", "title": "Meet Titis", "start_seconds": 0 },
+      { "code": "S09", "title": "Quick Check", "start_seconds": 167 }
+    ],
+    "checks": [
+      {
+        "id": 31,
+        "at_seconds": 167,
+        "prompt": "Which of these counts as piping under B31.3?",
+        "options": [
+          { "id": 90, "label": "Building frame" },
+          { "id": 91, "label": "Pipe hanger" },
+          { "id": 92, "label": "Pump casing" }
+        ],
+        "my_answer": { "option_id": 90, "is_correct": false, "attempts": 1, "answered_at": "2026-10-07T21:16:00+08:00" }
+      }
+    ],
+    "captions": [
+      { "language": "en", "label": "English", "url": "https://lectura.example/api/v1/watch/captions/4?expires=…&signature=…" }
+    ]
+  }
+}
+```
+
+- `stream_url` is pre-signed and valid 6 hours; it needs no bearer token and supports HTTP `Range`
+  requests, so the player can seek. When the server stores videos on object storage it is a direct
+  pre-signed bucket URL instead. Either way, hand it to the player as is.
+- `next_episode`: the next published episode in the series by episode number (may be unavailable,
+  check `is_available`), or `null` at the end of the series.
+- `scenes`: chapter markers in `start_seconds` order (may be empty). `title` is the on-screen title
+  from the storyboard.
+- `checks`: Quick Checks in `at_seconds` order (may be empty). Options never reveal the answer; the
+  answer endpoint does. `my_answer` is the student's latest answer, or `null`.
+- `captions`: WebVTT files (`text/vtt`), pre-signed like `stream_url`. `language` is `en` or `ms`.
+- `can_download`: the lecturer allows saving the episode for offline viewing. Download `stream_url`
+  (and each caption) straight away; the links expire. A downloaded episode stays playable offline;
+  when the lecturer turns downloads off or the student leaves the course, the app should drop it on
+  its next successful fetch (403/404, or `can_download: false`).
+
+### POST `student/watch/checks/{check}/answer`
+
+Answer a Quick Check. Same 403/404 rules as the episode endpoint. The latest answer replaces the
+previous one; `attempts` counts them.
+
+```json
+{ "option_id": 91 }
+```
+
+422 `{"errors": {"option_id": [...]}}` when the option is missing or belongs to another check.
+
+```json
+{
+  "message": "Answer saved.",
+  "data": {
+    "is_correct": true,
+    "correct_option_id": 91,
+    "explanation": "Supports such as hangers and shoes are part of piping; structure and equipment are not.",
+    "attempts": 2
+  }
+}
+```
+
+### POST `student/watch/episodes/{episode}/progress`
+
+Save the playback position. Send it every ~10 s while playing, on pause, and when leaving the player.
+
+```json
+{
+  "position_seconds": 143,
+  "duration_seconds": 275,
+  "completed": false,
+  "rewinds": [ { "from_seconds": 131, "to_seconds": 104 } ],
+  "watched_at": "2026-10-07T21:14:00+08:00"
+}
+```
+
+- `position_seconds` required integer ≥ 0. `duration_seconds` optional; fills in the episode's
+  duration when the lecturer's upload did not record one. `completed` optional boolean.
+- `rewinds` optional, max 50: backward seeks since the last save (`from_seconds` > `to_seconds`).
+  Jumps under 5 s are ignored. They feed the lecturer's "most rewound scene".
+- `watched_at` optional: when the position was recorded, for saves queued while offline. A queued
+  save older than the stored `last_watched_at` never moves the position backwards (completion and
+  rewinds still count). Omit it for live saves.
+- The episode becomes completed when `completed` is `true` or the position reaches 90 % of the
+  duration. Completion is sticky: rewatching never un-completes it.
+- Same 403/404 rules as the episode endpoint.
+
+```json
+{
+  "message": "Progress saved.",
+  "data": { "position_seconds": 143, "watched_percent": 52, "completed": false, "last_watched_at": "2026-10-07T21:14:00+08:00" }
+}
+```
+
+---
+
 ## Marks & feedback
 
 ### GET `student/marks?filter=all|graded|pending`
@@ -799,15 +1033,18 @@ Body `{ "token": "…" }`. Removes it if it is the user's own; always 200.
 
 ### What is pushed
 
-Only the lecturer-facing notifications: `submission_received`, `assessment_submission_received` and
-`attendance_alert`. Title and body are the stored notification's `title` / `body`; the data payload
-carries string values only:
+The lecturer-facing notifications (`submission_received`, `assessment_submission_received`,
+`attendance_alert`) and, for students, `episode_published` (a Watch episode was released) and `episode_reminder` (the lecturer
+reminds students who haven't started or finished one). Both carry `episode_id`, `series_id`,
+`course_id`, `course_code` in `related`; a tap opens the series page. Title and body are the stored notification's `title` / `body`; the data payload
+carry string values only:
 
 ```json
 { "notification_id": "9d3f…", "kind": "submission_received", "assignment_id": "12" }
 ```
 
 `notification_id` is the id used by `notifications/{id}/read`; the related keys are the same ones as
-`related` above (`assignment_id`, `assessment_id`, `course_id`, `course_code`, `level`) when present.
+`related` above (`assignment_id`, `assessment_id`, `course_id`, `course_code`, `level`, `episode_id`,
+`series_id`) when present.
 Tokens FCM reports as `UNREGISTERED` are deleted. Without `FCM_CREDENTIALS_PATH` (a Firebase
 service-account JSON) nothing is pushed and notifications behave as before.

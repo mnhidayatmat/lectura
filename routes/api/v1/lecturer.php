@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Lecturer\AttendanceController;
 use App\Http\Controllers\Api\V1\Lecturer\CourseController;
 use App\Http\Controllers\Api\V1\Lecturer\DashboardController;
 use App\Http\Controllers\Api\V1\Lecturer\SectionController;
+use App\Http\Controllers\Api\V1\Lecturer\WatchController;
 use App\Http\Controllers\Api\V1\Lecturer\WheelController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,4 +34,9 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::get('/wheel', [WheelController::class, 'index'])->name('wheel.index');
     Route::get('/wheel/sessions', [WheelController::class, 'sessions'])->name('wheel.sessions');
     Route::get('/wheel/present-students', [WheelController::class, 'presentStudents'])->name('wheel.present-students');
+
+    // Watch analytics (episodes are uploaded on the web)
+    Route::get('/courses/{course}/watch', [WatchController::class, 'course'])->name('watch.course');
+    Route::get('/watch/episodes/{episode}', [WatchController::class, 'show'])->name('watch.episodes.show');
+    Route::post('/watch/episodes/{episode}/remind', [WatchController::class, 'remind'])->name('watch.episodes.remind');
 });

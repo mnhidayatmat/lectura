@@ -163,6 +163,48 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - `CourseFile` model supports both `material_type='file'` and `material_type='link'`
 - Routes: `/materials` (lecturer), `/my-materials` (student)
 
+### Episodes ("Watch" in the app)
+
+- Animated lecture videos shown Netflix-style in Lectura Go. `CourseSeries` (one per course, title,
+  tagline, cover) → `Episode` (number, week, optional `CourseTopic`, `draft`/`published`, optional
+  `publish_at` for a scheduled release) → `EpisodeProgress` (per student: position, furthest point,
+  sticky `completed_at` at 90 % of the duration)
+- Lecturers manage them at `/materials/course/{course}/episodes` (`Tenant\EpisodeController`, linked
+  from the Materials page). The browser reads the video length into `duration_seconds` before upload;
+  `publish_at` is entered in the institution's timezone and stored in UTC
+- Files go on `config('lectura.episodes.disk')` (`EPISODES_DISK`, default `local`), each row keeps its
+  own `video_disk`. `EpisodeMedia` hands out pre-signed links: an S3-driver disk gets a bucket
+  `temporaryUrl`, anything else a `signed:relative` route under `/api/v1/watch/…` served as a
+  `BinaryFileResponse`, which honours HTTP Range so players can seek. Never stream video through
+  `Storage::download()` (no Range). Those media routes skip `throttle:api` on purpose: a class behind
+  one campus IP would exhaust the per-IP limit
+- Upload ceiling is `EPISODES_MAX_VIDEO_MB` (default 300) but PHP's `upload_max_filesize`/`post_max_size`
+  (`public/.user.ini`, 64M/128M) and the web server's body limit cap it first — raise all three together
+- Episode page `/materials/course/{course}/episodes/{episode}` (`Tenant\EpisodeContentController`):
+  scenes (`EpisodeScene`, chapter marks), Quick Checks (`EpisodeCheck` + options; one
+  `EpisodeCheckAnswer` row per student keeps the latest answer, `attempts` and `first_is_correct`) and
+  captions (`EpisodeCaption`, WebVTT per language; `.srt` is converted on upload).
+  `StoryboardParser` reads the storyboard markdown table (or `S01 0:00 Title` lines) into scenes and
+  drafts a Quick Check from the "Quick Check" row — flashed into the form, never saved unconfirmed
+- `required_by` is the "watch before" deadline (drives the app's billboard and overdue flag). The
+  "Because you missed" row comes from unexcused `absent` attendance records with a `week_number`
+- Release push: `EpisodeAnnouncer` sends `EpisodePublished` (database + FCM) to enrolled students
+  once (`announced_at`, claimed atomically) when an episode with `notify_students` becomes available —
+  on save, or from `episodes:announce` (scheduled every 5 minutes) for timed releases. The scheduler
+  must be running in production (`schedule:run` cron) or timed releases never notify
+- Analytics (`EpisodeAnalytics`): lecturer API `lecturer/courses/{course}/watch` and
+  `lecturer/watch/episodes/{episode}`, plus the panel on the web episode page. Every figure is limited
+  to the lecturer's students (`lecturerSectionIds`). Scene reach comes from `furthest_seconds`; rewinds
+  are `EpisodeRewind` rows the app batches into progress saves (jumps back of 5 s or more). The
+  attendance session detail adds `episode_watch` for the session's week
+- Reminders (`EpisodeReminderSender` → `EpisodeReminder`, kind `episode_reminder`): to my students
+  who haven't started or finished, one per episode per hour (`last_reminded_at`). It throws
+  `RuntimeException` with the lecturer-facing message; the API turns it into a 422, the web into a
+  form error
+- `allow_download` lets the app save the mp4 for offline viewing; progress saves queued offline send
+  `watched_at`, and an older save never moves the position back
+- Contracts: `docs/mobile-api/student.md` → Watch, `docs/mobile-api/lecturer.md` → Watch analytics
+
 ### Assignments & Marking
 
 - Assignments support `marking_mode`: `manual` or `ai_assisted`

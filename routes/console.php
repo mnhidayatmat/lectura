@@ -10,3 +10,10 @@ Artisan::command('inspire', function () {
 
 // Mobile API tokens expire after 30 days (config/sanctum.php); drop the dead rows.
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
+
+// Watch: notify students when a scheduled episode's release time arrives.
+Artisan::command('episodes:announce', function (\App\Services\Episodes\EpisodeAnnouncer $announcer) {
+    $this->info($announcer->announceDue().' episode(s) announced.');
+})->purpose('Notify enrolled students about newly released episodes');
+
+Schedule::command('episodes:announce')->everyFiveMinutes()->withoutOverlapping();

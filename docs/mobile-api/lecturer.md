@@ -275,12 +275,23 @@ Summary fields plus:
   ],
   "not_checked_in": [
     { "id": 4, "name": "Zul Hakim", "student_id_number": "A21EC0002" }
-  ]
+  ],
+  "episode_watch": {
+    "episode": { "id": 7, "episode_number": 1, "title": "Titis Leaves Home" },
+    "students": [
+      { "user_id": 3, "status": "finished", "watched_percent": 100, "last_watched_at": "2026-09-07T21:14:00+00:00" },
+      { "user_id": 4, "status": "not_started", "watched_percent": 0, "last_watched_at": null }
+    ]
+  }
 }
 ```
 - `records`: every record for the session, sorted by student name. `override` = `{"by": {"id", "name"}, "reason"}` when a lecturer changed it. `excuse` = `{"id", "status", "category"}` or `null`.
 - `not_checked_in`: active students without a record — only filled while the session is active (empty once ended, because absentees become records).
 - `duration_minutes`: started → ended (or now).
+- `episode_watch` (or `null`): the course's published Watch episode for the session's `week_number`
+  (lowest episode number when there are several), and every active student of the section with
+  their watch state, so the screen can show "watched" beside attendance. `null` when the session has
+  no week or the week has no episode. `status` ∈ `not_started|watching|finished`.
 
 ### GET `lecturer/attendance`
 
@@ -472,6 +483,119 @@ Errors: 422 `section_id` required; 404 section of another institution; 403 cours
 }
 ```
 Errors: 422 `session_id` required; 404 session of another institution; 403 course access.
+
+---
+
+## Watch analytics (episodes)
+
+Animated episodes are uploaded on the web (Materials → Episodes). These endpoints show how students
+watch them. Every count covers only **my students**: active students of the course's sections I can
+access (assigned sections + unassigned ones of courses I own; admins: all), the same rule as the
+attendance index.
+
+### GET `lecturer/courses/{course}/watch`
+
+```json
+{
+  "data": {
+    "series": { "id": 2, "title": "Titis: A Piping Story", "tagline": "…", "cover_url": "https://…signed…" },
+    "students_count": 43,
+    "episodes": [
+      {
+        "id": 7,
+        "episode_number": 1,
+        "title": "Titis Leaves Home",
+        "week_number": 2,
+        "status": "published",
+        "is_available": true,
+        "available_at": "2026-10-06T01:00:00+00:00",
+        "required_by": "2026-10-14T00:00:00+00:00",
+        "duration_seconds": 275,
+        "poster_url": "https://…signed…",
+        "started": 31,
+        "finished": 24,
+        "checks_count": 1,
+        "first_try_correct_percent": 79
+      }
+    ]
+  }
+}
+```
+
+- `series` is `null` (and `episodes` empty) when the course has no series yet.
+- Drafts are included (`status: "draft"`), so a lecturer can see what is not yet released.
+- `first_try_correct_percent`: share of first answers that were right across the episode's checks;
+  `null` when nobody answered.
+
+### GET `lecturer/watch/episodes/{episode}`
+
+```json
+{
+  "data": {
+    "episode": { "…same fields as an episodes[] entry…": "" },
+    "audience": {
+      "students": 43,
+      "started": 31,
+      "finished": 24,
+      "not_started": 12,
+      "average_watched_percent": 71
+    },
+    "scenes": [
+      { "code": "S01", "title": "Meet Titis", "start_seconds": 0, "reached": 31, "reached_percent": 100, "rewinds": 2 },
+      { "code": "S06", "title": "Pipe = pressure-tight cylinder carrying fluid", "start_seconds": 104, "reached": 25, "reached_percent": 81, "rewinds": 71 }
+    ],
+    "most_rewound_scene": { "code": "S06", "title": "Pipe = pressure-tight cylinder carrying fluid", "rewinds_per_viewer": 2.3 },
+    "checks": [
+      {
+        "id": 31,
+        "at_seconds": 167,
+        "prompt": "Which of these counts as piping under B31.3?",
+        "answered": 29,
+        "first_try_correct_percent": 79,
+        "options": [
+          { "id": 90, "label": "Building frame", "is_correct": false, "chosen": 3, "chosen_percent": 10 },
+          { "id": 91, "label": "Pipe hanger", "is_correct": true, "chosen": 23, "chosen_percent": 79 },
+          { "id": 92, "label": "Pump casing", "is_correct": false, "chosen": 3, "chosen_percent": 11 }
+        ]
+      }
+    ],
+    "students": [
+      {
+        "user_id": 4,
+        "name": "Zul Hakim",
+        "student_id_number": "A21EC0002",
+        "status": "not_started",
+        "watched_percent": 0,
+        "last_watched_at": null,
+        "checks_correct": 0
+      }
+    ],
+    "reminder": { "last_sent_at": null, "available_at": null }
+  }
+}
+```
+
+- `average_watched_percent`: mean of each starter's furthest point as a share of the duration.
+- `scenes[].reached`: starters whose furthest point reached the scene's start; `reached_percent` is of
+  starters. `rewinds`: backward jumps of 5 s or more that landed inside the scene.
+- `most_rewound_scene` (or `null`): the scene with the most rewinds per starter, when at least one
+  rewind was recorded.
+- `options[].chosen`: students whose **latest** answer is that option (percent of `answered`).
+- `students`: not started first, then watching, then finished; by name within each.
+- `reminder.available_at`: when another reminder may be sent (`null` = now).
+
+### POST `lecturer/watch/episodes/{episode}/remind`
+
+Body `{ "audience": "not_started" | "not_finished" }` (default `not_started`). Sends the
+`episode_reminder` notification (in-app + push) to my students in that audience.
+
+```json
+{ "message": "Reminder sent to 12 students.", "data": { "sent": 12, "last_sent_at": "2026-10-08T02:00:00+00:00", "available_at": "2026-10-08T03:00:00+00:00" } }
+```
+
+Errors (422 `{"message"}`): `This episode is not released yet.` · `Everyone in this group has already
+started it.` (or `… finished it.`) · `A reminder went out at 10:00 AM. You can send another after
+11:00 AM.` (one reminder per episode per hour, whoever sent it).
 
 ---
 

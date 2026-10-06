@@ -132,6 +132,32 @@ class Course extends Model
         return $this->hasMany(PortfolioPhoto::class);
     }
 
+    public function series(): HasOne
+    {
+        return $this->hasOne(CourseSeries::class);
+    }
+
+    public function episodes(): HasMany
+    {
+        return $this->hasMany(Episode::class);
+    }
+
+    /**
+     * Teaching week today (1…num_weeks), from the custom start date or the academic term's.
+     */
+    public function currentWeek(): ?int
+    {
+        $start = $this->custom_start_date ?? $this->academicTerm?->start_date;
+
+        if (! $start) {
+            return null;
+        }
+
+        $week = intdiv((int) $start->copy()->startOfDay()->diffInDays(now()->startOfDay(), false), 7) + 1;
+
+        return max(1, min($week, (int) ($this->num_weeks ?: 14)));
+    }
+
     public function totalStudents(): int
     {
         return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))

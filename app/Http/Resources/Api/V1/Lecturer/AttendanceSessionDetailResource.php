@@ -13,6 +13,15 @@ class AttendanceSessionDetailResource extends AttendanceSessionResource
     /** @var array<int, array{id: int, name: string, student_id_number: ?string}> */
     private array $notCheckedIn = [];
 
+    private ?array $episodeWatch = null;
+
+    public function withEpisodeWatch(?array $episodeWatch): static
+    {
+        $this->episodeWatch = $episodeWatch;
+
+        return $this;
+    }
+
     public function withNotCheckedIn(array $students): static
     {
         $this->notCheckedIn = $students;
@@ -31,6 +40,7 @@ class AttendanceSessionDetailResource extends AttendanceSessionResource
                 : null,
             'records' => AttendanceRecordResource::collection($this->whenLoaded('records')),
             'not_checked_in' => $this->notCheckedIn,
+            'episode_watch' => $this->episodeWatch,
         ]);
     }
 }

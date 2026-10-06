@@ -8,6 +8,10 @@
                 <h2 class="text-2xl font-bold text-slate-900 dark:text-white">{{ $course->code }} — Course Materials</h2>
                 <p class="text-sm text-slate-500 dark:text-slate-400">{{ $course->title }}</p>
             </div>
+            <a href="{{ route('tenant.episodes.index', [$tenant->slug, $course]) }}" class="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 rounded-xl transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55-2.28A1 1 0 0121 8.62v6.76a1 1 0 01-1.45.9L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Episodes
+            </a>
         </div>
     </x-slot>
 

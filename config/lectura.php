@@ -67,6 +67,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Episodes (animated lecture videos, "Watch" in the app)
+    |--------------------------------------------------------------------------
+    |
+    | Videos and posters go on `disk`. A disk that can pre-sign URLs (S3,
+    | Contabo) hands the app a direct bucket link; a local disk is streamed by
+    | the signed /api/v1/watch routes, which honour HTTP Range for seeking.
+    |
+    */
+
+    'episodes' => [
+        'disk' => env('EPISODES_DISK', 'local'),
+        'max_video_mb' => (int) env('EPISODES_MAX_VIDEO_MB', 300),
+        'link_ttl_minutes' => (int) env('EPISODES_LINK_TTL_MINUTES', 360),
+        'new_days' => 14,
+        'complete_ratio' => 0.9,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Quiz Configuration
     |--------------------------------------------------------------------------
     */

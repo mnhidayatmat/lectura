@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\TenantContextController;
+use App\Http\Controllers\Api\V1\WatchMediaController;
 use Illuminate\Support\Facades\Route;
 
 // ── Mobile app API (Lectura Go) — Sanctum bearer tokens ──
@@ -13,6 +14,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
         Route::post('/auth/google/exchange', [AuthController::class, 'googleExchange'])->name('auth.google.exchange');
         Route::post('/auth/apple', [AuthController::class, 'apple'])->name('auth.apple');
+    });
+
+    // Episode media for the Watch screens. The pre-signed URL is the authorization
+    // (players and image widgets send no bearer token). No API throttle: a whole
+    // class behind one campus IP seeks through videos at once.
+    Route::middleware('signed:relative')->withoutMiddleware('throttle:api')->prefix('watch')->name('watch.')->group(function () {
+        Route::get('/episodes/{episode}/stream', [WatchMediaController::class, 'stream'])->name('episodes.stream');
+        Route::get('/episodes/{episode}/poster', [WatchMediaController::class, 'poster'])->name('episodes.poster');
+        Route::get('/series/{series}/cover', [WatchMediaController::class, 'cover'])->name('series.cover');
+        Route::get('/captions/{caption}', [WatchMediaController::class, 'caption'])->name('captions');
     });
 
     Route::middleware('auth:sanctum')->group(function () {

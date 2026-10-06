@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notification;
  */
 class FcmChannel
 {
-    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level'];
+    private const RELATED_KEYS = ['assignment_id', 'assessment_id', 'course_id', 'course_code', 'level', 'episode_id', 'series_id'];
 
     public function __construct(private FcmClient $fcm) {}
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Student\CourseController;
 use App\Http\Controllers\Api\V1\Student\DashboardController;
 use App\Http\Controllers\Api\V1\Student\MarkController;
 use App\Http\Controllers\Api\V1\Student\MaterialController;
+use App\Http\Controllers\Api\V1\Student\WatchController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('student')->name('student.')->group(function () {
@@ -23,6 +24,12 @@ Route::prefix('student')->name('student.')->group(function () {
     Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index');
     Route::get('/materials/courses/{course}', [MaterialController::class, 'course'])->name('materials.course');
     Route::get('/materials/courses/{course}/files/{file}/download', [MaterialController::class, 'download'])->name('materials.download');
+
+    Route::get('/watch', [WatchController::class, 'home'])->name('watch.home');
+    Route::get('/watch/series/{series}', [WatchController::class, 'series'])->name('watch.series');
+    Route::get('/watch/episodes/{episode}', [WatchController::class, 'show'])->name('watch.episodes.show');
+    Route::post('/watch/episodes/{episode}/progress', [WatchController::class, 'progress'])->name('watch.episodes.progress');
+    Route::post('/watch/checks/{check}/answer', [WatchController::class, 'answer'])->name('watch.checks.answer');
 
     Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
     Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('assignments.show');
