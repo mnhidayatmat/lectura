@@ -15,7 +15,6 @@ use App\Models\ActiveLearningSession;
 use App\Models\ActiveLearningSessionParticipant;
 use App\Models\SectionStudent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 class SessionService
 {
@@ -80,17 +79,21 @@ class SessionService
     /**
      * End the session and calculate summary.
      */
-    public function endSession(ActiveLearningSession $session): ActiveLearningSession
+    public function endSession(ActiveLearningSession $session, bool $automatic = false): ActiveLearningSession
     {
         if (! $session->isActive()) {
             abort(422, 'Session is not active.');
         }
 
         $summary = $this->calculateSummary($session);
+        if ($automatic) {
+            $summary['auto_closed'] = true;
+        }
 
         $session->update([
             'status' => ActiveLearningSession::STATUS_COMPLETED,
-            'ended_at' => now(),
+            // An auto-closed session ends at its time limit, not whenever the sweep noticed it.
+            'ended_at' => $automatic ? min(now(), $session->autoCloseAt() ?? now()) : now(),
             'current_activity_id' => null,
             'summary_data' => $summary,
         ]);
@@ -257,6 +260,56 @@ class SessionService
     /**
      * Calculate session summary statistics.
      */
+    /**
+     * End every live session that has outlived the auto-close limit. Returns how many closed.
+     * Runs from the scheduler and, throttled, from ordinary requests (the server may have no cron).
+     */
+    public function closeStaleSessions(): int
+    {
+        $hours = (int) config('lectura.active_learning.auto_close_hours');
+        if ($hours <= 0) {
+            return 0;
+        }
+
+        // Sessions from every institution are swept, so run without the request's tenant
+        // binding (BelongsToTenant would otherwise hide the plan of another institution).
+        $tenant = app()->bound('current_tenant') ? app('current_tenant') : null;
+        app()->forgetInstance('current_tenant');
+
+        $closed = 0;
+        try {
+            $this->sweep($hours, $closed);
+        } finally {
+            if ($tenant !== null) {
+                app()->instance('current_tenant', $tenant);
+            }
+        }
+
+        return $closed;
+    }
+
+    private function sweep(int $hours, int &$closed): void
+    {
+        ActiveLearningSession::withoutGlobalScopes()
+            ->where('status', ActiveLearningSession::STATUS_ACTIVE)
+            ->where('started_at', '<=', now()->subHours($hours))
+            ->get()
+            ->each(function (ActiveLearningSession $session) use (&$closed) {
+                // Re-check under a fresh read so a lecturer ending it at the same moment wins.
+                $fresh = ActiveLearningSession::withoutGlobalScopes()->find($session->id);
+                if (! $fresh || ! $fresh->isActive()) {
+                    return;
+                }
+
+                try {
+                    $this->endSession($fresh, automatic: true);
+                    $closed++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
+    }
+
     protected function calculateSummary(ActiveLearningSession $session): array
     {
         $participants = $session->participants()->count();

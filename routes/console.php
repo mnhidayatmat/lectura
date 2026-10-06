@@ -17,3 +17,10 @@ Artisan::command('episodes:announce', function (\App\Services\Episodes\EpisodeAn
 })->purpose('Notify enrolled students about newly released episodes');
 
 Schedule::command('episodes:announce')->everyFiveMinutes()->withoutOverlapping();
+
+// Active learning: end live sessions left open past ACTIVE_LEARNING_AUTO_CLOSE_HOURS.
+Artisan::command('active-learning:close-stale', function (\App\Services\ActiveLearning\SessionService $sessions) {
+    $this->info($sessions->closeStaleSessions().' session(s) closed.');
+})->purpose('End active-learning sessions left open past the time limit');
+
+Schedule::command('active-learning:close-stale')->everyTenMinutes()->withoutOverlapping();

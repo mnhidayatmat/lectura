@@ -46,6 +46,14 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    /*
+    | Active learning: a live session still open this many hours after it
+    | started is ended automatically (0 turns this off).
+    */
+    'active_learning' => [
+        'auto_close_hours' => (int) env('ACTIVE_LEARNING_AUTO_CLOSE_HOURS', 4),
+    ],
+
     'attendance' => [
         'qr_rotation_seconds' => env('QR_ROTATION_SECONDS', 30),
         'late_threshold_minutes' => env('ATTENDANCE_LATE_MINUTES', 15),

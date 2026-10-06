@@ -166,6 +166,13 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - AI grouping (Pro): dispatches `ArrangeGroupsWithAi` job using `AiGroupingService`
 - Admin AI settings (Pro): tenant admins manage their own API keys at `/{tenant}/admin/ai-settings`
 
+- Live sessions end themselves `ACTIVE_LEARNING_AUTO_CLOSE_HOURS` (default 4, 0 = off) after they
+  started: `SessionService::closeStaleSessions()` runs from `active-learning:close-stale` (every 10
+  min) and from the `CloseStaleActiveLearningSessions` middleware on web + api, throttled to once a
+  minute by a cache lock, because production has no scheduler cron. It sweeps every institution, so
+  it unbinds `current_tenant` while it runs; auto-closed sessions end at their time limit and carry
+  `summary_data.auto_closed`. Only the lecturer who started a session can end it by hand
+
 ### Course Materials
 
 - Weekly-organized material system (separate from folder-based Course Files): `CourseMaterialSection` rows (e.g. "Week 1") hold `CourseFile` records via `material_section_id`

@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class ActiveLearningSession extends Model
@@ -15,7 +16,9 @@ class ActiveLearningSession extends Model
     use BelongsToTenant;
 
     public const STATUS_NOT_STARTED = 'not_started';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_COMPLETED = 'completed';
 
     protected $fillable = [
@@ -80,6 +83,16 @@ class ActiveLearningSession extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * When the sweep will end this session, or null when auto-close is off or it hasn't started.
+     */
+    public function autoCloseAt(): ?Carbon
+    {
+        $hours = (int) config('lectura.active_learning.auto_close_hours');
+
+        return $hours > 0 && $this->started_at ? $this->started_at->copy()->addHours($hours) : null;
     }
 
     public function isCompleted(): bool

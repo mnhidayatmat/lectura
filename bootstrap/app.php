@@ -46,6 +46,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Rate limit every API route (see RouteServiceProvider's `api` limiter)
         $middleware->throttleApi();
 
+        // Auto-close active-learning sessions left open (throttled; works without cron)
+        $middleware->appendToGroup('web', \App\Http\Middleware\CloseStaleActiveLearningSessions::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\CloseStaleActiveLearningSessions::class);
+
         // MCP + OAuth endpoints — no CSRF cookie needed
         $middleware->validateCsrfTokens(except: [
             '/mcp',

@@ -15,6 +15,9 @@
                 <p class="text-sm text-slate-500 mt-0.5">
                     {{ __('active_learning.join_code') }}:
                     <code class="text-lg font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{{ $session->join_code }}</code>
+                    @if($closesAt = $session->autoCloseAt())
+                        <span class="ml-2 text-xs text-slate-500 dark:text-slate-400">Closes automatically at {{ $closesAt->copy()->timezone(app('current_tenant')->timezone ?: config('app.timezone'))->format('g:i A') }}</span>
+                    @endif
                 </p>
             </div>
             <div class="flex items-center gap-3">
