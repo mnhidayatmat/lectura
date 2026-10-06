@@ -38,6 +38,8 @@ class StoreActivityRequest extends FormRequest
             'poll_show_results' => ['nullable', 'boolean'],
             'expected_outcomes' => ['nullable', 'array', 'max:10'],
             'expected_outcomes.*' => ['nullable', 'string', 'max:500'],
+            'quiz_session_id' => ['nullable', 'integer', Rule::exists('quiz_sessions', 'id')
+                ->whereIn('section_id', $this->route('course')?->sections()->pluck('id')->all() ?? [])],
         ];
     }
 }

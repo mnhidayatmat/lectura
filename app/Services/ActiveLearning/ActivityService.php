@@ -31,6 +31,7 @@ class ActivityService
             'response_type' => $data['response_type'] ?? 'none',
             'poll_config' => $this->buildPollConfig($data),
             'content_meta' => $this->buildContentMeta($data),
+            'quiz_session_id' => $data['quiz_session_id'] ?? null,
             'ai_generated' => $data['ai_generated'] ?? false,
         ]);
 
@@ -44,7 +45,7 @@ class ActivityService
         $updateData = [];
 
         // Always update fields present in the validated data
-        foreach (['title', 'type', 'description', 'instructions', 'solution', 'duration_minutes', 'clo_ids', 'materials', 'grouping_strategy', 'max_group_size', 'response_mode', 'response_type'] as $field) {
+        foreach (['title', 'type', 'description', 'instructions', 'solution', 'duration_minutes', 'clo_ids', 'materials', 'grouping_strategy', 'max_group_size', 'response_mode', 'response_type', 'quiz_session_id'] as $field) {
             if (array_key_exists($field, $data)) {
                 $updateData[$field] = $data[$field];
             }

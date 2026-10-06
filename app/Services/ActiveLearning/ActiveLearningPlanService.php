@@ -50,6 +50,18 @@ class ActiveLearningPlanService
         $plan->update(['status' => 'archived']);
     }
 
+    /**
+     * Save the manual order of a course's plans; ids from other courses are ignored.
+     */
+    public function reorderPlans(Course $course, array $orderedIds): void
+    {
+        foreach (array_values($orderedIds) as $index => $planId) {
+            ActiveLearningPlan::where('id', $planId)
+                ->where('course_id', $course->id)
+                ->update(['sort_order' => $index]);
+        }
+    }
+
     public function reorderActivities(ActiveLearningPlan $plan, array $orderedIds): void
     {
         foreach ($orderedIds as $index => $activityId) {

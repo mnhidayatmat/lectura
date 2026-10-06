@@ -21,6 +21,8 @@ class AttendanceSessionResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status,
             'is_active' => $this->isActive(),
+            'is_locked' => $this->isLocked(),
+            'lock_reason' => $this->lockReason(),
             'session_type' => $this->session_type,
             'week_number' => $this->week_number !== null ? (int) $this->week_number : null,
             'started_at' => $this->started_at?->toIso8601String(),

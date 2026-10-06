@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\PortfolioPhoto;
@@ -16,12 +17,17 @@ use Illuminate\View\View;
 class PortfolioController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     /**
      * Portfolio overview — all courses with photo counts + full teaching portfolio.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.portfolio.course')) {
+            return $redirect;
+        }
+
         $courseIds = $this->accessibleCourseIds();
         $courses = Course::whereIn('id', $courseIds)
             ->withCount(['portfolioPhotos' => fn ($q) => $q->where('user_id', auth()->id())])
@@ -81,7 +87,7 @@ class PortfolioController extends Controller
 
         $request->validate([
             'photo' => ['required', 'image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
             'caption' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'section_id' => ['nullable', 'exists:sections,id'],
@@ -92,8 +98,7 @@ class PortfolioController extends Controller
         $file = $request->file('photo');
         $tenant = app('current_tenant');
 
-        // Store original photo to public disk
-        $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'public');
+        $path = $file->store("portfolio/{$course->id}/".date('Y-m'), 'media');
 
         // Generate thumbnail using GD
         $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
@@ -128,7 +133,7 @@ class PortfolioController extends Controller
         $request->validate([
             'photos' => ['required', 'array', 'min:1', 'max:20'],
             'photos.*' => ['image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
-            'category' => ['required', 'string', 'in:' . implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
+            'category' => ['required', 'string', 'in:'.implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
             'section_id' => ['nullable', 'exists:sections,id'],
             'week_number' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
@@ -137,7 +142,7 @@ class PortfolioController extends Controller
         $count = 0;
 
         foreach ($request->file('photos') as $file) {
-            $path = $file->store("portfolio/{$course->id}/" . date('Y-m'), 'public');
+            $path = $file->store("portfolio/{$course->id}/".date('Y-m'), 'media');
             $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
 
             PortfolioPhoto::create([
@@ -169,11 +174,11 @@ class PortfolioController extends Controller
             abort(403);
         }
 
-        if (Storage::disk('public')->exists($photo->file_path)) {
-            Storage::disk('public')->delete($photo->file_path);
+        if (Storage::disk('media')->exists($photo->file_path)) {
+            Storage::disk('media')->delete($photo->file_path);
         }
-        if ($photo->thumbnail_path && Storage::disk('public')->exists($photo->thumbnail_path)) {
-            Storage::disk('public')->delete($photo->thumbnail_path);
+        if ($photo->thumbnail_path && Storage::disk('media')->exists($photo->thumbnail_path)) {
+            Storage::disk('media')->delete($photo->thumbnail_path);
         }
 
         $photo->delete();
@@ -195,7 +200,7 @@ class PortfolioController extends Controller
                 default => null,
             };
 
-            if (!$source) {
+            if (! $source) {
                 return null;
             }
 
@@ -208,7 +213,7 @@ class PortfolioController extends Controller
             imagecopyresampled($thumb, $source, 0, 0, 0, 0, $thumbW, $thumbH, $origW, $origH);
 
             $thumbDir = "portfolio/{$courseId}/thumbs";
-            $thumbName = pathinfo($originalPath, PATHINFO_FILENAME) . '_thumb.jpg';
+            $thumbName = pathinfo($originalPath, PATHINFO_FILENAME).'_thumb.jpg';
             $thumbnailPath = "{$thumbDir}/{$thumbName}";
 
             // Write to temp file then store
@@ -217,7 +222,7 @@ class PortfolioController extends Controller
             imagedestroy($source);
             imagedestroy($thumb);
 
-            Storage::disk('public')->put($thumbnailPath, file_get_contents($tempPath));
+            Storage::disk('media')->put($thumbnailPath, file_get_contents($tempPath));
             @unlink($tempPath);
 
             return $thumbnailPath;

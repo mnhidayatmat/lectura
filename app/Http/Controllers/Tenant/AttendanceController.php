@@ -5,64 +5,131 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
 use App\Models\SectionStudent;
-use App\Services\Attendance\AttendanceWarningService;
+use App\Services\Attendance\AttendanceSessionService;
 use App\Services\Attendance\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AttendanceController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected QrCodeService $qrService,
-        protected AttendanceWarningService $warningService,
+        protected AttendanceSessionService $sessionService,
     ) {}
 
     /**
-     * Attendance overview — list sessions across lecturer's courses.
+     * Attendance overview — with a course context set this redirects straight
+     * into that course's attendance page.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
-        $tenant = app('current_tenant');
-        $user = auth()->user();
+        if ($redirect = $this->redirectToCourseContext('tenant.attendance.course')) {
+            return $redirect;
+        }
 
         $sectionIds = $this->allAccessibleSectionIds();
 
+        $sections = Section::whereIn('id', $sectionIds)->get(['id', 'course_id', 'is_active']);
+
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
-            ->with(['section.course', 'records'])
-            ->latest('started_at')
-            ->limit(50)
-            ->get();
-
-        // Group active sessions
-        $activeSessions = $sessions->where('status', 'active');
-
-        // Group past sessions by course
-        $pastSessionsByCourse = $sessions->where('status', 'ended')
-            ->groupBy(fn ($session) => $session->section->course->id)
-            ->map(fn ($sessions) => [
-                'course' => $sessions->first()->section->course,
-                'sessions' => $sessions,
+            ->with('section:id,course_id,name')
+            ->withCount([
+                'records',
+                'records as attended_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
             ])
-            ->sortBy(fn ($group) => $group['course']->code);
-
-        // Get lecturer's sections for starting new session
-        $sections = Section::whereIn('id', $sectionIds)
-            ->with('course')
-            ->where('is_active', true)
             ->get();
 
-        return view('tenant.attendance.index', compact('activeSessions', 'pastSessionsByCourse', 'sections'));
+        $activeSessions = $sessions->where('status', 'active')
+            ->load('section.course')
+            ->sortByDesc('started_at');
+
+        $sessionsByCourse = $sessions->groupBy(fn ($session) => $session->section->course_id);
+
+        $courses = Course::whereIn('id', $sections->pluck('course_id')->unique())
+            ->with('academicTerm')
+            ->orderBy('code')
+            ->get()
+            ->map(function (Course $course) use ($sections, $sessionsByCourse) {
+                $courseSessions = $sessionsByCourse->get($course->id, collect());
+                $ended = $courseSessions->where('status', 'ended');
+                $totalRecords = $ended->sum('records_count');
+
+                $course->attendance_stats = [
+                    'sections' => $sections->where('course_id', $course->id)->where('is_active', true)->count(),
+                    'sessions' => $courseSessions->count(),
+                    'live' => $courseSessions->where('status', 'active')->count(),
+                    'rate' => $totalRecords > 0 ? (int) round($ended->sum('attended_count') / $totalRecords * 100) : null,
+                    'last' => $courseSessions->max('started_at'),
+                ];
+
+                return $course;
+            });
+
+        [$archivedCourses, $currentCourses] = $courses->partition(fn (Course $course) => $course->status === 'archived');
+
+        return view('tenant.attendance.index', compact('activeSessions', 'currentCourses', 'archivedCourses'));
+    }
+
+    /**
+     * Sessions, reports and session start for a single course.
+     */
+    public function course(string $tenantSlug, Course $course): View
+    {
+        $this->authorizeCourseAccess($course);
+
+        $sectionIds = $this->allAccessibleSectionIds();
+
+        $sections = Section::where('course_id', $course->id)
+            ->whereIn('id', $sectionIds)
+            ->with(['academicTerm', 'course.academicTerm'])
+            ->orderBy('name')
+            ->get();
+
+        $sessions = AttendanceSession::whereIn('section_id', $sections->pluck('id'))
+            ->with('section.course')
+            ->withCount([
+                'records',
+                'records as present_count' => fn ($q) => $q->where('status', 'present'),
+                'records as late_count' => fn ($q) => $q->where('status', 'late'),
+                'records as absent_count' => fn ($q) => $q->where('status', 'absent'),
+                'records as excused_count' => fn ($q) => $q->where('status', 'excused'),
+            ])
+            ->latest('started_at')
+            ->get();
+
+        $activeSessions = $sessions->where('status', 'active');
+        $pastSessions = $sessions->where('status', 'ended')->values();
+
+        $totalRecords = $pastSessions->sum('records_count');
+        $stats = [
+            'sessions' => $pastSessions->count(),
+            'rate' => $totalRecords > 0
+                ? (int) round(($pastSessions->sum('present_count') + $pastSessions->sum('late_count')) / $totalRecords * 100)
+                : null,
+            'students' => SectionStudent::whereIn('section_id', $sections->pluck('id'))->where('is_active', true)->count(),
+            'last' => $sessions->max('started_at'),
+        ];
+
+        // Sections in a closed semester can't take attendance any more
+        $activeSections = $sections->where('is_active', true)
+            ->reject(fn (Section $section) => $section->term()?->isClosed())
+            ->values();
+
+        return view('tenant.attendance.course', compact('course', 'sections', 'activeSections', 'activeSessions', 'pastSessions', 'stats'));
     }
 
     /**
@@ -88,6 +155,14 @@ class AttendanceController extends Controller
 
         if (! $canAccess) {
             abort(403);
+        }
+
+        if ($course->status === 'archived') {
+            return back()->with('error', 'This course is archived, so no new attendance sessions can be started.');
+        }
+
+        if ($section->term()?->isClosed()) {
+            return back()->with('error', "This section's semester is closed, so no new attendance sessions can be started.");
         }
 
         // Check no active session for this section
@@ -144,7 +219,7 @@ class AttendanceController extends Controller
     {
         try {
             $this->authorizeSession($session);
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+        } catch (HttpException) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         if (! $session->isActive()) {
@@ -196,7 +271,7 @@ class AttendanceController extends Controller
 
         $session = AttendanceSession::find($parsed['session_id']);
 
-        if (! $session || ! $session->isActive()) {
+        if (! $session || ! $session->isActive() || $session->isLocked()) {
             return response()->json(['error' => 'This attendance session has ended.'], 422);
         }
 
@@ -270,32 +345,10 @@ class AttendanceController extends Controller
     {
         $this->authorizeSession($session);
 
-        $session->update([
-            'status' => 'ended',
-            'ended_at' => now(),
-        ]);
+        $markedAbsent = $this->sessionService->end($session);
 
-        // Mark absent students
-        $checkedInUserIds = $session->records()->pluck('user_id');
-        $enrolledStudents = SectionStudent::where('section_id', $session->section_id)
-            ->where('is_active', true)
-            ->whereNotIn('user_id', $checkedInUserIds)
-            ->pluck('user_id');
-
-        foreach ($enrolledStudents as $userId) {
-            AttendanceRecord::create([
-                'attendance_session_id' => $session->id,
-                'user_id' => $userId,
-                'status' => 'absent',
-                'method' => 'manual',
-            ]);
-        }
-
-        // Check and issue attendance warnings
-        $this->warningService->checkAndIssueWarnings($session->section->course);
-
-        return redirect()->route('tenant.attendance.index', app('current_tenant')->slug)
-            ->with('success', 'Session ended. ' . $enrolledStudents->count() . ' students marked absent.');
+        return redirect()->route('tenant.attendance.course', [app('current_tenant')->slug, $session->section->course_id])
+            ->with('success', 'Session ended. '.$markedAbsent.' students marked absent.');
     }
 
     /**
@@ -307,6 +360,10 @@ class AttendanceController extends Controller
 
         if ($session->status !== 'ended') {
             return back()->with('error', 'Only ended sessions can be reopened.');
+        }
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
         }
 
         // Remove auto-generated absent records (so late students can re-scan).
@@ -333,6 +390,16 @@ class AttendanceController extends Controller
      */
     public function override(Request $request, string $tenantSlug, AttendanceSession $session, AttendanceRecord $record): RedirectResponse
     {
+        $this->authorizeSession($session);
+
+        if ($record->attendance_session_id !== $session->id) {
+            abort(404);
+        }
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
+        }
+
         $request->validate([
             'status' => ['required', 'in:present,late,absent,excused'],
             'reason' => ['nullable', 'string', 'max:255'],
@@ -354,6 +421,10 @@ class AttendanceController extends Controller
     public function update(Request $request, string $tenantSlug, AttendanceSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
+        }
 
         $validated = $request->validate([
             'session_type' => ['required', 'in:lecture,tutorial,lab,extra,replacement'],
@@ -389,10 +460,16 @@ class AttendanceController extends Controller
             return back()->with('error', 'Cannot delete an active session. End it first.');
         }
 
+        if ($session->isLocked()) {
+            return back()->with('error', $session->lockMessage());
+        }
+
+        $courseId = $session->section->course_id;
+
         $session->records()->delete();
         $session->delete();
 
-        return redirect()->route('tenant.attendance.index', $tenantSlug)
+        return redirect()->route('tenant.attendance.course', [$tenantSlug, $courseId])
             ->with('success', 'Attendance session deleted.');
     }
 

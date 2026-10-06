@@ -30,14 +30,27 @@ class StoreCourseRequest extends FormRequest
             'faculty_id' => ['nullable', 'exists:faculties,id'],
             'programme_id' => ['nullable', 'exists:programmes,id'],
             'academic_term_id' => ['nullable', 'exists:academic_terms,id'],
-            // CLOs
+            // CLOs — blank rows are skipped by the controller, so they must not fail validation
             'clos' => ['nullable', 'array'],
-            'clos.*.code' => ['required_with:clos', 'string', 'max:20'],
-            'clos.*.description' => ['required_with:clos', 'string', 'max:1000'],
-            // Topics
+            'clos.*.code' => ['nullable', 'string', 'max:20', 'required_with:clos.*.description'],
+            'clos.*.description' => ['nullable', 'string', 'max:1000', 'required_with:clos.*.code'],
+            // Topics — a week left blank is skipped the same way
             'topics' => ['nullable', 'array'],
             'topics.*.week_number' => ['required_with:topics', 'integer', 'min:1'],
-            'topics.*.title' => ['required_with:topics', 'string', 'max:255'],
+            'topics.*.title' => ['nullable', 'string', 'max:255'],
+            'topics.*.description' => ['nullable', 'string', 'max:5000'],
+            'topics.*.clos' => ['nullable', 'array'],
+            'topics.*.clos.*' => ['string', 'max:20'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'clos.*.code' => 'CLO code',
+            'clos.*.description' => 'CLO description',
+            'topics.*.title' => 'week topic title',
+            'topics.*.description' => 'week subtopics',
         ];
     }
 }

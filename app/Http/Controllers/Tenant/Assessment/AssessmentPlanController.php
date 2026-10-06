@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant\Assessment;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
+use App\Models\Assignment;
 use App\Models\Course;
+use App\Models\QuizSession;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
@@ -25,14 +27,21 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class AssessmentPlanController extends Controller
 {
     use AuthorizesCourseAccess;
-    public function overview(): View
+    use RedirectsToCourseContext;
+
+    public function overview(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.assessments.index')) {
+            return $redirect;
+        }
+
         $user = auth()->user();
         $tenant = app('current_tenant');
 
         $courses = Course::whereIn('id', $this->accessibleCourseIds())
-            ->with(['assessments', 'learningOutcomes'])
-            ->withCount('assessments')
+            ->with(['assessments', 'learningOutcomes', 'academicTerm'])
+            ->withCount(['assessments', 'sections' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('code')
             ->get()
             ->map(function ($course) {
                 $totalWeightage = $course->assessments->whereNull('parent_id')->sum('weightage');
@@ -84,7 +93,7 @@ class AssessmentPlanController extends Controller
         return view('tenant.assessments.index', compact('tenant', 'course', 'totalWeightage', 'coveredCloIds', 'totalStudents'));
     }
 
-    public function create(string $tenantSlug, Course $course, Assessment $parent = null): View
+    public function create(string $tenantSlug, Course $course, ?Assessment $parent = null): View
     {
         $this->authorizeCourseAccess($course);
 
@@ -147,31 +156,31 @@ class AssessmentPlanController extends Controller
         $this->authorizeCourseAccess($course);
 
         $request->validate([
-            'parent_id'        => ['nullable', 'exists:assessments,id'],
-            'title'            => ['required', 'string', 'max:255'],
-            'type'             => ['required', 'string', 'in:' . implode(',', Assessment::TYPES)],
-            'method'           => ['nullable', 'string', 'in:' . implode(',', Assessment::METHODS)],
-            'weightage'        => ['required', 'numeric', 'min:0', 'max:100'],
-            'total_marks'      => ['required', 'numeric', 'min:1'],
-            'bloom_level'      => ['nullable', 'string', 'in:' . implode(',', Assessment::BLOOM_LEVELS)],
-            'description'      => ['nullable', 'string', 'max:2000'],
-            'clo_ids'          => ['nullable', 'array'],
-            'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
+            'parent_id' => ['nullable', 'exists:assessments,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:'.implode(',', Assessment::TYPES)],
+            'method' => ['nullable', 'string', 'in:'.implode(',', Assessment::METHODS)],
+            'weightage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'total_marks' => ['required', 'numeric', 'min:1'],
+            'bloom_level' => ['nullable', 'string', 'in:'.implode(',', Assessment::BLOOM_LEVELS)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'clo_ids' => ['nullable', 'array'],
+            'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
-            'due_date'         => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
-            'criteria'                   => ['nullable', 'array'],
-            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
-            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
-            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
-            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'criteria.*.levels'          => ['nullable', 'array'],
-            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria' => ['nullable', 'array'],
+            'criteria.*.title' => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'criteria.*.levels' => ['nullable', 'array'],
+            'criteria.*.levels.*.label' => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
-            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
+            'criteria.*.levels.*.marks' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $this->validateAssessmentGroupSet($request, $course);
@@ -182,7 +191,7 @@ class AssessmentPlanController extends Controller
         $parent = null;
         if ($request->filled('parent_id')) {
             $parent = Assessment::find($request->parent_id);
-            if (!$parent || $parent->course_id !== $course->id) {
+            if (! $parent || $parent->course_id !== $course->id) {
                 return back()->withErrors(['parent_id' => 'Invalid parent assessment.'])->withInput();
             }
         }
@@ -195,27 +204,27 @@ class AssessmentPlanController extends Controller
         $initialStatus = $parent ? $parent->status : 'draft';
 
         $assessment = Assessment::create([
-            'tenant_id'    => $tenant->id,
-            'course_id'    => $course->id,
+            'tenant_id' => $tenant->id,
+            'course_id' => $course->id,
             'student_group_set_id' => $requiresGroupSubmission ? $request->student_group_set_id : null,
-            'parent_id'    => $request->parent_id,
-            'title'        => $request->title,
-            'type'         => $request->type,
-            'method'       => $request->method,
-            'weightage'    => $request->weightage,
-            'total_marks'  => $request->total_marks,
-            'bloom_level'  => $request->bloom_level,
-            'description'  => $request->description,
+            'parent_id' => $request->parent_id,
+            'title' => $request->title,
+            'type' => $request->type,
+            'method' => $request->method,
+            'weightage' => $request->weightage,
+            'total_marks' => $request->total_marks,
+            'bloom_level' => $request->bloom_level,
+            'description' => $request->description,
             'requires_submission' => $requiresSubmission,
-            'due_date'     => $request->due_date,
-            'sort_order'   => $course->assessments()->count(),
-            'status'       => $initialStatus,
+            'due_date' => $request->due_date,
+            'sort_order' => $course->assessments()->count(),
+            'status' => $initialStatus,
         ]);
 
         if ($request->hasFile('instruction_file')) {
             $file = $request->file('instruction_file');
             $assessment->update([
-                'instruction_file_path' => $file->store('assessment-instructions', 'local'),
+                'instruction_file_path' => $file->store('assessment-instructions', 'uploads'),
                 'instruction_file_name' => $file->getClientOriginalName(),
             ]);
         }
@@ -223,7 +232,7 @@ class AssessmentPlanController extends Controller
         if ($request->hasFile('answer_scheme_file')) {
             $file = $request->file('answer_scheme_file');
             $assessment->update([
-                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'uploads'),
                 'answer_scheme_filename' => $file->getClientOriginalName(),
             ]);
         }
@@ -262,8 +271,8 @@ class AssessmentPlanController extends Controller
         $course->load('learningOutcomes');
         $assessment->load(['clos', 'children', 'parent', 'rubric.criteria.levels']);
 
-        $assignments = $course->hasMany(\App\Models\Assignment::class)->get(['id', 'title']);
-        $quizzes = \App\Models\QuizSession::where('lecturer_id', auth()->id())
+        $assignments = $course->hasMany(Assignment::class)->get(['id', 'title']);
+        $quizzes = QuizSession::where('lecturer_id', auth()->id())
             ->whereIn('section_id', $this->lecturerSectionIds($course))
             ->get(['id', 'title']);
 
@@ -278,31 +287,31 @@ class AssessmentPlanController extends Controller
         }
 
         $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
-            'type'             => ['required', 'string', 'in:' . implode(',', Assessment::TYPES)],
-            'method'           => ['nullable', 'string', 'in:' . implode(',', Assessment::METHODS)],
-            'weightage'        => ['required', 'numeric', 'min:0', 'max:100'],
-            'total_marks'      => ['required', 'numeric', 'min:1'],
-            'bloom_level'      => ['nullable', 'string', 'in:' . implode(',', Assessment::BLOOM_LEVELS)],
-            'description'      => ['nullable', 'string', 'max:2000'],
-            'status'           => ['nullable', 'string', 'in:' . implode(',', Assessment::STATUSES)],
-            'clo_ids'          => ['nullable', 'array'],
-            'clo_ids.*'        => ['integer', 'exists:course_learning_outcomes,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'in:'.implode(',', Assessment::TYPES)],
+            'method' => ['nullable', 'string', 'in:'.implode(',', Assessment::METHODS)],
+            'weightage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'total_marks' => ['required', 'numeric', 'min:1'],
+            'bloom_level' => ['nullable', 'string', 'in:'.implode(',', Assessment::BLOOM_LEVELS)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'status' => ['nullable', 'string', 'in:'.implode(',', Assessment::STATUSES)],
+            'clo_ids' => ['nullable', 'array'],
+            'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
-            'due_date'         => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
             'instruction_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt,zip'],
             'answer_scheme_file' => ['nullable', 'file', 'max:25600', 'mimes:pdf'],
-            'criteria'                   => ['nullable', 'array'],
-            'criteria.*.title'           => ['required_with:criteria', 'string', 'max:255'],
-            'criteria.*.description'     => ['nullable', 'string', 'max:1000'],
-            'criteria.*.max_marks'       => ['required_with:criteria', 'numeric', 'min:0'],
-            'criteria.*.weightage'       => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'criteria.*.levels'          => ['nullable', 'array'],
-            'criteria.*.levels.*.label'  => ['nullable', 'string', 'max:100'],
+            'criteria' => ['nullable', 'array'],
+            'criteria.*.title' => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description' => ['nullable', 'string', 'max:1000'],
+            'criteria.*.max_marks' => ['required_with:criteria', 'numeric', 'min:0'],
+            'criteria.*.weightage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'criteria.*.levels' => ['nullable', 'array'],
+            'criteria.*.levels.*.label' => ['nullable', 'string', 'max:100'],
             'criteria.*.levels.*.description' => ['nullable', 'string', 'max:500'],
-            'criteria.*.levels.*.marks'  => ['nullable', 'numeric', 'min:0'],
+            'criteria.*.levels.*.marks' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $this->validateAssessmentGroupSet($request, $course);
@@ -324,32 +333,32 @@ class AssessmentPlanController extends Controller
         // Handle instruction file: new upload replaces existing; remove_instruction deletes without replacing.
         if ($request->hasFile('instruction_file')) {
             if ($assessment->instruction_file_path) {
-                Storage::disk('local')->delete($assessment->instruction_file_path);
+                Storage::disk('uploads')->delete($assessment->instruction_file_path);
             }
             $file = $request->file('instruction_file');
             $assessment->update([
-                'instruction_file_path' => $file->store('assessment-instructions', 'local'),
+                'instruction_file_path' => $file->store('assessment-instructions', 'uploads'),
                 'instruction_file_name' => $file->getClientOriginalName(),
             ]);
         } elseif ($request->boolean('remove_instruction')) {
             if ($assessment->instruction_file_path) {
-                Storage::disk('local')->delete($assessment->instruction_file_path);
+                Storage::disk('uploads')->delete($assessment->instruction_file_path);
             }
             $assessment->update(['instruction_file_path' => null, 'instruction_file_name' => null]);
         }
 
         if ($request->hasFile('answer_scheme_file')) {
             if ($assessment->answer_scheme_path) {
-                Storage::disk('local')->delete($assessment->answer_scheme_path);
+                Storage::disk('uploads')->delete($assessment->answer_scheme_path);
             }
             $file = $request->file('answer_scheme_file');
             $assessment->update([
-                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'local'),
+                'answer_scheme_path' => $file->store('assessment-answer-schemes', 'uploads'),
                 'answer_scheme_filename' => $file->getClientOriginalName(),
             ]);
         } elseif ($request->boolean('remove_answer_scheme')) {
             if ($assessment->answer_scheme_path) {
-                Storage::disk('local')->delete($assessment->answer_scheme_path);
+                Storage::disk('uploads')->delete($assessment->answer_scheme_path);
             }
             $assessment->update(['answer_scheme_path' => null, 'answer_scheme_filename' => null]);
         }
@@ -371,20 +380,20 @@ class AssessmentPlanController extends Controller
 
         // Delete instruction file if present
         if ($assessment->instruction_file_path) {
-            Storage::disk('local')->delete($assessment->instruction_file_path);
+            Storage::disk('uploads')->delete($assessment->instruction_file_path);
         }
         if ($assessment->answer_scheme_path) {
-            Storage::disk('local')->delete($assessment->answer_scheme_path);
+            Storage::disk('uploads')->delete($assessment->answer_scheme_path);
         }
 
         // If this is a parent assessment, cascade delete children (and their files)
         if ($assessment->isParent()) {
             foreach ($assessment->children as $child) {
                 if ($child->instruction_file_path) {
-                    Storage::disk('local')->delete($child->instruction_file_path);
+                    Storage::disk('uploads')->delete($child->instruction_file_path);
                 }
                 if ($child->answer_scheme_path) {
-                    Storage::disk('local')->delete($child->answer_scheme_path);
+                    Storage::disk('uploads')->delete($child->answer_scheme_path);
                 }
                 $child->delete();
             }
@@ -401,30 +410,27 @@ class AssessmentPlanController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($assessment->instruction_file_path)) {
+        if (! Storage::disk('uploads')->exists($assessment->instruction_file_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assessment->instruction_file_path,
             $assessment->instruction_file_name ?? 'instruction'
         );
     }
 
-    public function viewInstruction(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function viewInstruction(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
     {
         if ($assessment->course_id !== $course->id || ! $assessment->instruction_file_path) {
             abort(404);
         }
 
-        $absolutePath = Storage::disk('local')->path($assessment->instruction_file_path);
-
-        if (! file_exists($absolutePath)) {
+        if (! Storage::disk('uploads')->exists($assessment->instruction_file_path)) {
             abort(404);
         }
 
-        // response()->file() sets Content-Disposition: inline so the browser renders it.
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response($assessment->instruction_file_path, $assessment->instruction_file_name);
     }
 
     public function downloadAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
@@ -434,30 +440,28 @@ class AssessmentPlanController extends Controller
             abort(404);
         }
 
-        if (! Storage::disk('local')->exists($assessment->answer_scheme_path)) {
+        if (! Storage::disk('uploads')->exists($assessment->answer_scheme_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assessment->answer_scheme_path,
             $assessment->answer_scheme_filename ?? 'answer-scheme.pdf'
         );
     }
 
-    public function viewAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function viewAnswerScheme(string $tenantSlug, Course $course, Assessment $assessment): StreamedResponse
     {
         $this->authorizeCourseAccess($course);
         if ($assessment->course_id !== $course->id || ! $assessment->answer_scheme_path) {
             abort(404);
         }
 
-        $absolutePath = Storage::disk('local')->path($assessment->answer_scheme_path);
-
-        if (! file_exists($absolutePath)) {
+        if (! Storage::disk('uploads')->exists($assessment->answer_scheme_path)) {
             abort(404);
         }
 
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response($assessment->answer_scheme_path, $assessment->answer_scheme_filename);
     }
 
     /**

@@ -348,11 +348,11 @@ class StudentAssessmentController extends Controller
     {
         $this->authorizeEnrollment($course, $assessment, $request->user());
 
-        if (! $assessment->instruction_file_path || ! Storage::disk('local')->exists($assessment->instruction_file_path)) {
+        if (! $assessment->instruction_file_path || ! Storage::disk('uploads')->exists($assessment->instruction_file_path)) {
             abort(404, 'Instruction file not found.');
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $assessment->instruction_file_path,
             $assessment->instruction_file_name ?? 'instruction'
         );
@@ -379,11 +379,11 @@ class StudentAssessmentController extends Controller
         // Students always get the graded copy once it exists
         $path = $file->viewablePath();
 
-        if (! Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('uploads')->exists($path)) {
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($path, $file->file_name);
+        return Storage::disk('uploads')->download($path, $file->file_name);
     }
 
     private function authorizeEnrollment(Course $course, Assessment $assessment, User $user): void
@@ -662,7 +662,7 @@ class StudentAssessmentController extends Controller
         array $driveContext,
     ): void {
         foreach ($files as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'local');
+            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {
@@ -709,8 +709,8 @@ class StudentAssessmentController extends Controller
         $submission->loadMissing('files');
 
         foreach ($submission->files as $file) {
-            if (Storage::disk('local')->exists($file->storage_path)) {
-                Storage::disk('local')->delete($file->storage_path);
+            if (Storage::disk('uploads')->exists($file->storage_path)) {
+                Storage::disk('uploads')->delete($file->storage_path);
             }
             $file->delete();
         }

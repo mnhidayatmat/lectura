@@ -12,51 +12,46 @@ use Tests\Feature\Api\V1\ApiTestCase;
  */
 class AcademicTermTest extends ApiTestCase
 {
-    public function test_admin_closes_a_semester_by_archiving_its_courses(): void
+    public function test_closing_a_semester_marks_it_closed_and_leaves_its_courses_alone(): void
     {
         $tenant = $this->createTenant();
         $admin = $this->createMember($tenant, 'admin');
         $lecturer = $this->createMember($tenant, 'lecturer');
         $term = $this->createTerm($tenant);
-
-        $inTerm = $this->createCourse($tenant, $lecturer, ['academic_term_id' => $term->id]);
-        $elsewhere = $this->createCourse($tenant, $lecturer);
-
-        $this->actingAs($admin)
-            ->post("/{$tenant->slug}/semesters/{$term->id}/archive-courses")
-            ->assertRedirect("/{$tenant->slug}/semesters");
-
-        $this->assertSame('archived', $inTerm->fresh()->status);
-        // A course outside the semester must be left alone.
-        $this->assertSame('active', $elsewhere->fresh()->status);
-    }
-
-    public function test_reopening_restores_the_courses_it_archived(): void
-    {
-        $tenant = $this->createTenant();
-        $admin = $this->createMember($tenant, 'admin');
-        $lecturer = $this->createMember($tenant, 'lecturer');
-        $term = $this->createTerm($tenant);
-        $course = $this->createCourse($tenant, $lecturer, [
-            'academic_term_id' => $term->id,
-            'status' => 'archived',
-        ]);
+        $course = $this->createCourse($tenant, $lecturer);
+        $this->createSection($course, ['academic_term_id' => $term->id]);
 
         $this->actingAs($admin)
-            ->post("/{$tenant->slug}/semesters/{$term->id}/reopen-courses")
-            ->assertRedirect("/{$tenant->slug}/semesters");
+            ->post("/{$tenant->slug}/semesters/{$term->id}/close")
+            ->assertRedirect("/{$tenant->slug}/semesters")
+            ->assertSessionHas('success');
 
+        $this->assertTrue($term->fresh()->isClosed());
+        // A course carries on into other semesters, so closing one never archives it.
         $this->assertSame('active', $course->fresh()->status);
     }
 
-    public function test_closing_a_semester_with_nothing_open_reports_instead_of_pretending(): void
+    public function test_reopening_a_closed_semester(): void
     {
         $tenant = $this->createTenant();
         $admin = $this->createMember($tenant, 'admin');
-        $term = $this->createTerm($tenant);
+        $term = $this->createTerm($tenant, ['closed_at' => now()]);
 
         $this->actingAs($admin)
-            ->post("/{$tenant->slug}/semesters/{$term->id}/archive-courses")
+            ->post("/{$tenant->slug}/semesters/{$term->id}/reopen")
+            ->assertRedirect("/{$tenant->slug}/semesters");
+
+        $this->assertFalse($term->fresh()->isClosed());
+    }
+
+    public function test_closing_an_already_closed_semester_reports_instead_of_pretending(): void
+    {
+        $tenant = $this->createTenant();
+        $admin = $this->createMember($tenant, 'admin');
+        $term = $this->createTerm($tenant, ['closed_at' => now()->subDay()]);
+
+        $this->actingAs($admin)
+            ->post("/{$tenant->slug}/semesters/{$term->id}/close")
             ->assertRedirect("/{$tenant->slug}/semesters")
             ->assertSessionHas('error');
     }
@@ -66,13 +61,12 @@ class AcademicTermTest extends ApiTestCase
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
         $term = $this->createTerm($tenant);
-        $course = $this->createCourse($tenant, $lecturer, ['academic_term_id' => $term->id]);
 
         $this->actingAs($lecturer)
-            ->post("/{$tenant->slug}/semesters/{$term->id}/archive-courses")
+            ->post("/{$tenant->slug}/semesters/{$term->id}/close")
             ->assertForbidden();
 
-        $this->assertSame('active', $course->fresh()->status);
+        $this->assertFalse($term->fresh()->isClosed());
     }
 
     public function test_a_semester_from_another_institution_is_not_reachable(): void
@@ -82,15 +76,12 @@ class AcademicTermTest extends ApiTestCase
 
         $other = $this->createTenant();
         $foreignTerm = $this->createTerm($other);
-        $foreignCourse = $this->createCourse($other, $this->createMember($other, 'lecturer'), [
-            'academic_term_id' => $foreignTerm->id,
-        ]);
 
         $this->actingAs($admin)
-            ->post("/{$tenant->slug}/semesters/{$foreignTerm->id}/archive-courses")
+            ->post("/{$tenant->slug}/semesters/{$foreignTerm->id}/close")
             ->assertNotFound();
 
-        $this->assertSame('active', $foreignCourse->fresh()->status);
+        $this->assertFalse(AcademicTerm::withoutGlobalScopes()->find($foreignTerm->id)->isClosed());
     }
 
     /**

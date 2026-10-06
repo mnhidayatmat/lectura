@@ -7,7 +7,7 @@ return [
     'new_plan' => 'Pelan Baharu',
     'no_plans' => 'Tiada pelan pembelajaran aktif lagi',
     'no_plans_desc' => 'Cipta pelan pembelajaran aktif pertama anda untuk mereka bentuk aktiviti kelas yang menarik untuk pelajar.',
-    'all_plans_desc' => 'Semua pelan pembelajaran aktif merentas kursus anda',
+    'all_plans_desc' => 'Pilih kursus untuk melihat dan membina pelan pembelajaran aktifnya',
     'no_plans_all_desc' => 'Anda belum mencipta sebarang pelan pembelajaran aktif. Pergi ke kursus untuk mencipta satu.',
     'view_all' => 'Lihat Semua',
     'drafts' => 'Draf',
@@ -209,5 +209,36 @@ return [
     'session_review' => 'Semakan Sesi',
     'your_response' => 'Respons Anda',
     'no_response_submitted' => 'Tiada respons dihantar.',
+
+    // Plan list order
+    'sort_manual' => 'Susunan manual',
+    'arrange_manually' => 'Susun secara manual',
+
+    // Quiz slot
+    'quiz' => 'Kuiz',
+    'quiz_time' => 'Masa kuiz',
+    'quiz_questions' => '{1} :count soalan|[2,*] :count soalan',
+    'quiz_join_code' => 'Kod sertai',
+    'quiz_status_ready' => 'Sedia untuk dimulakan',
+    'quiz_status_lobby' => 'Lobi dibuka',
+    'quiz_status_live' => 'Sedang berjalan',
+    'quiz_status_last_run' => 'Larian terakhir selesai',
+    'quiz_start' => 'Mula kuiz',
+    'quiz_open' => 'Buka kuiz',
+    'quiz_last_results' => 'Keputusan terakhir',
+    'quiz_link' => 'Kuiz',
+    'quiz_none' => 'Tiada kuiz',
+    'quiz_link_help' => 'Pautkan salah satu kuiz kursus ini; kad akan mendapat butang untuk membukanya.',
+
+    // Teaching slides
+    'session_flow' => 'Aliran sesi',
+    'slides_range' => 'Slaid :range',
+    'slides_to_teach' => 'Slaid untuk diajar',
+    'slide' => 'Slaid',
+    'slide_n' => 'Slaid :n',
+    'open_full_size' => 'Buka saiz penuh',
+    'close' => 'Tutup',
+    'previous' => 'Sebelumnya',
+    'next' => 'Seterusnya',
 
 ];

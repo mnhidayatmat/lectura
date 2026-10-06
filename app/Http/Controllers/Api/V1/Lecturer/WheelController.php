@@ -10,6 +10,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
+use App\Services\RandomWheel\WheelSpinService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -146,5 +147,35 @@ class WheelController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Publishes a spin the app has just chosen, so enrolled students can watch it land
+     * and their phones are alerted with who was picked once it stops.
+     */
+    public function storeSpin(Request $request, WheelSpinService $spins): JsonResponse
+    {
+        $this->ensureLecturer();
+
+        $data = $request->validate([
+            'session_id' => ['required', 'integer', 'exists:attendance_sessions,id'],
+            'candidate_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'candidate_ids.*' => ['integer'],
+            'winner_id' => ['required', 'integer'],
+            'turns' => ['required', 'integer', 'min:1', 'max:20'],
+            'duration_ms' => ['required', 'integer', 'min:1000', 'max:15000'],
+        ]);
+
+        $session = AttendanceSession::with('section.course')->find($data['session_id']);
+
+        if (! $session || ! $session->section?->course) {
+            abort(404, 'Attendance session not found.');
+        }
+
+        $this->authorizeCourse($session->section->course);
+
+        $spin = $spins->record($session, $request->user(), $data['candidate_ids'], (int) $data['winner_id'], (int) $data['turns'], (int) $data['duration_ms']);
+
+        return response()->json(['message' => 'Spin shared with the class.', 'data' => ['id' => $spin->id]]);
     }
 }

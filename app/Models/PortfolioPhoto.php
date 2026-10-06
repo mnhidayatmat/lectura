@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class PortfolioPhoto extends Model
 {
@@ -61,13 +62,13 @@ class PortfolioPhoto extends Model
 
     public function getPublicUrlAttribute(): string
     {
-        return asset('storage/' . $this->file_path);
+        return Storage::disk('media')->url($this->file_path);
     }
 
     public function getThumbnailUrlAttribute(): string
     {
         if ($this->thumbnail_path) {
-            return asset('storage/' . $this->thumbnail_path);
+            return Storage::disk('media')->url($this->thumbnail_path);
         }
         return $this->public_url;
     }

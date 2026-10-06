@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class ActiveLearningActivity extends Model
 {
@@ -15,7 +16,7 @@ class ActiveLearningActivity extends Model
         'description', 'instructions', 'solution', 'duration_minutes',
         'clo_ids', 'materials', 'grouping_strategy',
         'max_group_size', 'response_mode', 'response_type',
-        'poll_config', 'content_meta', 'ai_generated',
+        'poll_config', 'content_meta', 'quiz_session_id', 'ai_generated',
     ];
 
     protected function casts(): array
@@ -54,6 +55,11 @@ class ActiveLearningActivity extends Model
         return $this->hasMany(ActiveLearningGroup::class, 'active_learning_activity_id')->orderBy('sort_order');
     }
 
+    public function quizSession(): BelongsTo
+    {
+        return $this->belongsTo(QuizSession::class);
+    }
+
     public function pollOptions(): HasMany
     {
         return $this->hasMany(ActiveLearningPollOption::class, 'activity_id')->orderBy('sort_order');
@@ -67,6 +73,22 @@ class ActiveLearningActivity extends Model
     public function isGrouped(): bool
     {
         return in_array($this->type, ['pair', 'group']);
+    }
+
+    /**
+     * Lecture slides attached to a teaching step, stored in content_meta['slides']
+     * as [{number, title, path}] on the public media disk.
+     */
+    public function getSlidesAttribute(): array
+    {
+        return array_map(fn (array $slide) => [
+            'number' => $slide['number'] ?? null,
+            'title' => $slide['title'] ?? '',
+            'url' => Storage::disk('media')->url($slide['path']),
+        ], array_values(array_filter(
+            $this->content_meta['slides'] ?? [],
+            fn ($slide) => is_array($slide) && ! empty($slide['path'])
+        )));
     }
 
     public function getContentFocusBadgeAttribute(): ?array

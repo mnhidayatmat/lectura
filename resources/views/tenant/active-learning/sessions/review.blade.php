@@ -25,7 +25,7 @@
 
                 <div class="px-5 py-4">
                     @if($activity->instructions)
-                        <p class="text-sm text-slate-600 mb-3">{{ $activity->instructions }}</p>
+                        <div class="prose prose-sm prose-slate max-w-none text-slate-600 mb-3">{!! clean_html($activity->instructions) !!}</div>
                     @endif
 
                     @if($response)

@@ -40,6 +40,8 @@ class StudentGroupController extends Controller
 
             $courses = Course::whereIn('id', $allCourseIds)
                 ->with(['studentGroupSets' => fn ($q) => $q->withCount('groups')->latest(), 'academicTerm'])
+                ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
+                ->orderBy('code')
                 ->get();
 
             return view('tenant.student-groups.lecturer-index', compact('tenant', 'courses'));

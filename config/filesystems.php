@@ -47,6 +47,68 @@ return [
             'report' => false,
         ],
 
+        'contabo' => [
+            'driver' => 's3',
+            'key' => env('CONTABO_SPACES_KEY'),
+            'secret' => env('CONTABO_SPACES_SECRET'),
+            'region' => env('CONTABO_SPACES_REGION', 'default'),
+            'bucket' => env('CONTABO_SPACES_BUCKET', 'lectura'),
+            'url' => env('CONTABO_SPACES_CDN_URL'),
+            'endpoint' => env('CONTABO_SPACES_ENDPOINT'),
+            'root' => env('CONTABO_SPACES_ROOT', ''),
+            'use_path_style_endpoint' => env('CONTABO_SPACES_PATH_STYLE', true),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => true,
+        ],
+
+        // Every student and lecturer document goes through this disk.
+        // UPLOADS_DISK=contabo sends them to object storage; anything else
+        // keeps them on the private local disk (tests, offline dev).
+        'uploads' => env('UPLOADS_DISK', 'local') === 'contabo' ? [
+            'driver' => 's3',
+            'key' => env('CONTABO_SPACES_KEY'),
+            'secret' => env('CONTABO_SPACES_SECRET'),
+            'region' => env('CONTABO_SPACES_REGION', 'default'),
+            'bucket' => env('CONTABO_SPACES_BUCKET', 'lectura'),
+            'url' => env('CONTABO_SPACES_CDN_URL'),
+            'endpoint' => env('CONTABO_SPACES_ENDPOINT'),
+            'root' => env('CONTABO_SPACES_ROOT', ''),
+            'use_path_style_endpoint' => env('CONTABO_SPACES_PATH_STYLE', true),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => true,
+        ] : [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // Images shown directly in pages (portfolio photos, editor images).
+        // On Contabo they are public-read and linked through the CDN URL.
+        'media' => env('UPLOADS_DISK', 'local') === 'contabo' ? [
+            'driver' => 's3',
+            'key' => env('CONTABO_SPACES_KEY'),
+            'secret' => env('CONTABO_SPACES_SECRET'),
+            'region' => env('CONTABO_SPACES_REGION', 'default'),
+            'bucket' => env('CONTABO_SPACES_BUCKET', 'lectura'),
+            'url' => env('CONTABO_SPACES_CDN_URL'),
+            'endpoint' => env('CONTABO_SPACES_ENDPOINT'),
+            'root' => env('CONTABO_SPACES_ROOT', ''),
+            'use_path_style_endpoint' => env('CONTABO_SPACES_PATH_STYLE', true),
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => true,
+        ] : [
+            'driver' => 'local',
+            'root' => storage_path('app/public'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

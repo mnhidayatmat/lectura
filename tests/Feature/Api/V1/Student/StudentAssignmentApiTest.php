@@ -187,7 +187,7 @@ class StudentAssignmentApiTest extends ApiTestCase
 
     public function test_closed_assignments_stay_viewable_but_refuse_submissions(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
         $closed = $this->createAssignment($course, $lecturer, ['status' => 'marking']);
 
@@ -205,7 +205,7 @@ class StudentAssignmentApiTest extends ApiTestCase
 
     public function test_submits_files_and_notifies_the_lecturer(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         Notification::fake();
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
         $assignment = $this->createAssignment($course, $lecturer, ['deadline' => now()->addDay()]);
@@ -236,7 +236,7 @@ class StudentAssignmentApiTest extends ApiTestCase
 
     public function test_submission_after_the_deadline_is_flagged_late(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
         $assignment = $this->createAssignment($course, $lecturer, ['deadline' => now()->subDay()]);
 
@@ -335,16 +335,16 @@ class StudentAssignmentApiTest extends ApiTestCase
 
     public function test_downloads_the_instruction_file_and_own_submission_files(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
-        Storage::disk('local')->put('assignment-instructions/brief.pdf', '%PDF-1.4');
+        Storage::disk('uploads')->put('assignment-instructions/brief.pdf', '%PDF-1.4');
         $assignment = $this->createAssignment($course, $lecturer, [
             'instruction_file_path' => 'assignment-instructions/brief.pdf',
             'instruction_filename' => 'brief.pdf',
         ]);
 
         $submission = $this->submissionFor($assignment, $student);
-        Storage::disk('local')->put('submissions/'.$assignment->id.'/report.pdf', '%PDF-1.4');
+        Storage::disk('uploads')->put('submissions/'.$assignment->id.'/report.pdf', '%PDF-1.4');
         $file = SubmissionFile::create([
             'submission_id' => $submission->id,
             'file_name' => 'report.pdf',

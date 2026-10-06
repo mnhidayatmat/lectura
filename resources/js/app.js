@@ -5,6 +5,8 @@ import QRCode from 'qrcode';
 import tiptapEditor from './tiptap-editor';
 import { mathModal } from './tiptap-math';
 import groupChat from './group-chat';
+import activitySorter from './activity-sorter';
+import listSorter from './list-sorter';
 
 window.QRCode = QRCode;
 
@@ -24,6 +26,8 @@ window.LecturaScan = {
 Alpine.data('tiptapEditor', tiptapEditor);
 Alpine.data('mathModal', mathModal);
 Alpine.data('groupChat', groupChat);
+Alpine.data('activitySorter', activitySorter);
+Alpine.data('listSorter', listSorter);
 
 // Also expose on window for any inline x-data expressions
 window.tiptapEditor = tiptapEditor;

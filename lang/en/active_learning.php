@@ -7,7 +7,7 @@ return [
     'new_plan' => 'New Plan',
     'no_plans' => 'No active learning plans yet',
     'no_plans_desc' => 'Create your first active learning plan to design engaging classroom activities for your students.',
-    'all_plans_desc' => 'All active learning plans across your courses',
+    'all_plans_desc' => 'Choose a course to view and build its active learning plans',
     'no_plans_all_desc' => 'You have not created any active learning plans yet. Go to a course to create one.',
     'view_all' => 'View All',
     'drafts' => 'Drafts',
@@ -209,5 +209,36 @@ return [
     'session_review' => 'Session Review',
     'your_response' => 'Your Response',
     'no_response_submitted' => 'No response submitted.',
+
+    // Plan list order
+    'sort_manual' => 'Manual order',
+    'arrange_manually' => 'Arrange manually',
+
+    // Quiz slot
+    'quiz' => 'Quiz',
+    'quiz_time' => 'Quiz time',
+    'quiz_questions' => '{1} :count question|[2,*] :count questions',
+    'quiz_join_code' => 'Join code',
+    'quiz_status_ready' => 'Ready to start',
+    'quiz_status_lobby' => 'Lobby open',
+    'quiz_status_live' => 'Live now',
+    'quiz_status_last_run' => 'Last run finished',
+    'quiz_start' => 'Start quiz',
+    'quiz_open' => 'Open quiz',
+    'quiz_last_results' => 'Last results',
+    'quiz_link' => 'Quiz',
+    'quiz_none' => 'No quiz',
+    'quiz_link_help' => 'Link one of this course\'s quizzes; the card gets a button that opens it.',
+
+    // Teaching slides
+    'session_flow' => 'Session flow',
+    'slides_range' => 'Slides :range',
+    'slides_to_teach' => 'Slides to teach',
+    'slide' => 'Slide',
+    'slide_n' => 'Slide :n',
+    'open_full_size' => 'Open full size',
+    'close' => 'Close',
+    'previous' => 'Previous',
+    'next' => 'Next',
 
 ];

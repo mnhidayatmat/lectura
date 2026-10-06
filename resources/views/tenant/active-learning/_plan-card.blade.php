@@ -1,7 +1,12 @@
 @php $badge = $plan->statusBadge; @endphp
-<div class="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-sm transition-all overflow-hidden">
+@php $manual = $manual ?? false; @endphp
+<div class="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-sm transition-all overflow-hidden"
+     @if($manual) data-sort-id="{{ $plan->id }}" @dragstart.self="dragStart($event, $el)" @dragover="dragOver($event, $el)" @drop.prevent @dragend.self="dragEnd()" @endif>
     <div class="px-5 py-4 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0">
+            @if($manual)
+                <x-sort-controls class="-ml-2" :first="$first" :last="$last" />
+            @endif
             <div class="w-11 h-11 rounded-xl {{ $plan->status === 'published' ? 'bg-emerald-100' : ($plan->status === 'archived' ? 'bg-slate-50' : 'bg-amber-50') }} flex items-center justify-center flex-shrink-0">
                 @if($plan->week_number)
                     <span class="text-sm font-bold {{ $plan->status === 'published' ? 'text-emerald-700' : ($plan->status === 'archived' ? 'text-slate-400' : 'text-amber-700') }}">W{{ $plan->week_number }}</span>

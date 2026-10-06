@@ -168,11 +168,11 @@ class MarkController extends Controller
             return redirect()->away($score->answer_script_drive_link);
         }
 
-        if (! Storage::disk('local')->exists($score->answer_script_path)) {
+        if (! Storage::disk('uploads')->exists($score->answer_script_path)) {
             abort(404);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $score->answer_script_path,
             $score->answer_script_filename ?? 'answer-script.pdf'
         );

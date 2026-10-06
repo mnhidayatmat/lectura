@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\AI\AiServiceManager;
+use App\Services\Course\CourseContextService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\MailManager;
@@ -19,7 +21,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(\App\Services\AI\AiServiceManager::class);
+        $this->app->singleton(AiServiceManager::class);
+        $this->app->singleton(CourseContextService::class);
     }
 
     /**

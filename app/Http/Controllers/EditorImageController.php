@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class EditorImageController extends Controller
 {
@@ -44,16 +45,15 @@ class EditorImageController extends Controller
 
                 return response()->json(['url' => $url]);
             } catch (\Throwable $e) {
-                // Fall through to local storage if Drive fails
+                // Fall through to object storage if Drive fails
                 report($e);
             }
         }
 
-        // Fallback: store locally
-        $path = $file->store('editor-images/' . date('Y/m'), 'public');
+        $path = $file->store('editor-images/' . date('Y/m'), 'media');
 
         return response()->json([
-            'url' => asset('storage/' . $path),
+            'url' => Storage::disk('media')->url($path),
         ]);
     }
 }

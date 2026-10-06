@@ -380,7 +380,7 @@ class StudentAttendanceApiTest extends ApiTestCase
 
     public function test_submits_an_excuse_with_an_attachment(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         [$tenant, $lecturer, $student, , $section] = $this->enrolledStudent();
         $session = $this->createAttendanceSession($section, $lecturer, ['status' => 'ended']);
         $record = AttendanceRecord::create([

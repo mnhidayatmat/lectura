@@ -123,11 +123,11 @@ class AssignmentController extends Controller
         ];
 
         if ($request->hasFile('answer_scheme_file')) {
-            if ($assignment->answer_scheme_path && \Storage::disk('local')->exists($assignment->answer_scheme_path)) {
-                \Storage::disk('local')->delete($assignment->answer_scheme_path);
+            if ($assignment->answer_scheme_path && \Storage::disk('uploads')->exists($assignment->answer_scheme_path)) {
+                \Storage::disk('uploads')->delete($assignment->answer_scheme_path);
             }
             $file = $request->file('answer_scheme_file');
-            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'local');
+            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'uploads');
             $schemeData['answer_scheme_filename'] = $file->getClientOriginalName();
         }
 
@@ -231,7 +231,7 @@ class AssignmentController extends Controller
 
         if ($request->hasFile('answer_scheme_file')) {
             $file = $request->file('answer_scheme_file');
-            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'local');
+            $schemeData['answer_scheme_path'] = $file->store('answer-schemes', 'uploads');
             $schemeData['answer_scheme_filename'] = $file->getClientOriginalName();
 
             if ($driveService && $courseFolderId) {
@@ -260,7 +260,7 @@ class AssignmentController extends Controller
 
         if ($request->hasFile('instruction_file')) {
             $file = $request->file('instruction_file');
-            $instructionData['instruction_file_path'] = $file->store('assignment-instructions', 'local');
+            $instructionData['instruction_file_path'] = $file->store('assignment-instructions', 'uploads');
             $instructionData['instruction_filename'] = $file->getClientOriginalName();
 
             if ($driveService && $courseFolderId) {
@@ -506,7 +506,7 @@ class AssignmentController extends Controller
             }
 
             foreach ($request->file('files') as $file) {
-                $path = $file->store('submissions/' . $assignment->id, 'local');
+                $path = $file->store('submissions/' . $assignment->id, 'uploads');
                 $driveFileId = null;
 
                 if ($driveFolderId && $lecturer) {
@@ -739,15 +739,15 @@ class AssignmentController extends Controller
         }
 
         // Serve from local storage
-        if (! Storage::disk('local')->exists($assignment->instruction_file_path)) {
+        if (! Storage::disk('uploads')->exists($assignment->instruction_file_path)) {
             abort(404);
         }
 
         return response(
-            Storage::disk('local')->get($assignment->instruction_file_path),
+            Storage::disk('uploads')->get($assignment->instruction_file_path),
             200,
             [
-                'Content-Type' => Storage::disk('local')->mimeType($assignment->instruction_file_path),
+                'Content-Type' => Storage::disk('uploads')->mimeType($assignment->instruction_file_path),
                 'Content-Disposition' => 'inline; filename="' . $assignment->instruction_filename . '"',
             ]
         );
@@ -781,20 +781,20 @@ class AssignmentController extends Controller
         // Clean up local submission files
         foreach ($assignment->submissions as $submission) {
             foreach ($submission->files as $file) {
-                if ($file->storage_path && Storage::disk('local')->exists($file->storage_path)) {
-                    Storage::disk('local')->delete($file->storage_path);
+                if ($file->storage_path && Storage::disk('uploads')->exists($file->storage_path)) {
+                    Storage::disk('uploads')->delete($file->storage_path);
                 }
             }
         }
 
         // Clean up answer scheme file
-        if ($assignment->answer_scheme_path && Storage::disk('local')->exists($assignment->answer_scheme_path)) {
-            Storage::disk('local')->delete($assignment->answer_scheme_path);
+        if ($assignment->answer_scheme_path && Storage::disk('uploads')->exists($assignment->answer_scheme_path)) {
+            Storage::disk('uploads')->delete($assignment->answer_scheme_path);
         }
 
         // Clean up instruction file
-        if ($assignment->instruction_file_path && Storage::disk('local')->exists($assignment->instruction_file_path)) {
-            Storage::disk('local')->delete($assignment->instruction_file_path);
+        if ($assignment->instruction_file_path && Storage::disk('uploads')->exists($assignment->instruction_file_path)) {
+            Storage::disk('uploads')->delete($assignment->instruction_file_path);
         }
     }
 

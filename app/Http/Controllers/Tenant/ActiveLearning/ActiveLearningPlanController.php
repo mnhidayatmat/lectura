@@ -5,33 +5,47 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant\ActiveLearning;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ActiveLearning\StorePlanRequest;
 use App\Http\Requests\ActiveLearning\UpdatePlanRequest;
-use App\Jobs\GenerateActiveLearningPlan;
 use App\Models\ActiveLearningPlan;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\CourseFile;
+use App\Models\QuizSession;
 use App\Models\Section;
+use App\Models\SectionStudent;
 use App\Services\ActiveLearning\ActiveLearningPlanService;
 use App\Services\ActiveLearning\TierGateService;
+use App\Services\AI\ActiveLearningGeneratorService;
+use App\Services\AI\AiServiceManager;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Smalot\PdfParser\Parser;
 
 class ActiveLearningPlanController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected ActiveLearningPlanService $planService,
         protected TierGateService $tierGate,
     ) {}
 
-    public function all(Request $request): View
+    public function all(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.active-learning.index')) {
+            return $redirect;
+        }
+
         $tenant = app('current_tenant');
         $user = auth()->user();
 
@@ -39,17 +53,27 @@ class ActiveLearningPlanController extends Controller
         $sectionIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
         $courseIds = $ownedIds->merge($sectionIds)->unique();
 
-        $courses = Course::whereIn('id', $courseIds)->latest()->get();
+        $plans = ActiveLearningPlan::whereIn('course_id', $courseIds)
+            ->withCount('activities')
+            ->get();
+        $plansByCourse = $plans->groupBy('course_id');
 
-        $sort = $this->resolvePlanSort($request, 'active_learning_all_sort');
-        $plans = $this->applyPlanSort(
-            ActiveLearningPlan::whereIn('course_id', $courseIds)
-                ->withCount('activities')
-                ->with(['course', 'topic']),
-            $sort
-        )->get();
+        $courses = Course::whereIn('id', $courseIds)
+            ->with('academicTerm')
+            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('code')
+            ->get()
+            ->each(function (Course $course) use ($plansByCourse) {
+                $coursePlans = $plansByCourse->get($course->id, collect());
+                $course->plan_stats = [
+                    'plans' => $coursePlans->count(),
+                    'published' => $coursePlans->where('status', 'published')->count(),
+                    'activities' => $coursePlans->sum('activities_count'),
+                    'updated' => $coursePlans->max('updated_at'),
+                ];
+            });
 
-        return view('tenant.active-learning.all', compact('tenant', 'courses', 'plans', 'sort'));
+        return view('tenant.active-learning.all', compact('tenant', 'courses'));
     }
 
     public function index(Request $request, string $tenantSlug, Course $course): View
@@ -71,12 +95,12 @@ class ActiveLearningPlanController extends Controller
 
     protected function resolvePlanSort(Request $request, string $sessionKey): string
     {
-        $allowed = ['latest', 'oldest', 'title_asc', 'title_desc', 'week', 'duration'];
+        $allowed = ['manual', 'latest', 'oldest', 'title_asc', 'title_desc', 'week', 'duration'];
 
         if ($request->query->has('sort')) {
-            $sort = (string) $request->query('sort', 'latest');
+            $sort = (string) $request->query('sort', 'manual');
             if (! in_array($sort, $allowed, true)) {
-                $sort = 'latest';
+                $sort = 'manual';
             }
             session()->put($sessionKey, $sort);
 
@@ -85,19 +109,36 @@ class ActiveLearningPlanController extends Controller
 
         $stored = session($sessionKey);
 
-        return in_array($stored, $allowed, true) ? $stored : 'latest';
+        return in_array($stored, $allowed, true) ? $stored : 'manual';
     }
 
-    protected function applyPlanSort(\Illuminate\Database\Eloquent\Builder $query, string $sort): \Illuminate\Database\Eloquent\Builder
+    protected function applyPlanSort(Builder $query, string $sort): Builder
     {
         return match ($sort) {
-            'oldest'     => $query->orderBy('created_at', 'asc'),
-            'title_asc'  => $query->orderBy('title', 'asc'),
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            'title_asc' => $query->orderBy('title', 'asc'),
             'title_desc' => $query->orderBy('title', 'desc'),
-            'week'       => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
-            'duration'   => $query->orderBy('duration_minutes', 'desc'),
-            default      => $query->latest(),
+            'week' => $query->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number', 'asc')->orderBy('created_at', 'desc'),
+            'duration' => $query->orderBy('duration_minutes', 'desc'),
+            'latest' => $query->latest(),
+            default => $query->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')->orderBy('sort_order')
+                ->orderByRaw('CASE WHEN week_number IS NULL THEN 1 ELSE 0 END')->orderBy('week_number')->orderBy('id'),
         };
+    }
+
+    public function reorder(Request $request, string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
+
+        $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer'],
+        ]);
+
+        $this->planService->reorderPlans($course, $request->input('ordered_ids'));
+        session()->put("active_learning_index_sort.{$course->id}", 'manual');
+
+        return response()->json(['success' => true]);
     }
 
     public function create(string $tenantSlug, Course $course): View
@@ -130,7 +171,7 @@ class ActiveLearningPlanController extends Controller
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
-        $plan->load(['activities.groups.students', 'topic', 'creator']);
+        $plan->load(['activities.groups.students', 'activities.quizSession' => fn ($q) => $q->withCount('sessionQuestions'), 'topic', 'creator']);
         $course->load('learningOutcomes');
         $tenant = app('current_tenant');
 
@@ -143,7 +184,7 @@ class ActiveLearningPlanController extends Controller
 
         $this->assertPlanBelongsToCourse($plan, $course);
 
-        $plan->load(['activities.groups.students', 'topic']);
+        $plan->load(['activities.groups.students', 'activities.quizSession' => fn ($q) => $q->withCount('sessionQuestions'), 'topic']);
         $course->load(['topics', 'learningOutcomes', 'sections']);
         $tenant = app('current_tenant');
 
@@ -172,8 +213,12 @@ class ActiveLearningPlanController extends Controller
             ->get()
             ->filter(fn ($s) => $s->files->isNotEmpty());
 
+        $courseQuizzes = QuizSession::whereIn('section_id', $sectionIds)
+            ->latest()
+            ->get(['id', 'title', 'status', 'join_code']);
+
         return view('tenant.active-learning.edit', compact(
-            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles', 'materialSections'
+            'course', 'plan', 'tenant', 'attendanceSessions', 'courseFiles', 'materialSections', 'courseQuizzes'
         ));
     }
 
@@ -232,19 +277,19 @@ class ActiveLearningPlanController extends Controller
         }
 
         $request->validate([
-            'lecture_notes'       => ['nullable', 'string', 'max:50000'],
-            'lecture_notes_file'  => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'material_file_ids'   => ['nullable', 'array'],
+            'lecture_notes' => ['nullable', 'string', 'max:50000'],
+            'lecture_notes_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'material_file_ids' => ['nullable', 'array'],
             'material_file_ids.*' => ['integer', 'exists:course_files,id'],
-            'student_count'       => ['nullable', 'integer', 'min:1', 'max:500'],
-            'total_duration'      => ['nullable', 'integer', 'min:5', 'max:480'],
+            'student_count' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'total_duration' => ['nullable', 'integer', 'min:5', 'max:480'],
             'teaching_preferences' => ['nullable', 'string', 'max:1000'],
-            'content_focus'       => ['nullable', 'string', 'in:mixed,case_study,technical_problem,general'],
+            'content_focus' => ['nullable', 'string', 'in:mixed,case_study,technical_problem,general'],
         ]);
 
         // Use user-provided values or fall back to auto-detected
         $studentCount = $request->integer('student_count')
-            ?: \App\Models\SectionStudent::whereHas(
+            ?: SectionStudent::whereHas(
                 'section',
                 fn ($q) => $q->where('course_id', $course->id)
             )->where('is_active', true)->distinct('user_id')->count('user_id');
@@ -260,13 +305,13 @@ class ActiveLearningPlanController extends Controller
 
         // Prepend teaching preferences if provided
         if ($request->filled('teaching_preferences')) {
-            $lectureNotes = "Teaching Preferences: {$request->input('teaching_preferences')}\n\n" . $lectureNotes;
+            $lectureNotes = "Teaching Preferences: {$request->input('teaching_preferences')}\n\n".$lectureNotes;
         }
 
         // Append text from uploaded PDF
         if ($request->hasFile('lecture_notes_file')) {
             $pdfText = $this->extractPdfText($request->file('lecture_notes_file'));
-            $lectureNotes = trim($lectureNotes . "\n\n" . $pdfText);
+            $lectureNotes = trim($lectureNotes."\n\n".$pdfText);
         }
 
         // Append content from selected course materials
@@ -281,17 +326,19 @@ class ActiveLearningPlanController extends Controller
                     $chunk .= "\nDescription: {$file->description}";
                 }
                 if ($file->storage_path && str_contains($file->file_type ?? '', 'pdf')) {
-                    $fullPath = storage_path('app/' . $file->storage_path);
-                    if (file_exists($fullPath)) {
+                    if (Storage::disk('uploads')->exists($file->storage_path)) {
+                        $fullPath = tempnam(sys_get_temp_dir(), 'al-pdf-');
+                        file_put_contents($fullPath, Storage::disk('uploads')->get($file->storage_path));
                         $extracted = $this->extractPdfTextFromPath($fullPath);
+                        @unlink($fullPath);
                         if ($extracted) {
-                            $chunk .= "\n" . $extracted;
+                            $chunk .= "\n".$extracted;
                         }
                     }
                 } elseif ($file->url) {
                     $chunk .= "\nURL: {$file->url}";
                 }
-                $lectureNotes = trim($lectureNotes . "\n\n" . $chunk);
+                $lectureNotes = trim($lectureNotes."\n\n".$chunk);
             }
         }
 
@@ -304,8 +351,8 @@ class ActiveLearningPlanController extends Controller
         ]);
 
         try {
-            app(\App\Services\AI\AiServiceManager::class)->resetProvider();
-            app(\App\Services\AI\ActiveLearningGeneratorService::class)
+            app(AiServiceManager::class)->resetProvider();
+            app(ActiveLearningGeneratorService::class)
                 ->generate($plan, $lectureNotes ?: null, $studentCount, $request->input('content_focus', 'mixed'));
 
             $plan->update([
@@ -318,14 +365,14 @@ class ActiveLearningPlanController extends Controller
 
             return back()->with('success', "AI generated {$activityCount} activities. Review them below and accept or adjust.");
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Active learning AI generation failed', [
+            Log::error('Active learning AI generation failed', [
                 'plan_id' => $plan->id,
                 'error' => $e->getMessage(),
             ]);
 
             $plan->update(['ai_generation_status' => 'failed']);
 
-            return back()->withErrors(['ai' => 'AI generation failed: ' . $e->getMessage()]);
+            return back()->withErrors(['ai' => 'AI generation failed: '.$e->getMessage()]);
         }
     }
 
@@ -353,7 +400,7 @@ class ActiveLearningPlanController extends Controller
         return back()->with('success', __('active_learning.ai_draft_discarded'));
     }
 
-    protected function extractPdfText(\Illuminate\Http\UploadedFile $file): string
+    protected function extractPdfText(UploadedFile $file): string
     {
         return $this->extractPdfTextFromPath($file->getRealPath());
     }
@@ -361,16 +408,17 @@ class ActiveLearningPlanController extends Controller
     protected function extractPdfTextFromPath(string $path): string
     {
         try {
-            $parser = new \Smalot\PdfParser\Parser();
-            $pdf    = $parser->parseFile($path);
-            $text   = $pdf->getText();
+            $parser = new Parser;
+            $pdf = $parser->parseFile($path);
+            $text = $pdf->getText();
 
             // Limit to 50K chars to avoid prompt overflow
             return mb_substr($text, 0, 50000);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('PDF text extraction failed', [
+            Log::warning('PDF text extraction failed', [
                 'error' => $e->getMessage(),
             ]);
+
             return '';
         }
     }

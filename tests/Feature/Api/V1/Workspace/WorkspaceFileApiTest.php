@@ -30,7 +30,7 @@ class WorkspaceFileApiTest extends ApiTestCase
     {
         parent::setUp();
 
-        Storage::fake('local');
+        Storage::fake('uploads');
 
         $this->tenant = $this->createTenant();
         $this->course = $this->createCourse($this->tenant, $this->createMember($this->tenant, 'lecturer'));
@@ -54,7 +54,7 @@ class WorkspaceFileApiTest extends ApiTestCase
             ->assertJsonPath('data.can_delete', true);
 
         $file = StudentGroupFile::firstOrFail();
-        Storage::disk('local')->assertExists($file->storage_path);
+        Storage::disk('uploads')->assertExists($file->storage_path);
         $this->assertStringEndsWith("/workspace/{$this->group->id}/files/{$file->id}/download", $response->json('data.download_url'));
 
         $this->getJson($this->url('files'))
@@ -124,7 +124,7 @@ class WorkspaceFileApiTest extends ApiTestCase
 
         $this->actingAsApi($this->leader)->deleteJson($this->url("files/{$memberFile->id}"))->assertOk();
         $this->assertSoftDeleted('student_group_files', ['id' => $memberFile->id]);
-        Storage::disk('local')->assertMissing($memberFile->storage_path);
+        Storage::disk('uploads')->assertMissing($memberFile->storage_path);
     }
 
     public function test_drive_file_download_returns_external_url(): void
@@ -171,7 +171,7 @@ class WorkspaceFileApiTest extends ApiTestCase
     private function storeLocalFile(User $uploader): StudentGroupFile
     {
         $path = "workspace/{$this->group->id}/".uniqid().'.pdf';
-        Storage::disk('local')->put($path, 'content');
+        Storage::disk('uploads')->put($path, 'content');
 
         return StudentGroupFile::create([
             'student_group_id' => $this->group->id,

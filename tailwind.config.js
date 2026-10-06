@@ -9,6 +9,7 @@ export default {
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
+        './app/View/**/*.php',
     ],
 
     theme: {
@@ -25,7 +26,7 @@ export default {
     // though the raw class string is never written literally in any file.
     safelist: [
         {
-            pattern: /^(bg|text|border|border-l)-(indigo|emerald|amber|rose|sky|violet|teal|fuchsia|cyan|lime|orange|pink)-(100|300|400|500|700|900)$/,
+            pattern: /^(bg|text|border|border-l)-(indigo|blue|emerald|amber|rose|sky|violet|teal|fuchsia|cyan|lime|orange|pink)-(100|300|400|500|700|900)$/,
             variants: ['dark', 'hover', 'dark:hover'],
         },
         {

@@ -130,11 +130,12 @@
         </div>
 
         {{-- Section B: Activities --}}
-        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden" x-data="activitySorter({ url: @js(route('tenant.active-learning.activities.reorder', [$tenant->slug, $course, $plan])) })">
             <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <h3 class="font-semibold text-slate-900">{{ __('active_learning.activities') }}</h3>
                     <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">{{ $plan->activities->count() }}</span>
+                    <x-sort-status />
                 </div>
                 @php
                     $usedMinutes = $plan->activities->sum('duration_minutes') ?? 0;
@@ -151,13 +152,15 @@
                 </div>
             </div>
 
-            <div class="divide-y divide-slate-100">
+            <div class="divide-y divide-slate-100" x-ref="list">
                 @forelse($plan->activities as $activity)
-                    <div class="p-6" x-data="{ expanded: {{ $errors->any() ? 'true' : 'false' }}, editing: {{ $errors->any() ? 'true' : 'false' }} }">
+                    <div class="p-6" data-activity-id="{{ $activity->id }}" data-duration="{{ (int) $activity->duration_minutes }}"
+                         @dragstart.self="dragStart($event, $el)" @dragover="dragOver($event, $el)" @drop.prevent @dragend.self="dragEnd()"
+                         x-data="{ expanded: {{ $errors->any() ? 'true' : 'false' }}, editing: {{ $errors->any() ? 'true' : 'false' }} }">
                         <div class="flex items-start justify-between cursor-pointer" @click="expanded = !expanded">
                             <div class="flex items-start gap-3">
                                 @php $typeBadge = $activity->typeBadge; @endphp
-                                <span class="w-8 h-8 rounded-lg bg-{{ $typeBadge['color'] }}-100 flex items-center justify-center text-xs font-bold text-{{ $typeBadge['color'] }}-700 flex-shrink-0 mt-0.5">{{ $loop->iteration }}</span>
+                                <span class="w-8 h-8 rounded-lg bg-{{ $typeBadge['color'] }}-100 flex items-center justify-center text-xs font-bold text-{{ $typeBadge['color'] }}-700 flex-shrink-0 mt-0.5" data-activity-number>{{ $loop->iteration }}</span>
                                 <div>
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h4 class="text-sm font-semibold text-slate-900">{{ $activity->title }}</h4>
@@ -178,10 +181,17 @@
                                     @endif
                                 </div>
                             </div>
-                            <svg class="w-4 h-4 text-slate-400 transition-transform flex-shrink-0 mt-1" :class="expanded && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            <div class="flex items-start gap-2 flex-shrink-0">
+                                <x-sort-controls item="activity-id" :first="$loop->first" :last="$loop->last" />
+                                <svg class="w-4 h-4 text-slate-400 transition-transform flex-shrink-0 mt-1" :class="expanded && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
                         </div>
 
                         <div x-show="expanded" x-cloak x-transition class="mt-4 space-y-4">
+                            @include('tenant.active-learning._quiz-slot')
+
+                            @include('tenant.active-learning._slides')
+
                             {{-- Activity Details --}}
                             @if($activity->instructions)
                                 <div>
@@ -390,6 +400,7 @@
                                             <input type="number" name="max_group_size" value="{{ $activity->max_group_size }}" min="2" max="50" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm">
                                         </div>
                                     </div>
+                                    @include('tenant.active-learning._quiz-select', ['selected' => $activity->quiz_session_id])
                                     {{-- Response Configuration --}}
                                     <div class="border border-slate-200 rounded-lg p-3 space-y-3" x-data="{ editResponseType: '{{ $activity->response_type ?? 'none' }}' }">
                                         <h5 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">{{ __('active_learning.response_config') }}</h5>
@@ -534,6 +545,7 @@
                                     <input type="number" name="max_group_size" min="2" max="50" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="4">
                                 </div>
                             </div>
+                            @include('tenant.active-learning._quiz-select', ['selected' => null])
                             {{-- Response Configuration --}}
                             <div class="border border-slate-200 rounded-lg p-4 space-y-3" x-data="{ responseType: 'none' }">
                                 <h5 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">{{ __('active_learning.response_config') }}</h5>

@@ -62,6 +62,10 @@ class AttendanceExcuseController extends Controller
     {
         $this->authorizeExcuse($excuse);
 
+        if ($error = $this->semesterClosedError($excuse)) {
+            return back()->with('error', $error);
+        }
+
         $request->validate([
             'note' => ['nullable', 'string', 'max:500'],
         ]);
@@ -81,6 +85,10 @@ class AttendanceExcuseController extends Controller
     public function reject(Request $request, string $tenantSlug, AttendanceExcuse $excuse): RedirectResponse
     {
         $this->authorizeExcuse($excuse);
+
+        if ($error = $this->semesterClosedError($excuse)) {
+            return back()->with('error', $error);
+        }
 
         $request->validate([
             'note' => ['nullable', 'string', 'max:500'],
@@ -102,8 +110,20 @@ class AttendanceExcuseController extends Controller
             abort(404);
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('local')
+        return \Illuminate\Support\Facades\Storage::disk('uploads')
             ->download($excuse->attachment_path, $excuse->attachment_filename);
+    }
+
+    /**
+     * Pending excuses stay reviewable after the edit window passes, so one submitted
+     * near its end can still be decided; only closing the semester (or archiving
+     * the course) stops review.
+     */
+    protected function semesterClosedError(AttendanceExcuse $excuse): ?string
+    {
+        $session = $excuse->record->session;
+
+        return in_array($session->lockReason(), ['semester_closed', 'course_archived'], true) ? $session->lockMessage() : null;
     }
 
     protected function authorizeExcuse(AttendanceExcuse $excuse): void

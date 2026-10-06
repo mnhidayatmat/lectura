@@ -72,7 +72,7 @@ class StudentAttendanceController extends Controller
         // Get all sessions with this student's records
         $sessions = AttendanceSession::whereIn('section_id', $mySectionIds)
             ->where('status', 'ended')
-            ->with(['section'])
+            ->with(['section.course'])
             ->orderByDesc('started_at')
             ->get();
 
@@ -108,6 +108,10 @@ class StudentAttendanceController extends Controller
 
         if ($record->excuse) {
             return back()->with('error', 'An excuse has already been submitted for this session.');
+        }
+
+        if ($record->session?->isLocked()) {
+            return back()->with('error', 'This session is closed, so excuses can no longer be submitted. Contact your lecturer.');
         }
 
         $request->validate([

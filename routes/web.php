@@ -1,46 +1,69 @@
 <?php
 
-use App\Http\Controllers\McpController;
-use App\Http\Controllers\McpOAuthController;
 use App\Http\Controllers\Admin\AiProviderController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\OnboardingController;
+use App\Http\Controllers\EditorImageController;
+use App\Http\Controllers\McpController;
 // AnalyticsController removed — analytics routes now redirect to PerformanceController
-use App\Http\Controllers\Tenant\AssignmentController;
-use App\Http\Controllers\Tenant\AttendanceController;
-use App\Http\Controllers\Tenant\AttendanceExcuseController;
-use App\Http\Controllers\Tenant\AttendancePolicyController;
-use App\Http\Controllers\Tenant\AttendanceReportController;
-use App\Http\Controllers\Tenant\QuizController;
-use App\Http\Controllers\Tenant\StudentGroupController;
-use App\Http\Controllers\Tenant\SubmissionAnnotationController;
-use App\Http\Controllers\Tenant\CloController;
-use App\Http\Controllers\Tenant\CourseController;
-use App\Http\Controllers\Tenant\CourseFileController;
-use App\Http\Controllers\Tenant\CourseMaterialController;
-use App\Http\Controllers\Tenant\EpisodeContentController;
-use App\Http\Controllers\Tenant\EpisodeController;
-use App\Http\Controllers\Tenant\Assessment\AssessmentPlanController;
-use App\Http\Controllers\Tenant\Assessment\AssessmentItemController;
-use App\Http\Controllers\Tenant\Assessment\AssessmentReportController;
-use App\Http\Controllers\Tenant\Assessment\AssessmentScoreController;
-use App\Http\Controllers\Tenant\Assessment\PloController;
-use App\Http\Controllers\Tenant\Assessment\CloPlOMapController;
-use App\Http\Controllers\Tenant\PortfolioController;
+use App\Http\Controllers\McpOAuthController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\AcademicTermController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningActivityController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningGroupController;
 use App\Http\Controllers\Tenant\ActiveLearning\ActiveLearningPlanController;
 use App\Http\Controllers\Tenant\ActiveLearning\SessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\StudentSessionController;
 use App\Http\Controllers\Tenant\ActiveLearning\TenantAiSettingsController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentItemController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentPlanController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentReportController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentScoreController;
+use App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController;
+use App\Http\Controllers\Tenant\Assessment\CloPlOMapController;
+use App\Http\Controllers\Tenant\Assessment\PloController;
+use App\Http\Controllers\Tenant\AssignmentController;
+use App\Http\Controllers\Tenant\AttendanceController;
+use App\Http\Controllers\Tenant\AttendanceExcuseController;
+use App\Http\Controllers\Tenant\AttendancePolicyController;
+use App\Http\Controllers\Tenant\AttendanceReportController;
+use App\Http\Controllers\Tenant\CloController;
+use App\Http\Controllers\Tenant\CourseContextController;
+use App\Http\Controllers\Tenant\DashboardController;
+use App\Http\Controllers\Tenant\CourseController;
+use App\Http\Controllers\Tenant\CourseFileController;
+use App\Http\Controllers\Tenant\CourseMaterialController;
+use App\Http\Controllers\Tenant\EpisodeContentController;
+use App\Http\Controllers\Tenant\EpisodeController;
 use App\Http\Controllers\Tenant\NotificationController;
 use App\Http\Controllers\Tenant\PerformanceController;
+use App\Http\Controllers\Tenant\PortfolioController;
+use App\Http\Controllers\Tenant\QuizController;
+use App\Http\Controllers\Tenant\RandomWheelController;
+use App\Http\Controllers\Tenant\RoleSwitchController;
+use App\Http\Controllers\Tenant\SectionController;
+use App\Http\Controllers\Tenant\SettingsController;
 use App\Http\Controllers\Tenant\StudentAttendanceController;
 use App\Http\Controllers\Tenant\StudentCourseController;
-use App\Http\Controllers\Tenant\SectionController;
-use App\Http\Controllers\Tenant\TeachingPlanController;
+use App\Http\Controllers\Tenant\StudentGroupController;
+use App\Http\Controllers\Tenant\StudentMarkController;
+use App\Http\Controllers\Tenant\SubmissionAnnotationController;
 use App\Http\Controllers\Tenant\TopicController;
 use App\Http\Controllers\Tenant\WhiteboardController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceChatController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceFileController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceMinuteController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceReportController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController;
+use App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController;
+use App\Models\AiUsageLog;
+use App\Models\Course;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Spatie\Activitylog\Models\Activity;
 
 // ── MCP OAuth 2.0 discovery (RFC 9728 + RFC 8414) ──────────────────────────────
 Route::get('/.well-known/oauth-protected-resource', [McpOAuthController::class, 'protectedResourceMetadata']);
@@ -96,8 +119,8 @@ Route::get('/dashboard', function () {
     return redirect()->route('onboarding');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/onboarding', [\App\Http\Controllers\Auth\OnboardingController::class, 'show'])->middleware('auth')->name('onboarding');
-Route::post('/onboarding', [\App\Http\Controllers\Auth\OnboardingController::class, 'store'])->middleware('auth')->name('onboarding.store');
+Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('auth')->name('onboarding');
+Route::post('/onboarding', [OnboardingController::class, 'store'])->middleware('auth')->name('onboarding.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -105,40 +128,48 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Editor image upload (tiptap paste/drop)
-    Route::post('/editor/upload-image', [\App\Http\Controllers\EditorImageController::class, 'upload'])->name('editor.upload-image');
+    Route::post('/editor/upload-image', [EditorImageController::class, 'upload'])->name('editor.upload-image');
 
     // Google Drive OAuth callback (outside tenant prefix since Google redirects here directly)
-    Route::get('/settings/drive/callback', [\App\Http\Controllers\Tenant\SettingsController::class, 'driveCallback'])->name('settings.drive.callback');
+    Route::get('/settings/drive/callback', [SettingsController::class, 'driveCallback'])->name('settings.drive.callback');
 });
 
 // ── Super Admin ──
 Route::prefix('admin')->middleware(['auth'])->group(function () {
     Route::get('/', function () {
-        if (! auth()->user()->is_super_admin) { abort(403); }
-        $tenants = \App\Models\Tenant::withCount('tenantUsers')->get();
-        $totalUsers = \App\Models\User::count();
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
+        $tenants = Tenant::withCount('tenantUsers')->get();
+        $totalUsers = User::count();
+
         return view('admin.dashboard', compact('tenants', 'totalUsers'));
     })->name('admin.dashboard');
 
     Route::get('/tenants', function () {
-        if (! auth()->user()->is_super_admin) { abort(403); }
-        $tenants = \App\Models\Tenant::withCount([
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
+        $tenants = Tenant::withCount([
             'tenantUsers',
             'tenantUsers as lecturers_count' => fn ($q) => $q->where('role', 'lecturer'),
             'tenantUsers as students_count' => fn ($q) => $q->where('role', 'student'),
         ])->latest()->get();
+
         return view('admin.tenants', compact('tenants'));
     })->name('admin.tenants');
 
-    Route::post('/tenants', function (\Illuminate\Http\Request $request) {
-        if (! auth()->user()->is_super_admin) { abort(403); }
+    Route::post('/tenants', function (Request $request) {
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', 'unique:tenants,slug', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
             'timezone' => ['required', 'string', 'timezone'],
             'locale' => ['required', 'in:en,ms'],
         ]);
-        $tenant = \App\Models\Tenant::create([
+        $tenant = Tenant::create([
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'timezone' => $validated['timezone'],
@@ -149,25 +180,33 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
                 'ai' => ['enabled' => true, 'provider' => 'claude'],
             ],
         ]);
-        return back()->with('success', $tenant->name . ' has been created successfully.');
+
+        return back()->with('success', $tenant->name.' has been created successfully.');
     })->name('admin.tenants.store');
 
     Route::get('/users', function () {
-        if (! auth()->user()->is_super_admin) { abort(403); }
-        $users = \App\Models\User::with('tenantUsers.tenant')->latest()->get();
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
+        $users = User::with('tenantUsers.tenant')->latest()->get();
+
         return view('admin.users', compact('users'));
     })->name('admin.users');
 
-    Route::post('/users/{user}/impersonate', function (\App\Models\User $user) {
-        if (! auth()->user()->is_super_admin) { abort(403); }
+    Route::post('/users/{user}/impersonate', function (User $user) {
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
         session()->put('impersonator_id', auth()->id());
         auth()->login($user);
         // Redirect to first tenant dashboard or home
         $tenantUser = $user->tenantUsers()->where('is_active', true)->first();
         if ($tenantUser) {
             $tenant = $tenantUser->tenant;
-            return redirect('/' . $tenant->slug . '/dashboard');
+
+            return redirect('/'.$tenant->slug.'/dashboard');
         }
+
         return redirect('/');
     })->name('admin.users.impersonate');
 
@@ -176,21 +215,27 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
         if ($impersonatorId) {
             auth()->loginUsingId($impersonatorId);
         }
+
         return redirect()->route('admin.users');
     })->name('admin.impersonate.stop');
 
-    Route::post('/users/{user}/toggle-pro', function (\App\Models\User $user) {
-        if (! auth()->user()->is_super_admin) { abort(403); }
+    Route::post('/users/{user}/toggle-pro', function (User $user) {
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
         $user->is_pro = ! $user->is_pro;
         $user->save();
         $status = $user->is_pro ? 'Pro' : 'Free';
-        return back()->with('success', $user->name . ' is now on ' . $status . ' plan.');
+
+        return back()->with('success', $user->name.' is now on '.$status.' plan.');
     })->name('admin.users.toggle-pro');
 
-    Route::get('/ai-usage', function (\Illuminate\Http\Request $request) {
-        if (! auth()->user()->is_super_admin) { abort(403); }
+    Route::get('/ai-usage', function (Request $request) {
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
 
-        $query = \App\Models\AiUsageLog::query()->withoutGlobalScopes();
+        $query = AiUsageLog::query()->withoutGlobalScopes();
         $period = $request->input('period', '30');
 
         if ($period !== 'all') {
@@ -226,7 +271,7 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 
         // By tenant
         $tenantIds = $logs->pluck('tenant_id')->unique()->filter();
-        $tenants = \App\Models\Tenant::whereIn('id', $tenantIds)->pluck('name', 'id');
+        $tenants = Tenant::whereIn('id', $tenantIds)->pluck('name', 'id');
         $byTenant = $logs->groupBy('tenant_id')->map(fn ($items, $tenantId) => [
             'name' => $tenants[$tenantId] ?? 'Unknown',
             'calls' => $items->count(),
@@ -235,12 +280,12 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
         ])->sortByDesc('calls');
 
         // Recent logs with user info
-        $recentLogs = \App\Models\AiUsageLog::query()->withoutGlobalScopes()
+        $recentLogs = AiUsageLog::query()->withoutGlobalScopes()
             ->with('user')
             ->latest('created_at')
             ->limit(50)
             ->get();
-        $recentTenants = \App\Models\Tenant::whereIn('id', $recentLogs->pluck('tenant_id')->unique()->filter())->pluck('name', 'id');
+        $recentTenants = Tenant::whereIn('id', $recentLogs->pluck('tenant_id')->unique()->filter())->pluck('name', 'id');
 
         return view('admin.ai-usage', compact(
             'period', 'totalCalls', 'successCalls', 'failedCalls',
@@ -257,9 +302,11 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
     Route::post('/ai-settings/{aiProvider}/test', [AiProviderController::class, 'testConnection'])->name('admin.ai-settings.test');
 
     Route::get('/activity', function () {
-        if (! auth()->user()->is_super_admin) { abort(403); }
+        if (! auth()->user()->is_super_admin) {
+            abort(403);
+        }
 
-        $query = \Spatie\Activitylog\Models\Activity::with('causer', 'subject')
+        $query = Activity::with('causer', 'subject')
             ->latest();
 
         // Filter by log name
@@ -274,8 +321,8 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 
         $activities = $query->paginate(50)->withQueryString();
 
-        $logNames = \Spatie\Activitylog\Models\Activity::distinct()->pluck('log_name')->filter()->sort()->values();
-        $events = \Spatie\Activitylog\Models\Activity::distinct()->pluck('event')->filter()->sort()->values();
+        $logNames = Activity::distinct()->pluck('log_name')->filter()->sort()->values();
+        $events = Activity::distinct()->pluck('event')->filter()->sort()->values();
 
         return view('admin.activity', compact('activities', 'logNames', 'events'));
     })->name('admin.activity');
@@ -283,82 +330,14 @@ Route::prefix('admin')->middleware(['auth'])->group(function () {
 
 // ── Tenant-Scoped Routes ──
 Route::prefix('{tenant:slug}')
-    ->middleware(['auth', 'tenant', 'tenant.access', 'locale'])
+    ->middleware(['auth', 'tenant', 'tenant.access', 'course.context', 'locale'])
     ->group(function () {
-        Route::get('/dashboard', function () {
-            $tenant = app('current_tenant');
-            $user = auth()->user();
-            $role = $user->roleInTenant($tenant->id);
+        Route::get('/dashboard', DashboardController::class)->name('tenant.dashboard');
 
-            $courseCount = 0;
-            $studentCount = 0;
-            $avgAttendance = null;
-            $courses = collect();
-            $todaySchedule = collect();
-
-            if ($role !== 'student') {
-                // Match CourseController@index: owned courses + courses where user is a section lecturer
-                $ownedCourseIds = \App\Models\Course::where('lecturer_id', $user->id)->pluck('id');
-                $sectionCourseIds = \App\Models\Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
-                $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
-
-                $courses = \App\Models\Course::whereIn('id', $allCourseIds)
-                    ->withCount('sections')
-                    ->latest()->get();
-                $courseCount = $courses->where('status', 'active')->count();
-
-                $sectionIds = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))
-                    ->where('is_active', true)
-                    ->pluck('id');
-                $studentCount = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)
-                    ->where('is_active', true)
-                    ->distinct('user_id')
-                    ->count('user_id');
-
-                // Avg attendance across ended sessions in the lecturer's sections
-                $endedSessions = \App\Models\AttendanceSession::whereIn('section_id', $sectionIds)
-                    ->where('status', 'ended')
-                    ->withCount([
-                        'records as attended_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
-                        'records as total_count',
-                    ])
-                    ->get();
-
-                if ($endedSessions->isNotEmpty()) {
-                    $rates = $endedSessions
-                        ->filter(fn ($s) => $s->total_count > 0)
-                        ->map(fn ($s) => $s->attended_count / $s->total_count);
-                    if ($rates->isNotEmpty()) {
-                        $avgAttendance = (int) round($rates->avg() * 100);
-                    }
-                }
-
-                // Today's schedule from section schedules
-                $today = strtolower(now()->format('l')); // e.g. "monday"
-                $sections = \App\Models\Section::whereIn('course_id', $courses->pluck('id'))
-                    ->whereNotNull('schedule')
-                    ->where('is_active', true)
-                    ->with('course:id,code,title')
-                    ->get();
-
-                $todaySchedule = $sections->flatMap(function ($section) use ($today) {
-                    $slots = collect($section->schedule ?? [])
-                        ->filter(fn ($slot) => ($slot['day'] ?? '') === $today);
-                    return $slots->map(fn ($slot) => (object) [
-                        'course_code' => $section->course->code,
-                        'course_title' => $section->course->title,
-                        'section_name' => $section->name,
-                        'start_time' => $slot['start_time'],
-                        'end_time' => $slot['end_time'],
-                        'location' => $slot['location'] ?? null,
-                        'type' => $slot['type'] ?? 'lecture',
-                        'course_id' => $section->course_id,
-                    ]);
-                })->sortBy('start_time')->values();
-            }
-
-            return view('tenant.dashboard', compact('tenant', 'role', 'courseCount', 'studentCount', 'avgAttendance', 'courses', 'todaySchedule'));
-        })->name('tenant.dashboard');
+        // Course Context (Netflix-style picker)
+        Route::get('/choose-course', [CourseContextController::class, 'picker'])->name('tenant.course-context.picker');
+        Route::post('/course-context', [CourseContextController::class, 'select'])->name('tenant.course-context.select');
+        Route::post('/course-context/clear', [CourseContextController::class, 'clear'])->name('tenant.course-context.clear');
 
         // Course Management
         Route::get('/courses', [CourseController::class, 'index'])->name('tenant.courses.index');
@@ -370,19 +349,13 @@ Route::prefix('{tenant:slug}')
         Route::put('/courses/{course}', [CourseController::class, 'update'])->name('tenant.courses.update');
         Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('tenant.courses.destroy');
 
-        // Teaching Plans
-        Route::get('/courses/{course}/teaching-plan', [TeachingPlanController::class, 'show'])->name('tenant.teaching-plan.show');
-        Route::post('/courses/{course}/teaching-plan/generate', [TeachingPlanController::class, 'generate'])->name('tenant.teaching-plan.generate');
-        Route::put('/courses/{course}/teaching-plan/weeks/{week}', [TeachingPlanController::class, 'updateWeek'])->name('tenant.teaching-plan.update-week');
-        Route::post('/courses/{course}/teaching-plan/{plan}/publish', [TeachingPlanController::class, 'publish'])->name('tenant.teaching-plan.publish');
-        Route::get('/courses/{course}/teaching-plan/{plan}', [TeachingPlanController::class, 'version'])->name('tenant.teaching-plan.version');
-
         // CLOs
         Route::post('/courses/{course}/clos', [CloController::class, 'store'])->name('tenant.courses.clos.store');
         Route::delete('/courses/{course}/clos/{clo}', [CloController::class, 'destroy'])->name('tenant.courses.clos.destroy');
 
         // Topics
         Route::post('/courses/{course}/topics', [TopicController::class, 'store'])->name('tenant.courses.topics.store');
+        Route::put('/courses/{course}/topics/{topic}', [TopicController::class, 'update'])->name('tenant.courses.topics.update');
         Route::delete('/courses/{course}/topics/{topic}', [TopicController::class, 'destroy'])->name('tenant.courses.topics.destroy');
 
         // Sections
@@ -396,12 +369,16 @@ Route::prefix('{tenant:slug}')
         Route::put('/courses/{course}/sections/{section}/schedule', [SectionController::class, 'updateSchedule'])->name('tenant.courses.sections.schedule.update');
 
         // Random Present Student Wheel
-        Route::get('/random-wheel', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'index'])->name('tenant.random-wheel');
-        Route::get('/random-wheel/sessions', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'sessions'])->name('tenant.random-wheel.sessions');
-        Route::get('/random-wheel/present-students', [\App\Http\Controllers\Tenant\RandomWheelController::class, 'presentStudents'])->name('tenant.random-wheel.present-students');
+        Route::get('/random-wheel', [RandomWheelController::class, 'index'])->name('tenant.random-wheel');
+        Route::get('/random-wheel/sessions', [RandomWheelController::class, 'sessions'])->name('tenant.random-wheel.sessions');
+        Route::get('/random-wheel/present-students', [RandomWheelController::class, 'presentStudents'])->name('tenant.random-wheel.present-students');
+        Route::post('/random-wheel/spins', [RandomWheelController::class, 'storeSpin'])->name('tenant.random-wheel.spins.store');
+        Route::get('/live-wheel', [RandomWheelController::class, 'live'])->name('tenant.random-wheel.live');
+        Route::get('/live-wheel/state', [RandomWheelController::class, 'liveState'])->name('tenant.random-wheel.live-state');
 
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('tenant.attendance.index');
+        Route::get('/attendance/course/{course}', [AttendanceController::class, 'course'])->name('tenant.attendance.course');
         Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('tenant.attendance.start');
         Route::get('/attendance/{session}/qr', [AttendanceController::class, 'qr'])->name('tenant.attendance.qr');
         Route::get('/attendance/{session}/token', [AttendanceController::class, 'refreshToken'])->name('tenant.attendance.token');
@@ -439,6 +416,8 @@ Route::prefix('{tenant:slug}')
         // Quizzes (Live & Offline)
         Route::get('/quizzes', [QuizController::class, 'index'])->name('tenant.quizzes.index');
         Route::get('/quizzes/create', [QuizController::class, 'create'])->name('tenant.quizzes.create');
+        Route::get('/quizzes/course/{course}', [QuizController::class, 'course'])->name('tenant.quizzes.course');
+        Route::post('/quizzes/course/{course}/reorder', [QuizController::class, 'reorder'])->name('tenant.quizzes.reorder');
         Route::post('/quizzes', [QuizController::class, 'store'])->name('tenant.quizzes.store');
         // Quiz Folders
         Route::post('/quizzes/folders', [QuizController::class, 'storeFolder'])->name('tenant.quizzes.folders.store');
@@ -515,16 +494,16 @@ Route::prefix('{tenant:slug}')
             Route::get('/{assessment}/scores/{score}/answer-script', [AssessmentScoreController::class, 'downloadAnswerScript'])->name('tenant.assessments.scores.answer-script.download');
 
             // Submissions
-            Route::get('/{assessment}/submissions', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'index'])->name('tenant.assessments.submissions.index');
-            Route::get('/{assessment}/submissions/{submission}', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'show'])->name('tenant.assessments.submissions.show');
-            Route::post('/{assessment}/submissions/{submission}/mark', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'storeMark'])->name('tenant.assessments.submissions.mark');
-            Route::post('/{assessment}/scores/release', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'release'])->name('tenant.assessments.scores.release');
-            Route::post('/{assessment}/scores/{score}/unrelease', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'unrelease'])->name('tenant.assessments.scores.unrelease');
-            Route::get('/{assessment}/submissions/files/{file}/download', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'downloadFile'])->name('tenant.assessments.submissions.download');
-            Route::get('/{assessment}/submissions/files/{file}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'viewFile'])->name('tenant.assessments.submissions.view-file');
-            Route::post('/{assessment}/submissions/files/{file}/annotations', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'storeAnnotations'])->name('tenant.assessments.submissions.annotations.store');
-            Route::delete('/{assessment}/submissions/files/{file}/annotations', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'destroyAnnotations'])->name('tenant.assessments.submissions.annotations.destroy');
-            Route::get('/{assessment}/submissions/files/{file}/annotated', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'annotatedImage'])->name('tenant.assessments.submissions.annotated');
+            Route::get('/{assessment}/submissions', [AssessmentSubmissionController::class, 'index'])->name('tenant.assessments.submissions.index');
+            Route::get('/{assessment}/submissions/{submission}', [AssessmentSubmissionController::class, 'show'])->name('tenant.assessments.submissions.show');
+            Route::post('/{assessment}/submissions/{submission}/mark', [AssessmentSubmissionController::class, 'storeMark'])->name('tenant.assessments.submissions.mark');
+            Route::post('/{assessment}/scores/release', [AssessmentSubmissionController::class, 'release'])->name('tenant.assessments.scores.release');
+            Route::post('/{assessment}/scores/{score}/unrelease', [AssessmentSubmissionController::class, 'unrelease'])->name('tenant.assessments.scores.unrelease');
+            Route::get('/{assessment}/submissions/files/{file}/download', [AssessmentSubmissionController::class, 'downloadFile'])->name('tenant.assessments.submissions.download');
+            Route::get('/{assessment}/submissions/files/{file}/view', [AssessmentSubmissionController::class, 'viewFile'])->name('tenant.assessments.submissions.view-file');
+            Route::post('/{assessment}/submissions/files/{file}/annotations', [AssessmentSubmissionController::class, 'storeAnnotations'])->name('tenant.assessments.submissions.annotations.store');
+            Route::delete('/{assessment}/submissions/files/{file}/annotations', [AssessmentSubmissionController::class, 'destroyAnnotations'])->name('tenant.assessments.submissions.annotations.destroy');
+            Route::get('/{assessment}/submissions/files/{file}/annotated', [AssessmentSubmissionController::class, 'annotatedImage'])->name('tenant.assessments.submissions.annotated');
         });
 
         // Assessment Reports
@@ -582,6 +561,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/materials/course/{course}/link', [CourseMaterialController::class, 'storeLink'])->name('tenant.materials.store-link');
         Route::patch('/materials/course/{course}/{file}', [CourseMaterialController::class, 'updateMaterial'])->name('tenant.materials.update');
         Route::delete('/materials/course/{course}/{file}', [CourseMaterialController::class, 'destroy'])->name('tenant.materials.destroy');
+        Route::get('/materials/course/{course}/file/{file}/view', [CourseMaterialController::class, 'view'])->name('tenant.materials.view');
         Route::get('/materials/course/{course}/file/{file}/download', [CourseMaterialController::class, 'download'])->name('tenant.materials.download');
 
         // Course Materials (Student)
@@ -596,7 +576,7 @@ Route::prefix('{tenant:slug}')
 
         // Analytics (redirects to Performance)
         Route::get('/analytics', fn () => redirect()->route('tenant.performance.index', app('current_tenant')->slug))->name('tenant.analytics.index');
-        Route::get('/analytics/course/{course}', fn (string $t, \App\Models\Course $course) => redirect()->route('tenant.performance.course', [app('current_tenant')->slug, $course]))->name('tenant.analytics.course');
+        Route::get('/analytics/course/{course}', fn (string $t, Course $course) => redirect()->route('tenant.performance.course', [app('current_tenant')->slug, $course]))->name('tenant.analytics.course');
 
         // Performance Tracking (Lecturer)
         Route::get('/performance', [PerformanceController::class, 'lecturerIndex'])->name('tenant.performance.index');
@@ -617,6 +597,7 @@ Route::prefix('{tenant:slug}')
             Route::get('/', [ActiveLearningPlanController::class, 'index'])->name('tenant.active-learning.index');
             Route::get('/create', [ActiveLearningPlanController::class, 'create'])->name('tenant.active-learning.create');
             Route::post('/', [ActiveLearningPlanController::class, 'store'])->name('tenant.active-learning.store');
+            Route::post('/reorder', [ActiveLearningPlanController::class, 'reorder'])->name('tenant.active-learning.reorder');
             Route::get('/{plan}', [ActiveLearningPlanController::class, 'show'])->name('tenant.active-learning.show');
             Route::get('/{plan}/edit', [ActiveLearningPlanController::class, 'edit'])->name('tenant.active-learning.edit');
             Route::put('/{plan}', [ActiveLearningPlanController::class, 'update'])->name('tenant.active-learning.update');
@@ -634,6 +615,7 @@ Route::prefix('{tenant:slug}')
             Route::put('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'update'])->name('tenant.active-learning.activities.update');
             Route::delete('/{plan}/activities/{activity}', [ActiveLearningActivityController::class, 'destroy'])->name('tenant.active-learning.activities.destroy');
             Route::post('/{plan}/activities/reorder', [ActiveLearningActivityController::class, 'reorder'])->name('tenant.active-learning.activities.reorder');
+            Route::post('/{plan}/activities/{activity}/quiz', [ActiveLearningActivityController::class, 'startQuiz'])->name('tenant.active-learning.activities.quiz');
 
             // Groups
             Route::post('/{plan}/activities/{activity}/groups', [ActiveLearningGroupController::class, 'store'])->name('tenant.active-learning.groups.store');
@@ -686,47 +668,47 @@ Route::prefix('{tenant:slug}')
 
         // Group Workspace
         Route::prefix('workspace')->name('tenant.workspace.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'index'])->name('index');
-            Route::get('/{group}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'show'])->name('show');
-            Route::post('/{group}/project', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'updateProject'])->name('project.update');
-            Route::post('/{group}/score', [\App\Http\Controllers\Tenant\Workspace\WorkspaceController::class, 'updateScore'])->name('score.update');
+            Route::get('/', [WorkspaceController::class, 'index'])->name('index');
+            Route::get('/{group}', [WorkspaceController::class, 'show'])->name('show');
+            Route::post('/{group}/project', [WorkspaceController::class, 'updateProject'])->name('project.update');
+            Route::post('/{group}/score', [WorkspaceController::class, 'updateScore'])->name('score.update');
 
             // Chat
-            Route::get('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'index'])->name('chat.index');
-            Route::post('/{group}/chat', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'store'])->name('chat.store');
-            Route::patch('/{group}/chat/{message}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'update'])->name('chat.update');
-            Route::delete('/{group}/chat/{message}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'destroy'])->name('chat.destroy');
-            Route::post('/{group}/chat/presence', [\App\Http\Controllers\Tenant\Workspace\WorkspaceChatController::class, 'presence'])->name('chat.presence');
+            Route::get('/{group}/chat', [WorkspaceChatController::class, 'index'])->name('chat.index');
+            Route::post('/{group}/chat', [WorkspaceChatController::class, 'store'])->name('chat.store');
+            Route::patch('/{group}/chat/{message}', [WorkspaceChatController::class, 'update'])->name('chat.update');
+            Route::delete('/{group}/chat/{message}', [WorkspaceChatController::class, 'destroy'])->name('chat.destroy');
+            Route::post('/{group}/chat/presence', [WorkspaceChatController::class, 'presence'])->name('chat.presence');
 
             // Files & Folders
-            Route::post('/{group}/files', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'store'])->name('files.store');
-            Route::delete('/{group}/files/{file}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'destroy'])->name('files.destroy');
-            Route::get('/{group}/files/{file}/download', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'download'])->name('files.download');
-            Route::post('/{group}/folders', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'storeFolder'])->name('folders.store');
-            Route::delete('/{group}/folders/{folder}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceFileController::class, 'destroyFolder'])->name('folders.destroy');
+            Route::post('/{group}/files', [WorkspaceFileController::class, 'store'])->name('files.store');
+            Route::delete('/{group}/files/{file}', [WorkspaceFileController::class, 'destroy'])->name('files.destroy');
+            Route::get('/{group}/files/{file}/download', [WorkspaceFileController::class, 'download'])->name('files.download');
+            Route::post('/{group}/folders', [WorkspaceFileController::class, 'storeFolder'])->name('folders.store');
+            Route::delete('/{group}/folders/{folder}', [WorkspaceFileController::class, 'destroyFolder'])->name('folders.destroy');
 
             // Tasks
-            Route::post('/{group}/tasks', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'store'])->name('tasks.store');
-            Route::patch('/{group}/tasks/{task}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'update'])->name('tasks.update');
-            Route::delete('/{group}/tasks/{task}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceTaskController::class, 'destroy'])->name('tasks.destroy');
+            Route::post('/{group}/tasks', [WorkspaceTaskController::class, 'store'])->name('tasks.store');
+            Route::patch('/{group}/tasks/{task}', [WorkspaceTaskController::class, 'update'])->name('tasks.update');
+            Route::delete('/{group}/tasks/{task}', [WorkspaceTaskController::class, 'destroy'])->name('tasks.destroy');
 
             // Minutes
-            Route::post('/{group}/minutes', [\App\Http\Controllers\Tenant\Workspace\WorkspaceMinuteController::class, 'store'])->name('minutes.store');
-            Route::delete('/{group}/minutes/{minute}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceMinuteController::class, 'destroy'])->name('minutes.destroy');
+            Route::post('/{group}/minutes', [WorkspaceMinuteController::class, 'store'])->name('minutes.store');
+            Route::delete('/{group}/minutes/{minute}', [WorkspaceMinuteController::class, 'destroy'])->name('minutes.destroy');
 
             // Sleeping Partner Reports
-            Route::post('/{group}/reports', [\App\Http\Controllers\Tenant\Workspace\WorkspaceReportController::class, 'store'])->name('reports.store');
+            Route::post('/{group}/reports', [WorkspaceReportController::class, 'store'])->name('reports.store');
 
             // Voting
-            Route::post('/{group}/votes/start', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'start'])->name('votes.start');
-            Route::post('/{group}/votes/{round}/cast', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'cast'])->name('votes.cast');
-            Route::post('/{group}/votes/{round}/close', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'close'])->name('votes.close');
-            Route::delete('/{group}/votes/{round}', [\App\Http\Controllers\Tenant\Workspace\WorkspaceVoteController::class, 'destroy'])->name('votes.destroy');
+            Route::post('/{group}/votes/start', [WorkspaceVoteController::class, 'start'])->name('votes.start');
+            Route::post('/{group}/votes/{round}/cast', [WorkspaceVoteController::class, 'cast'])->name('votes.cast');
+            Route::post('/{group}/votes/{round}/close', [WorkspaceVoteController::class, 'close'])->name('votes.close');
+            Route::delete('/{group}/votes/{round}', [WorkspaceVoteController::class, 'destroy'])->name('votes.destroy');
 
             // Member Swap
-            Route::post('/{group}/swaps', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'store'])->name('swaps.store');
-            Route::post('/swaps/{swap}/respond', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'respond'])->name('swaps.respond');
-            Route::post('/swaps/{swap}/decide', [\App\Http\Controllers\Tenant\Workspace\WorkspaceSwapController::class, 'lecturerDecide'])->name('swaps.decide');
+            Route::post('/{group}/swaps', [WorkspaceSwapController::class, 'store'])->name('swaps.store');
+            Route::post('/swaps/{swap}/respond', [WorkspaceSwapController::class, 'respond'])->name('swaps.respond');
+            Route::post('/swaps/{swap}/decide', [WorkspaceSwapController::class, 'lecturerDecide'])->name('swaps.decide');
         });
 
         // Tenant AI Settings (Pro)
@@ -741,11 +723,12 @@ Route::prefix('{tenant:slug}')
             if (! $user->hasRoleInTenant($tenant->id, ['admin', 'coordinator'])) {
                 abort(403);
             }
+
             return view('tenant.placeholder', ['title' => __('nav.settings'), 'description' => 'Institution settings and configuration will be managed here.']);
         })->name('tenant.admin.settings');
 
         // Role Switcher
-        Route::post('/switch-role', [\App\Http\Controllers\Tenant\RoleSwitchController::class, 'switch'])->name('tenant.switch-role');
+        Route::post('/switch-role', [RoleSwitchController::class, 'switch'])->name('tenant.switch-role');
 
         // Student routes
         Route::get('/scan', function () {
@@ -756,31 +739,31 @@ Route::prefix('{tenant:slug}')
         Route::get('/my-courses/{course}', [StudentCourseController::class, 'show'])->name('tenant.my-courses.show');
         Route::post('/my-courses/enroll', [StudentCourseController::class, 'enroll'])->name('tenant.my-courses.enroll');
 
-        Route::get('/marks', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'index'])->name('tenant.marks');
-        Route::get('/marks/{mark}', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'show'])->name('tenant.marks.show');
-        Route::get('/marks/assessment-scores/{score}/answer-script/view', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'viewAnswerScript'])->name('tenant.marks.answer-script.view');
-        Route::get('/marks/assessment-scores/{score}/answer-script', [\App\Http\Controllers\Tenant\StudentMarkController::class, 'downloadAnswerScript'])->name('tenant.marks.answer-script.download');
+        Route::get('/marks', [StudentMarkController::class, 'index'])->name('tenant.marks');
+        Route::get('/marks/{mark}', [StudentMarkController::class, 'show'])->name('tenant.marks.show');
+        Route::get('/marks/assessment-scores/{score}/answer-script/view', [StudentMarkController::class, 'viewAnswerScript'])->name('tenant.marks.answer-script.view');
+        Route::get('/marks/assessment-scores/{score}/answer-script', [StudentMarkController::class, 'downloadAnswerScript'])->name('tenant.marks.answer-script.download');
 
         // Student Assessments (submission)
-        Route::get('/my-assessments', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentIndex'])->name('tenant.my-assessments');
-        Route::get('/courses/{course}/assessments/{assessment}/view', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentShow'])->name('tenant.my-assessments.show');
-        Route::post('/courses/{course}/assessments/{assessment}/submit', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentSubmit'])->name('tenant.my-assessments.submit');
-        Route::delete('/courses/{course}/assessments/{assessment}/submission', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentDeleteSubmission'])->name('tenant.my-assessments.delete');
-        Route::post('/courses/{course}/assessments/{assessment}/resubmit', [\App\Http\Controllers\Tenant\Assessment\AssessmentSubmissionController::class, 'studentResubmit'])->name('tenant.my-assessments.resubmit');
+        Route::get('/my-assessments', [AssessmentSubmissionController::class, 'studentIndex'])->name('tenant.my-assessments');
+        Route::get('/courses/{course}/assessments/{assessment}/view', [AssessmentSubmissionController::class, 'studentShow'])->name('tenant.my-assessments.show');
+        Route::post('/courses/{course}/assessments/{assessment}/submit', [AssessmentSubmissionController::class, 'studentSubmit'])->name('tenant.my-assessments.submit');
+        Route::delete('/courses/{course}/assessments/{assessment}/submission', [AssessmentSubmissionController::class, 'studentDeleteSubmission'])->name('tenant.my-assessments.delete');
+        Route::post('/courses/{course}/assessments/{assessment}/resubmit', [AssessmentSubmissionController::class, 'studentResubmit'])->name('tenant.my-assessments.resubmit');
 
         // Academic Terms (Semesters)
-        Route::get('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');
-        Route::post('/semesters', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'store'])->name('tenant.academic-terms.store');
-        Route::put('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
-        Route::post('/semesters/{term}/archive-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'archiveCourses'])->name('tenant.academic-terms.archive-courses');
-        Route::post('/semesters/{term}/reopen-courses', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'reopenCourses'])->name('tenant.academic-terms.reopen-courses');
-        Route::delete('/semesters/{term}', [\App\Http\Controllers\Tenant\AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
+        Route::get('/semesters', [AcademicTermController::class, 'index'])->name('tenant.academic-terms.index');
+        Route::post('/semesters', [AcademicTermController::class, 'store'])->name('tenant.academic-terms.store');
+        Route::put('/semesters/{term}', [AcademicTermController::class, 'update'])->name('tenant.academic-terms.update');
+        Route::post('/semesters/{term}/close', [AcademicTermController::class, 'close'])->name('tenant.academic-terms.close');
+        Route::post('/semesters/{term}/reopen', [AcademicTermController::class, 'reopen'])->name('tenant.academic-terms.reopen');
+        Route::delete('/semesters/{term}', [AcademicTermController::class, 'destroy'])->name('tenant.academic-terms.destroy');
 
         // Settings
-        Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'index'])->name('tenant.settings');
-        Route::get('/settings/drive/connect', [\App\Http\Controllers\Tenant\SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
-        Route::post('/settings/drive/folder/reset', [\App\Http\Controllers\Tenant\SettingsController::class, 'resetDriveFolder'])->name('tenant.settings.drive.folder.reset');
-        Route::post('/settings/drive/disconnect', [\App\Http\Controllers\Tenant\SettingsController::class, 'disconnectDrive'])->name('tenant.settings.drive.disconnect');
+        Route::get('/settings', [SettingsController::class, 'index'])->name('tenant.settings');
+        Route::get('/settings/drive/connect', [SettingsController::class, 'connectDrive'])->name('tenant.settings.drive.connect');
+        Route::post('/settings/drive/folder/reset', [SettingsController::class, 'resetDriveFolder'])->name('tenant.settings.drive.folder.reset');
+        Route::post('/settings/drive/disconnect', [SettingsController::class, 'disconnectDrive'])->name('tenant.settings.drive.disconnect');
     });
 
 require __DIR__.'/auth.php';

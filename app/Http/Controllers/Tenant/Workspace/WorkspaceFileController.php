@@ -64,7 +64,7 @@ class WorkspaceFileController extends Controller
             }
         } else {
             // ── Local disk fallback ──
-            $storagePath = $uploadedFile->store("workspace/{$group->id}", 'local');
+            $storagePath = $uploadedFile->store("workspace/{$group->id}", 'uploads');
         }
 
         StudentGroupFile::create([
@@ -108,7 +108,7 @@ class WorkspaceFileController extends Controller
                 $this->drive->deleteFile($uploader, $file->drive_file_id);
             }
         } elseif ($file->storage_path) {
-            Storage::disk('local')->delete($file->storage_path);
+            Storage::disk('uploads')->delete($file->storage_path);
         }
 
         $file->delete();
@@ -140,7 +140,7 @@ class WorkspaceFileController extends Controller
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
     }
 
     /**

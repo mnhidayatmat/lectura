@@ -228,6 +228,7 @@ is verified at that instant. The server parses an offset-less time as UTC, so al
 - `You are not enrolled in this section.`
 - `This check-in is too old to submit. Ask your lecturer to mark you manually.` (queued scan in the future or past the offline grace window)
 - `That scan was taken outside this session.` (queued scan)
+- `This attendance session is closed.` (semester closed, course archived, or a queued scan for a session past its edit window)
 
 422 validation: `errors.payload` when missing.
 
@@ -315,7 +316,7 @@ One entry per enrolled course. Not paginated.
 - `status`: `present` | `late` | `absent` | `excused` | `no_record`.
 - `session_type`: `lecture` | `tutorial` | `lab` | `extra` | `replacement`.
 - `excuse.status`: `pending` | `approved` | `rejected`.
-- `can_submit_excuse` is true only for an `absent` record without an excuse.
+- `can_submit_excuse` is true only for an `absent` record without an excuse whose session is not locked (semester closed, or ended more than 14 days ago).
 
 ### POST `student/attendance/records/{record}/excuse`
 
@@ -348,6 +349,7 @@ One entry per enrolled course. Not paginated.
 Errors: 403 `This attendance record does not belong to you.` · 404 record of another institution ·
 422 `{"message": "You can only submit excuses for absent records."}` ·
 422 `{"message": "An excuse has already been submitted for this session."}` ·
+422 `{"message": "This session is closed, so excuses can no longer be submitted. Contact your lecturer."}` ·
 422 validation on `reason` / `category` / `attachment`.
 
 ---
@@ -943,6 +945,34 @@ Streams one of the student's own (or their group's) submission files. 403 for an
 ### GET `student/assignments/{assignment}/files/{file}/annotated`
 
 Streams the lecturer's annotated copy of that file (inline image), when one exists.
+
+---
+
+## Random wheel
+
+### GET `student/wheel`
+
+The lecturer's latest random-wheel spin in any section I'm actively enrolled in, from the last 3 hours; `{"data": null}` otherwise.
+```json
+{
+  "data": {
+    "id": 14,
+    "course": { "id": 6, "code": "BTG3333", "title": "Piping Systems" },
+    "section_name": "Section 01",
+    "candidates": [ { "id": 3, "name": "Aina Sofea" }, { "id": 7, "name": "Zul Hakim" } ],
+    "winner": { "id": 7, "name": "Zul Hakim" },
+    "winner_index": 1,
+    "turns": 6,
+    "duration_ms": 5200,
+    "spun_at": "2026-09-30T09:12:04+08:00",
+    "elapsed_ms": 1830,
+    "is_me": false
+  }
+}
+```
+Replay: rotation `0 → targetRotation(winner_index, turns)` with cubic ease-out over `duration_ms`, starting at
+`elapsed_ms / duration_ms` (server clock, so a phone with the wrong time still joins at the right point). Once
+`elapsed_ms >= duration_ms` the spin has landed. The web equivalent is `/{tenant}/live-wheel` (state at `/live-wheel/state`).
 
 ---
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Jobs\GeneratePerformanceSuggestions;
 use App\Models\Course;
@@ -21,6 +22,7 @@ use Illuminate\View\View;
 class PerformanceController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     public function __construct(
         protected PerformanceAggregatorService $aggregator,
@@ -28,8 +30,12 @@ class PerformanceController extends Controller
 
     // ── Lecturer Views ───────────────────────────────────────────────
 
-    public function lecturerIndex(): View
+    public function lecturerIndex(): View|RedirectResponse
     {
+        if ($redirect = $this->redirectToCourseContext('tenant.performance.course')) {
+            return $redirect;
+        }
+
         $courses = Course::whereIn('id', $this->accessibleCourseIds())->get();
 
         // Load only accessible sections per course

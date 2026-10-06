@@ -27,7 +27,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentSubmissionController extends Controller
@@ -527,14 +526,14 @@ class AssessmentSubmissionController extends Controller
             $path = $file->storage_path;
         }
 
-        if (! Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('uploads')->exists($path)) {
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($path, $file->file_name);
+        return Storage::disk('uploads')->download($path, $file->file_name);
     }
 
-    public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): BinaryFileResponse
+    public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): StreamedResponse
     {
         $submission = $file->submission;
 
@@ -549,15 +548,12 @@ class AssessmentSubmissionController extends Controller
             $path = $file->storage_path;
         }
 
-        $absolutePath = Storage::disk('local')->path($path);
-
-        if (! file_exists($absolutePath)) {
+        if (! $path || ! Storage::disk('uploads')->exists($path)) {
             abort(404, 'File not found.');
         }
 
-        return response()->file($absolutePath, [
+        return Storage::disk('uploads')->response($path, $file->file_name, [
             'Content-Type' => $file->file_type ?: 'application/octet-stream',
-            'Content-Disposition' => 'inline; filename="'.addslashes($file->file_name).'"',
         ]);
     }
 
@@ -594,8 +590,8 @@ class AssessmentSubmissionController extends Controller
             if ($payload === false) {
                 abort(422, 'Could not decode annotated image.');
             }
-            if ($imagePath && Storage::disk('local')->exists($imagePath)) {
-                Storage::disk('local')->delete($imagePath);
+            if ($imagePath && Storage::disk('uploads')->exists($imagePath)) {
+                Storage::disk('uploads')->delete($imagePath);
             }
             $imagePath = sprintf(
                 'assessment-annotations/%d/%d-%s.%s',
@@ -604,7 +600,7 @@ class AssessmentSubmissionController extends Controller
                 Str::random(8),
                 $ext,
             );
-            Storage::disk('local')->put($imagePath, $payload);
+            Storage::disk('uploads')->put($imagePath, $payload);
         }
 
         $file->update([
@@ -631,8 +627,8 @@ class AssessmentSubmissionController extends Controller
         $this->authorizeCourseAccess($course);
         $this->ensureFileBelongsHere($course, $assessment, $file);
 
-        if ($file->annotated_image_path && Storage::disk('local')->exists($file->annotated_image_path)) {
-            Storage::disk('local')->delete($file->annotated_image_path);
+        if ($file->annotated_image_path && Storage::disk('uploads')->exists($file->annotated_image_path)) {
+            Storage::disk('uploads')->delete($file->annotated_image_path);
         }
 
         $file->update([
@@ -667,7 +663,7 @@ class AssessmentSubmissionController extends Controller
 
         $this->ensureFileBelongsHere($course, $assessment, $file);
 
-        if (! $file->annotated_image_path || ! Storage::disk('local')->exists($file->annotated_image_path)) {
+        if (! $file->annotated_image_path || ! Storage::disk('uploads')->exists($file->annotated_image_path)) {
             abort(404);
         }
 
@@ -675,7 +671,7 @@ class AssessmentSubmissionController extends Controller
         $mime = $ext === 'jpg' || $ext === 'jpeg' ? 'image/jpeg' : 'image/png';
 
         return response(
-            Storage::disk('local')->get($file->annotated_image_path),
+            Storage::disk('uploads')->get($file->annotated_image_path),
             200,
             [
                 'Content-Type' => $mime,
@@ -907,7 +903,7 @@ class AssessmentSubmissionController extends Controller
         }
 
         foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'local');
+            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {
@@ -1052,8 +1048,8 @@ class AssessmentSubmissionController extends Controller
         $submission->loadMissing('files');
 
         foreach ($submission->files as $file) {
-            if (Storage::disk('local')->exists($file->storage_path)) {
-                Storage::disk('local')->delete($file->storage_path);
+            if (Storage::disk('uploads')->exists($file->storage_path)) {
+                Storage::disk('uploads')->delete($file->storage_path);
             }
             $file->delete();
         }
@@ -1189,7 +1185,7 @@ class AssessmentSubmissionController extends Controller
         $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
 
         foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'local');
+            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {

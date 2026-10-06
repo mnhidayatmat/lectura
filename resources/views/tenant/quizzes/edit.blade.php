@@ -1,7 +1,7 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
-            <a href="{{ route('tenant.quizzes.index', app('current_tenant')->slug) }}" class="text-slate-400 hover:text-slate-600 transition">
+            <a href="{{ route('tenant.quizzes.course', [app('current_tenant')->slug, $session->section->course_id]) }}" class="text-slate-400 hover:text-slate-600 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
@@ -181,7 +181,7 @@
         </div>
 
         <div class="flex items-center justify-end gap-3">
-            <a href="{{ route('tenant.quizzes.index', app('current_tenant')->slug) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition">Cancel</a>
+            <a href="{{ route('tenant.quizzes.course', [app('current_tenant')->slug, $session->section->course_id]) }}" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition">Cancel</a>
             <button type="submit" :disabled="questions.length === 0" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition disabled:opacity-50">
                 Update Quiz
             </button>

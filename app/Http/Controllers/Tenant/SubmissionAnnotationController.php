@@ -33,15 +33,15 @@ class SubmissionAnnotationController extends Controller
         $this->authorizeCourseAccess($assignment->course);
         $this->ensureFileBelongsToSubmission($assignment, $submission, $file);
 
-        if (! $file->storage_path || ! Storage::disk('local')->exists($file->storage_path)) {
+        if (! $file->storage_path || ! Storage::disk('uploads')->exists($file->storage_path)) {
             abort(404);
         }
 
         return response(
-            Storage::disk('local')->get($file->storage_path),
+            Storage::disk('uploads')->get($file->storage_path),
             200,
             [
-                'Content-Type' => Storage::disk('local')->mimeType($file->storage_path) ?: 'application/octet-stream',
+                'Content-Type' => Storage::disk('uploads')->mimeType($file->storage_path) ?: 'application/octet-stream',
                 'Content-Disposition' => 'inline; filename="'.addslashes($file->file_name).'"',
                 'Cache-Control' => 'private, max-age=300',
             ]
@@ -118,7 +118,7 @@ class SubmissionAnnotationController extends Controller
 
         $this->ensureFileBelongsToSubmission($assignment, $submission, $file);
 
-        if (! $file->annotated_image_path || ! Storage::disk('local')->exists($file->annotated_image_path)) {
+        if (! $file->annotated_image_path || ! Storage::disk('uploads')->exists($file->annotated_image_path)) {
             abort(404);
         }
 
@@ -126,7 +126,7 @@ class SubmissionAnnotationController extends Controller
         $mime = $ext === 'jpg' || $ext === 'jpeg' ? 'image/jpeg' : 'image/png';
 
         return response(
-            Storage::disk('local')->get($file->annotated_image_path),
+            Storage::disk('uploads')->get($file->annotated_image_path),
             200,
             [
                 'Content-Type' => $mime,
@@ -147,8 +147,8 @@ class SubmissionAnnotationController extends Controller
         $this->authorizeCourseAccess($assignment->course);
         $this->ensureFileBelongsToSubmission($assignment, $submission, $file);
 
-        if ($file->annotated_image_path && Storage::disk('local')->exists($file->annotated_image_path)) {
-            Storage::disk('local')->delete($file->annotated_image_path);
+        if ($file->annotated_image_path && Storage::disk('uploads')->exists($file->annotated_image_path)) {
+            Storage::disk('uploads')->delete($file->annotated_image_path);
         }
 
         $file->update([
@@ -201,8 +201,8 @@ class SubmissionAnnotationController extends Controller
             abort(422, 'Could not decode annotated image.');
         }
 
-        if ($existingPath && Storage::disk('local')->exists($existingPath)) {
-            Storage::disk('local')->delete($existingPath);
+        if ($existingPath && Storage::disk('uploads')->exists($existingPath)) {
+            Storage::disk('uploads')->delete($existingPath);
         }
 
         $path = sprintf(
@@ -213,7 +213,7 @@ class SubmissionAnnotationController extends Controller
             $ext,
         );
 
-        Storage::disk('local')->put($path, $payload);
+        Storage::disk('uploads')->put($path, $payload);
 
         return $path;
     }

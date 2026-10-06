@@ -113,7 +113,7 @@ class WorkspaceFileController extends Controller
                 ]);
             }
         } else {
-            $storagePath = $uploadedFile->store("workspace/{$group->id}", 'local');
+            $storagePath = $uploadedFile->store("workspace/{$group->id}", 'uploads');
         }
 
         $file = StudentGroupFile::create([
@@ -156,7 +156,7 @@ class WorkspaceFileController extends Controller
                 app(GoogleDriveService::class)->deleteFile($uploader, $file->drive_file_id);
             }
         } elseif ($file->storage_path) {
-            Storage::disk('local')->delete($file->storage_path);
+            Storage::disk('uploads')->delete($file->storage_path);
         }
 
         $file->delete();
@@ -182,11 +182,11 @@ class WorkspaceFileController extends Controller
             return response()->json(['data' => ['external_url' => $file->drive_web_link]]);
         }
 
-        if (! $file->storage_path || ! Storage::disk('local')->exists($file->storage_path)) {
+        if (! $file->storage_path || ! Storage::disk('uploads')->exists($file->storage_path)) {
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($file->storage_path, $file->file_name);
+        return Storage::disk('uploads')->download($file->storage_path, $file->file_name);
     }
 
     /**

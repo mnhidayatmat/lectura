@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseAccess;
+use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
+use App\Models\ActiveLearningActivity;
 use App\Models\Course;
 use App\Models\Question;
 use App\Models\QuestionOption;
@@ -20,46 +22,96 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\View\View;
 
 class QuizController extends Controller
 {
     use AuthorizesCourseAccess;
+    use RedirectsToCourseContext;
 
     /**
      * Quiz list for lecturer — grouped by course, then by folder.
      */
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
-        $user = auth()->user();
+        if ($redirect = $this->redirectToCourseContext('tenant.quizzes.course')) {
+            return $redirect;
+        }
+
         $courseIds = $this->accessibleCourseIds();
         $sectionIds = $this->allAccessibleSectionIds();
 
-        $folders = QuizFolder::where('lecturer_id', $user->id)
-            ->with(['sessions' => fn ($q) => $q->with(['section.course', 'participants'])->latest()])
-            ->orderBy('name')
-            ->get();
-
-        $unfoldered = QuizSession::whereIn('section_id', $sectionIds)
-            ->whereNull('quiz_folder_id')
-            ->with(['section.course', 'participants'])
-            ->latest()
-            ->get();
+        $sessionsByCourse = QuizSession::whereIn('section_id', $sectionIds)
+            ->with('section:id,course_id')
+            ->get()
+            ->groupBy(fn ($s) => $s->section?->course_id);
 
         $courses = Course::whereIn('id', $courseIds)
             ->whereHas('sections', fn ($q) => $q->where('is_active', true))
+            ->with('academicTerm')
+            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
             ->orderBy('code')
+            ->get()
+            ->each(function (Course $course) use ($sessionsByCourse) {
+                $quizzes = $sessionsByCourse->get($course->id, collect());
+                $course->quiz_stats = [
+                    'quizzes' => $quizzes->count(),
+                    'live' => $quizzes->filter(fn ($s) => $s->category === 'live' && $s->isLive())->count(),
+                    'open' => $quizzes->filter(fn ($s) => $s->category === 'offline' && $s->status !== 'ended')->count(),
+                    'last' => $quizzes->max('created_at'),
+                ];
+            });
+
+        return view('tenant.quizzes.index', compact('courses'));
+    }
+
+    /**
+     * Quizzes for a single course.
+     */
+    public function course(string $tenantSlug, Course $course): View
+    {
+        $this->authorizeCourseAccess($course);
+
+        $sectionIds = Section::where('course_id', $course->id)
+            ->whereIn('id', $this->allAccessibleSectionIds())
+            ->pluck('id');
+
+        $sessions = QuizSession::whereIn('section_id', $sectionIds)
+            ->with(['section', 'folder'])
+            ->withCount(['participants', 'sessionQuestions'])
+            ->orderByRaw('CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
-        // Group all sessions by course_id for course-tab view
-        $allSessions = QuizSession::whereIn('section_id', $sectionIds)
-            ->with(['section.course', 'participants', 'folder', 'sessionQuestions'])
-            ->latest()
-            ->get();
+        return view('tenant.quizzes.course', compact('course', 'sessions'));
+    }
 
-        $sessionsByCourse = $allSessions->groupBy(fn ($s) => $s->section?->course_id);
+    /**
+     * Save the manual order of a course's quizzes; ids from other courses are ignored.
+     */
+    public function reorder(Request $request, string $tenantSlug, Course $course): JsonResponse
+    {
+        $this->authorizeCourseAccess($course);
 
-        return view('tenant.quizzes.index', compact('courses', 'folders', 'unfoldered', 'sessionsByCourse'));
+        $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer'],
+        ]);
+
+        $sectionIds = Section::where('course_id', $course->id)
+            ->whereIn('id', $this->allAccessibleSectionIds())
+            ->pluck('id');
+
+        foreach (array_values($request->input('ordered_ids')) as $index => $sessionId) {
+            QuizSession::where('id', $sessionId)
+                ->whereIn('section_id', $sectionIds)
+                ->update(['sort_order' => $index]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /** Store a new folder */
@@ -115,12 +167,18 @@ class QuizController extends Controller
         abort_if($session->lecturer_id !== auth()->id(), 403);
 
         $request->validate([
-            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
+            'quiz_folder_id' => ['nullable', $this->ownFolderRule()],
         ]);
 
         $session->update(['quiz_folder_id' => $request->quiz_folder_id ?: null]);
 
         return back()->with('success', 'Quiz moved.');
+    }
+
+    /** A folder id must belong to the signed-in lecturer. */
+    protected function ownFolderRule(): Exists
+    {
+        return Rule::exists('quiz_folders', 'id')->where('lecturer_id', auth()->id());
     }
 
     /**
@@ -145,7 +203,9 @@ class QuizController extends Controller
             ->limit(100)
             ->get();
 
-        return view('tenant.quizzes.create', compact('sections', 'bankQuestions', 'folders'));
+        $selectedSectionId = $sections->firstWhere('course_id', (int) $request->query('course'))?->id;
+
+        return view('tenant.quizzes.create', compact('sections', 'bankQuestions', 'folders', 'selectedSectionId'));
     }
 
     /**
@@ -155,8 +215,8 @@ class QuizController extends Controller
     {
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'section_id' => ['required', 'exists:sections,id'],
-            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
+            'section_id' => ['required', 'integer', Rule::in($this->allAccessibleSectionIds()->all())],
+            'quiz_folder_id' => ['nullable', $this->ownFolderRule()],
             'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
@@ -227,7 +287,7 @@ class QuizController extends Controller
         }
 
         if ($isOffline) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $session->section->course_id])
                 ->with('success', 'Offline quiz created. Students can access it from '.$session->available_from->format('d M Y H:i').'.');
         }
 
@@ -287,8 +347,8 @@ class QuizController extends Controller
 
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'section_id' => ['required', 'exists:sections,id'],
-            'quiz_folder_id' => ['nullable', 'exists:quiz_folders,id'],
+            'section_id' => ['required', 'integer', Rule::in($this->allAccessibleSectionIds()->all())],
+            'quiz_folder_id' => ['nullable', $this->ownFolderRule()],
             'category' => ['required', 'in:live,offline'],
             'mode' => ['required', 'in:formative,participation,graded'],
             'is_anonymous' => ['nullable', 'boolean'],
@@ -363,7 +423,7 @@ class QuizController extends Controller
         }
 
         if ($isOffline) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $session->section->course_id])
                 ->with('success', 'Offline quiz updated successfully.');
         }
 
@@ -400,9 +460,10 @@ class QuizController extends Controller
             $q->delete();
         });
 
+        $courseId = $session->section->course_id;
         $session->delete();
 
-        return redirect()->route('tenant.quizzes.index', $tenant->slug)
+        return redirect()->route('tenant.quizzes.course', [$tenant->slug, $courseId])
             ->with('success', 'Quiz deleted successfully.');
     }
 
@@ -453,6 +514,10 @@ class QuizController extends Controller
     {
         if ($session->lecturer_id !== auth()->id()) {
             abort(403);
+        }
+
+        if ($session->status !== 'waiting') {
+            return back();
         }
 
         $session->update(['status' => 'active', 'started_at' => now()]);
@@ -549,57 +614,10 @@ class QuizController extends Controller
         }
 
         $tenant = app('current_tenant');
-        $session->load('sessionQuestions.question.options');
-
-        $newSession = QuizSession::create([
-            'tenant_id' => $tenant->id,
-            'section_id' => $session->section_id,
-            'lecturer_id' => auth()->id(),
-            'title' => $session->title,
-            'category' => $session->category,
-            'mode' => $session->mode,
-            'is_anonymous' => $session->is_anonymous,
-            'status' => $session->isOffline() ? 'active' : 'waiting',
-            'available_from' => $session->available_from,
-            'available_until' => $session->available_until,
-            'started_at' => $session->isOffline() ? now() : null,
-        ]);
-
-        foreach ($session->sessionQuestions as $sq) {
-            $oldQ = $sq->question;
-
-            $newQ = Question::create([
-                'tenant_id' => $tenant->id,
-                'created_by' => auth()->id(),
-                'question_type' => $oldQ->question_type,
-                'text' => $oldQ->text,
-                'explanation' => $oldQ->explanation,
-                'time_limit_seconds' => $oldQ->time_limit_seconds,
-                'points' => $oldQ->points,
-                'is_bank' => true,
-            ]);
-
-            foreach ($oldQ->options as $opt) {
-                QuestionOption::create([
-                    'question_id' => $newQ->id,
-                    'label' => $opt->label,
-                    'text' => $opt->text,
-                    'is_correct' => $opt->is_correct,
-                    'sort_order' => $opt->sort_order,
-                ]);
-            }
-
-            QuizSessionQuestion::create([
-                'quiz_session_id' => $newSession->id,
-                'question_id' => $newQ->id,
-                'sort_order' => $sq->sort_order,
-                'status' => $session->isOffline() ? 'active' : 'pending',
-                'opened_at' => $session->isOffline() ? now() : null,
-            ]);
-        }
+        $newSession = $session->copyForNewRun(auth()->user());
 
         if ($newSession->isOffline()) {
-            return redirect()->route('tenant.quizzes.index', $tenant->slug)
+            return redirect()->route('tenant.quizzes.course', [$tenant->slug, $newSession->section->course_id])
                 ->with('success', 'Offline quiz replayed — new session created.');
         }
 
@@ -646,13 +664,106 @@ class QuizController extends Controller
         $session->load([
             'section.course',
             'sessionQuestions.question.options',
-            'sessionQuestions.responses.participant.user',
+            'sessionQuestions.responses',
             'participants.user',
+            'participants.responses',
         ]);
+        $session->loadCount('participants');
 
-        $leaderboard = $session->participants->sortByDesc('total_score')->values();
+        $questions = $session->sessionQuestions;
+        $participants = $session->participants;
+        $participantCount = $participants->count();
+        $questionCount = $questions->count();
+        $maxScore = (float) $questions->sum(fn ($sq) => (float) $sq->question->points);
 
-        return view('tenant.quizzes.results', compact('session', 'leaderboard'));
+        $questionStats = $questions->values()->map(function (QuizSessionQuestion $sq, int $i) use ($participantCount) {
+            $responses = $sq->responses;
+            $answered = $responses->count();
+            $correct = $responses->where('is_correct', true)->count();
+
+            $options = $sq->question->options->map(fn ($option) => [
+                'label' => $option->label,
+                'text' => $option->text,
+                'is_correct' => (bool) $option->is_correct,
+                'count' => $responses->where('selected_option_id', $option->id)->count(),
+            ])->values();
+
+            $avgMs = $responses->whereNotNull('response_time_ms')->avg('response_time_ms');
+
+            return (object) [
+                'number' => $i + 1,
+                'question' => $sq->question,
+                'answered' => $answered,
+                'skipped' => max(0, $participantCount - $answered),
+                'correct' => $correct,
+                'correct_pct' => $answered > 0 ? (int) round($correct / $answered * 100) : null,
+                'avg_seconds' => $avgMs !== null ? round($avgMs / 1000, 1) : null,
+                'options' => $options,
+                'top_wrong' => $options->where('is_correct', false)->where('count', '>', 0)->sortByDesc('count')->first(),
+                'text_answers' => $sq->question->question_type === 'short_answer'
+                    ? $responses->pluck('answer_text')->filter()->countBy()->sortDesc()->take(8)
+                    : collect(),
+            ];
+        });
+
+        $answeredQuestions = $questionStats->whereNotNull('correct_pct');
+        $hardest = $answeredQuestions->sortBy('correct_pct')->first();
+        $reteach = $answeredQuestions->where('correct_pct', '<', 60)->sortBy('correct_pct')->take(3)->values();
+
+        $rank = 0;
+        $previousScore = null;
+        $leaderboard = $participants->sortByDesc('total_score')->values()->map(function (QuizParticipant $p, int $i) use (&$rank, &$previousScore, $session, $questionCount) {
+            $score = (float) $p->total_score;
+            if ($previousScore === null || $score < $previousScore) {
+                $rank = $i + 1;
+            }
+            $previousScore = $score;
+
+            $answered = $p->responses->count();
+            $correct = $p->responses->where('is_correct', true)->count();
+            $avgMs = $p->responses->whereNotNull('response_time_ms')->avg('response_time_ms');
+
+            return (object) [
+                'rank' => $rank,
+                'name' => $session->is_anonymous
+                    ? ($p->display_name ?: 'Anonymous')
+                    : ($p->user?->name ?? $p->display_name ?? 'Student'),
+                'score' => $score,
+                'correct' => $correct,
+                'answered' => $answered,
+                'unanswered' => max(0, $questionCount - $answered),
+                'accuracy' => $answered > 0 ? (int) round($correct / $answered * 100) : 0,
+                'avg_seconds' => $avgMs !== null ? round($avgMs / 1000, 1) : null,
+            ];
+        });
+
+        $totalResponses = $questionStats->sum('answered');
+        $summary = [
+            'participants' => $participantCount,
+            'questions' => $questionCount,
+            'max_score' => $maxScore,
+            'avg_pct' => $participantCount > 0 && $maxScore > 0
+                ? (int) round($participants->avg('total_score') / $maxScore * 100) : null,
+            'completion_pct' => $participantCount > 0 && $questionCount > 0
+                ? (int) round($totalResponses / ($participantCount * $questionCount) * 100) : null,
+            'hardest' => $hardest,
+        ];
+
+        // Active learning plans whose Quiz time card points at this run.
+        $linkedPlans = ActiveLearningActivity::where('quiz_session_id', $session->id)
+            ->with('plan:id,course_id,title,week_number')
+            ->get()
+            ->pluck('plan')
+            ->filter()
+            ->unique('id')
+            ->values();
+
+        $isOwner = $session->lecturer_id === auth()->id();
+        $neverRun = $session->hasNeverRun();
+
+        return view('tenant.quizzes.results', compact(
+            'session', 'summary', 'questionStats', 'leaderboard', 'reteach', 'linkedPlans', 'isOwner', 'neverRun'
+        ));
     }
 
     /**
@@ -663,6 +774,8 @@ class QuizController extends Controller
      */
     public function state(string $tenantSlug, QuizSession $session): JsonResponse
     {
+        $this->authorizeSessionView($session);
+
         $activeQ = $session->activeQuestion();
 
         // Determine phase

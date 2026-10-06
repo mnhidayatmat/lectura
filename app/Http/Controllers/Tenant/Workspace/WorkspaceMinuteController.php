@@ -33,7 +33,7 @@ class WorkspaceMinuteController extends Controller
 
         if ($request->hasFile('attachment')) {
             $f = $request->file('attachment');
-            $filePath = $f->store("workspace/{$group->id}/minutes", 'local');
+            $filePath = $f->store("workspace/{$group->id}/minutes", 'uploads');
             $fileName = $f->getClientOriginalName();
         }
 
@@ -65,7 +65,7 @@ class WorkspaceMinuteController extends Controller
         }
 
         if ($minute->file_path) {
-            Storage::disk('local')->delete($minute->file_path);
+            Storage::disk('uploads')->delete($minute->file_path);
         }
 
         $minute->delete();

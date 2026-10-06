@@ -17,6 +17,7 @@ use App\Models\Section;
 use App\Models\TenantUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CourseController extends Controller
@@ -35,29 +36,53 @@ class CourseController extends Controller
 
         $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
 
+        // One entry per course; the semesters it runs in come from its sections
         $courses = Course::whereIn('id', $allCourseIds)
             ->withCount('sections')
-            ->with(['academicTerm', 'faculty'])
-            // Newest semester first. Courses with no semester sort last on their
-            // own: both MySQL and SQLite place NULL at the end of a DESC ordering.
-            ->orderByDesc(AcademicTerm::select('start_date')->whereColumn('academic_terms.id', 'courses.academic_term_id'))
-            ->latest()
+            ->with(['academicTerm', 'faculty', 'sections.academicTerm'])
+            ->orderBy('code')
             ->get();
 
         [$archivedCourses, $currentCourses] = $courses->partition(fn (Course $course) => $course->status === 'archived');
 
-        // The query already orders by semester, so grouping preserves that order.
-        $courseGroups = $currentCourses->groupBy(fn (Course $course) => $course->academicTerm?->name ?? 'No semester');
+        $studentCounts = DB::table('section_students')
+            ->join('sections', 'sections.id', '=', 'section_students.section_id')
+            ->whereIn('sections.course_id', $courses->pluck('id'))
+            ->where('section_students.is_active', true)
+            ->groupBy('sections.course_id')
+            ->selectRaw('sections.course_id, count(distinct section_students.user_id) as total')
+            ->pluck('total', 'course_id');
 
-        return view('tenant.courses.index', compact('courses', 'courseGroups', 'archivedCourses'));
+        // A course runs this semester when any of its sections (or the course itself) is in the current term
+        $runningNow = $currentCourses
+            ->filter(fn (Course $course) => $course->sections->contains(fn (Section $section) => ($section->academicTerm ?? $course->academicTerm)?->isCurrent())
+                || ($course->sections->isEmpty() && $course->academicTerm?->isCurrent()))
+            ->pluck('id');
+
+        $stats = [
+            'courses' => $currentCourses->count(),
+            'sections' => $currentCourses->sum('sections_count'),
+            'students' => DB::table('section_students')
+                ->join('sections', 'sections.id', '=', 'section_students.section_id')
+                ->whereIn('sections.course_id', $currentCourses->pluck('id'))
+                ->where('section_students.is_active', true)
+                ->distinct()
+                ->count('section_students.user_id'),
+            'running' => $runningNow->count(),
+        ];
+
+        $currentCourseId = app()->bound('current_course') ? app('current_course')->id : null;
+
+        return view('tenant.courses.index', compact(
+            'courses', 'currentCourses', 'archivedCourses', 'studentCounts', 'runningNow', 'stats', 'currentCourseId'
+        ));
     }
 
     public function create(): View
     {
         $faculties = Faculty::orderBy('name')->get();
-        $terms = AcademicTerm::orderByDesc('start_date')->get();
 
-        return view('tenant.courses.create', compact('faculties', 'terms'));
+        return view('tenant.courses.create', compact('faculties'));
     }
 
     public function store(StoreCourseRequest $request): RedirectResponse
@@ -76,32 +101,41 @@ class CourseController extends Controller
             'format' => $request->format,
             'faculty_id' => $request->faculty_id,
             'programme_id' => $request->programme_id,
-            'academic_term_id' => $request->academic_term_id,
             'status' => 'active',
         ]);
 
         // Create CLOs
+        $cloIdsByCode = [];
         if ($request->clos) {
-            foreach ($request->clos as $i => $clo) {
+            foreach (array_values($request->clos) as $i => $clo) {
                 if (! empty($clo['code']) && ! empty($clo['description'])) {
-                    CourseLearningOutcome::create([
+                    $cloIdsByCode[$clo['code']] = CourseLearningOutcome::create([
                         'course_id' => $course->id,
                         'code' => $clo['code'],
                         'description' => $clo['description'],
                         'sort_order' => $i,
-                    ]);
+                    ])->id;
                 }
             }
         }
 
-        // Create topics
+        // Create topics; the form links weeks to CLOs by code because the CLOs have no ids yet
         if ($request->topics) {
-            foreach ($request->topics as $i => $topic) {
+            foreach (array_values($request->topics) as $i => $topic) {
                 if (! empty($topic['title'])) {
+                    $cloIds = collect($topic['clos'] ?? [])
+                        ->map(fn ($code) => $cloIdsByCode[$code] ?? null)
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
+
                     CourseTopic::create([
                         'course_id' => $course->id,
                         'week_number' => $topic['week_number'] ?? ($i + 1),
                         'title' => $topic['title'],
+                        'description' => $topic['description'] ?? null,
+                        'clo_ids' => $cloIds ?: null,
                         'sort_order' => $i,
                     ]);
                 }
@@ -122,7 +156,7 @@ class CourseController extends Controller
         $isOwner = $this->isCourseOwner($course);
 
         $course->load([
-            'learningOutcomes',
+            'learningOutcomes.programmeLearningOutcomes',
             'topics',
             'sections' => fn ($q) => $q->with(['activeStudents', 'academicTerm', 'lecturers']),
             'activeLearningPlans',
@@ -130,9 +164,32 @@ class CourseController extends Controller
             'faculty',
             'programme',
             'academicTerm',
+            'assessments' => fn ($q) => $q->topLevel()->orderBy('sort_order'),
         ]);
 
         $terms = AcademicTerm::orderByDesc('start_date')->get();
+
+        $course->sections->each->setRelation('course', $course);
+
+        // A course runs in many semesters through its sections: group them by
+        // semester, newest first, with sections that have none at the end.
+        $semesterGroups = $course->sections
+            ->groupBy(fn (Section $section) => $section->term()?->id ?? 0)
+            ->map(fn ($sections) => ['term' => $sections->first()->term(), 'sections' => $sections->values()])
+            ->sortByDesc(fn ($group) => $group['term']?->start_date?->timestamp ?? PHP_INT_MIN)
+            ->values();
+
+        $semesters = $semesterGroups->pluck('term')->filter()
+            ->whenEmpty(fn ($terms) => collect([$course->academicTerm])->filter());
+
+        $currentTerm = $semesters->first(fn (AcademicTerm $term) => $term->isCurrent());
+        $upcomingTerm = $semesters->filter(fn (AcademicTerm $term) => $term->start_date && now()->lt($term->start_date))
+            ->sortBy('start_date')
+            ->first();
+
+        $currentWeek = $currentTerm
+            ? min((int) floor($currentTerm->start_date->diffInDays(now()) / 7) + 1, (int) $course->num_weeks)
+            : null;
 
         $lecturers = collect();
         if ($isOwner) {
@@ -147,7 +204,7 @@ class CourseController extends Controller
                 ->values();
         }
 
-        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner'));
+        return view('tenant.courses.show', compact('course', 'terms', 'lecturers', 'isOwner', 'currentWeek', 'semesterGroups', 'semesters', 'currentTerm', 'upcomingTerm'));
     }
 
     public function edit(string $tenantSlug, Course $course): View

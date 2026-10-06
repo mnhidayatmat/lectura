@@ -90,12 +90,14 @@ class StudentMarkController extends Controller
             return redirect()->away($score->answer_script_drive_link);
         }
 
-        $absolutePath = Storage::disk('local')->path($score->answer_script_path);
-        if (! file_exists($absolutePath)) {
+        if (! $score->answer_script_path || ! Storage::disk('uploads')->exists($score->answer_script_path)) {
             abort(404);
         }
 
-        return response()->file($absolutePath);
+        return Storage::disk('uploads')->response(
+            $score->answer_script_path,
+            $score->answer_script_filename ?? 'answer-script.pdf'
+        );
     }
 
     public function downloadAnswerScript(string $tenantSlug, AssessmentScore $score)
@@ -106,7 +108,7 @@ class StudentMarkController extends Controller
             return redirect()->away($score->answer_script_drive_link);
         }
 
-        return Storage::disk('local')->download(
+        return Storage::disk('uploads')->download(
             $score->answer_script_path,
             $score->answer_script_filename ?? 'answer-script.pdf'
         );
@@ -127,7 +129,7 @@ class StudentMarkController extends Controller
             abort(404);
         }
 
-        if (! $score->answer_script_drive_link && ! Storage::disk('local')->exists($score->answer_script_path)) {
+        if (! $score->answer_script_drive_link && ! Storage::disk('uploads')->exists($score->answer_script_path)) {
             abort(404);
         }
     }

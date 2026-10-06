@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-center gap-3">
-                <a href="{{ route('tenant.courses.show', [app('current_tenant')->slug, $course]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                <a href="{{ route('tenant.active-learning.all', app('current_tenant')->slug) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
                     <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </a>
                 <div>
@@ -17,12 +17,20 @@
         </div>
     </x-slot>
 
-    <div class="space-y-8">
+    @php $manual = ($sort ?? 'manual') === 'manual'; @endphp
+    <div class="space-y-8" @if($manual) x-data="listSorter({ url: @js(route('tenant.active-learning.reorder', [app('current_tenant')->slug, $course])) })" @endif>
         @if($plans->isNotEmpty())
-            <form method="GET" class="flex items-center justify-end gap-2">
+            <form method="GET" class="flex flex-wrap items-center justify-end gap-2">
+                @if($manual)
+                    <span class="mr-auto text-xs text-slate-400">{{ __('sorting.hint', ['items' => __('sorting.items_plans')]) }}</span>
+                    <x-sort-status />
+                @else
+                    <a href="?sort=manual" class="mr-auto text-xs font-medium text-indigo-600 hover:text-indigo-800">{{ __('active_learning.arrange_manually') }}</a>
+                @endif
                 <label for="sort" class="text-xs font-medium text-slate-500 dark:text-slate-400">Sort by</label>
                 <select name="sort" id="sort" onchange="this.form.submit()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500">
-                    <option value="latest" {{ ($sort ?? 'latest') === 'latest' ? 'selected' : '' }}>Newest first</option>
+                    <option value="manual" {{ $manual ? 'selected' : '' }}>{{ __('active_learning.sort_manual') }}</option>
+                    <option value="latest" {{ ($sort ?? '') === 'latest' ? 'selected' : '' }}>Newest first</option>
                     <option value="oldest" {{ ($sort ?? '') === 'oldest' ? 'selected' : '' }}>Oldest first</option>
                     <option value="title_asc" {{ ($sort ?? '') === 'title_asc' ? 'selected' : '' }}>Title (A–Z)</option>
                     <option value="title_desc" {{ ($sort ?? '') === 'title_desc' ? 'selected' : '' }}>Title (Z–A)</option>
@@ -54,9 +62,9 @@
                         <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">{{ __('active_learning.drafts') }}</h3>
                         <span class="text-xs text-slate-400">({{ $draftPlans->count() }})</span>
                     </div>
-                    <div class="space-y-3">
+                    <div class="space-y-3" data-sort-list>
                         @foreach($draftPlans as $plan)
-                            @include('tenant.active-learning._plan-card', ['plan' => $plan])
+                            @include('tenant.active-learning._plan-card', ['plan' => $plan, 'manual' => $manual, 'first' => $loop->first, 'last' => $loop->last])
                         @endforeach
                     </div>
                 </div>
@@ -71,9 +79,9 @@
                         <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wider">{{ __('active_learning.published') }}</h3>
                         <span class="text-xs text-slate-400">({{ $publishedPlans->count() }})</span>
                     </div>
-                    <div class="space-y-3">
+                    <div class="space-y-3" data-sort-list>
                         @foreach($publishedPlans as $plan)
-                            @include('tenant.active-learning._plan-card', ['plan' => $plan])
+                            @include('tenant.active-learning._plan-card', ['plan' => $plan, 'manual' => $manual, 'first' => $loop->first, 'last' => $loop->last])
                         @endforeach
                     </div>
                 </div>
@@ -89,9 +97,9 @@
                         <span class="text-xs text-slate-400">({{ $archivedPlans->count() }})</span>
                         <svg class="w-4 h-4 text-slate-400 transition-transform" :class="showArchived && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
-                    <div x-show="showArchived" x-cloak x-transition class="space-y-3">
+                    <div x-show="showArchived" x-cloak x-transition class="space-y-3" data-sort-list>
                         @foreach($archivedPlans as $plan)
-                            @include('tenant.active-learning._plan-card', ['plan' => $plan])
+                            @include('tenant.active-learning._plan-card', ['plan' => $plan, 'manual' => $manual, 'first' => $loop->first, 'last' => $loop->last])
                         @endforeach
                     </div>
                 </div>
