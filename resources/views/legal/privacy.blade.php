@@ -1,5 +1,5 @@
 <x-legal-layout title="Privacy Policy" updated="7 October 2026">
-    <p>This policy explains what personal data Lectura (the website at lectura.coursesme.com) and the Lectura Go app for iPhone and Android collect, why, and what you can do about it. Lectura is operated by Mohamad Nur Hidayat Mat in Malaysia ("we"), and we handle personal data in line with Malaysia's Personal Data Protection Act 2010.</p>
+    <p>This policy explains what personal data Lectura (the website at lectura.coursesme.com) and the Lectura app for iPhone and Android collect, why, and what you can do about it. Lectura is operated by Mohamad Nur Hidayat Mat in Malaysia ("we"), and we handle personal data in line with Malaysia's Personal Data Protection Act 2010.</p>
 
     <p>Lectura is used by universities and polytechnics. If your institution set up your account, it decides which courses you are in and what your lecturers can see, and you should also read its own privacy notice.</p>
 
