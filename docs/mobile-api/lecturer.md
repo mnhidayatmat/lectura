@@ -196,7 +196,7 @@ level. → `{"message": "Attendance policy saved.", "data": {policy}}`. Course a
 
 ### GET `lecturer/courses/{course}/sections/{section}`
 
-Section fields (as in the course detail) plus `course` and the active roster sorted by name (not paginated; bounded by section size).
+Section fields (as in the course detail) plus `course` and the active roster sorted by name (not paginated; bounded by section size). As there, `active_session_id` is always `null` for an inactive section; the same goes for the section in every section create/update response.
 
 ```json
 {

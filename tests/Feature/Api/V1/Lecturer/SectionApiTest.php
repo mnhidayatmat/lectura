@@ -79,6 +79,22 @@ class SectionApiTest extends LecturerApiTestCase
             ->assertJsonPath('message', 'You do not have access to this section.');
     }
 
+    public function test_an_inactive_section_shows_no_live_session(): void
+    {
+        $session = $this->startAttendance($this->section, $this->lecturer);
+
+        $this->actingAsApi($this->lecturer)->getJson($this->url())
+            ->assertOk()
+            ->assertJsonPath('data.active_session_id', $session->id);
+
+        $this->section->update(['is_active' => false]);
+
+        $this->actingAsApi($this->lecturer)->getJson($this->url())
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false)
+            ->assertJsonPath('data.active_session_id', null);
+    }
+
     public function test_toggle_active_flips_the_section(): void
     {
         $this->actingAsApi($this->lecturer)->postJson($this->url('/toggle-active'))

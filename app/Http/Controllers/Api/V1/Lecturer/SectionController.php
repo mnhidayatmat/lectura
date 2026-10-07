@@ -31,10 +31,7 @@ class SectionController extends Controller
         $this->authorizeSection($course, $section);
 
         $section->load(['course:id,code,title', 'academicTerm', 'lecturers', 'activeStudents']);
-        $section->setAttribute(
-            'active_session_id',
-            AttendanceSession::where('section_id', $section->id)->where('status', 'active')->value('id')
-        );
+        $section->setAttribute('active_session_id', $this->activeSessionId($section));
 
         return (new SectionDetailResource($section))
             ->withStudentIdNumbers($this->studentIdNumbers($section->activeStudents->pluck('id'))->all());
@@ -345,12 +342,21 @@ class SectionController extends Controller
     private function sectionResponse(Section $section, string $message, int $status = 200): JsonResponse
     {
         $section->refresh()->load(['academicTerm', 'lecturers'])->loadCount('activeStudents');
-        $section->setAttribute(
-            'active_session_id',
-            AttendanceSession::where('section_id', $section->id)->where('status', 'active')->value('id')
-        );
+        $section->setAttribute('active_session_id', $this->activeSessionId($section));
 
         return response()->json(['message' => $message, 'data' => (new SectionResource($section))->resolve()], $status);
+    }
+
+    /**
+     * The section's running attendance session, never shown for an inactive section.
+     */
+    private function activeSessionId(Section $section): ?int
+    {
+        if (! $section->is_active) {
+            return null;
+        }
+
+        return AttendanceSession::where('section_id', $section->id)->where('status', 'active')->value('id');
     }
 
     private function findColumn(array $header, array $aliases): ?int
