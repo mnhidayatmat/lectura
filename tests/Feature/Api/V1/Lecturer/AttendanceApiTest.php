@@ -65,6 +65,34 @@ class AttendanceApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.session_types', ['lecture', 'tutorial', 'lab', 'extra', 'replacement']);
     }
 
+    public function test_index_leaves_out_an_inactive_section_and_its_sessions(): void
+    {
+        $inactive = $this->createSection($this->course, ['is_active' => false]);
+        $this->startAttendance($inactive, $this->lecturer);
+        $this->startAttendance($inactive, $this->lecturer, ['status' => 'ended', 'ended_at' => now()]);
+
+        $this->actingAsApi($this->lecturer)->getJson($this->api())
+            ->assertOk()
+            ->assertJsonCount(0, 'data.active_sessions')
+            ->assertJsonCount(0, 'data.recent_sessions')
+            ->assertJsonCount(1, 'data.sections')
+            ->assertJsonPath('data.sections.0.id', $this->section->id);
+    }
+
+    public function test_start_conflicts_on_an_inactive_section(): void
+    {
+        $this->section->update(['is_active' => false]);
+
+        $this->actingAsApi($this->lecturer)->postJson($this->api('/start'), [
+            'section_id' => $this->section->id,
+            'session_type' => 'lecture',
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'This section is inactive, so no new attendance sessions can be started.');
+
+        $this->assertDatabaseCount('attendance_sessions', 0);
+    }
+
     public function test_start_creates_a_rotating_qr_session(): void
     {
         $this->actingAsApi($this->lecturer)->postJson($this->api('/start'), [

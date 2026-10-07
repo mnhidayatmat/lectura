@@ -41,7 +41,10 @@ class AttendanceController extends Controller
     {
         $this->ensureLecturer();
 
-        $sectionIds = $this->allAccessibleSectionIds();
+        // Deactivated sections and their sessions stay out of attendance
+        $sectionIds = Section::whereIn('id', $this->allAccessibleSectionIds())
+            ->where('is_active', true)
+            ->pluck('id');
 
         $activeSessions = $this->sessionsQuery($sectionIds)
             ->where('status', 'active')
@@ -57,7 +60,6 @@ class AttendanceController extends Controller
         $activeBySection = $activeSessions->pluck('id', 'section_id');
 
         $sections = Section::whereIn('id', $sectionIds)
-            ->where('is_active', true)
             ->with('course:id,code,title')
             ->get()
             ->filter(fn (Section $section) => $section->course !== null)
@@ -99,6 +101,12 @@ class AttendanceController extends Controller
         if ($section->course->status === 'archived') {
             return response()->json([
                 'message' => 'This course is archived, so no new attendance sessions can be started.',
+            ], 409);
+        }
+
+        if (! $section->is_active) {
+            return response()->json([
+                'message' => 'This section is inactive, so no new attendance sessions can be started.',
             ], 409);
         }
 

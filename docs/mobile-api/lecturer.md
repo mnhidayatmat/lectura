@@ -362,6 +362,7 @@ Summary fields plus:
 }
 ```
 `sections` = active accessible sections (sorted by course code, section name) for the "start session" picker; `active_session_id` non-null means tapping should resume that session instead of starting one.
+Sessions of deactivated sections are left out of `active_sessions` and `recent_sessions` too.
 
 ### POST `lecturer/attendance/start`
 
@@ -374,6 +375,7 @@ Errors:
   { "message": "An active session already exists for this section.", "data": { "session_id": 2 } }
   ```
 - 409 `{"message": "This course is archived, so no new attendance sessions can be started."}`
+- 409 `{"message": "This section is inactive, so no new attendance sessions can be started."}`
 - 409 `{"message": "This section's semester is closed, so no new attendance sessions can be started."}`
 - 422 validation (`section_id`, `session_type`, `week_number`)
 - 404 section of another institution; 403 no section access
