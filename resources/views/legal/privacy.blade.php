@@ -49,5 +49,5 @@
     <p>If we change this policy, we will update the date above, and tell you in the app for significant changes.</p>
 
     <h2>Contact</h2>
-    <p>Questions or requests: <a href="mailto:{{ config('lectura.support_email') }}">{{ config('lectura.support_email') }}</a>.</p>
+    <p>Questions or requests: <a href="mailto:hello@lectura.app">hello@lectura.app</a>.</p>
 </x-legal-layout>

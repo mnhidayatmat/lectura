@@ -1,5 +1,5 @@
 <x-legal-layout title="Support">
-    <p>Need help with Lectura or the Lectura Go app? Email <a href="mailto:{{ config('lectura.support_email') }}">{{ config('lectura.support_email') }}</a> with your institution, your role and what went wrong, and we will get back to you.</p>
+    <p>Need help with Lectura or the Lectura Go app? Email <a href="mailto:hello@lectura.app">hello@lectura.app</a> with your institution, your role and what went wrong, and we will get back to you.</p>
 
     <h2>Common questions</h2>
 

@@ -666,7 +666,7 @@
                 <div>
                     <h4 class="font-semibold text-white text-sm mb-4">Support</h4>
                     <ul class="space-y-2 text-sm">
-                        <li><a href="mailto:{{ config('lectura.support_email') }}" class="hover:text-white transition">Contact Us</a></li>
+                        <li><a href="mailto:hello@lectura.app" class="hover:text-white transition">Contact Us</a></li>
                         <li><a href="{{ route('support') }}" class="hover:text-white transition">Help Centre</a></li>
                         <li><a href="#" class="hover:text-white transition">API Docs</a></li>
                     </ul>
