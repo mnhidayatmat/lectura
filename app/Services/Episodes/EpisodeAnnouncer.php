@@ -52,7 +52,7 @@ final class EpisodeAnnouncer
     public function announceDue(): int
     {
         return Episode::withoutGlobalScopes()
-            ->where('status', Episode::STATUS_PUBLISHED)
+            ->whereIn('status', Episode::VISIBLE_STATUSES)
             ->where('notify_students', true)
             ->whereNull('announced_at')
             ->where(fn ($q) => $q->whereNull('publish_at')->orWhere('publish_at', '<=', now()))

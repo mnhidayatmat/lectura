@@ -261,7 +261,7 @@ class EpisodeController extends Controller
             'course_topic_id' => ['nullable', 'integer', Rule::exists('course_topics', 'id')->where('course_id', $course->id)],
             'week_number' => ['nullable', 'integer', 'min:1', 'max:52'],
             'synopsis' => ['nullable', 'string', 'max:2000'],
-            'status' => ['required', Rule::in([Episode::STATUS_DRAFT, Episode::STATUS_PUBLISHED])],
+            'status' => ['required', Rule::in([Episode::STATUS_DRAFT, Episode::STATUS_LOCKED, Episode::STATUS_PUBLISHED])],
             'publish_at' => ['nullable', 'date'],
             'required_by' => ['nullable', 'date'],
             'notify_students' => ['nullable', 'boolean'],

@@ -19,6 +19,12 @@ class Episode extends Model
 
     public const STATUS_PUBLISHED = 'published';
 
+    /** Students see it locked ("Coming soon") until the lecturer sets a release time. */
+    public const STATUS_LOCKED = 'locked';
+
+    /** Statuses students can see in Watch, locked or not. */
+    public const VISIBLE_STATUSES = [self::STATUS_PUBLISHED, self::STATUS_LOCKED];
+
     public const SOURCE_UPLOAD = 'upload';
 
     public const SOURCE_YOUTUBE = 'youtube';
@@ -116,6 +122,16 @@ class Episode extends Model
         return $query->where('status', self::STATUS_PUBLISHED);
     }
 
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::VISIBLE_STATUSES);
+    }
+
+    public function isVisible(): bool
+    {
+        return in_array($this->status, self::VISIBLE_STATUSES, true);
+    }
+
     public function isYouTube(): bool
     {
         return $this->source === self::SOURCE_YOUTUBE;
@@ -133,14 +149,24 @@ class Episode extends Model
 
     public function isAvailable(): bool
     {
-        return $this->isPublished() && ($this->publish_at === null || $this->publish_at->lte(now()));
+        return match ($this->status) {
+            self::STATUS_PUBLISHED => $this->publish_at === null || $this->publish_at->lte(now()),
+            // A locked episode opens only at a release time the lecturer has set.
+            self::STATUS_LOCKED => $this->publish_at !== null && $this->publish_at->lte(now()),
+            default => false,
+        };
     }
 
     /**
-     * When students could (or can) first watch it: the scheduled time, or when it was created.
+     * When students could (or can) first watch it: the scheduled time, or when it was created;
+     * null while it is locked with no release time.
      */
-    public function availableAt(): Carbon
+    public function availableAt(): ?Carbon
     {
+        if ($this->status === self::STATUS_LOCKED && $this->publish_at === null) {
+            return null;
+        }
+
         return $this->publish_at ?? $this->created_at;
     }
 }

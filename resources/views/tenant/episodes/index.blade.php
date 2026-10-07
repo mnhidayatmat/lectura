@@ -115,7 +115,8 @@
                     <div>
                         <label for="new_status" class="{{ $label }}">Visibility</label>
                         <select id="new_status" name="status" class="{{ $input }}">
-                            <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft</option>
+                            <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft (hidden)</option>
+                            <option value="locked" @selected(old('status') === 'locked')>Locked (coming soon)</option>
                             <option value="published" @selected(old('status') === 'published')>Published</option>
                         </select>
                     </div>
@@ -124,7 +125,7 @@
                         <input id="new_publish_at" type="datetime-local" name="publish_at" value="{{ old('publish_at') }}" class="{{ $input }}">
                     </div>
                 </div>
-                <p class="text-xs text-slate-500 dark:text-slate-400">Published with a future release time shows students a locked episode until then.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Locked shows students the episode as "Coming soon" until you set a release time; it unlocks then. Published with a future release time works the same way.</p>
                 <div>
                     <label for="new_required_by" class="{{ $label }}">Watch before (optional)</label>
                     <input id="new_required_by" type="datetime-local" name="required_by" value="{{ old('required_by') }}" class="{{ $input }}">
@@ -164,7 +165,8 @@
             @foreach($episodes as $episode)
                 @php
                     $live = $episode->isAvailable();
-                    $scheduled = $episode->isPublished() && ! $live;
+                    $scheduled = $episode->isVisible() && ! $live && $episode->publish_at !== null;
+                    $comingSoon = $episode->isVisible() && ! $live && $episode->publish_at === null;
                 @endphp
                 <div x-data="{ editing: false, preview: false }" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="p-4 flex gap-4">
@@ -186,6 +188,8 @@
                                     <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Published</span>
                                 @elseif($scheduled)
                                     <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Releases {{ $episode->publish_at->copy()->timezone($tz)->format('j M, g:i A') }}</span>
+                                @elseif($comingSoon)
+                                    <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">Locked · coming soon</span>
                                 @else
                                     <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Draft</span>
                                 @endif
@@ -261,7 +265,8 @@
                         <div class="sm:col-span-3">
                             <label for="ep{{ $episode->id }}_status" class="{{ $label }}">Visibility</label>
                             <select id="ep{{ $episode->id }}_status" name="status" class="{{ $input }}">
-                                <option value="draft" @selected($episode->status === 'draft')>Draft</option>
+                                <option value="draft" @selected($episode->status === 'draft')>Draft (hidden)</option>
+                                <option value="locked" @selected($episode->status === 'locked')>Locked (coming soon)</option>
                                 <option value="published" @selected($episode->status === 'published')>Published</option>
                             </select>
                         </div>

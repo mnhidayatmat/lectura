@@ -553,6 +553,8 @@ attendance index.
 
 - `series` is `null` (and `episodes` empty) when the course has no series yet.
 - Drafts are included (`status: "draft"`), so a lecturer can see what is not yet released.
+- `status` ∈ `draft|locked|published`. A `locked` episode shows students "Coming soon" until a
+  release time is set; with none set, `available_at` is `null`.
 - `first_try_correct_percent`: share of first answers that were right across the episode's checks;
   `null` when nobody answered.
 

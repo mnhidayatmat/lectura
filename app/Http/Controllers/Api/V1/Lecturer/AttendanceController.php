@@ -409,11 +409,12 @@ class AttendanceController extends Controller
             return null;
         }
 
-        $episode = Episode::published()
+        $episode = Episode::visible()
             ->where('course_id', $courseId)
             ->where('week_number', $session->week_number)
             ->orderBy('episode_number')
-            ->first();
+            ->get()
+            ->first(fn (Episode $e) => $e->isAvailable());
         if (! $episode) {
             return null;
         }

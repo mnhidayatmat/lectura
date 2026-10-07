@@ -77,6 +77,31 @@ class EpisodeManagementTest extends ApiTestCase
         $this->assertSame('2026-10-14 00:00:00', Episode::sole()->publish_at->utc()->format('Y-m-d H:i:s'));
     }
 
+    public function test_lecturer_can_lock_an_episode_as_coming_soon(): void
+    {
+        Storage::fake('local');
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+
+        $this->actingAs($lecturer)->post("/{$tenant->slug}/materials/course/{$course->id}/episodes", [
+            'title' => 'Plot, Plan and Isometric',
+            'episode_number' => 8,
+            'status' => 'locked',
+            'video' => UploadedFile::fake()->create('EP08.mp4', 512, 'video/mp4'),
+        ])->assertSessionHasNoErrors();
+
+        $episode = Episode::sole();
+        $this->assertSame(Episode::STATUS_LOCKED, $episode->status);
+        $this->assertFalse($episode->isAvailable());
+        $this->assertNull($episode->availableAt());
+
+        $this->actingAs($lecturer)->get("/{$tenant->slug}/materials/course/{$course->id}/episodes")
+            ->assertOk()
+            ->assertSee('Locked · coming soon')
+            ->assertSee('Locked (coming soon)');
+    }
+
     public function test_rejects_non_video_uploads(): void
     {
         Storage::fake('local');

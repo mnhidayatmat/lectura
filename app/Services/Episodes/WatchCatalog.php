@@ -44,7 +44,7 @@ final class WatchCatalog
     public function home(User $user): array
     {
         $seriesList = CourseSeries::whereIn('course_id', $this->enrolledCourseIds($user))
-            ->whereHas('episodes', fn ($q) => $q->published())
+            ->whereHas('episodes', fn ($q) => $q->visible())
             ->with(['course.lecturer', 'course.academicTerm', 'publishedEpisodes.topic'])
             ->get()
             ->sortBy(fn (CourseSeries $series) => $series->course?->code)
@@ -275,11 +275,11 @@ final class WatchCatalog
     }
 
     /**
-     * Drafts are invisible (404); scheduled episodes are visible but locked (403).
+     * Drafts are invisible (404); scheduled and locked episodes are visible but closed (403).
      */
     public function authorizeEpisode(User $user, Episode $episode): void
     {
-        if (! $episode->isPublished()) {
+        if (! $episode->isVisible()) {
             abort(404, 'That item could not be found. It may have been removed.');
         }
 

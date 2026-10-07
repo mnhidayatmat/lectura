@@ -181,6 +181,35 @@ class StudentWatchApiTest extends ApiTestCase
             ->assertForbidden();
     }
 
+    public function test_locked_episodes_are_coming_soon_until_the_lecturer_sets_a_release_time(): void
+    {
+        [$tenant, , $student, $course] = $this->enrolledStudent();
+        $series = $this->series($course);
+        $this->episode($series, 1);
+        $locked = $this->episode($series, 2, ['status' => Episode::STATUS_LOCKED]);
+        $seriesUrl = $this->tenantApi($tenant, "student/watch/series/{$series->id}");
+        $episodeUrl = $this->tenantApi($tenant, "student/watch/episodes/{$locked->id}");
+
+        $this->actingAsApi($student)->getJson($seriesUrl)
+            ->assertOk()
+            ->assertJsonPath('data.episodes.1.id', $locked->id)
+            ->assertJsonPath('data.episodes.1.is_available', false)
+            ->assertJsonPath('data.episodes.1.available_at', null)
+            ->assertJsonPath('data.episodes.1.is_new', false);
+        $this->actingAsApi($student)->getJson($episodeUrl)->assertForbidden();
+
+        $releaseAt = now()->addDay()->startOfMinute();
+        $locked->update(['publish_at' => $releaseAt]);
+        $this->actingAsApi($student)->getJson($seriesUrl)
+            ->assertJsonPath('data.episodes.1.is_available', false)
+            ->assertJsonPath('data.episodes.1.available_at', $releaseAt->toIso8601String());
+        $this->actingAsApi($student)->getJson($episodeUrl)->assertForbidden();
+
+        $this->travel(2)->days();
+        $this->actingAsApi($student)->getJson($seriesUrl)->assertJsonPath('data.episodes.1.is_available', true);
+        $this->actingAsApi($student)->getJson($episodeUrl)->assertOk();
+    }
+
     public function test_episodes_of_another_institution_are_not_found(): void
     {
         [$tenant, , $student] = $this->enrolledStudent();

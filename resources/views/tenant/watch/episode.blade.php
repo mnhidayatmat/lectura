@@ -80,7 +80,7 @@
                                 </div>
                             @else
                                 <p class="text-xl font-extrabold text-white">That's the end of this episode</p>
-                                @if($next)<p class="mt-1 text-sm text-[#94a3b8]">EP {{ $next['episode_number'] }} unlocks {{ \Illuminate\Support\Carbon::parse($next['available_at'])->timezone($tz)->format('D j M') }}.</p>@endif
+                                @if($next)<p class="mt-1 text-sm text-[#94a3b8]">EP {{ $next['episode_number'] }} {{ $next['available_at'] ? 'unlocks '.\Illuminate\Support\Carbon::parse($next['available_at'])->timezone($tz)->format('D j M') : 'is coming soon' }}.</p>@endif
                                 <a href="{{ $config['seriesUrl'] }}" class="mt-4 inline-block px-5 py-2.5 rounded-xl bg-[#ffffff] text-slate-950 text-sm font-bold hover:bg-[#e2e8f0]">Back to series</a>
                             @endif
                         </div>

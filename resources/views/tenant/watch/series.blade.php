@@ -77,7 +77,7 @@
                                 <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#94a3b8]">
                                     @if($ep['week_number'])<span>Week {{ $ep['week_number'] }}</span>@endif
                                     @if(! $ep['is_available'])
-                                        <span class="px-1.5 py-0.5 rounded bg-slate-800 text-[#cbd5e1] font-semibold">Unlocks {{ \Illuminate\Support\Carbon::parse($ep['available_at'])->timezone($tz)->format('D j M, g:i A') }}</span>
+                                        <span class="px-1.5 py-0.5 rounded bg-slate-800 text-[#cbd5e1] font-semibold">{{ $ep['available_at'] ? 'Unlocks '.\Illuminate\Support\Carbon::parse($ep['available_at'])->timezone($tz)->format('D j M, g:i A') : 'Coming soon' }}</span>
                                     @elseif($progress && $progress['completed'])
                                         <span class="text-emerald-300 font-semibold">Watched</span>
                                     @elseif($progress)

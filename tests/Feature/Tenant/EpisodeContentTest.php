@@ -213,6 +213,23 @@ class EpisodeContentTest extends ApiTestCase
         $this->assertNotNull($episode->fresh()->announced_at);
     }
 
+    public function test_locked_episodes_are_announced_only_once_their_release_time_arrives(): void
+    {
+        Notification::fake();
+        $student = $this->createMember($this->tenant, 'student');
+        $this->enroll($this->createSection($this->course), $student);
+        $this->episode(['status' => Episode::STATUS_LOCKED]);
+        $scheduled = $this->episode(['episode_number' => 2, 'status' => Episode::STATUS_LOCKED, 'publish_at' => now()->addHour()]);
+
+        $this->artisan('episodes:announce')->expectsOutput('0 episode(s) announced.')->assertSuccessful();
+
+        $this->travel(2)->hours();
+        $this->artisan('episodes:announce')->expectsOutput('1 episode(s) announced.')->assertSuccessful();
+
+        Notification::assertSentToTimes($student, EpisodePublished::class, 1);
+        $this->assertNotNull($scheduled->fresh()->announced_at);
+    }
+
     public function test_episode_page_shows_how_students_watched_and_sends_reminders(): void
     {
         Notification::fake();

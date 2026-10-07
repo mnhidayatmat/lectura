@@ -442,9 +442,11 @@ students and the course's lecturers/admins. `drive` items redirect (302) to the 
 
 A course can carry one animated **series** made of **episodes** (short mp4 videos, one per
 teaching week). Lecturers upload and publish them on the web (Materials → Episodes). Students only
-see `published` episodes of courses they are actively enrolled in. An episode whose `publish_at`
-is still in the future is listed with `is_available: false` (no stream, shown as locked); drafts
-are never listed and return 404.
+see `published` and `locked` episodes of courses they are actively enrolled in. An episode whose
+`publish_at` is still in the future is listed with `is_available: false` (no stream, shown as
+locked). A `locked` episode stays closed until the lecturer sets a `publish_at` and that time
+arrives; until a time is set its `available_at` is `null` (show "Coming soon"). Drafts are never
+listed and return 404.
 
 `episode` fragment, used in every response below:
 
@@ -476,7 +478,8 @@ are never listed and return 404.
 }
 ```
 
-- `topic`, `week_number`, `duration_seconds`, `poster_url`, `synopsis` and `progress` may be `null`.
+- `topic`, `week_number`, `duration_seconds`, `poster_url`, `synopsis`, `progress` and
+  `available_at` (a locked episode with no release time) may be `null`.
   `progress` is `null` until the student first plays the episode.
 - `is_new`: available within the last 14 days and never played.
 - `required_by` (or `null`): the lecturer wants it watched before this time, usually the next

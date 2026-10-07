@@ -36,6 +36,6 @@ class CourseSeries extends Model
 
     public function publishedEpisodes(): HasMany
     {
-        return $this->episodes()->where('status', Episode::STATUS_PUBLISHED);
+        return $this->episodes()->whereIn('status', Episode::VISIBLE_STATUSES);
     }
 }
