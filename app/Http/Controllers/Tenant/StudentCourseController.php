@@ -96,7 +96,7 @@ class StudentCourseController extends Controller
         $activeLearningPlans = ActiveLearningPlan::where('course_id', $course->id)
             ->where('status', 'published')
             ->withCount('activities')
-            ->orderByDesc('week_number')
+            ->orderBy('week_number')
             ->get();
 
         return view('tenant.courses.student-show', compact(

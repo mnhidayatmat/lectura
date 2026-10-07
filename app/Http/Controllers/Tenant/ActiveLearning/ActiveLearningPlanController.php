@@ -55,6 +55,7 @@ class ActiveLearningPlanController extends Controller
 
         $plans = ActiveLearningPlan::whereIn('course_id', $courseIds)
             ->withCount('activities')
+            ->orderBy('week_number')
             ->get();
         $plansByCourse = $plans->groupBy('course_id');
 

@@ -91,7 +91,7 @@ class CourseController extends Controller
             ->where('status', 'published')
             ->withCount('activities')
             ->with(['sessions' => fn ($q) => $q->where('status', ActiveLearningSession::STATUS_ACTIVE)])
-            ->orderByDesc('week_number')
+            ->orderBy('week_number')
             ->get();
 
         $materialsCount = CourseFile::where('course_id', $course->id)
