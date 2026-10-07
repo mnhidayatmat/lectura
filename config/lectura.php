@@ -2,6 +2,9 @@
 
 return [
 
+    // Shown on the public Support and Privacy pages and used as the App Store contact.
+    'support_email' => env('LECTURA_SUPPORT_EMAIL', 'hello@lectura.app'),
+
     /*
     |--------------------------------------------------------------------------
     | Tenant Resolution

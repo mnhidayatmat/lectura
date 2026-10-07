@@ -102,6 +102,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::view('/privacy', 'legal.privacy')->name('privacy');
+Route::view('/support', 'legal.support')->name('support');
+
 // ── Auth (Breeze) ──
 Route::get('/dashboard', function () {
     $user = auth()->user();
