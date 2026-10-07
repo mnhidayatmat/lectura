@@ -41,9 +41,11 @@ class AttendanceController extends Controller
             return $redirect;
         }
 
-        $sectionIds = $this->allAccessibleSectionIds();
-
-        $sections = Section::whereIn('id', $sectionIds)->get(['id', 'course_id', 'is_active']);
+        // Deactivated sections and their sessions stay out of attendance
+        $sections = Section::whereIn('id', $this->allAccessibleSectionIds())
+            ->where('is_active', true)
+            ->get(['id', 'course_id']);
+        $sectionIds = $sections->pluck('id');
 
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->with('section:id,course_id,name')
@@ -69,7 +71,7 @@ class AttendanceController extends Controller
                 $totalRecords = $ended->sum('records_count');
 
                 $course->attendance_stats = [
-                    'sections' => $sections->where('course_id', $course->id)->where('is_active', true)->count(),
+                    'sections' => $sections->where('course_id', $course->id)->count(),
                     'sessions' => $courseSessions->count(),
                     'live' => $courseSessions->where('status', 'active')->count(),
                     'rate' => $totalRecords > 0 ? (int) round($ended->sum('attended_count') / $totalRecords * 100) : null,
@@ -95,6 +97,7 @@ class AttendanceController extends Controller
 
         $sections = Section::where('course_id', $course->id)
             ->whereIn('id', $sectionIds)
+            ->where('is_active', true)
             ->with(['academicTerm', 'course.academicTerm'])
             ->orderBy('name')
             ->get();
@@ -125,7 +128,7 @@ class AttendanceController extends Controller
         ];
 
         // Sections in a closed semester can't take attendance any more
-        $activeSections = $sections->where('is_active', true)
+        $activeSections = $sections
             ->reject(fn (Section $section) => $section->term()?->isClosed())
             ->values();
 
@@ -159,6 +162,10 @@ class AttendanceController extends Controller
 
         if ($course->status === 'archived') {
             return back()->with('error', 'This course is archived, so no new attendance sessions can be started.');
+        }
+
+        if (! $section->is_active) {
+            return back()->with('error', 'This section is inactive, so no new attendance sessions can be started.');
         }
 
         if ($section->term()?->isClosed()) {
