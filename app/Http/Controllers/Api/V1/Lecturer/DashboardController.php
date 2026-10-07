@@ -97,7 +97,9 @@ class DashboardController extends Controller
             ->sortBy('start_time')
             ->values();
 
+        // Deactivated sections' sessions stay off the dashboard
         $activeSessions = AttendanceSession::whereIn('section_id', $this->allAccessibleSectionIds())
+            ->whereHas('section', fn ($q) => $q->where('is_active', true))
             ->where('status', 'active')
             ->with([
                 'section' => fn ($query) => $query->withCount('activeStudents'),

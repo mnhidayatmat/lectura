@@ -50,6 +50,20 @@ class DashboardApiTest extends LecturerApiTestCase
             ->assertJsonCount(2, 'data.recent_courses');
     }
 
+    public function test_live_sessions_of_an_inactive_section_are_left_out(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $active = $this->startAttendance($this->createSection($course), $lecturer);
+        $this->startAttendance($this->createSection($course, ['is_active' => false]), $lecturer);
+
+        $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/dashboard'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.active_sessions')
+            ->assertJsonPath('data.active_sessions.0.id', $active->id);
+    }
+
     public function test_student_role_is_rejected(): void
     {
         $tenant = $this->createTenant();

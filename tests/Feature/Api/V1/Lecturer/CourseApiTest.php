@@ -126,6 +126,22 @@ class CourseApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.sections.1.active_session_id', null);
     }
 
+    public function test_an_inactive_section_stays_listed_without_its_live_session(): void
+    {
+        $tenant = $this->createTenant();
+        $owner = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $owner);
+        $inactive = $this->createSection($course, ['is_active' => false]);
+        $this->startAttendance($inactive, $owner);
+
+        $this->actingAsApi($owner)->getJson($this->tenantApi($tenant, "lecturer/courses/{$course->id}"))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.sections')
+            ->assertJsonPath('data.sections.0.id', $inactive->id)
+            ->assertJsonPath('data.sections.0.is_active', false)
+            ->assertJsonPath('data.sections.0.active_session_id', null);
+    }
+
     public function test_section_lecturer_sees_only_assigned_sections_without_the_course_invite_code(): void
     {
         $tenant = $this->createTenant();

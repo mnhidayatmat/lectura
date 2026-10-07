@@ -33,7 +33,7 @@ Examples below are real responses captured from the test suite (ids/dates are il
 
 ### GET `lecturer/dashboard`
 
-Same figures as the web lecturer dashboard. `today_schedule` is sorted by `start_time`; `is_now`/`is_past` computed on the server clock. `active_sessions` lets the app resume a live QR. `recent_courses` = 5 most recently created accessible courses. `avg_attendance` is an int percentage or `null` (no ended sessions).
+Same figures as the web lecturer dashboard. `today_schedule` is sorted by `start_time`; `is_now`/`is_past` computed on the server clock. `active_sessions` lets the app resume a live QR; sessions of deactivated sections are left out. `recent_courses` = 5 most recently created accessible courses. `avg_attendance` is an int percentage or `null` (no ended sessions).
 
 ```json
 {
@@ -153,7 +153,7 @@ CourseSummary fields plus details. Course owners (and admins) get **all** sectio
   }
 }
 ```
-`section.invite_code` is the **student** enrolment code. `total_students` counts distinct active students across all sections of the course. `active_session_id` = the section's running attendance session (or `null`).
+`section.invite_code` is the **student** enrolment code. `total_students` counts distinct active students across all sections of the course. `active_session_id` = the section's running attendance session (or `null`; always `null` for an inactive section, which stays listed so it can be switched back on).
 Errors: 403 course access, 404 other tenant / unknown.
 
 ### POST `lecturer/courses/join`

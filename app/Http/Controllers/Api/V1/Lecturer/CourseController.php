@@ -55,7 +55,8 @@ class CourseController extends Controller
             ->orderBy('id')
             ->get();
 
-        $activeSessions = AttendanceSession::whereIn('section_id', $sections->pluck('id'))
+        // Inactive sections stay listed so they can be switched back on, but without a live session
+        $activeSessions = AttendanceSession::whereIn('section_id', $sections->where('is_active', true)->pluck('id'))
             ->where('status', 'active')
             ->pluck('id', 'section_id');
 
