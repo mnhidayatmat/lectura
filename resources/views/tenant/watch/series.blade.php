@@ -1,7 +1,7 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
-            <a href="{{ route('tenant.watch.index', $tenant->slug) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition" aria-label="Back to Watch">
+            <a href="{{ $preview['backUrl'] ?? route('tenant.watch.index', $tenant->slug) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition" aria-label="Back to Watch">
                 <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div>
@@ -12,6 +12,14 @@
     </x-slot>
 
     @php extract(\App\Support\WatchView::helpers($tenant)); @endphp
+    @isset($preview) @php $episodeUrl = $preview['episodeUrl']; @endphp @endisset
+    @isset($preview)
+        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            <span class="font-bold">Student preview</span>
+            <span>This is what enrolled students see. Locked episodes still play for you here; nothing you do is saved.</span>
+            <a href="{{ $preview['backUrl'] }}" class="ml-auto font-semibold underline">Back to Episodes</a>
+        </div>
+    @endisset
     @php
         $upNext = $series['up_next'];
         $watchedPct = $series['episodes_count'] ? round($series['completed_count'] / $series['episodes_count'] * 100) : 0;
@@ -61,7 +69,7 @@
                         $checks = $ep['quick_checks'];
                     @endphp
                     <li>
-                        <a href="{{ $episodeUrl($ep) }}" class="group grid grid-cols-[8rem_1fr] sm:grid-cols-[11rem_1fr] gap-4 py-4 {{ $ep['is_available'] ? '' : 'pointer-events-none' }}" @unless($ep['is_available']) aria-disabled="true" @endunless>
+                        <a href="{{ $episodeUrl($ep) }}" class="group grid grid-cols-[8rem_1fr] sm:grid-cols-[11rem_1fr] gap-4 py-4 {{ $ep['is_available'] || isset($preview) ? '' : 'pointer-events-none' }}" @unless($ep['is_available'] || isset($preview)) aria-disabled="true" @endunless>
                             <div class="relative aspect-video rounded-lg overflow-hidden bg-slate-800">
                                 @if($ep['poster_url'])
                                     <img src="{{ $ep['poster_url'] }}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover {{ $ep['is_available'] ? '' : 'opacity-40' }}">

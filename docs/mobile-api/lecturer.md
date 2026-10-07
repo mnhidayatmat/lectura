@@ -630,6 +630,37 @@ started it.` (or `… finished it.`) · `A reminder went out at 10:00 AM. You ca
 
 ---
 
+### GET `lecturer/courses/{course}/watch/preview`
+
+"Preview as student": the series exactly as an enrolled student gets it from
+`GET student/watch/series/{series}` (same shape, see `student.md` → Watch), for a lecturer of the
+course who is not enrolled. Drafts are left out and locked or scheduled episodes come back closed
+(`is_available: false`), as students see them. `progress` is the lecturer's own, so normally `null`.
+404 `"Students can't see any episodes in this course yet."` when there is no series or every episode
+is a draft.
+
+### GET `lecturer/watch/episodes/{episode}/preview`
+
+The student playback response (`GET student/watch/episodes/{episode}`) for any episode of the
+course, drafts and locked ones included, plus `"preview": true` and `can_download: false`. Each check
+also carries `correct_option_id` and `explanation`, so the app reveals the answer locally: in preview
+the app posts no progress and no answers.
+
+### PATCH `lecturer/watch/episodes/{episode}/release`
+
+```json
+{ "status": "locked", "publish_at": "2026-11-02T08:00:00+08:00", "notify_students": true }
+```
+
+- `status` ∈ `draft|locked|published` (required). `draft` hides it; `locked` shows "Coming soon"
+  until `publish_at`; `published` is open now, or from `publish_at` when that is in the future.
+- `publish_at`: ISO-8601 with offset, or `null` to clear it. `notify_students` is optional; when it
+  is on, students get `episode_published` the moment the episode opens (now, or by the scheduler).
+- Response: `{"message": "Episode 8 unlocks Mon 2 Nov, 8:00 AM.", "data": {…episode summary…}}`.
+  The summary (also in the course list and analytics) now includes `publish_at` and
+  `notify_students`. Messages: "… is a draft. Students can't see it.", "… is locked. Students see it
+  as coming soon.", "… unlocks {date}.", "… is released." (+ " Students were notified.").
+
 ## Differences from the web app (intentional)
 
 - Section endpoints (show, toggle, add/remove student) now check course **and** section access; the web SectionController had no authorization.

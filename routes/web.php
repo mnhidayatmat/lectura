@@ -34,6 +34,7 @@ use App\Http\Controllers\Tenant\CourseFileController;
 use App\Http\Controllers\Tenant\CourseMaterialController;
 use App\Http\Controllers\Tenant\EpisodeContentController;
 use App\Http\Controllers\Tenant\EpisodeController;
+use App\Http\Controllers\Tenant\EpisodePreviewController;
 use App\Http\Controllers\Tenant\StudentWatchController;
 use App\Http\Controllers\Tenant\NotificationController;
 use App\Http\Controllers\Tenant\PerformanceController;
@@ -547,6 +548,8 @@ Route::prefix('{tenant:slug}')
         // Episodes ("Watch" in the app) — before the {file} wildcard routes below
         Route::get('/materials/course/{course}/episodes', [EpisodeController::class, 'index'])->name('tenant.episodes.index');
         Route::put('/materials/course/{course}/episodes/series', [EpisodeController::class, 'saveSeries'])->name('tenant.episodes.series');
+        Route::get('/materials/course/{course}/episodes/preview', [EpisodePreviewController::class, 'series'])->name('tenant.episodes.preview');
+        Route::get('/materials/course/{course}/episodes/{episode}/preview', [EpisodePreviewController::class, 'episode'])->name('tenant.episodes.preview.episode');
         Route::post('/materials/course/{course}/episodes', [EpisodeController::class, 'store'])->name('tenant.episodes.store');
         Route::patch('/materials/course/{course}/episodes/{episode}', [EpisodeController::class, 'update'])->name('tenant.episodes.update');
         Route::delete('/materials/course/{course}/episodes/{episode}', [EpisodeController::class, 'destroy'])->name('tenant.episodes.destroy');

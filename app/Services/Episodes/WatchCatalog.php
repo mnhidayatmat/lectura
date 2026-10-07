@@ -94,7 +94,11 @@ final class WatchCatalog
         ];
     }
 
-    public function series(User $user, CourseSeries $series): array
+    /**
+     * @param  bool  $preview  A lecturer previewing as a student: the caller has checked they
+     *                         teach the course, so enrolment is not required.
+     */
+    public function series(User $user, CourseSeries $series, bool $preview = false): array
     {
         $series->loadMissing(['course.lecturer', 'course.academicTerm', 'course.learningOutcomes', 'publishedEpisodes.topic']);
 
@@ -102,7 +106,9 @@ final class WatchCatalog
             abort(404, 'That item could not be found. It may have been removed.');
         }
 
-        $this->ensureEnrolled($series->course, $user);
+        if (! $preview) {
+            $this->ensureEnrolled($series->course, $user);
+        }
 
         $episodes = $this->attachCourse($series);
         $watch = $this->presenter($user, $episodes);
@@ -120,9 +126,18 @@ final class WatchCatalog
         ];
     }
 
-    public function playback(User $user, Episode $episode): array
+    /**
+     * @param  bool  $preview  A lecturer previewing as a student: any episode plays (draft and
+     *                         locked too), and each check carries its answer so the client can
+     *                         reveal it without saving anything.
+     */
+    public function playback(User $user, Episode $episode, bool $preview = false): array
     {
-        $this->authorizeEpisode($user, $episode);
+        if ($preview) {
+            $episode->loadMissing(['course.academicTerm', 'topic']);
+        } else {
+            $this->authorizeEpisode($user, $episode);
+        }
 
         $series = $episode->series()->with(['publishedEpisodes.topic'])->firstOrFail();
         $episodes = $this->attachCourse($series, $episode->course);
@@ -156,7 +171,7 @@ final class WatchCatalog
                 'title' => $scene->title,
                 'start_seconds' => $scene->start_seconds,
             ])->values(),
-            'checks' => $episode->checks->map(function (EpisodeCheck $check) use ($myAnswers) {
+            'checks' => $episode->checks->map(function (EpisodeCheck $check) use ($myAnswers, $preview) {
                 $answer = $myAnswers->get($check->id);
 
                 return [
@@ -170,8 +185,13 @@ final class WatchCatalog
                         'attempts' => $answer->attempts,
                         'answered_at' => $answer->answered_at?->toIso8601String(),
                     ] : null,
+                    ...($preview ? [
+                        'correct_option_id' => $check->options->firstWhere('is_correct', true)?->id,
+                        'explanation' => $check->explanation,
+                    ] : []),
                 ];
             })->values(),
+            ...($preview ? ['preview' => true, 'can_download' => false] : []),
             'captions' => $episode->captions->map(fn (EpisodeCaption $caption) => [
                 'language' => $caption->language,
                 'label' => $caption->label(),

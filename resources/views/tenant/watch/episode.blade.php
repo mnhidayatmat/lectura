@@ -1,7 +1,7 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex items-center gap-3">
-            <a href="{{ route('tenant.watch.series', [$tenant->slug, $playback['series']['id']]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition" aria-label="Back to the series">
+            <a href="{{ $preview['seriesUrl'] ?? route('tenant.watch.series', [$tenant->slug, $playback['series']['id']]) }}" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 flex items-center justify-center transition" aria-label="Back to the series">
                 <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div class="min-w-0">
@@ -23,14 +23,22 @@
             'scenes' => $playback['scenes'],
             'checks' => $playback['checks'],
             'captions' => $playback['captions'],
-            'progressUrl' => route('tenant.watch.progress', [$tenant->slug, $playback['id']]),
-            'answerUrl' => route('tenant.watch.answer', [$tenant->slug, '__CHECK__']),
-            'nextUrl' => $next && $next['is_available'] ? route('tenant.watch.episode', [$tenant->slug, $next['id']]) : null,
-            'seriesUrl' => route('tenant.watch.series', [$tenant->slug, $playback['series']['id']]),
+            'preview' => isset($preview),
+            'progressUrl' => isset($preview) ? null : route('tenant.watch.progress', [$tenant->slug, $playback['id']]),
+            'answerUrl' => isset($preview) ? null : route('tenant.watch.answer', [$tenant->slug, '__CHECK__']),
+            'nextUrl' => isset($preview) ? $preview['nextUrl'] : ($next && $next['is_available'] ? route('tenant.watch.episode', [$tenant->slug, $next['id']]) : null),
+            'seriesUrl' => $preview['seriesUrl'] ?? route('tenant.watch.series', [$tenant->slug, $playback['series']['id']]),
             'csrf' => csrf_token(),
         ];
     @endphp
 
+    @isset($preview)
+        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            <span class="font-bold">Student preview</span>
+            <span>Playing as a student would. Quick Checks reveal their answer; progress and answers aren't saved.</span>
+            <a href="{{ $preview['manageUrl'] }}" class="ml-auto font-semibold underline">Back to Episodes</a>
+        </div>
+    @endisset
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6" x-data="watchPlayer(@js($config))" x-init="boot()" @keydown.window.escape="cancelUpNext()">
         <div class="xl:col-span-2 space-y-3">
             <div class="rounded-2xl bg-slate-950 p-2 sm:p-3 shadow-xl">
@@ -70,7 +78,7 @@
                     {{-- End card --}}
                     <div x-show="ended" x-cloak class="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/85 p-4 text-center">
                         <div>
-                            @if($next && $next['is_available'])
+                            @if($next && ($next['is_available'] || isset($preview)))
                                 <p class="text-xs font-bold uppercase tracking-[0.15em] text-[#94a3b8]" x-show="countdown > 0">Up next in <span x-text="countdown"></span></p>
                                 <p class="mt-1 text-xl font-extrabold text-white">EP {{ $next['episode_number'] }} · {{ $next['title'] }}</p>
                                 <div class="mt-4 flex justify-center gap-2">
@@ -245,6 +253,11 @@
                 },
 
                 async answer(option) {
+                    if (this.preview) {
+                        const correct = this.check.correct_option_id;
+                        this.result = { is_correct: option.id === correct, correct_option_id: correct, explanation: this.check.explanation, chosen: option.id };
+                        return;
+                    }
                     this.sending = true; this.error = null;
                     try {
                         const res = await fetch(this.answerUrl.replace('__CHECK__', this.check.id), {
@@ -289,6 +302,7 @@
                 },
 
                 save(completed = false, beacon = false) {
+                    if (!this.progressUrl) return; // student preview: nothing is saved
                     const position = Math.floor(this.now());
                     if (position <= 0 && !completed) return;
                     const payload = { position_seconds: position, completed: completed || undefined, duration_seconds: this.videoDuration() || undefined, rewinds: this.rewinds.length ? this.rewinds : undefined };
