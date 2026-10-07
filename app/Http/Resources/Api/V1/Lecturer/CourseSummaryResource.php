@@ -22,6 +22,12 @@ class CourseSummaryResource extends JsonResource
             $badge = ['label' => 'Ended', 'color' => 'amber'];
         }
 
+        // An active course with no active section in the current semester reads as inactive
+        $notRunning = $this->status === 'active' && ! $termEnded && ! $this->resource->runsInCurrentTerm();
+        if ($notRunning) {
+            $badge = ['label' => 'Inactive', 'color' => 'red'];
+        }
+
         return [
             'id' => $this->id,
             'code' => $this->code,
@@ -30,6 +36,7 @@ class CourseSummaryResource extends JsonResource
             'status_label' => $badge['label'],
             'status_color' => $badge['color'],
             'term_ended' => $termEnded,
+            'not_running' => $notRunning,
             'teaching_mode' => $this->teaching_mode,
             'num_weeks' => (int) $this->num_weeks,
             'credit_hours' => $this->credit_hours !== null ? (int) $this->credit_hours : null,

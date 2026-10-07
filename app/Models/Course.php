@@ -158,6 +158,22 @@ class Course extends Model
         return max(1, min($week, (int) ($this->num_weeks ?: 14)));
     }
 
+    /**
+     * Runs this semester: an active section sits in the current term (its own or,
+     * failing that, the course's). A course with no sections yet runs when its own
+     * term is current.
+     */
+    public function runsInCurrentTerm(): bool
+    {
+        if ($this->sections->isEmpty()) {
+            return (bool) $this->academicTerm?->isCurrent();
+        }
+
+        return $this->sections->contains(
+            fn (Section $section) => $section->is_active && ($section->academicTerm ?? $this->academicTerm)?->isCurrent()
+        );
+    }
+
     public function totalStudents(): int
     {
         return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))

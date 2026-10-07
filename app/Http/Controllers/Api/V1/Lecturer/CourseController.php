@@ -31,7 +31,7 @@ class CourseController extends Controller
 
         $courses = Course::whereIn('id', $ownedCourseIds->merge($sectionCourseIds)->unique())
             ->withCount('sections')
-            ->with(['academicTerm', 'faculty'])
+            ->with(['academicTerm', 'faculty', 'sections.academicTerm'])
             // The app groups by semester but the payload carries no term dates, so
             // it relies on this order. Keep the two in step if either changes.
             ->orderByDesc(AcademicTerm::select('start_date')->whereColumn('academic_terms.id', 'courses.academic_term_id'))

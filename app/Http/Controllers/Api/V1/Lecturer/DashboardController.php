@@ -37,7 +37,7 @@ class DashboardController extends Controller
 
         $courses = Course::whereIn('id', $allCourseIds)
             ->withCount('sections')
-            ->with(['academicTerm', 'faculty'])
+            ->with(['academicTerm', 'faculty', 'sections.academicTerm'])
             ->latest()
             ->get();
         $courseCount = $courses->where('status', 'active')->count();

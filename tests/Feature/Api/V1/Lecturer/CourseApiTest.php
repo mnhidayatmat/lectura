@@ -97,7 +97,49 @@ class CourseApiTest extends LecturerApiTestCase
         $this->assertSame('active', $data->firstWhere('id', $ended->id)['status']);
         $this->assertTrue($data->firstWhere('id', $ended->id)['term_ended']);
         $this->assertSame('Active', $data->firstWhere('id', $live->id)['status_label']);
-        $this->assertSame('Active', $data->firstWhere('id', $none->id)['status_label']);
+        // No semester and no sections: not running this semester
+        $this->assertSame('Inactive', $data->firstWhere('id', $none->id)['status_label']);
+    }
+
+    public function test_an_active_course_without_an_active_section_this_semester_is_labelled_inactive(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $current = $this->createTerm($tenant, ['start_date' => now()->subMonth()->toDateString(), 'end_date' => now()->addMonth()->toDateString()]);
+        $next = $this->createTerm($tenant, ['start_date' => now()->addMonths(2)->toDateString(), 'end_date' => now()->addMonths(6)->toDateString()]);
+
+        // Course has no semester; its section is in the current one
+        $running = $this->createCourse($tenant, $lecturer, ['code' => 'BTG3333']);
+        $this->createSection($running, ['academic_term_id' => $current->id]);
+
+        // Only section is switched off
+        $switchedOff = $this->createCourse($tenant, $lecturer, ['code' => 'BTD2232']);
+        $this->createSection($switchedOff, ['academic_term_id' => $current->id, 'is_active' => false]);
+
+        // Section sits in another semester
+        $elsewhere = $this->createCourse($tenant, $lecturer, ['code' => 'BTG2663']);
+        $this->createSection($elsewhere, ['academic_term_id' => $next->id]);
+
+        // Section inherits the course's current semester
+        $inherits = $this->createCourse($tenant, $lecturer, ['code' => 'BTD4122', 'academic_term_id' => $current->id]);
+        $this->createSection($inherits);
+
+        $data = collect(
+            $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/courses'))
+                ->assertOk()
+                ->json('data')
+        );
+
+        $this->assertSame('Active', $data->firstWhere('id', $running->id)['status_label']);
+        $this->assertFalse($data->firstWhere('id', $running->id)['not_running']);
+        $this->assertSame('Active', $data->firstWhere('id', $inherits->id)['status_label']);
+        foreach ([$switchedOff, $elsewhere] as $course) {
+            $row = $data->firstWhere('id', $course->id);
+            $this->assertSame('Inactive', $row['status_label']);
+            $this->assertSame('red', $row['status_color']);
+            $this->assertSame('active', $row['status']);
+            $this->assertTrue($row['not_running']);
+        }
     }
 
     public function test_owner_sees_all_sections_with_counts_and_the_course_invite_code(): void

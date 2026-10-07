@@ -53,10 +53,8 @@ class CourseController extends Controller
             ->selectRaw('sections.course_id, count(distinct section_students.user_id) as total')
             ->pluck('total', 'course_id');
 
-        // A course runs this semester when any of its sections (or the course itself) is in the current term
         $runningNow = $currentCourses
-            ->filter(fn (Course $course) => $course->sections->contains(fn (Section $section) => ($section->academicTerm ?? $course->academicTerm)?->isCurrent())
-                || ($course->sections->isEmpty() && $course->academicTerm?->isCurrent()))
+            ->filter(fn (Course $course) => $course->runsInCurrentTerm())
             ->pluck('id');
 
         $stats = [
