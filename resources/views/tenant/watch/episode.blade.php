@@ -69,7 +69,8 @@
                                 <p x-show="result?.explanation" class="mt-1 text-sm text-[#cbd5e1]" x-text="result?.explanation"></p>
                             </div>
                             <div class="mt-3 flex justify-end gap-2">
-                                <button type="button" x-show="!result" @click="skipCheck()" class="px-4 py-2 rounded-xl text-sm font-semibold text-[#cbd5e1] hover:bg-white/10">Skip</button>
+                                {{-- Answering is compulsory; skipping is only for an answer that could not be saved --}}
+                                <button type="button" x-show="!result && error" @click="skipCheck()" class="px-4 py-2 rounded-xl text-sm font-semibold text-[#cbd5e1] hover:bg-white/10">Skip for now</button>
                                 <button type="button" x-show="result" @click="closeCheck()" class="px-4 py-2 rounded-xl text-sm font-bold bg-violet-300 text-slate-950 hover:bg-violet-200">Continue</button>
                             </div>
                         </div>
@@ -219,6 +220,7 @@
                 },
                 play() { if (this.yt && this.yt.playVideo) this.yt.playVideo(); else if (this.$refs.video) this.$refs.video.play(); },
                 pause() { if (this.yt && this.yt.pauseVideo) this.yt.pauseVideo(); else if (this.$refs.video) this.$refs.video.pause(); },
+                jumpTo(s) { if (this.yt && this.yt.seekTo) this.yt.seekTo(s, true); else if (this.$refs.video) this.$refs.video.currentTime = s; },
                 seek(s) {
                     this.ended = false;
                     if (this.yt && this.yt.seekTo) { this.yt.seekTo(s, true); this.yt.playVideo(); }
@@ -231,6 +233,22 @@
                     const t = this.now();
                     if (this.lastPolled !== null && this.lastPolled - t >= 5 && this.rewinds.length < 50) {
                         this.rewinds.push({ from_seconds: Math.floor(this.lastPolled), to_seconds: Math.floor(t) });
+                    }
+
+                    // A seek (YouTube's scrubber, the video's own controls or a scene button) over a
+                    // question the student never answered goes back to it: answering is compulsory.
+                    if (!this.check && this.lastPolled !== null && t - this.lastPolled > 2) {
+                        const from = this.lastPolled;
+                        const jumped = this.checks
+                            .filter(c => !c.my_answer && !this.handled[c.id] && c.at_seconds > from && c.at_seconds <= t)
+                            .sort((a, b) => a.at_seconds - b.at_seconds)[0];
+                        if (jumped) {
+                            this.pause();
+                            this.jumpTo(jumped.at_seconds);
+                            this.lastPolled = this.position = jumped.at_seconds;
+                            this.check = jumped; this.result = null; this.error = null;
+                            return;
+                        }
                     }
                     this.lastPolled = t;
                     this.position = t;

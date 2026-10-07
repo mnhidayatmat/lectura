@@ -112,6 +112,8 @@ class StudentWatchWebTest extends ApiTestCase
             ->assertSee('id="watch-yt"', false)
             ->assertSee('Meet Titis')
             ->assertSee('Which one is piping?')
+            ->assertSee('x-show="!result && error"', false)
+            ->assertDontSee('>Skip</button>', false)
             ->assertSee('EP 2 · The Book of Laws')
             ->assertSee("/watch/episodes/{$next->id}", false)
             ->assertDontSee('is_correct&quot;:true', false);
