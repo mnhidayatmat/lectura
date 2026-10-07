@@ -78,6 +78,7 @@ class WatchController extends Controller
                 ],
                 ...$analytics->report(
                     $episode,
+                    $this->remindableSections($sections, $sectionId),
                     $studentIds,
                     $this->studentIdNumbers($studentIds)->all(),
                     $sectionId === null ? EpisodeAnalytics::sectionNamesByStudent($sections) : [],
@@ -89,24 +90,25 @@ class WatchController extends Controller
     public function remind(Request $request, Episode $episode, EpisodeReminderSender $sender): JsonResponse
     {
         $this->authorizeEpisode($episode);
-        [, , $studentIds] = $this->audienceOf($request, $episode->course);
+        [$sections, $sectionId] = $this->audienceOf($request, $episode->course);
+        $sectionIds = $this->remindableSections($sections, $sectionId);
 
         $audience = $request->validate([
             'audience' => ['nullable', Rule::in(['not_started', 'not_finished'])],
         ])['audience'] ?? 'not_started';
 
         try {
-            $sent = $sender->send($episode, $studentIds, $audience);
+            $result = $sender->send($episode, $sectionIds, $audience);
         } catch (RuntimeException $e) {
             abort(422, $e->getMessage());
         }
 
         return response()->json([
-            'message' => "Reminder sent to {$sent} ".str('student')->plural($sent).'.',
+            'message' => EpisodeReminderSender::message($result, app('current_tenant')->timezone ?: config('app.timezone')),
             'data' => [
-                'sent' => $sent,
-                'last_sent_at' => $episode->last_reminded_at?->toIso8601String(),
-                'available_at' => EpisodeAnalytics::reminderAvailableAt($episode)?->toIso8601String(),
+                'sent' => $result['sent'],
+                'last_sent_at' => EpisodeAnalytics::remindedAt($episode, $sectionIds)->max()?->toIso8601String(),
+                'available_at' => EpisodeAnalytics::reminderAvailableAt($episode, $sectionIds)?->toIso8601String(),
             ],
         ]);
     }
@@ -201,6 +203,15 @@ class WatchController extends Controller
         $studentIds = EpisodeAnalytics::studentIds($sectionId === null ? $sections->pluck('id') : [$sectionId]);
 
         return [$sections, $sectionId, $studentIds];
+    }
+
+    /**
+     * @param  Collection<int, Section>  $sections
+     * @return Collection<int, int>
+     */
+    private function remindableSections(Collection $sections, ?int $sectionId): Collection
+    {
+        return $sectionId === null ? $sections->pluck('id') : collect([$sectionId]);
     }
 
     private function episodeSummary(Episode $episode): array

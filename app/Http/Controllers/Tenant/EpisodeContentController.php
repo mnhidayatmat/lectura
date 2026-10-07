@@ -61,6 +61,7 @@ class EpisodeContentController extends Controller
             'sectionId' => $sectionId,
             'report' => $analytics->report(
                 $episode,
+                $sectionId === null ? $sections->pluck('id') : [$sectionId],
                 $studentIds,
                 sectionNames: $sectionId === null ? EpisodeAnalytics::sectionNamesByStudent($sections) : [],
             ),
@@ -70,19 +71,19 @@ class EpisodeContentController extends Controller
     public function remind(Request $request, string $tenantSlug, Course $course, Episode $episode, EpisodeReminderSender $sender): RedirectResponse
     {
         $this->authorizeEpisode($course, $episode);
-        [, , $studentIds] = $this->audienceOf($request, $course);
+        [$sections, $sectionId] = $this->audienceOf($request, $course);
 
         $audience = $request->validate([
             'audience' => ['required', Rule::in(['not_started', 'not_finished'])],
         ])['audience'];
 
         try {
-            $sent = $sender->send($episode, $studentIds, $audience);
+            $result = $sender->send($episode, $sectionId === null ? $sections->pluck('id') : collect([$sectionId]), $audience);
         } catch (RuntimeException $e) {
             return back()->withErrors(['audience' => $e->getMessage()]);
         }
 
-        return back()->with('success', "Reminder sent to {$sent} ".str('student')->plural($sent).'.');
+        return back()->with('success', EpisodeReminderSender::message($result, app('current_tenant')->timezone ?: config('app.timezone')));
     }
 
     public function saveScenes(Request $request, string $tenantSlug, Course $course, Episode $episode, StoryboardParser $parser): RedirectResponse

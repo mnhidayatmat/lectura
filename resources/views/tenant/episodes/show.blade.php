@@ -51,7 +51,7 @@
                         <option value="not_started">Not started ({{ $aud['not_started'] }})</option>
                         <option value="not_finished">Not finished ({{ $aud['students'] - $aud['finished'] }})</option>
                     </select>
-                    @php $nextReminder = \App\Services\Episodes\EpisodeAnalytics::reminderAvailableAt($episode); @endphp
+                    @php $nextReminder = $report['reminder']['available_at'] ? \Illuminate\Support\Carbon::parse($report['reminder']['available_at']) : null; @endphp
                     <button type="submit" @disabled($nextReminder) class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-xl">
                         {{ $nextReminder ? 'Next reminder after '.$nextReminder->copy()->timezone($tz)->format('g:i A') : 'Send reminder' }}
                     </button>

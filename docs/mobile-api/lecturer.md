@@ -964,14 +964,19 @@ covers all of them. A section that isn't mine in this course → 422 on `section
   `section_id` echoes the filter in use (`null` = all).
 - `students`: not started first, then watching, then finished; by name within each.
   `section_name` labels the row only when no section is picked (`null` when filtered).
-- `reminder.available_at`: when another reminder may be sent (`null` = now).
+- `reminder`: for the sections the report covers. `available_at` is when another reminder may be
+  sent (`null` = now, i.e. at least one of those sections is free); `last_sent_at` is the latest
+  reminder to any of them.
 
 ### POST `lecturer/watch/episodes/{episode}/remind`
 
 Body `{ "audience": "not_started" | "not_finished", "section_id": 2 }` (`audience` defaults to
 `not_started`; `section_id` optional, as in the report). Sends the `episode_reminder` notification
-(in-app + push) to my students in that audience, limited to the section when one is given. The
-one-per-hour limit is per episode, whichever section it went to.
+(in-app + push) to my students in that audience, limited to the section when one is given.
+Each section may be reminded once an hour per episode. Without `section_id`, a section still inside
+its hour is left out and the message says so, e.g. `Reminder sent to 38 students. Section 01 was
+reminded within the hour, so it was left out until 11:00 AM.`; `last_sent_at` / `available_at` cover
+the sections asked for, as in the report.
 
 ```json
 { "message": "Reminder sent to 12 students.", "data": { "sent": 12, "last_sent_at": "2026-10-08T02:00:00+00:00", "available_at": "2026-10-08T03:00:00+00:00" } }
@@ -979,7 +984,7 @@ one-per-hour limit is per episode, whichever section it went to.
 
 Errors (422 `{"message"}`): `This episode is not released yet.` · `Everyone in this group has already
 started it.` (or `… finished it.`) · `A reminder went out at 10:00 AM. You can send another after
-11:00 AM.` (one reminder per episode per hour, whoever sent it).
+11:00 AM.` (every section asked for is inside its hour, whoever sent it).
 
 ---
 

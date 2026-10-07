@@ -236,7 +236,9 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   are `EpisodeRewind` rows the app batches into progress saves (jumps back of 5 s or more). The
   attendance session detail adds `episode_watch` for the session's week
 - Reminders (`EpisodeReminderSender` → `EpisodeReminder`, kind `episode_reminder`): to my students
-  who haven't started or finished, one per episode per hour (`last_reminded_at`). It throws
+  who haven't started or finished, once an hour per episode **per section**
+  (`episode_section_reminders`; `episodes.last_reminded_at` is no longer read). Reminding every section
+  skips the ones inside their hour and says so; only sections someone was reminded in are stamped. It throws
   `RuntimeException` with the lecturer-facing message; the API turns it into a 422, the web into a
   form error
 - `allow_download` lets the app save the mp4 for offline viewing; progress saves queued offline send

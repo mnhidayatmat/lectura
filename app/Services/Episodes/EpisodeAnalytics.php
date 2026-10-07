@@ -10,6 +10,7 @@ use App\Models\EpisodeCheckAnswer;
 use App\Models\EpisodeProgress;
 use App\Models\EpisodeRewind;
 use App\Models\EpisodeScene;
+use App\Models\EpisodeSectionReminder;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\User;
@@ -127,7 +128,10 @@ final class EpisodeAnalytics
         return $answers->isEmpty() ? null : (int) round($answers->where('first_is_correct', true)->count() / $answers->count() * 100);
     }
 
-    public function report(Episode $episode, Collection $studentIds, array $idNumbers = [], array $sectionNames = []): array
+    /**
+     * @param  iterable<int>  $sectionIds  the sections these students come from, for the reminder state
+     */
+    public function report(Episode $episode, iterable $sectionIds, Collection $studentIds, array $idNumbers = [], array $sectionNames = []): array
     {
         $episode->loadMissing(['scenes', 'checks.options']);
         $duration = $episode->duration_seconds;
@@ -173,17 +177,40 @@ final class EpisodeAnalytics
                 ->values()
                 ->all(),
             'reminder' => [
-                'last_sent_at' => $episode->last_reminded_at?->toIso8601String(),
-                'available_at' => self::reminderAvailableAt($episode)?->toIso8601String(),
+                'last_sent_at' => self::remindedAt($episode, $sectionIds)->max()?->toIso8601String(),
+                'available_at' => self::reminderAvailableAt($episode, $sectionIds)?->toIso8601String(),
             ],
         ];
     }
 
-    public static function reminderAvailableAt(Episode $episode): ?Carbon
+    /**
+     * When each of these sections was last reminded about the episode, by section id.
+     *
+     * @return Collection<int, Carbon>
+     */
+    public static function remindedAt(Episode $episode, iterable $sectionIds): Collection
     {
-        $next = $episode->last_reminded_at?->copy()->addMinutes(self::REMINDER_COOLDOWN_MINUTES);
+        return EpisodeSectionReminder::where('episode_id', $episode->id)
+            ->whereIn('section_id', collect($sectionIds)->all())
+            ->get()
+            ->mapWithKeys(fn (EpisodeSectionReminder $row) => [$row->section_id => $row->last_reminded_at]);
+    }
 
-        return $next && $next->isFuture() ? $next : null;
+    /**
+     * When the next reminder may go to these sections: null while any of them is free,
+     * else the soonest one comes off its hour.
+     */
+    public static function reminderAvailableAt(Episode $episode, iterable $sectionIds): ?Carbon
+    {
+        $sectionIds = collect($sectionIds);
+        $reminded = self::remindedAt($episode, $sectionIds);
+        $cutoff = now()->subMinutes(self::REMINDER_COOLDOWN_MINUTES);
+
+        if ($sectionIds->isEmpty() || $sectionIds->contains(fn ($id) => ! $reminded->has($id) || $reminded[$id]->lte($cutoff))) {
+            return null;
+        }
+
+        return $reminded->min()->copy()->addMinutes(self::REMINDER_COOLDOWN_MINUTES);
     }
 
     /**

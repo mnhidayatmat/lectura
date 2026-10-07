@@ -253,6 +253,43 @@ class WatchAnalyticsApiTest extends LecturerApiTestCase
         Notification::assertSentTo([$bala, $chong], EpisodeReminder::class);
     }
 
+    public function test_the_hourly_reminder_limit_is_per_section(): void
+    {
+        Notification::fake();
+        $this->tenant->update(['timezone' => 'UTC']);
+        $this->travelTo(now()->setTime(10, 0));
+        $this->section->update(['name' => 'Section 01']);
+        $second = $this->createSection($this->course, ['name' => 'Section 02', 'code' => '02'], [$this->lecturer]);
+        $yusri = $this->createMember($this->tenant, 'student');
+        $this->enroll($second, $yusri);
+        $episode = $this->episode();
+        $remind = $this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}/remind");
+        $report = $this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}");
+
+        $this->actingAsApi($this->lecturer)->postJson($remind, ['section_id' => $this->section->id])
+            ->assertOk()
+            ->assertJsonPath('data.sent', 4)
+            ->assertJsonPath('data.available_at', now()->addHour()->toIso8601String());
+
+        $this->getJson($report.'?section_id='.$this->section->id)->assertJsonPath('data.reminder.available_at', now()->addHour()->toIso8601String());
+        $this->getJson($report.'?section_id='.$second->id)->assertJsonPath('data.reminder.available_at', null);
+        $this->getJson($report)->assertJsonPath('data.reminder.available_at', null);
+
+        // Every section: Section 01 sits out its hour, Section 02 still gets it
+        $this->travel(10)->minutes();
+        $this->postJson($remind)
+            ->assertOk()
+            ->assertJsonPath('data.sent', 1)
+            ->assertJsonPath('message', 'Reminder sent to 1 student. Section 01 was reminded within the hour, so it was left out until 11:00 AM.')
+            ->assertJsonPath('data.available_at', now()->setTime(11, 0)->toIso8601String());
+        Notification::assertSentToTimes($yusri, EpisodeReminder::class, 1);
+        Notification::assertSentToTimes($this->students[0], EpisodeReminder::class, 1);
+
+        $this->postJson($remind, ['section_id' => $second->id])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'A reminder went out at 10:10 AM. You can send another after 11:10 AM.');
+    }
+
     public function test_reminder_needs_a_released_episode_and_someone_to_remind(): void
     {
         $scheduled = $this->episode(['publish_at' => now()->addDay()]);
