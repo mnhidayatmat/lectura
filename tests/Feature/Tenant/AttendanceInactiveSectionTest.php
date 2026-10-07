@@ -11,7 +11,8 @@ use Tests\Feature\Api\V1\Lecturer\LecturerApiTestCase;
 
 /**
  * A deactivated section drops out of the web attendance pages: its sessions,
- * history filter, reports and the start form, and no new session can start on it.
+ * history filter, reports and the start form, no new session can start on it,
+ * and deactivating it ends the one running.
  */
 class AttendanceInactiveSectionTest extends LecturerApiTestCase
 {
@@ -53,6 +54,17 @@ class AttendanceInactiveSectionTest extends LecturerApiTestCase
             ->assertSee('Section Alpha')
             ->assertDontSee('Section Omega')
             ->assertDontSee('Live now');
+    }
+
+    public function test_deactivating_a_section_on_the_web_ends_its_running_session(): void
+    {
+        $session = $this->startAttendance($this->active, $this->lecturer);
+
+        $this->actingAs($this->lecturer)
+            ->post($this->web("/courses/{$this->course->id}/sections/{$this->active->id}/toggle-active"))
+            ->assertSessionHas('success', "Section 'Section Alpha' deactivated. Ended 1 running attendance session.");
+
+        $this->assertSame('ended', $session->fresh()->status);
     }
 
     public function test_a_session_cannot_be_started_on_an_inactive_section(): void

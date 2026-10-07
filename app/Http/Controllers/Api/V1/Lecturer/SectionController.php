@@ -14,6 +14,7 @@ use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\TenantUser;
 use App\Models\User;
+use App\Services\Attendance\AttendanceSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -212,7 +213,7 @@ class SectionController extends Controller
         ]);
     }
 
-    public function toggleActive(Course $course, Section $section): JsonResponse
+    public function toggleActive(Course $course, Section $section, AttendanceSessionService $sessionService): JsonResponse
     {
         $this->ensureLecturer();
         $this->authorizeSection($course, $section);
@@ -220,9 +221,15 @@ class SectionController extends Controller
         $section->update(['is_active' => ! $section->is_active]);
 
         $status = $section->is_active ? 'activated' : 'deactivated';
+        $message = "Section '{$section->name}' {$status}.";
+
+        // A deactivated section takes no attendance, so a running QR session stops here
+        if (! $section->is_active && ($ended = $sessionService->endRunning($section)) > 0) {
+            $message .= " Ended {$ended} running attendance ".Str::plural('session', $ended).'.';
+        }
 
         return response()->json([
-            'message' => "Section '{$section->name}' {$status}.",
+            'message' => $message,
             'data' => [
                 'id' => $section->id,
                 'is_active' => (bool) $section->is_active,

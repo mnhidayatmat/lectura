@@ -105,6 +105,27 @@ class SectionApiTest extends LecturerApiTestCase
         $this->assertDatabaseHas('sections', ['id' => $this->section->id, 'is_active' => false]);
     }
 
+    public function test_deactivating_ends_the_running_session_and_marks_no_shows_absent(): void
+    {
+        $aina = $this->createMember($this->tenant, 'student');
+        $zul = $this->createMember($this->tenant, 'student');
+        $this->enroll($this->section, $aina);
+        $this->enroll($this->section, $zul);
+        $session = $this->startAttendance($this->section, $this->lecturer);
+        $this->markAttendance($session, $aina);
+
+        $this->actingAsApi($this->lecturer)->postJson($this->url('/toggle-active'))
+            ->assertOk()
+            ->assertJsonPath('message', "Section 'Section 01' deactivated. Ended 1 running attendance session.");
+
+        $this->assertSame('ended', $session->fresh()->status);
+        $this->assertDatabaseHas('attendance_records', ['attendance_session_id' => $session->id, 'user_id' => $zul->id, 'status' => 'absent']);
+
+        $this->actingAsApi($this->lecturer)->postJson($this->url('/toggle-active'))
+            ->assertOk()
+            ->assertJsonPath('message', "Section 'Section 01' activated.");
+    }
+
     public function test_add_student_creates_account_membership_and_enrolment(): void
     {
         $this->actingAsApi($this->lecturer)->postJson($this->url('/students'), [

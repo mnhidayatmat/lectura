@@ -11,6 +11,7 @@ use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\TenantUser;
 use App\Models\User;
+use App\Services\Attendance\AttendanceSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -84,13 +85,19 @@ class SectionController extends Controller
         return back()->with('success', 'Section details updated.');
     }
 
-    public function toggleActive(string $tenantSlug, Course $course, Section $section): RedirectResponse
+    public function toggleActive(string $tenantSlug, Course $course, Section $section, AttendanceSessionService $sessionService): RedirectResponse
     {
         $section->update(['is_active' => ! $section->is_active]);
 
         $status = $section->is_active ? 'activated' : 'deactivated';
+        $message = "Section '{$section->name}' {$status}.";
 
-        return back()->with('success', "Section '{$section->name}' {$status}.");
+        // A deactivated section takes no attendance, so a running QR session stops here
+        if (! $section->is_active && ($ended = $sessionService->endRunning($section)) > 0) {
+            $message .= " Ended {$ended} running attendance ".Str::plural('session', $ended).'.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function addStudent(Request $request, string $tenantSlug, Course $course, Section $section): RedirectResponse

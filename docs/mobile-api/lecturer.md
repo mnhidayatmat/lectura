@@ -230,7 +230,7 @@ Errors: 404 when the section does not belong to `{course}`; 403 section access.
 
 ### POST `lecturer/courses/{course}/sections/{section}/toggle-active`
 
-No body. Flips `is_active` (inactive sections don't accept invite-code enrolment and aren't offered for attendance).
+No body. Flips `is_active` (inactive sections don't accept invite-code enrolment and aren't offered for attendance). Deactivating ends any attendance session still running for the section (no-shows marked absent) and the message says so, e.g. "Section 'Section 02' deactivated. Ended 1 running attendance session.".
 ```json
 { "message": "Section 'Section 02' deactivated.", "data": { "id": 2, "is_active": false } }
 ```

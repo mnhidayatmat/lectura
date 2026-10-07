@@ -6,6 +6,7 @@ namespace App\Services\Attendance;
 
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
+use App\Models\Section;
 use App\Models\SectionStudent;
 
 class AttendanceSessionService
@@ -45,5 +46,19 @@ class AttendanceSessionService
         }
 
         return $absentUserIds->count();
+    }
+
+    /**
+     * End every session still running for the section. Returns how many were ended.
+     */
+    public function endRunning(Section $section): int
+    {
+        $running = AttendanceSession::where('section_id', $section->id)
+            ->where('status', 'active')
+            ->get();
+
+        $running->each(fn (AttendanceSession $session) => $this->end($session));
+
+        return $running->count();
     }
 }
