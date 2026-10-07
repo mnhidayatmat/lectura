@@ -12,6 +12,7 @@ use App\Models\AcademicTerm;
 use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\Section;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -65,5 +66,42 @@ class CourseController extends Controller
         $course->setRelation('sections', $sections);
 
         return (new CourseDetailResource($course))->forOwner($isOwner);
+    }
+
+    /**
+     * Take over a course by its invite code, as `courses/join` does on the web.
+     */
+    public function join(Request $request): JsonResponse
+    {
+        $request->validate(['invite_code' => ['required', 'string', 'max:20']]);
+
+        $user = $request->user();
+
+        if (! $user->hasRoleInTenant(app('current_tenant')->id, ['lecturer', 'admin'])) {
+            abort(403, 'Only lecturers can join a course.');
+        }
+
+        $code = preg_replace('/[^A-Z0-9]/', '', strtoupper($request->string('invite_code')->toString()));
+        $course = Course::where('invite_code', $code)->first();
+
+        if (! $course) {
+            return response()->json([
+                'message' => 'Invalid course invite code. Please check and try again.',
+                'errors' => ['invite_code' => ['Invalid course invite code. Please check and try again.']],
+            ], 422);
+        }
+
+        $alreadyYours = $course->lecturer_id === $user->id;
+
+        if (! $alreadyYours) {
+            $course->update(['lecturer_id' => $user->id]);
+        }
+
+        return response()->json([
+            'message' => $alreadyYours
+                ? "You are already the lecturer for {$course->code} — {$course->title}."
+                : "You joined {$course->code} — {$course->title}.",
+            'data' => ['id' => $course->id, 'code' => $course->code, 'title' => $course->title, 'already_joined' => $alreadyYours],
+        ]);
     }
 }

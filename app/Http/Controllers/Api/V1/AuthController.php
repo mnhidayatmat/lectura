@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -203,6 +204,60 @@ class AuthController extends Controller
     public function me(Request $request): UserResource
     {
         return new UserResource($request->user());
+    }
+
+    public function update(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+        ]);
+
+        $user->fill($validated);
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Profile updated.',
+            'data' => new UserResource($user),
+        ]);
+    }
+
+    /**
+     * Change the password, or set a first one on a Google- or Apple-only account.
+     */
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'current_password' => [$user->password ? 'required' : 'nullable', 'string'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        // Not the `current_password` rule: see destroy().
+        if ($user->password && ! Hash::check((string) $request->input('current_password'), $user->password)) {
+            throw ValidationException::withMessages(['current_password' => 'That password is incorrect.']);
+        }
+
+        $user->update(['password' => Hash::make($request->string('password')->toString())]);
+
+        // Like the web, a new password signs out other devices — but not this one.
+        $current = $user->currentAccessToken();
+        $user->tokens()
+            ->when($current instanceof PersonalAccessToken, fn ($query) => $query->whereKeyNot($current->getKey()))
+            ->delete();
+
+        return response()->json([
+            'message' => 'Password updated.',
+            'data' => new UserResource($user),
+        ]);
     }
 
     public function logout(Request $request): JsonResponse

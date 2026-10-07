@@ -156,6 +156,44 @@ CourseSummary fields plus details. Course owners (and admins) get **all** sectio
 `section.invite_code` is the **student** enrolment code. `total_students` counts distinct active students across all sections of the course. `active_session_id` = the section's running attendance session (or `null`).
 Errors: 403 course access, 404 other tenant / unknown.
 
+### POST `lecturer/courses/join`
+
+Takes over a course by its invite code, as `courses/join` does on the web (the course's `lecturer_id`
+becomes me). Body `{"invite_code": "SKM1001X"}` — uppercased and stripped of anything but letters
+and digits, so `skm1001-x` works.
+→ `{"message": "You joined SKM1001 — Statics.", "data": {"id": 12, "code": "SKM1001", "title": "Statics", "already_joined": false}}`
+Already the lecturer: 200 with `already_joined: true`. Errors: 422 `invite_code` (unknown code);
+403 `Only lecturers can join a course.` when I hold neither `lecturer` nor `admin` in the tenant.
+
+### GET `lecturer/courses/{course}/attendance-policy`
+
+```json
+{
+  "data": {
+    "exists": false,
+    "mode": "percentage",
+    "warning_thresholds": [
+      { "level": 1, "value": 20, "label": "Warning" },
+      { "level": 2, "value": 40, "label": "Serious Warning" }
+    ],
+    "bar_threshold": null,
+    "bar_action": "flag",
+    "include_late_as_absent": false,
+    "notify_student": true,
+    "notify_lecturer": true
+  }
+}
+```
+`exists: false` means the course has no policy yet and these are the web form's defaults. `mode`
+∈ `percentage|count`: thresholds are a % of ended sessions missed, or a number of absences.
+`bar_action` ∈ `flag|notify|block`.
+
+### PUT `lecturer/courses/{course}/attendance-policy`
+
+Body: the same fields as above minus `exists` — the web's validation (1–5 thresholds, `level`
+1–5, `value` 1–100, `label` ≤ 50; `bar_threshold` nullable 1–100). Thresholds are stored sorted by
+level. → `{"message": "Attendance policy saved.", "data": {policy}}`. Course access as for `show`.
+
 ### GET `lecturer/courses/{course}/sections/{section}`
 
 Section fields (as in the course detail) plus `course` and the active roster sorted by name (not paginated; bounded by section size).
@@ -432,6 +470,305 @@ Errors: 409 `{"message": "Cannot delete an active session. End it first."}`
 
 ---
 
+## Assignment marking
+
+Access: the assignment's course, by the course rule above. Submission and file ids are checked
+against the assignment (404 otherwise). Group assignments: every member holds a copy of the
+leader's submission (the leader's alone carries the files); lists show one row per group — the
+copy with the files — and marking it marks every copy.
+
+### GET `lecturer/assignments?course_id={id}`
+
+Assignments in my accessible courses (`course_id` optional), latest deadline first.
+```json
+{
+  "data": [
+    {
+      "id": 7, "title": "Lab Report 1", "type": "individual", "status": "published",
+      "total_marks": 20, "deadline": "2026-09-30T23:59:00+08:00",
+      "marking_mode": "manual", "submission_type": "both",
+      "parent_id": null, "sub_assignments_count": 0,
+      "course": { "id": 1, "code": "SKMM3013", "title": "Thermodynamics" },
+      "counts": { "submissions": 12, "graded": 5 }
+    }
+  ]
+}
+```
+
+### GET `lecturer/assignments/{assignment}`
+
+The summary above plus `description`, `rubric` and `submissions` (newest first):
+```json
+{
+  "rubric": { "criteria": [ { "id": 3, "title": "Method", "description": null, "max_marks": 10,
+    "levels": [ { "label": "Excellent", "description": "...", "marks": 10 } ] } ] },
+  "submissions": [
+    {
+      "id": 41, "status": "submitted", "is_late": false, "submitted_at": "...", "files_count": 1,
+      "student": { "id": 3, "name": "Aina Sofea", "student_id_number": "A21EM0001" },
+      "group": null,
+      "mark": { "total_marks": 15, "max_marks": 20, "percentage": 75, "is_final": true, "finalized_at": "..." }
+    }
+  ]
+}
+```
+`rubric` is `null` when the assignment has none. Submission `status` ∈ `submitted|ai_processing|ai_completed|graded`.
+
+### GET `lecturer/assignments/{assignment}/submissions/{submission}`
+
+The submission row plus `notes`, `text_content`, `files` (`id, name, mime_type, size_bytes,
+has_annotations`), `feedback` (`strengths, improvements, is_released` or `null`), `suggestions`
+(the web's AI-marking suggestions, if any: `rubric_criteria_id, suggested_marks, max_marks,
+explanation`), `group_members` (`id, name` — everyone the mark will reach) and `assignment` (the
+summary with its `rubric`).
+
+### GET `lecturer/assignments/{assignment}/submissions/{submission}/files/{file}`
+
+The file as a download. 404 `This file is not stored on Lectura. Open it on the web.` for Drive-only copies.
+
+### POST `lecturer/assignments/{assignment}/submissions/{submission}/mark`
+
+Saves **and releases** in one step, as the web's finalize does. Body:
+- with a rubric: `criteria` = `{ "<criterion id>": marks, ... }` — every criterion required, each 0…its `max_marks`;
+- without: `total` 0…`total_marks`;
+- `feedback_strengths`, `feedback_improvements` optional (≤ 5000).
+
+Writes a final `StudentMark` per member (total = the criteria's sum, which must not exceed
+`total_marks`), sets the submissions to `graded`, releases feedback when either text is given and
+sends `FeedbackReleased` to each member.
+→ `{"message": "Marks released to Aina Sofea.", "data": {"total_marks": 15, "max_marks": 20, "percentage": 75, "members_marked": 1}}`
+
+---
+
+## Assessment marking
+
+Course assessment-plan items (tests, projects …), separate from assignments. Access: the
+assessment's course by the course rule; the roster is always **my sections** only (the web's
+"lecturer sections": admin all, owner own + unassigned, section lecturer own).
+
+### GET `lecturer/courses/{course}/assessments`
+
+Top-level assessments in plan order, each with `children` (its parts). `meta.students` = my roster size.
+```json
+{
+  "data": [
+    {
+      "id": 5, "title": "Test 1", "type": "test", "status": "active",
+      "total_marks": 50, "weightage": 20, "due_date": null,
+      "requires_submission": false, "is_group": false, "parent_id": null,
+      "counts": { "submissions": 0, "graded": 12, "released": 12 },
+      "children": []
+    }
+  ],
+  "meta": { "students": 40 }
+}
+```
+A parent is marked through its children (nothing rolls child scores up); mark leaf items only.
+
+### GET `lecturer/assessments/{assessment}`
+
+Summary plus `course`, `description`, `rubric` (`is_weighted`, `criteria` with `weightage` and
+`levels`), `stats` (`students, submitted, graded, released, average_percentage`) and `students`:
+```json
+{
+  "student": { "id": 3, "name": "Aina Sofea", "student_id_number": "A21EM0001" },
+  "section": { "id": 1, "name": "Section 01" },
+  "group": { "id": 2, "name": "Team 1", "is_leader": true },
+  "submission": { "id": 9, "status": "submitted", "is_late": false, "submitted_at": "...", "files_count": 2 },
+  "score": {
+    "id": 11, "raw_marks": 40, "max_marks": 50, "percentage": 80, "weighted_marks": 16,
+    "criteria_marks": { "3": 8 }, "feedback": "Good", "is_computed": false,
+    "is_released": false, "released_at": null, "finalized_at": "..."
+  }
+}
+```
+Sorted by name; `group`, `submission`, `score` may be `null`.
+
+### GET `lecturer/assessments/{assessment}/submissions/{submission}` · GET `.../files/{file}[?original=1]`
+
+The submission (`notes`, `files` with `is_stamped`) and a file download. The file is the
+grade-stamped copy when one exists; `original=1` gives the upload.
+
+### PUT `lecturer/assessments/{assessment}/scores/{user}`
+
+Body: `raw_marks` 0…`total_marks`, or with a rubric `criteria_marks` `{ "<criterion id>": marks }`
+(every criterion, each ≤ its max); `feedback` optional ≤ 5000. The rubric total follows the web:
+weighted — Σ (score/max) × (weight/Σweights) × total_marks — only when every criterion has a
+positive weight, otherwise the plain sum, capped at `total_marks`. `weighted_marks` = percentage ×
+weightage / 100. A group submitter's mark goes to every member's copy. **Saving always leaves the
+score unreleased** (as per-submission marking does on the web).
+→ `{"message": "Mark saved. Release it when you are ready.", "data": {score}}`
+Errors: 404 student not on my roster; 422 `This assessment is marked through its parts.` for a parent.
+
+### POST `lecturer/assessments/{assessment}/release`
+
+Body `{"score_ids": [..]}` optional. Releases marked, unreleased scores of my roster — all of
+them, or those ids widened to the rest of each group — and sends `AssessmentMarksReleased`.
+→ `{"message": "Marks released to 12 students.", "data": {"released": 12}}`
+
+### POST `lecturer/assessments/{assessment}/scores/{score}/unrelease`
+
+Retracts the score and its group's. → `{"message": "Marks retracted.", "data": {"retracted": 2, "score": {score}}}`
+
+Not in the app (still web): pen annotations, answer-script upload to Drive, compute-from-items,
+linking items, and the web's AI marking (which currently only writes placeholder suggestions).
+
+---
+
+## Absence excuses
+
+Students submit these from `student/attendance/records/{record}/excuse`. Scope: excuses on sessions
+of my accessible sections (same rule as the attendance index).
+
+### GET `lecturer/excuses?status=pending|approved|rejected|all&page=1`
+
+`status` defaults to `pending`. 20 per page, newest first.
+```json
+{
+  "data": [
+    {
+      "id": 4,
+      "status": "pending",
+      "category": "medical",
+      "category_label": "Medical",
+      "reason": "Hospital appointment",
+      "has_attachment": true,
+      "attachment_filename": "mc.pdf",
+      "submitted_at": "2026-09-08T12:00:00+00:00",
+      "reviewed_at": null,
+      "reviewer_note": null,
+      "reviewer": null,
+      "student": { "id": 3, "name": "Aina Sofea", "email": "aina@example.com", "student_id_number": "A21EM0001" },
+      "record": { "id": 9, "status": "absent" },
+      "session": { "id": 2, "session_type": "lecture", "week_number": 3, "started_at": "2026-09-08T10:18:00+00:00" },
+      "section": { "id": 1, "name": "Section 01" },
+      "course": { "id": 1, "code": "SKMM3013", "title": "Thermodynamics" }
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 1, "pending_count": 1 }
+}
+```
+`pending_count` ignores the `status` filter, for a badge.
+
+### POST `lecturer/excuses/{excuse}/approve` · POST `lecturer/excuses/{excuse}/reject`
+
+Body `{"note": "..."}` optional (≤ 500). Approving sets the record to `excused` and re-runs the
+course's attendance warnings, as the web does. → `{"message": "...", "data": {excuse}}`.
+Errors: 422 `This excuse has already been approved.` (or `rejected`); 403 without session access;
+404 for another institution's excuse.
+
+### GET `lecturer/excuses/{excuse}/attachment`
+
+The file as a download. 404 `This excuse has no attachment.`
+
+---
+
+## Course & section editing
+
+### GET `lecturer/course-options`
+
+Pickers: `academic_terms` (`id, name, is_default`, newest first), `faculties`, `programmes`
+(`id, name, code, faculty_id`), `lecturers` (active lecturer/admin/coordinator staff of this
+institution: `id, name, email`), `teaching_modes` (`face_to_face|online|hybrid`), `formats`
+(`lecture|tutorial|lab`).
+
+### POST `lecturer/courses` · PUT `lecturer/courses/{course}` · DELETE `lecturer/courses/{course}`
+
+Body (web rules): `code` ≤ 20, `title` ≤ 255, `description` ≤ 2000, `credit_hours` 1–20, `num_weeks`
+1–52, `teaching_mode`, `format` (list of keys, as the detail returns it), `faculty_id`,
+`programme_id`, `academic_term_id` (all checked against this institution). Create also takes
+`clos` `[{code, description}]` and `topics` `[{week_number, title}]`, needs the `lecturer` or `admin`
+role and makes me the owner. Update is **owner or admin only**, changes only the fields sent and
+also takes `status` ∈ `draft|active|inactive|archived` (the web form offers status but ignores it).
+Both → `{"message", "data": {course detail}}` (the `GET lecturer/courses/{course}` shape).
+Delete is a soft delete, owner or admin only (the web lets any section lecturer delete).
+
+### POST/DELETE `lecturer/courses/{course}/clos[/{clo}]` · `lecturer/courses/{course}/topics[/{topic}]`
+
+Owner only. CLO body `{code ≤ 20, description ≤ 1000}`; topic body `{week_number 1…num_weeks, title ≤ 255}`.
+→ `{"message", "data": {"id", ...}}`. Deletes are hard deletes, as on the web.
+
+### POST `lecturer/courses/{course}/sections` · PUT `lecturer/courses/{course}/sections/{section}`
+
+Body: `name` ≤ 50, `code` ≤ 20, `capacity` 1–500, `academic_term_id`, `lecturer_ids` (institution
+staff). Create is owner only. Update is anyone with section access; only fields sent change, and
+`lecturer_ids` (owner only) is applied only when sent — the web wipes co-lecturers when it is left
+out. → `{"message", "data": {section}}` (the `sections[]` shape of the course detail).
+
+### PUT `lecturer/courses/{course}/sections/{section}/schedule`
+
+Body `{"schedule": [{day, start_time "HH:mm", end_time (after start), location?, type}]}` (≤ 10);
+replaces the timetable, `[]` clears it. → `{"message", "data": {section}}`.
+
+### POST `lecturer/courses/{course}/sections/{section}/students/import`
+
+Multipart `csv_file` (csv/txt ≤ 2 MB). Columns by header, any order: name (`name|student_name|full_name`),
+email (`email|student_email|e-mail`), optional ID (`student_id|id_number|matric|student_id_number`); a
+UTF-8 BOM is fine. Unknown emails get an account (no email is sent — they use "Forgot password").
+Previously removed students are re-enrolled.
+→ `{"message": "2 students added. 1 skipped.", "data": {"imported": 1, "reactivated": 1, "skipped": 1, "errors": [{"line": 3, "message": "Missing name or email."}]}}`
+
+---
+
+## Course materials
+
+Anyone with course access. Sections are the weekly headings students see.
+
+### GET `lecturer/courses/{course}/materials`
+
+`{"data": {"course": {...}, "sections": [{"id", "title", "is_visible", "sort_order", "items": [item]}]}}` —
+every section, hidden and empty ones included. `item` is the student `MaterialItemResource` shape
+(`id, type file|link|drive, title, description, file_type, size_bytes, size_label, created_at,
+download_url, external_url`) plus `sort_order` and `material_section_id`.
+
+### Sections
+
+- POST `.../materials/sections` `{title}` → 201 section.
+- PATCH `.../materials/sections/{section}` `{title?, is_visible?}` — hidden sections vanish for students (no web switch exists).
+- DELETE `.../materials/sections/{section}` — deletes its items and their stored files.
+- POST `.../materials/sections/{section}/move` `{direction: up|down}` → `data.order` (section ids).
+
+### Items
+
+- POST `.../materials/sections/{section}/files` — multipart `file` (≤ 25 MB), `title?`, `description?`.
+  One file per request, stored on Lectura (the phone never pushes to Drive).
+- POST `.../materials/sections/{section}/links` `{title, url, description?}`.
+- PATCH `.../materials/items/{file}` `{title?, description?, url? (links only), material_section_id?}` — moving to another section of the same course is new on the phone.
+- DELETE `.../materials/items/{file}` — also deletes the stored file (or the Drive copy via its uploader).
+
+---
+
+## Student groups
+
+Group sets belong to a section. I see and change only the sets of my sections (web: any set of the course).
+
+### GET `lecturer/courses/{course}/group-sets`
+
+`data[]`: `{id, name, type lecture|lab|tutorial, description, creation_method, max_group_size, is_active, section {id,name}, groups_count, created_at}`; `meta.sections` = my sections (for the create form).
+
+### POST `lecturer/courses/{course}/group-sets`
+
+`{name, section_id (one of mine), type, description?, creation_method manual|random, group_size 2–20 (random)}` → 201 set detail.
+
+### GET · PATCH · DELETE `lecturer/courses/{course}/group-sets/{set}`
+
+Detail = the summary plus `groups[{id, name, color_tag, members[{id, name, student_id_number, role member|leader}]}]` (leader first), `unassigned[]` (enrolled students in no group) and `bound_count` (assessments/assignments using the set).
+PATCH `{name?, description?, is_active?}`. DELETE is a soft delete. Every group action below answers with this detail.
+
+### Groups and members
+
+- POST `.../groups` `{name}`; PATCH `.../groups/{group}` `{name}` (rename is new).
+- DELETE `.../groups/{group}` — 409 when it has members or submissions unless `{"confirm": true}`; deleting removes its workspace.
+- POST `.../groups/{group}/members` `{user_id}` — must be enrolled in the set's section and in no other group of the set (422 otherwise).
+- DELETE `.../groups/{group}/members/{user}`.
+- POST `.../members/{user}/move` `{group_id}` — joins as a member (a leader loses the role).
+- POST `.../groups/{group}/leader` `{user_id}` — one leader per group.
+- POST `.../arrange-random` `{group_size 2–20, replace?}` — re-deals everyone; 409 when groups exist unless `replace: true` (the message says how many assessments/assignments use the set).
+
+Still web-only: the Course Files archive (folders, tags), group swap approvals and the group score (which the web does not save).
+
+---
+
 ## Random present-student wheel
 
 The spin (random pick, animation, removing winners, history) happens on the phone.
@@ -668,3 +1005,6 @@ the app posts no progress and no answers.
 - Adding a previously removed student re-activates the enrolment instead of failing with "already enrolled".
 - `end` on an ended session and `reopen` while another session is active for the section return 409 instead of silently proceeding.
 - Token on an ended session returns 409 (web: 403 `{"error": "Session ended"}`).
+- Excuse review admits the section lecturers who could already set the record to `excused` through the override (session access); the web lets only the course owner review. It also refuses to review an excuse twice.
+- Assignment marking checks course access, that the submission belongs to the assignment and that marks stay within each criterion's and the assignment's maximum; the web's finalize route checks none of these.
+- Assessment release, unrelease and marking only reach students in my sections (web release-all covers every section; manual entry accepts any user id). Unrelease retracts the whole group, mirroring release; the web retracts one row. `weighted_marks` always uses percentage × weightage.

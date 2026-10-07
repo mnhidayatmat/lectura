@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\OnboardingController;
+use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\TenantContextController;
 use App\Http\Controllers\Api\V1\WatchMediaController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/auth/register', [AuthController::class, 'register'])->name('auth.register');
         Route::post('/auth/google/exchange', [AuthController::class, 'googleExchange'])->name('auth.google.exchange');
         Route::post('/auth/apple', [AuthController::class, 'apple'])->name('auth.apple');
+        Route::post('/auth/password/code', [PasswordResetController::class, 'sendCode'])->name('auth.password.code');
+        Route::post('/auth/password/reset', [PasswordResetController::class, 'reset'])->name('auth.password.reset');
     });
 
     // Episode media for the Watch screens. The pre-signed URL is the authorization
@@ -28,6 +31,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me'])->name('me');
+        Route::patch('/me', [AuthController::class, 'update'])->name('me.update');
+        Route::put('/me/password', [AuthController::class, 'updatePassword'])->name('me.password');
         Route::delete('/me', [AuthController::class, 'destroy'])->name('me.destroy');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 

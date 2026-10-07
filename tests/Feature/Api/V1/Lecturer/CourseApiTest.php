@@ -174,4 +174,32 @@ class CourseApiTest extends LecturerApiTestCase
             ->assertForbidden()
             ->assertJsonPath('message', 'This area is for lecturers.');
     }
+
+    public function test_a_lecturer_takes_over_a_course_by_its_invite_code(): void
+    {
+        $tenant = $this->createTenant();
+        $owner = $this->createMember($tenant, 'lecturer');
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $student = $this->createMember($tenant, 'student');
+        $course = $this->createCourse($tenant, $owner, ['invite_code' => 'SKM1001X']);
+        $path = $this->tenantApi($tenant, 'lecturer/courses/join');
+
+        $this->actingAsApi($lecturer)->postJson($path, ['invite_code' => 'nope'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('invite_code');
+
+        $this->actingAsApi($student)->postJson($path, ['invite_code' => 'SKM1001X'])->assertForbidden();
+
+        // Typed loosely on a phone keyboard: lowercase with a stray dash.
+        $this->actingAsApi($lecturer)->postJson($path, ['invite_code' => 'skm1001-x'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $course->id)
+            ->assertJsonPath('data.already_joined', false);
+
+        $this->assertSame($lecturer->id, $course->fresh()->lecturer_id);
+
+        $this->actingAsApi($lecturer)->postJson($path, ['invite_code' => 'SKM1001X'])
+            ->assertOk()
+            ->assertJsonPath('data.already_joined', true);
+    }
 }

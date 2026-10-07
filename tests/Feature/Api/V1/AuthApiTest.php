@@ -9,6 +9,7 @@ use App\Services\Auth\AppleTokenService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 
 class AuthApiTest extends ApiTestCase
@@ -161,6 +162,64 @@ class AuthApiTest extends ApiTestCase
             ->assertOk();
 
         $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
+
+    public function test_profile_can_be_updated_and_a_new_email_needs_verifying_again(): void
+    {
+        $user = User::factory()->create(['email' => 'aina@example.com']);
+        User::factory()->create(['email' => 'taken@example.com']);
+
+        $this->actingAsApi($user)->patchJson('/api/v1/me', ['name' => 'Nur Aina', 'email' => 'taken@example.com'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('email');
+
+        $this->actingAsApi($user)->patchJson('/api/v1/me', ['name' => 'Nur Aina', 'email' => 'aina@example.com'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Nur Aina');
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
+
+        $this->actingAsApi($user)->patchJson('/api/v1/me', ['name' => 'Nur Aina', 'email' => 'aina@new.test'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Profile updated.')
+            ->assertJsonPath('data.email', 'aina@new.test');
+
+        $this->assertNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_password_change_checks_the_current_one_and_keeps_only_this_device(): void
+    {
+        $user = User::factory()->create(['password' => bcrypt('secret-password')]);
+        $token = $user->createToken('phone')->plainTextToken;
+        $user->createToken('tablet');
+
+        $this->withToken($token)->putJson('/api/v1/me/password', [
+            'current_password' => 'not-my-password',
+            'password' => 'brand-new-password',
+            'password_confirmation' => 'brand-new-password',
+        ])->assertStatus(422)->assertJsonValidationErrors('current_password');
+
+        $this->withToken($token)->putJson('/api/v1/me/password', [
+            'current_password' => 'secret-password',
+            'password' => 'brand-new-password',
+            'password_confirmation' => 'brand-new-password',
+        ])->assertOk()->assertJsonPath('message', 'Password updated.');
+
+        $this->assertTrue(Hash::check('brand-new-password', $user->fresh()->password));
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+        $this->assertDatabaseHas('personal_access_tokens', ['name' => 'phone']);
+    }
+
+    public function test_google_only_account_can_set_a_first_password(): void
+    {
+        $user = User::factory()->create(['password' => null, 'google_id' => 'google-1']);
+
+        $this->actingAsApi($user)->putJson('/api/v1/me/password', [
+            'password' => 'brand-new-password',
+            'password_confirmation' => 'brand-new-password',
+        ])->assertOk()->assertJsonPath('data.has_password', true);
+
+        $this->assertTrue(Hash::check('brand-new-password', $user->fresh()->password));
     }
 
     public function test_google_code_can_be_exchanged_only_once(): void

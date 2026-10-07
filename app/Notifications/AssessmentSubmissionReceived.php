@@ -31,6 +31,7 @@ class AssessmentSubmissionReceived extends Notification
             'title' => 'New Assessment Submission',
             'message' => "{$this->student->name} submitted {$this->assessment->title}",
             'assessment_id' => $this->assessment->id,
+            'course_id' => $this->assessment->course_id,
             'icon' => 'upload',
             'color' => 'indigo',
         ];

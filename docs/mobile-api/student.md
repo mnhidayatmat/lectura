@@ -1091,3 +1091,130 @@ carry string values only:
 `series_id`) when present.
 Tokens FCM reports as `UNREGISTERED` are deleted. Without `FCM_CREDENTIALS_PATH` (a Firebase
 service-account JSON) nothing is pushed and notifications behave as before.
+
+---
+
+## Account (any role)
+
+Not tenant-scoped: these sit directly under `/api/v1/`. `{user}` is the same object as
+`GET /api/v1/me`.
+
+Endpoints marked *(no token)* are rate limited per endpoint: 10 requests a minute per email + IP, and
+60 a minute per IP overall (so a class behind one campus NAT can sign in together). Past either: 429.
+
+### POST `/api/v1/auth/login` (no token)
+
+Body `{ "email", "password", "device_name"? }`. The email is matched case-insensitively.
+→ `{"data": {"token": "…", "user": {user}}}`; the token is named after `device_name` (default
+`Lectura Go`). Errors: 422 on `email` — `These credentials do not match our records.` (also for a
+Google- or Apple-only account with no password), or the lockout message after 5 misses for that
+email + IP.
+
+### POST `/api/v1/auth/register` (no token)
+
+Body `{ "name", "email", "password", "password_confirmation", "device_name"? }`; the email must be
+lowercase and unused, the password follows Laravel's default rule (8+ characters). → **201**, same
+shape as login. The new user has no memberships, so the app continues to onboarding.
+
+### POST `/api/v1/auth/google/exchange` (no token)
+
+The app opens `/auth/google/mobile` in a browser sheet; after Google, the server redirects to
+`lecturago://auth?code=…`. Body `{ "code", "device_name"? }` trades that one-time code (valid 2
+minutes, single use) for a token → same shape as login. 422 on `code` — `This Google sign-in has
+expired. Please try again.`
+
+### POST `/api/v1/auth/apple` (no token)
+
+Body `{ "identity_token", "authorization_code"?, "raw_nonce"?, "name"?, "device_name"? }`. The token
+is verified against Apple's keys, `iss`, `aud` (`APPLE_CLIENT_IDS`) and the SHA-256 of `raw_nonce`.
+The user is found by `apple_id`, then by email (linking the Apple id); otherwise an account is created
+from the email Apple shares on the first authorization, named `name` or the email's local part.
+`authorization_code` is traded for the refresh token revoked on account deletion; a failure there
+never blocks sign-in. → same shape as login. 422 on `identity_token` when it cannot be verified, or
+when Apple shared no email and no account matches.
+
+### POST `/api/v1/auth/logout`
+
+Revokes the calling token (and, through it, the device row). → `{"message": "Logged out."}`.
+
+### GET `/api/v1/me`
+
+```json
+{
+  "data": {
+    "id": 3, "name": "Nur Aina", "email": "aina@example.com", "avatar_url": null, "locale": "en",
+    "has_password": true, "is_pro": false, "is_super_admin": false,
+    "memberships": [
+      {
+        "tenant": { "id": 1, "name": "Demo University", "slug": "demo-university", "logo_url": null,
+                    "primary_color": null, "timezone": "Asia/Kuala_Lumpur", "locale": "en" },
+        "roles": ["lecturer", "student"],
+        "student_id_number": "A21EM0001"
+      }
+    ]
+  }
+}
+```
+
+`memberships` lists active memberships of active institutions only, one per institution, with
+`roles` ordered admin → coordinator → lecturer → student. `has_password` is false for Google- or
+Apple-only accounts, which confirm destructive actions by email instead.
+
+### POST `/api/v1/auth/password/code` (no token)
+
+Body `{ "email": "…" }`. Emails a six-digit code valid for 15 minutes; asking again replaces it.
+Always → `{"message": "If an account uses that email, a reset code is on its way."}`, whether or not
+the account exists. The app uses this instead of the web's reset link so the reset stays in the app.
+
+### POST `/api/v1/auth/password/reset` (no token)
+
+Body `{ "email", "code", "password", "password_confirmation", "device_name"? }`. Five wrong codes
+spend it. On success every existing token is revoked (as a web reset does) and the user is signed
+in: → `{"message": "Your password has been reset.", "data": {"token": "…", "user": {user}}}`.
+Errors: 422 on `code` — `That code is not right. Check the email and try again.` or `This code has
+expired. Ask for a new one.`
+
+### PATCH `/api/v1/me`
+
+Body `{ "name": "Nur Aina", "email": "aina@example.com" }` — the same rules as the web profile form
+(email lowercase and unique). Changing the email clears `email_verified_at`.
+→ `{"message": "Profile updated.", "data": {user}}`.
+
+### PUT `/api/v1/me/password`
+
+Body `{ "current_password": "…", "password": "…", "password_confirmation": "…" }`.
+`current_password` is required only when `has_password` is true; a Google- or Apple-only account
+omits it to set its first password. A wrong current password is a 422 on `current_password`.
+Like the web, a new password revokes the user's other API tokens — but keeps the one that made the
+request, so the phone stays signed in. → `{"message": "Password updated.", "data": {user}}`.
+
+### DELETE `/api/v1/me`
+
+Closes the account, as the app stores require. Body `{ "password" }` when `has_password`, otherwise
+`{ "confirm_email" }` (compared case-insensitively). A linked Apple account is revoked with Apple
+first (a failure there is only reported), then every token and the user are deleted.
+→ `{"message": "Your account has been deleted."}`. 422 on `password` — `That password is incorrect.`,
+or on `confirm_email` — `Enter your email address exactly to confirm.`
+
+### GET `/api/v1/tenants`
+
+Active institutions for the onboarding picker, by name: `{"data": [tenant, …]}` (the `tenant` object
+shown under `GET /me`).
+
+### POST `/api/v1/onboarding`
+
+Body `{ "tenant_id"? , "new_tenant_name"? (3–255), "role": "lecturer"|"student", "invite_code"? }` —
+one of `tenant_id` / `new_tenant_name` is required (422 on `tenant_id` otherwise).
+→ `{"message": "…", "data": {"tenant": tenant, "role": "student"}}`.
+
+- `new_tenant_name` creates the institution (**201**) with the user as its first member in `role`.
+- Already a member: 200 with the existing role, nothing changes.
+- Student + `invite_code`: joins and enrolls in that **section**. 422 on `invite_code` for an unknown
+  code, a course code instead of a section code, or a section that is not accepting enrollments.
+- Lecturer + `invite_code`: joins and claims that **course**. 422 on `invite_code` when unknown.
+- No code: joins in `role`.
+
+### GET `/api/v1/t/{tenant}/context`
+
+`{"data": {"tenant", "roles", "active_role", "is_pro", "web_url"}}` for the given institution;
+`active_role` follows `X-Lectura-Role`. The app currently reads memberships from `/me` instead.
