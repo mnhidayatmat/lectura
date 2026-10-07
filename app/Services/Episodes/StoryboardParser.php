@@ -7,7 +7,10 @@ namespace App\Services\Episodes;
 use Illuminate\Support\Str;
 
 /**
- * Reads scene markers (and a Quick Check draft) from a storyboard.
+ * Reads scene markers (and Quick Check drafts) from a storyboard.
+ *
+ * A row is a quiz when its title or visual says "Quick Check", "Final trial" or "Quiz", or when
+ * its visual lists options. Each one becomes a draft for the lecturer to confirm.
  *
  * Accepts the storyboard's markdown table (`| # | Time | Visual | On-screen text | Narration |`)
  * or plain lines such as `S01 0:00 Meet Titis` / `1:24 The rulebook`.
@@ -16,16 +19,20 @@ final class StoryboardParser
 {
     private const TIME = '(\d{1,2}:\d{2}(?::\d{2})?)';
 
+    private const QUIZ = '/quick\s*check|final\s*trial|\bquiz\b/iu';
+
+    private const QUIZ_LEAD = '/^(?:quick\s*check|final\s*trial|quiz(?:\s*time)?)\s*[!:.…-]*\s*/iu';
+
     /**
      * @return array{
      *     scenes: list<array{code: ?string, title: string, start_seconds: int}>,
-     *     check: ?array{at_seconds: int, prompt: ?string, options: list<string>, correct_index: ?int}
+     *     checks: list<array{at_seconds: int, prompt: ?string, options: list<string>, correct_index: ?int}>
      * }
      */
     public function parse(string $text): array
     {
         $scenes = [];
-        $check = null;
+        $checks = [];
         $columns = null;
 
         foreach (preg_split('/\R/', $text) as $line) {
@@ -57,14 +64,15 @@ final class StoryboardParser
 
             $scenes[] = ['code' => $row['code'], 'title' => $row['title'], 'start_seconds' => $row['start']];
 
-            if ($check === null && Str::contains(Str::lower($row['title'].' '.$row['visual']), 'quick check')) {
-                $check = $this->checkDraft($row);
+            if ($this->isQuiz($row)) {
+                $checks[] = $this->checkDraft($row);
             }
         }
 
         usort($scenes, fn ($a, $b) => $a['start_seconds'] <=> $b['start_seconds']);
+        usort($checks, fn ($a, $b) => $a['at_seconds'] <=> $b['at_seconds']);
 
-        return ['scenes' => $scenes, 'check' => $check];
+        return ['scenes' => $scenes, 'checks' => $checks];
     }
 
     public static function seconds(string $time): ?int
@@ -151,30 +159,112 @@ final class StoryboardParser
         ];
     }
 
+    private function isQuiz(array $row): bool
+    {
+        return preg_match(self::QUIZ, $row['title'].' '.$row['visual']) === 1
+            || preg_match('/\boptions?\s*:/iu', $row['visual']) === 1;
+    }
+
     private function checkDraft(array $row): array
     {
-        $options = [];
-        if (preg_match('/options?\s*:\s*([^.]+)/iu', $row['visual'], $m)) {
-            $options = array_values(array_filter(array_map(
-                fn ($o) => trim($o, " \t\"'“”"),
-                preg_split('#\s*/\s*#', $m[1])
-            )));
-        }
+        $text = $row['visual'].' '.$row['narration'];
+        $options = $this->options($row['visual']) ?: $this->options($row['narration']);
 
+        // A ✓ or "(correct)" after an option marks it, and comes off the label
         $correct = null;
-        if (preg_match('/["“]([^"”]+)["”]\s+(?:turns|goes|lights up)\s+green/iu', $row['visual'], $m)) {
-            $found = array_search(Str::lower(trim($m[1])), array_map(fn ($o) => Str::lower($o), $options), true);
-            $correct = $found === false ? null : $found;
+        foreach ($options as $i => $option) {
+            $clean = trim(preg_replace('/\s*(?:✓|✔|\((?:correct|answer)\))\s*$/iu', '', $option));
+            if ($clean !== $option) {
+                $options[$i] = $clean;
+                $correct ??= $i;
+            }
         }
 
-        $narration = trim(preg_replace('/^quick check!?\s*/iu', '', $row['narration']), ' .…');
+        $correct ??= $this->correctIndex($text, $options);
 
         return [
             'at_seconds' => $row['start'],
-            'prompt' => Str::endsWith($narration, '?') ? $narration : null,
+            'prompt' => $this->question($row),
             'options' => $options,
             'correct_index' => $correct,
         ];
+    }
+
+    /**
+     * "Options: A / B / C" (or separated by ;), or lettered "A) … B) … C) …".
+     *
+     * @return list<string>
+     */
+    private function options(string $text): array
+    {
+        if (preg_match('/\boptions?\s*:\s*([^.]+)/iu', $text, $m)) {
+            return $this->labels(preg_split('#\s*[/;]\s*#u', $m[1]));
+        }
+
+        if (preg_match_all('/(?:^|\s)\(?([A-Fa-f])[).]\s+(.+?)(?=\s+\(?[A-Fa-f][).]\s|[.?!](?:\s|$)|$)/u', $text, $m) >= 2) {
+            return $this->labels($m[2]);
+        }
+
+        return [];
+    }
+
+    private function labels(array $parts): array
+    {
+        return array_values(array_filter(array_map(fn ($o) => trim($o, " \t\"'“”,"), $parts), fn ($o) => $o !== ''));
+    }
+
+    /**
+     * '"X" turns green', 'Answer: X', 'Correct answer is B' and the like.
+     */
+    private function correctIndex(string $text, array $options): ?int
+    {
+        $lower = array_map(fn ($o) => Str::lower($o), $options);
+
+        if (preg_match('/["“]([^"”]+)["”]\s+(?:turns|goes|lights up|glows)\s+green/iu', $text, $m)) {
+            $found = array_search(Str::lower(trim($m[1])), $lower, true);
+
+            return $found === false ? null : $found;
+        }
+
+        $lead = '\b(?:correct(?:\s+answer)?|answer)\s*(?::|is|=)\s*';
+
+        if (preg_match('/'.$lead.'\(?([A-Fa-f])\)?(?![\w])/iu', $text, $m)) {
+            $index = ord(Str::lower($m[1])) - ord('a');
+
+            return $index < count($options) ? $index : null;
+        }
+
+        if (preg_match('/'.$lead.'["“]?([^"”.;!?]+)/iu', $text, $m)) {
+            $answer = Str::lower(trim($m[1]));
+
+            foreach ($lower as $i => $option) {
+                if ($answer === $option || Str::startsWith($answer, $option)) {
+                    return $i;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The narration's question, else an on-screen question; null when the row asks none.
+     */
+    private function question(array $row): ?string
+    {
+        foreach ([$row['narration'], $row['title']] as $text) {
+            $text = trim(preg_replace(self::QUIZ_LEAD, '', $text));
+
+            if (preg_match_all('/[^.!?…]*\?/u', $text, $m)) {
+                $question = trim(end($m[0]));
+
+                if (mb_strlen($question) > 1) {
+                    return Str::ucfirst($question);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function clean(string $value): string

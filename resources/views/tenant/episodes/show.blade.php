@@ -3,7 +3,8 @@
     $label = 'block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1';
     $card = 'bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5';
     $clock = fn (int $s) => \App\Http\Controllers\Tenant\EpisodeContentController::clock($s);
-    $suggestedOptions = $suggestion['options'] ?? [];
+    // After a failed submit, only the form that was sent gets its input back
+    $refill = fn (string $form, string $key, $fallback) => old('form') === $form ? old($key, $fallback) : $fallback;
 @endphp
 <x-tenant-layout>
     <x-slot name="header">
@@ -37,11 +38,14 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <h3 id="watching-heading" class="text-sm font-semibold text-slate-900 dark:text-white">How your students watched</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400">Active students in the sections you teach.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Active students in {{ $sectionId ? collect($sections)->firstWhere('id', $sectionId)['name'] : 'the sections you teach' }}.
+                </p>
             </div>
             @if($episode->isAvailable())
                 <form method="POST" action="{{ route('tenant.episodes.remind', [$tenant->slug, $course, $episode]) }}" class="flex flex-wrap items-center gap-2">
                     @csrf
+                    @if($sectionId)<input type="hidden" name="section_id" value="{{ $sectionId }}">@endif
                     <label for="remind_audience" class="sr-only">Who to remind</label>
                     <select id="remind_audience" name="audience" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white">
                         <option value="not_started">Not started ({{ $aud['not_started'] }})</option>
@@ -54,6 +58,24 @@
                 </form>
             @endif
         </div>
+
+        @if(count($sections) > 1)
+            @php
+                $pill = 'px-3 py-1.5 rounded-full text-xs font-semibold border transition';
+                $pillOn = 'bg-indigo-600 border-indigo-600 text-white';
+                $pillOff = 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700';
+            @endphp
+            <nav class="flex flex-wrap gap-2" aria-label="Filter by section">
+                <a href="{{ route('tenant.episodes.show', [$tenant->slug, $course, $episode]) }}" @if(! $sectionId) aria-current="true" @endif class="{{ $pill }} {{ $sectionId ? $pillOff : $pillOn }}">
+                    All sections <span class="tabular-nums opacity-80">{{ collect($sections)->sum('students') }}</span>
+                </a>
+                @foreach($sections as $option)
+                    <a href="{{ route('tenant.episodes.show', [$tenant->slug, $course, $episode, 'section_id' => $option['id']]) }}" @if($sectionId === $option['id']) aria-current="true" @endif class="{{ $pill }} {{ $sectionId === $option['id'] ? $pillOn : $pillOff }}">
+                        {{ $option['name'] }} <span class="tabular-nums opacity-80">{{ $option['students'] }}</span>
+                    </a>
+                @endforeach
+            </nav>
+        @endif
 
         <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             @foreach([
@@ -91,12 +113,15 @@
         @endif
 
         @if(count($report['students']))
-            <details>
+            <details @if($sectionId) open @endif>
                 <summary class="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">Students ({{ count($report['students']) }})</summary>
                 <ul class="mt-2 divide-y divide-slate-100 dark:divide-slate-700">
                     @foreach($report['students'] as $row)
                         <li class="flex items-center justify-between gap-3 py-1.5 text-sm">
-                            <span class="text-slate-800 dark:text-slate-200">{{ $row['name'] }}</span>
+                            <span class="min-w-0 text-slate-800 dark:text-slate-200">
+                                {{ $row['name'] }}
+                                @if($row['section_name'] && count($sections) > 1)<span class="ml-1 text-xs text-slate-500 dark:text-slate-400">{{ $row['section_name'] }}</span>@endif
+                            </span>
                             <span class="flex items-center gap-2 text-xs tabular-nums">
                                 @if($row['status'] === 'watching')<span class="text-slate-500 dark:text-slate-400">{{ $row['watched_percent'] }}%</span>@endif
                                 <span class="px-2 py-0.5 rounded-full font-semibold {{ $statusTone[$row['status']] }}">{{ $statusLabel[$row['status']] }}</span>
@@ -198,22 +223,48 @@
                     </div>
                 @endforeach
 
+                @foreach($suggestions as $i => $suggestion)
+                    @php $form = 'draft'.$suggestion['at_seconds']; @endphp
+                    <div class="rounded-xl border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-900/10 p-4">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    From the storyboard · <span class="tabular-nums">{{ $clock($suggestion['at_seconds']) }}</span>
+                                    @if(count($suggestions) > 1)<span class="font-normal text-slate-500 dark:text-slate-400">· {{ $i + 1 }} of {{ count($suggestions) }}</span>@endif
+                                </h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Check the question, options and answer as students should read them, then add it.</p>
+                            </div>
+                            <form method="POST" action="{{ route('tenant.episodes.check-suggestions.dismiss', [$tenant->slug, $course, $episode, $suggestion['at_seconds']]) }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">Dismiss</button>
+                            </form>
+                        </div>
+                        @include('tenant.episodes._check-form', [
+                            'action' => route('tenant.episodes.checks.store', [$tenant->slug, $course, $episode]),
+                            'method' => 'POST',
+                            'prefix' => $form,
+                            'at' => $refill($form, 'at', $clock($suggestion['at_seconds'])),
+                            'prompt' => $refill($form, 'prompt', $suggestion['prompt'] ?? ''),
+                            'explanation' => $refill($form, 'explanation', ''),
+                            'options' => $refill($form, 'options', $suggestion['options']),
+                            'correct' => $refill($form, 'correct', $suggestion['correct_index']),
+                            'submit' => 'Add Quick Check',
+                        ])
+                    </div>
+                @endforeach
+
                 <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4">
-                    <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                        {{ $suggestion ? 'Add the Quick Check found in the storyboard' : 'Add a Quick Check' }}
-                    </h4>
-                    @if($suggestion)
-                        <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Time, options and answer came from the storyboard. Write the question as students should read it, then add it.</p>
-                    @endif
+                    <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Add a Quick Check</h4>
                     @include('tenant.episodes._check-form', [
                         'action' => route('tenant.episodes.checks.store', [$tenant->slug, $course, $episode]),
                         'method' => 'POST',
                         'prefix' => 'newcheck',
-                        'at' => old('at', $suggestion ? $clock($suggestion['at_seconds']) : ''),
-                        'prompt' => old('prompt', $suggestion['prompt'] ?? ''),
-                        'explanation' => old('explanation'),
-                        'options' => old('options', $suggestedOptions),
-                        'correct' => old('correct', $suggestion['correct_index'] ?? null),
+                        'at' => $refill('newcheck', 'at', ''),
+                        'prompt' => $refill('newcheck', 'prompt', ''),
+                        'explanation' => $refill('newcheck', 'explanation', ''),
+                        'options' => $refill('newcheck', 'options', []),
+                        'correct' => $refill('newcheck', 'correct', null),
                         'submit' => 'Add Quick Check',
                     ])
                 </div>

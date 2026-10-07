@@ -899,9 +899,17 @@ attendance index.
 
 ### GET `lecturer/watch/episodes/{episode}`
 
+Query: `section_id` (optional) narrows every figure to one of my sections; without it the report
+covers all of them. A section that isn't mine in this course → 422 on `section_id`.
+
 ```json
 {
   "data": {
+    "sections": [
+      { "id": 1, "name": "Section 01", "students": 43 },
+      { "id": 2, "name": "Section 02", "students": 38 }
+    ],
+    "section_id": null,
     "episode": { "…same fields as an episodes[] entry…": "" },
     "audience": {
       "students": 43,
@@ -934,6 +942,7 @@ attendance index.
         "user_id": 4,
         "name": "Zul Hakim",
         "student_id_number": "A21EC0002",
+        "section_name": "Section 02",
         "status": "not_started",
         "watched_percent": 0,
         "last_watched_at": null,
@@ -951,13 +960,18 @@ attendance index.
 - `most_rewound_scene` (or `null`): the scene with the most rewinds per starter, when at least one
   rewind was recorded.
 - `options[].chosen`: students whose **latest** answer is that option (percent of `answered`).
+- `sections`: my sections of the course by name, each with its active students, for the filter.
+  `section_id` echoes the filter in use (`null` = all).
 - `students`: not started first, then watching, then finished; by name within each.
+  `section_name` labels the row only when no section is picked (`null` when filtered).
 - `reminder.available_at`: when another reminder may be sent (`null` = now).
 
 ### POST `lecturer/watch/episodes/{episode}/remind`
 
-Body `{ "audience": "not_started" | "not_finished" }` (default `not_started`). Sends the
-`episode_reminder` notification (in-app + push) to my students in that audience.
+Body `{ "audience": "not_started" | "not_finished", "section_id": 2 }` (`audience` defaults to
+`not_started`; `section_id` optional, as in the report). Sends the `episode_reminder` notification
+(in-app + push) to my students in that audience, limited to the section when one is given. The
+one-per-hour limit is per episode, whichever section it went to.
 
 ```json
 { "message": "Reminder sent to 12 students.", "data": { "sent": 12, "last_sent_at": "2026-10-08T02:00:00+00:00", "available_at": "2026-10-08T03:00:00+00:00" } }

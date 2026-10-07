@@ -6,6 +6,7 @@
 @endphp
 <form method="POST" action="{{ $action }}" class="space-y-3">
     @csrf
+    <input type="hidden" name="form" value="{{ $prefix }}">
     @if($method !== 'POST') @method($method) @endif
     <div class="grid grid-cols-4 gap-3">
         <div>

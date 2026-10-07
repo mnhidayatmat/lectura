@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Episode;
 use App\Models\EpisodeProgress;
+use App\Models\Section;
 use App\Services\Episodes\EpisodeAnalytics;
 use App\Services\Episodes\EpisodeAnnouncer;
 use App\Services\Episodes\EpisodeMedia;
@@ -59,12 +60,15 @@ class WatchController extends Controller
         ]);
     }
 
-    public function show(Episode $episode, EpisodeAnalytics $analytics): JsonResponse
+    public function show(Request $request, Episode $episode, EpisodeAnalytics $analytics): JsonResponse
     {
-        $studentIds = $this->authorizeEpisode($episode);
+        $this->authorizeEpisode($episode);
+        [$sections, $sectionId, $studentIds] = $this->audienceOf($request, $episode->course);
 
         return response()->json([
             'data' => [
+                'sections' => EpisodeAnalytics::sectionOptions($sections),
+                'section_id' => $sectionId,
                 'episode' => [
                     ...$this->episodeSummary($episode),
                     'started' => EpisodeAnalytics::progressOf($episode, $studentIds)->count(),
@@ -72,14 +76,20 @@ class WatchController extends Controller
                     'checks_count' => $episode->checks()->count(),
                     'first_try_correct_percent' => EpisodeAnalytics::firstTryPercent($episode, $studentIds),
                 ],
-                ...$analytics->report($episode, $studentIds, $this->studentIdNumbers($studentIds)->all()),
+                ...$analytics->report(
+                    $episode,
+                    $studentIds,
+                    $this->studentIdNumbers($studentIds)->all(),
+                    $sectionId === null ? EpisodeAnalytics::sectionNamesByStudent($sections) : [],
+                ),
             ],
         ]);
     }
 
     public function remind(Request $request, Episode $episode, EpisodeReminderSender $sender): JsonResponse
     {
-        $studentIds = $this->authorizeEpisode($episode);
+        $this->authorizeEpisode($episode);
+        [, , $studentIds] = $this->audienceOf($request, $episode->course);
 
         $audience = $request->validate([
             'audience' => ['nullable', Rule::in(['not_started', 'not_finished'])],
@@ -166,16 +176,31 @@ class WatchController extends Controller
         ]]);
     }
 
-    /**
-     * @return Collection<int, int> the lecturer's students in this episode's course
-     */
-    private function authorizeEpisode(Episode $episode): Collection
+    private function authorizeEpisode(Episode $episode): void
     {
         $this->ensureLecturer();
         $episode->loadMissing('course');
         $this->authorizeCourse($episode->course);
+    }
 
-        return EpisodeAnalytics::studentIds($this->lecturerSectionIds($episode->course));
+    /**
+     * My sections of the course, the one `section_id` picks (null = all of them)
+     * and the students that choice covers.
+     *
+     * @return array{0: Collection<int, Section>, 1: ?int, 2: Collection<int, int>}
+     */
+    private function audienceOf(Request $request, Course $course): array
+    {
+        $sections = $this->lecturerSections($course)->orderBy('name')->get(['id', 'name']);
+
+        $sectionId = $request->validate([
+            'section_id' => ['nullable', 'integer', Rule::in($sections->pluck('id')->all())],
+        ])['section_id'] ?? null;
+        $sectionId = $sectionId === null ? null : (int) $sectionId;
+
+        $studentIds = EpisodeAnalytics::studentIds($sectionId === null ? $sections->pluck('id') : [$sectionId]);
+
+        return [$sections, $sectionId, $studentIds];
     }
 
     private function episodeSummary(Episode $episode): array

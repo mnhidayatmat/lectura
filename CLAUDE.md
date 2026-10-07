@@ -220,7 +220,9 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   `EpisodeCheckAnswer` row per student keeps the latest answer, `attempts` and `first_is_correct`) and
   captions (`EpisodeCaption`, WebVTT per language; `.srt` is converted on upload).
   `StoryboardParser` reads the storyboard markdown table (or `S01 0:00 Title` lines) into scenes and
-  drafts a Quick Check from the "Quick Check" row — flashed into the form, never saved unconfirmed
+  drafts a Quick Check from every quiz row ("Quick Check", "Final trial", "Quiz", or a visual listing
+  `Options:` / `A) … B) …`; the answer from `"X" turns green`, `Answer: B` or a trailing ✓). Drafts sit in
+  `session('check_suggestions.{episode}')` until added (a check at that time) or dismissed — never saved unconfirmed
 - `required_by` is the "watch before" deadline (drives the app's billboard and overdue flag). The
   "Because you missed" row comes from unexcused `absent` attendance records with a `week_number`
 - Release push: `EpisodeAnnouncer` sends `EpisodePublished` (database + FCM) to enrolled students
@@ -229,7 +231,8 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   must be running in production (`schedule:run` cron) or timed releases never notify
 - Analytics (`EpisodeAnalytics`): lecturer API `lecturer/courses/{course}/watch` and
   `lecturer/watch/episodes/{episode}`, plus the panel on the web episode page. Every figure is limited
-  to the lecturer's students (`lecturerSectionIds`). Scene reach comes from `furthest_seconds`; rewinds
+  to the lecturer's students (`lecturerSectionIds`); an optional `section_id` (query on the report and
+  web page, body on the reminder) narrows it to one of those sections. Scene reach comes from `furthest_seconds`; rewinds
   are `EpisodeRewind` rows the app batches into progress saves (jumps back of 5 s or more). The
   attendance session detail adds `episode_watch` for the session's week
 - Reminders (`EpisodeReminderSender` → `EpisodeReminder`, kind `episode_reminder`): to my students

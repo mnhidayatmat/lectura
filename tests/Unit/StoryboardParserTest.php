@@ -35,12 +35,34 @@ MD;
 
     public function test_drafts_the_quick_check_from_its_row(): void
     {
-        $check = (new StoryboardParser)->parse(self::STORYBOARD)['check'];
+        $checks = (new StoryboardParser)->parse(self::STORYBOARD)['checks'];
+        $this->assertCount(1, $checks);
+        $check = $checks[0];
 
         $this->assertSame(167, $check['at_seconds']);
         $this->assertSame(['Building frame', 'Pipe hanger', 'Pump casing'], $check['options']);
         $this->assertSame(1, $check['correct_index']);
         $this->assertNull($check['prompt']);
+    }
+
+    public function test_drafts_every_final_trial_and_quiz_row(): void
+    {
+        $storyboard = <<<'MD'
+| # | Time | Visual | On-screen text | Narration |
+|---|---|---|---|---|
+| S01 | 0:00 | Titis on the platform. | Meet Titis | Meet Titis. |
+| S11 | 4:10 | Three doors: A) Carbon steel B) Stainless steel C) PVC. Answer: B | Final Trial 1 | Final trial! Which material resists chloride best? |
+| S12 | 4:40 | Options: 150 psi / 300 psi ✓ / 600 psi | Final Trial 2 | Final trial: which class suits 40 bar? |
+| S13 | 5:05 | Quiz card. Options: Gate; Globe; Check. "Check" glows green. | Which valve stops backflow? | Quiz time! |
+MD;
+
+        $checks = (new StoryboardParser)->parse($storyboard)['checks'];
+
+        $this->assertSame([
+            ['at_seconds' => 250, 'prompt' => 'Which material resists chloride best?', 'options' => ['Carbon steel', 'Stainless steel', 'PVC'], 'correct_index' => 1],
+            ['at_seconds' => 280, 'prompt' => 'Which class suits 40 bar?', 'options' => ['150 psi', '300 psi', '600 psi'], 'correct_index' => 1],
+            ['at_seconds' => 305, 'prompt' => 'Which valve stops backflow?', 'options' => ['Gate', 'Globe', 'Check'], 'correct_index' => 2],
+        ], $checks);
     }
 
     public function test_reads_plain_lines_in_any_order(): void
@@ -52,6 +74,6 @@ MD;
             ['code' => 'S02', 'title' => 'What piping is', 'start_seconds' => 14],
             ['code' => null, 'title' => 'Long lecture end', 'start_seconds' => 3723],
         ], $result['scenes']);
-        $this->assertNull($result['check']);
+        $this->assertSame([], $result['checks']);
     }
 }

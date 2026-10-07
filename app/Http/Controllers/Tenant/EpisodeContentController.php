@@ -10,12 +10,14 @@ use App\Models\Course;
 use App\Models\Episode;
 use App\Models\EpisodeCaption;
 use App\Models\EpisodeCheck;
+use App\Models\Section;
 use App\Services\Episodes\EpisodeAnalytics;
 use App\Services\Episodes\EpisodeMedia;
 use App\Services\Episodes\EpisodeReminderSender;
 use App\Services\Episodes\StoryboardParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -29,9 +31,10 @@ class EpisodeContentController extends Controller
 {
     use AuthorizesCourseAccess;
 
-    public function show(string $tenantSlug, Course $course, Episode $episode, EpisodeAnalytics $analytics): View
+    public function show(Request $request, string $tenantSlug, Course $course, Episode $episode, EpisodeAnalytics $analytics): View
     {
         $this->authorizeEpisode($course, $episode);
+        [$sections, $sectionId, $studentIds] = $this->audienceOf($request, $course);
 
         $tenant = app('current_tenant');
         $episode->load([
@@ -52,22 +55,29 @@ class EpisodeContentController extends Controller
             'course' => $course,
             'episode' => $episode,
             'scenesText' => $scenesText,
-            'suggestion' => session('check_suggestion'),
+            'suggestions' => $this->checkSuggestions($episode),
             'languages' => EpisodeCaption::LANGUAGES,
-            'report' => $analytics->report($episode, EpisodeAnalytics::studentIds($this->lecturerSectionIds($course))),
+            'sections' => EpisodeAnalytics::sectionOptions($sections),
+            'sectionId' => $sectionId,
+            'report' => $analytics->report(
+                $episode,
+                $studentIds,
+                sectionNames: $sectionId === null ? EpisodeAnalytics::sectionNamesByStudent($sections) : [],
+            ),
         ]);
     }
 
     public function remind(Request $request, string $tenantSlug, Course $course, Episode $episode, EpisodeReminderSender $sender): RedirectResponse
     {
         $this->authorizeEpisode($course, $episode);
+        [, , $studentIds] = $this->audienceOf($request, $course);
 
         $audience = $request->validate([
             'audience' => ['required', Rule::in(['not_started', 'not_finished'])],
         ])['audience'];
 
         try {
-            $sent = $sender->send($episode, EpisodeAnalytics::studentIds($this->lecturerSectionIds($course)), $audience);
+            $sent = $sender->send($episode, $studentIds, $audience);
         } catch (RuntimeException $e) {
             return back()->withErrors(['audience' => $e->getMessage()]);
         }
@@ -95,14 +105,29 @@ class EpisodeContentController extends Controller
             }
         });
 
-        $redirect = back()->with('success', count($parsed['scenes']).' '.str('scene')->plural(count($parsed['scenes'])).' saved.');
+        // Quiz rows (Quick Check, Final trial…) become drafts the lecturer confirms one by one,
+        // so they live in the session until added or dismissed rather than for one request.
+        session()->put($this->suggestionsKey($episode), $parsed['checks']);
 
-        // A storyboard's Quick Check row pre-fills the new-check form; the lecturer confirms it.
-        if ($parsed['check'] !== null && ! $episode->checks()->exists()) {
-            $redirect->with('check_suggestion', $parsed['check']);
+        $message = count($parsed['scenes']).' '.str('scene')->plural(count($parsed['scenes'])).' saved.';
+        $drafts = count($this->checkSuggestions($episode->load('checks')));
+        if ($drafts > 0) {
+            $message .= " {$drafts} Quick ".str('Check')->plural($drafts).' found in the storyboard, ready to add below.';
         }
 
-        return $redirect;
+        return back()->with('success', $message);
+    }
+
+    public function dismissSuggestion(string $tenantSlug, Course $course, Episode $episode, int $at): RedirectResponse
+    {
+        $this->authorizeEpisode($course, $episode);
+
+        session()->put(
+            $this->suggestionsKey($episode),
+            collect(session($this->suggestionsKey($episode), []))->reject(fn (array $s) => $s['at_seconds'] === $at)->values()->all(),
+        );
+
+        return back();
     }
 
     public function storeCheck(Request $request, string $tenantSlug, Course $course, Episode $episode): RedirectResponse
@@ -263,6 +288,46 @@ class EpisodeContentController extends Controller
         foreach ($options as $i => $label) {
             $check->options()->create(['label' => $label, 'is_correct' => $i === $correct, 'sort_order' => $i]);
         }
+    }
+
+    /**
+     * My sections of the course, the one `section_id` picks (null = all of them)
+     * and the students that choice covers.
+     *
+     * @return array{0: Collection<int, Section>, 1: ?int, 2: Collection<int, int>}
+     */
+    private function audienceOf(Request $request, Course $course): array
+    {
+        $sections = $this->lecturerSections($course)->orderBy('name')->get(['id', 'name']);
+
+        $sectionId = $request->validate([
+            'section_id' => ['nullable', 'integer', Rule::in($sections->pluck('id')->all())],
+        ])['section_id'] ?? null;
+        $sectionId = $sectionId === null ? null : (int) $sectionId;
+
+        $studentIds = EpisodeAnalytics::studentIds($sectionId === null ? $sections->pluck('id') : [$sectionId]);
+
+        return [$sections, $sectionId, $studentIds];
+    }
+
+    private function suggestionsKey(Episode $episode): string
+    {
+        return "check_suggestions.{$episode->id}";
+    }
+
+    /**
+     * Storyboard drafts not yet added: a check already at that time counts as added.
+     *
+     * @return list<array{at_seconds: int, prompt: ?string, options: list<string>, correct_index: ?int}>
+     */
+    private function checkSuggestions(Episode $episode): array
+    {
+        $taken = $episode->checks->pluck('at_seconds')->map(fn ($at) => (int) $at)->all();
+
+        return collect(session($this->suggestionsKey($episode), []))
+            ->reject(fn (array $s) => in_array($s['at_seconds'], $taken, true))
+            ->values()
+            ->all();
     }
 
     private function authorizeEpisode(Course $course, Episode $episode): void

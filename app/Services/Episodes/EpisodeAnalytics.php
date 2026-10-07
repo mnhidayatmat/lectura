@@ -10,6 +10,7 @@ use App\Models\EpisodeCheckAnswer;
 use App\Models\EpisodeProgress;
 use App\Models\EpisodeRewind;
 use App\Models\EpisodeScene;
+use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,49 @@ final class EpisodeAnalytics
             ->pluck('user_id')
             ->unique()
             ->values();
+    }
+
+    /**
+     * The sections a lecturer can filter by, each with its active student count.
+     *
+     * @param  Collection<int, Section>  $sections
+     * @return list<array{id: int, name: string, students: int}>
+     */
+    public static function sectionOptions(Collection $sections): array
+    {
+        $counts = SectionStudent::whereIn('section_id', $sections->pluck('id'))
+            ->where('is_active', true)
+            ->selectRaw('section_id, count(*) as total')
+            ->groupBy('section_id')
+            ->pluck('total', 'section_id');
+
+        return $sections
+            ->map(fn (Section $section) => [
+                'id' => $section->id,
+                'name' => $section->name,
+                'students' => (int) ($counts[$section->id] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Each active student's section name, for labelling rows when every section is shown.
+     *
+     * @param  Collection<int, Section>  $sections
+     * @return array<int, string>
+     */
+    public static function sectionNamesByStudent(Collection $sections): array
+    {
+        $names = $sections->pluck('name', 'id');
+
+        return SectionStudent::whereIn('section_id', $sections->pluck('id'))
+            ->where('is_active', true)
+            ->get(['section_id', 'user_id'])
+            ->sortBy(fn (SectionStudent $row) => $names[$row->section_id])
+            ->unique('user_id')
+            ->mapWithKeys(fn (SectionStudent $row) => [$row->user_id => $names[$row->section_id]])
+            ->all();
     }
 
     /**
@@ -83,7 +127,7 @@ final class EpisodeAnalytics
         return $answers->isEmpty() ? null : (int) round($answers->where('first_is_correct', true)->count() / $answers->count() * 100);
     }
 
-    public function report(Episode $episode, Collection $studentIds, array $idNumbers = []): array
+    public function report(Episode $episode, Collection $studentIds, array $idNumbers = [], array $sectionNames = []): array
     {
         $episode->loadMissing(['scenes', 'checks.options']);
         $duration = $episode->duration_seconds;
@@ -111,13 +155,14 @@ final class EpisodeAnalytics
             ...$this->scenes($episode->scenes, $progress, $rewinds, $started),
             'checks' => $episode->checks->map(fn (EpisodeCheck $check) => $this->check($check, $answers->where('episode_check_id', $check->id)))->values()->all(),
             'students' => $studentIds
-                ->map(function (int $id) use ($progress, $users, $answers, $duration, $idNumbers) {
+                ->map(function (int $id) use ($progress, $users, $answers, $duration, $idNumbers, $sectionNames) {
                     $row = $progress->get($id);
 
                     return [
                         'user_id' => $id,
                         'name' => $users->get($id)?->name,
                         'student_id_number' => $idNumbers[$id] ?? null,
+                        'section_name' => $sectionNames[$id] ?? null,
                         'status' => self::status($row),
                         'watched_percent' => self::watchedPercent($row, $duration),
                         'last_watched_at' => $row?->last_watched_at?->toIso8601String(),

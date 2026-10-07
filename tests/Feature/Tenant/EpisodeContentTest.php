@@ -72,18 +72,58 @@ class EpisodeContentTest extends ApiTestCase
         $this->actingAs($this->lecturer)
             ->put($this->base("/{$episode->id}/scenes"), ['scenes' => $storyboard])
             ->assertRedirect()
-            ->assertSessionHas('success', '2 scenes saved.')
-            ->assertSessionHas('check_suggestion', fn ($s) => $s['at_seconds'] === 167 && $s['correct_index'] === 1);
+            ->assertSessionHas('success', '2 scenes saved. 1 Quick Check found in the storyboard, ready to add below.')
+            ->assertSessionHas("check_suggestions.{$episode->id}", fn ($s) => $s[0]['at_seconds'] === 167 && $s[0]['correct_index'] === 1);
 
         $this->assertSame(['Meet Titis', 'Quick Check'], $episode->scenes()->pluck('title')->all());
 
         $this->actingAs($this->lecturer)
-            ->withSession(['check_suggestion' => ['at_seconds' => 167, 'prompt' => null, 'options' => ['Building frame', 'Pipe hanger', 'Pump casing'], 'correct_index' => 1]])
             ->get($this->base("/{$episode->id}"))
             ->assertOk()
-            ->assertSee('Add the Quick Check found in the storyboard')
+            ->assertSee('From the storyboard')
             ->assertSee('value="2:47"', false)
             ->assertSee('value="Pipe hanger"', false);
+    }
+
+    public function test_every_final_trial_is_drafted_and_stays_until_added_or_dismissed(): void
+    {
+        $episode = $this->episode();
+        $storyboard = implode("\n", [
+            '| # | Time | Visual | On-screen text | Narration |',
+            '|---|---|---|---|---|',
+            '| S01 | 0:00 | Titis on the platform. | Meet Titis | Meet Titis. |',
+            '| S11 | 4:10 | Three doors: A) Carbon steel B) Stainless steel C) PVC. Answer: B | Final Trial 1 | Final trial! Which material resists chloride best? |',
+            '| S12 | 4:40 | Options: 150 psi / 300 psi ✓ / 600 psi | Final Trial 2 | Final trial: which class suits 40 bar? |',
+        ]);
+
+        $this->actingAs($this->lecturer)
+            ->put($this->base("/{$episode->id}/scenes"), ['scenes' => $storyboard])
+            ->assertSessionHas('success', '3 scenes saved. 2 Quick Checks found in the storyboard, ready to add below.');
+
+        $this->get($this->base("/{$episode->id}"))
+            ->assertSee('1 of 2')
+            ->assertSee('value="Which material resists chloride best?"', false)
+            ->assertSee('value="Which class suits 40 bar?"', false);
+
+        $this->post($this->base("/{$episode->id}/checks"), [
+            'form' => 'draft250',
+            'at' => '4:10',
+            'prompt' => 'Which material resists chloride best?',
+            'options' => ['Carbon steel', 'Stainless steel', 'PVC'],
+            'correct' => 1,
+        ])->assertSessionHasNoErrors();
+
+        $this->get($this->base("/{$episode->id}"))
+            ->assertDontSee('1 of 2')
+            ->assertSee('From the storyboard')
+            ->assertSee('value="Which class suits 40 bar?"', false);
+
+        $this->delete($this->base("/{$episode->id}/check-suggestions/280"))->assertRedirect();
+
+        $this->get($this->base("/{$episode->id}"))
+            ->assertDontSee('From the storyboard')
+            ->assertSee('Which material resists chloride best?');
+        $this->assertSame(1, $episode->checks()->count());
     }
 
     public function test_rejects_text_with_no_scenes(): void
@@ -249,5 +289,37 @@ class EpisodeContentTest extends ApiTestCase
             ->assertSessionHasErrors('audience');
 
         Notification::assertSentToTimes($student, EpisodeReminder::class, 1);
+    }
+
+    public function test_episode_page_filters_how_students_watched_by_section(): void
+    {
+        Notification::fake();
+        $alpha = $this->createSection($this->course, ['name' => 'Section Alpha']);
+        $beta = $this->createSection($this->course, ['name' => 'Section Beta', 'code' => '02']);
+        $zul = $this->createMember($this->tenant, 'student', ['name' => 'Zul Hakim']);
+        $aina = $this->createMember($this->tenant, 'student', ['name' => 'Aina Sofea']);
+        $this->enroll($alpha, $zul);
+        $this->enroll($beta, $aina);
+        $episode = $this->episode(['status' => Episode::STATUS_PUBLISHED]);
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$episode->id}"))
+            ->assertOk()
+            ->assertSee('All sections')
+            ->assertSee('Not started (2)')
+            ->assertSee('Zul Hakim')
+            ->assertSee('Aina Sofea');
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$episode->id}?section_id={$beta->id}"))
+            ->assertOk()
+            ->assertSee('Active students in Section Beta.')
+            ->assertSee('Not started (1)')
+            ->assertSee('Aina Sofea')
+            ->assertDontSee('Zul Hakim');
+
+        $this->actingAs($this->lecturer)->post($this->base("/{$episode->id}/remind"), ['audience' => 'not_started', 'section_id' => $beta->id])
+            ->assertSessionHas('success', 'Reminder sent to 1 student.');
+
+        Notification::assertSentTo($aina, EpisodeReminder::class);
+        Notification::assertNotSentTo($zul, EpisodeReminder::class);
     }
 }

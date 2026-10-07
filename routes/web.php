@@ -559,6 +559,7 @@ Route::prefix('{tenant:slug}')
         Route::post('/materials/course/{course}/episodes/{episode}/checks', [EpisodeContentController::class, 'storeCheck'])->name('tenant.episodes.checks.store');
         Route::patch('/materials/course/{course}/episodes/{episode}/checks/{check}', [EpisodeContentController::class, 'updateCheck'])->name('tenant.episodes.checks.update');
         Route::delete('/materials/course/{course}/episodes/{episode}/checks/{check}', [EpisodeContentController::class, 'destroyCheck'])->name('tenant.episodes.checks.destroy');
+        Route::delete('/materials/course/{course}/episodes/{episode}/check-suggestions/{at}', [EpisodeContentController::class, 'dismissSuggestion'])->whereNumber('at')->name('tenant.episodes.check-suggestions.dismiss');
         Route::post('/materials/course/{course}/episodes/{episode}/captions', [EpisodeContentController::class, 'storeCaption'])->name('tenant.episodes.captions.store');
         Route::delete('/materials/course/{course}/episodes/{episode}/captions/{caption}', [EpisodeContentController::class, 'destroyCaption'])->name('tenant.episodes.captions.destroy');
         Route::post('/materials/course/{course}/upload', [CourseMaterialController::class, 'upload'])->name('tenant.materials.upload');

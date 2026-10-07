@@ -162,6 +162,58 @@ class WatchAnalyticsApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.audience.started', 0);
     }
 
+    public function test_report_filters_by_section_and_labels_students_with_theirs(): void
+    {
+        $this->section->update(['name' => 'Section 01']);
+        $second = $this->createSection($this->course, ['name' => 'Section 02', 'code' => '02'], [$this->lecturer]);
+        $this->enroll($second, $this->createMember($this->tenant, 'student', ['name' => 'Yusri Amin']));
+        $foreign = $this->createSection($this->course, ['name' => 'Section 03', 'code' => '03'], [$this->createMember($this->tenant, 'lecturer')]);
+        $episode = $this->episode();
+        $this->seedViewing($episode);
+        $url = $this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}");
+
+        $this->actingAsApi($this->lecturer)->getJson($url)
+            ->assertOk()
+            ->assertJsonPath('data.section_id', null)
+            ->assertJsonPath('data.sections', [
+                ['id' => $this->section->id, 'name' => 'Section 01', 'students' => 4],
+                ['id' => $second->id, 'name' => 'Section 02', 'students' => 1],
+            ])
+            ->assertJsonPath('data.audience.students', 5)
+            ->assertJsonPath('data.students.0.name', 'Yusri Amin')
+            ->assertJsonPath('data.students.0.section_name', 'Section 02');
+
+        $this->getJson($url.'?section_id='.$second->id)
+            ->assertOk()
+            ->assertJsonPath('data.section_id', $second->id)
+            ->assertJsonPath('data.audience', ['students' => 1, 'started' => 0, 'finished' => 0, 'not_started' => 1, 'average_watched_percent' => 0])
+            ->assertJsonPath('data.episode.started', 0)
+            ->assertJsonPath('data.checks.0.answered', 0)
+            ->assertJsonCount(1, 'data.students')
+            ->assertJsonPath('data.students.0.section_name', null);
+
+        $this->getJson($url.'?section_id='.$foreign->id)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('section_id');
+    }
+
+    public function test_reminder_can_target_one_section(): void
+    {
+        Notification::fake();
+        $second = $this->createSection($this->course, ['name' => 'Section 02', 'code' => '02'], [$this->lecturer]);
+        $yusri = $this->createMember($this->tenant, 'student');
+        $this->enroll($second, $yusri);
+        $episode = $this->episode();
+
+        $this->actingAsApi($this->lecturer)
+            ->postJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}/remind"), ['section_id' => $second->id])
+            ->assertOk()
+            ->assertJsonPath('data.sent', 1);
+
+        Notification::assertSentTo($yusri, EpisodeReminder::class);
+        Notification::assertNotSentTo($this->students, EpisodeReminder::class);
+    }
+
     public function test_students_and_strangers_are_refused(): void
     {
         $episode = $this->episode();
