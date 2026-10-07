@@ -226,7 +226,7 @@ class CourseController extends Controller
             'code', 'title', 'description', 'credit_hours', 'num_weeks',
             'teaching_mode', 'format', 'faculty_id', 'programme_id',
             'academic_term_id',
-        ]), ['status' => 'active']));
+        ]), ['status' => $request->validated('status') ?? $course->status]));
 
         return redirect()->route('tenant.courses.show', [
             'tenant' => $tenant->slug,

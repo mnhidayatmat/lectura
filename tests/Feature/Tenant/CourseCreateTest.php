@@ -107,6 +107,27 @@ class CourseCreateTest extends ApiTestCase
             ->assertSee('Semester 2, 2026/2027 starts 1 Mar 2027');
     }
 
+    public function test_the_edit_form_saves_the_chosen_status(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer, ['num_weeks' => 14, 'teaching_mode' => 'face_to_face']);
+        $edit = ['code' => $course->code, 'title' => $course->title, 'num_weeks' => 14, 'teaching_mode' => 'face_to_face'];
+
+        $this->actingAs($lecturer)
+            ->put("/{$tenant->slug}/courses/{$course->id}", $edit + ['status' => 'inactive'])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame('inactive', $course->fresh()->status);
+
+        $this->actingAs($lecturer)
+            ->put("/{$tenant->slug}/courses/{$course->id}", $edit)
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('inactive', $course->fresh()->status);
+    }
+
     public function test_a_weeks_clos_can_be_changed_but_only_to_the_courses_own_clos(): void
     {
         $tenant = $this->createTenant();
