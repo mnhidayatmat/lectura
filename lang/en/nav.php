@@ -35,6 +35,7 @@ return [
     'no_course_match' => 'No course matches your search.',
     'course_overview' => 'Course overview',
     'materials' => 'Materials',
+    'episodes' => 'Episodes',
     'whiteboards' => 'Whiteboards',
     'classroom' => 'Classroom',
     'random_wheel' => 'Random Wheel',

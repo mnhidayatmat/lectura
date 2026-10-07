@@ -15,6 +15,21 @@ use Tests\Feature\Api\V1\ApiTestCase;
  */
 class EpisodeManagementTest extends ApiTestCase
 {
+    public function test_course_menu_links_to_episodes_and_marks_it_current_there(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $episodes = "/materials/course/{$course->id}/episodes";
+
+        $overview = $this->actingAs($lecturer)->get("/{$tenant->slug}/courses/{$course->id}")->assertOk();
+        $this->assertMatchesRegularExpression('#href="[^"]*'.preg_quote($episodes, '#').'"#', $overview->getContent());
+        $this->assertDoesNotMatchRegularExpression('#'.preg_quote($episodes, '#').'"\s+aria-current="page"#', $overview->getContent());
+
+        $page = $this->actingAs($lecturer)->get("/{$tenant->slug}{$episodes}")->assertOk();
+        $this->assertMatchesRegularExpression('#'.preg_quote($episodes, '#').'"\s+aria-current="page"#', $page->getContent());
+    }
+
     public function test_lecturer_uploads_an_episode_and_the_series_is_created(): void
     {
         Storage::fake('local');

@@ -35,6 +35,7 @@ return [
     'no_course_match' => 'Tiada kursus sepadan dengan carian anda.',
     'course_overview' => 'Gambaran kursus',
     'materials' => 'Bahan',
+    'episodes' => 'Episod',
     'whiteboards' => 'Papan Putih',
     'classroom' => 'Bilik Darjah',
     'random_wheel' => 'Roda Rawak',

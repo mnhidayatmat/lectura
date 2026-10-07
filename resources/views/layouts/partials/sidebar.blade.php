@@ -34,6 +34,7 @@
         'report' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
         'chart' => 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
         'link' => 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+        'film' => 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z',
         'folder' => 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
         'camera' => 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z',
         'grid' => 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
@@ -88,6 +89,7 @@
 
             <p class="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.teaching') }}</p>
             <x-sidebar-link :href="$courseRoute('tenant.materials.manage')" :active="$on('tenant.materials.*')" :icon="$icons['book']">{{ __('nav.materials') }}</x-sidebar-link>
+            <x-sidebar-link :href="$courseRoute('tenant.episodes.index')" :active="$on('tenant.episodes.*')" :icon="$icons['film']">{{ __('nav.episodes') }}</x-sidebar-link>
             <x-sidebar-link :href="$courseRoute('tenant.active-learning.index')" :active="$on('tenant.active-learning.*')" :icon="$icons['bolt']">{{ __('nav.active_learning') }}</x-sidebar-link>
             <x-sidebar-link :href="$courseRoute('tenant.quizzes.course')" :active="$on('tenant.quizzes.*')" :icon="$icons['quiz']">{{ __('nav.quizzes') }}</x-sidebar-link>
             <x-sidebar-link :href="$courseRoute('tenant.whiteboards.index')" :active="$on('tenant.whiteboards.*')" :icon="$icons['pen']">{{ __('nav.whiteboards') }}</x-sidebar-link>
