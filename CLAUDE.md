@@ -56,7 +56,10 @@ npm run build
   - Deleting an account must revoke the Apple token (App Store requirement), and that *does* need a
     signing key: `AppleTokenService` trades the sheet's authorization code for a refresh token at
     sign-in (it expires in minutes, so it cannot wait) and posts it to Apple's revoke endpoint from
-    both `Api\V1\AuthController::destroy` and the web `ProfileController::destroy`. Needs
+    both `Api\V1\AuthController::destroy` and the web `ProfileController::destroy`, which then call
+    `User::closeAccount()`: tokens, Google/Apple ids, email and personal details are stripped before
+    the soft delete, so the row keeps the institution's records but the address can register again
+    (a plain soft delete left the unique email taken and the next OAuth sign-in crashed). Needs
     `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY_PATH` (the .p8); without them nothing is
     exchanged or revoked and sign-in is unaffected. Neither call may block the deletion — a failure
     is reported, never thrown.

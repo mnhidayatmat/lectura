@@ -147,8 +147,8 @@ class AssignmentMarkingApiTest extends LecturerApiTestCase
         $group = StudentGroup::create(['student_group_set_id' => $set->id, 'name' => 'Group A']);
         $assignment = $this->assignment($tenant, $course, $lecturer, ['type' => 'group', 'student_group_set_id' => $set->id]);
 
-        Storage::fake('local');
-        Storage::disk('local')->put('submissions/report.pdf', 'pdf');
+        Storage::fake('uploads');
+        Storage::disk('uploads')->put('submissions/report.pdf', 'pdf');
         $leaderCopy = $this->submit($assignment, $leader, ['student_group_id' => $group->id]);
         $leaderCopy->files()->create(['file_name' => 'report.pdf', 'file_type' => 'application/pdf', 'storage_path' => 'submissions/report.pdf', 'file_size_bytes' => 3]);
         $this->submit($assignment, $member, ['student_group_id' => $group->id]);

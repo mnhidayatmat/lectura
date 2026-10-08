@@ -401,6 +401,11 @@ class StudentAssessmentController extends Controller
         if ($assessment->course_id !== $course->id) {
             abort(403, 'This assessment does not belong to this course.');
         }
+
+        // The list leaves drafts out, so a draft's id is not a page students can open.
+        if ($assessment->status === 'draft') {
+            abort(404, 'Assessment not found.');
+        }
     }
 
     private function validateSubmissionFiles(Request $request): void

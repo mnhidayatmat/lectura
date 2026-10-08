@@ -79,6 +79,38 @@ class User extends Authenticatable
         return $this->drive_refresh_token !== null;
     }
 
+    /**
+     * Close the account the way the app stores require: tokens, sign-in identities, the
+     * email and personal details go, so nothing can sign in as this row again and the
+     * address is free for a new account. The row itself stays, soft-deleted, because the
+     * institution's marks and attendance records point at it.
+     */
+    public function closeAccount(): void
+    {
+        $this->tokens()->delete();
+
+        // The activity log would otherwise keep the old name and email as "changed from".
+        $this->disableLogging();
+        $this->forceFill([
+            'name' => 'Deleted user',
+            'email' => "deleted-{$this->id}@users.invalid",
+            'email_verified_at' => null,
+            'password' => null,
+            'remember_token' => null,
+            'google_id' => null,
+            'apple_id' => null,
+            'apple_refresh_token' => null,
+            'avatar_url' => null,
+            'drive_access_token' => null,
+            'drive_refresh_token' => null,
+            'drive_token_expires_at' => null,
+            'drive_root_folder_id' => null,
+        ])->save();
+        $this->enableLogging();
+
+        $this->delete();
+    }
+
     // ── Tenant Relationships ──
 
     public function tenants(): BelongsToMany

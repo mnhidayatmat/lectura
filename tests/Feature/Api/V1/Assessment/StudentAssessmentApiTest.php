@@ -166,6 +166,15 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonPath('message', 'You are not enrolled in this course.');
     }
 
+    public function test_a_draft_assessment_is_not_found_even_by_its_own_students(): void
+    {
+        $draft = $this->createAssessment(['title' => 'Draft', 'status' => 'draft']);
+
+        $this->actingAsApi($this->student)->getJson($this->showUrl($draft))
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Assessment not found.');
+    }
+
     public function test_assessment_from_another_institution_is_not_found(): void
     {
         $otherTenant = $this->createTenant();

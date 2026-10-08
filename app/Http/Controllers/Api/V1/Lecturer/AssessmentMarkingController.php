@@ -147,11 +147,11 @@ class AssessmentMarkingController extends Controller
 
         $path = $request->boolean('original') ? $file->storage_path : $file->viewablePath();
 
-        if (! $path || ! Storage::disk('local')->exists($path)) {
+        if (! $path || ! Storage::disk('uploads')->exists($path)) {
             abort(404, 'This file is not stored on Lectura. Open it on the web.');
         }
 
-        return Storage::disk('local')->download($path, $file->file_name);
+        return Storage::disk('uploads')->download($path, $file->file_name);
     }
 
     /**

@@ -6,7 +6,8 @@ class DashboardApiTest extends LecturerApiTestCase
 {
     public function test_dashboard_matches_web_stats_schedule_and_active_sessions(): void
     {
-        $this->travelTo(now()->startOfWeek()->setTime(10, 30));
+        // Monday 10:30 in the institution's timezone (the one ApiTestCase gives every tenant).
+        $this->travelTo(now('Asia/Kuala_Lumpur')->startOfWeek()->setTime(10, 30));
 
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
@@ -48,6 +49,28 @@ class DashboardApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.active_sessions.0.id', $active->id)
             ->assertJsonPath('data.active_sessions.0.total_students', 2)
             ->assertJsonCount(2, 'data.recent_courses');
+    }
+
+    public function test_today_and_now_follow_the_institution_timezone_not_utc(): void
+    {
+        // Tuesday 01:00 in Kuala Lumpur is still Monday 17:00 UTC: the Tuesday slot must be "now".
+        $this->travelTo(now('Asia/Kuala_Lumpur')->startOfWeek()->addDay()->setTime(1, 0));
+
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $this->createSection($course, ['schedule' => [
+            ['day' => 'monday', 'start_time' => '16:00', 'end_time' => '18:00', 'type' => 'lecture'],
+            ['day' => 'tuesday', 'start_time' => '00:30', 'end_time' => '02:00', 'type' => 'lab'],
+        ]]);
+
+        $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/dashboard'))
+            ->assertOk()
+            ->assertJsonPath('data.day', 'Tuesday')
+            ->assertJsonCount(1, 'data.today_schedule')
+            ->assertJsonPath('data.today_schedule.0.start_time', '00:30')
+            ->assertJsonPath('data.today_schedule.0.is_now', true)
+            ->assertJsonPath('data.today_schedule.0.is_past', false);
     }
 
     public function test_live_sessions_of_an_inactive_section_are_left_out(): void

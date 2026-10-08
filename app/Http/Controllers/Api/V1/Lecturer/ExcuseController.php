@@ -70,11 +70,11 @@ class ExcuseController extends Controller
     {
         $this->authorizeExcuse($excuse);
 
-        if (! $excuse->attachment_path || ! Storage::disk('local')->exists($excuse->attachment_path)) {
+        if (! $excuse->attachment_path || ! Storage::disk('uploads')->exists($excuse->attachment_path)) {
             abort(404, 'This excuse has no attachment.');
         }
 
-        return Storage::disk('local')->download($excuse->attachment_path, $excuse->attachment_filename);
+        return Storage::disk('uploads')->download($excuse->attachment_path, $excuse->attachment_filename);
     }
 
     private function review(Request $request, AttendanceExcuse $excuse, bool $approve): JsonResponse

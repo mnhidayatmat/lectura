@@ -1026,8 +1026,8 @@ Paginated, 20 per page, newest first. Notifications are per user (not per instit
 ```
 
 - `id` is a UUID string.
-- `kind`: `assignment_published` | `feedback_released` | `assessment_marks_released` | `submission_received` | `assessment_submission_received` | `attendance_alert` | `attendance_warning` (may be `null` for unknown types).
-- `icon`: `document` | `chart` | `upload` | `alert` | `warning`. `color`: `amber` | `emerald` | `indigo` | `red` | `teal` | `yellow` | `slate`.
+- `kind`: `assignment_published` | `feedback_released` | `assessment_marks_released` | `submission_received` | `assessment_submission_received` | `attendance_alert` | `attendance_warning` | `episode_published` | `episode_reminder` | `random_wheel_pick` (may be `null` for unknown types).
+- `icon`: `document` | `chart` | `upload` | `alert` | `warning` | `play` | `wheel`. `color`: `amber` | `emerald` | `indigo` | `red` | `teal` | `yellow` | `slate` | `violet`.
 - `related` is an object (possibly `{}`) with any of `assignment_id`, `assessment_id`, `course_id`, `course_code`, `level`.
 
 ### GET `notifications/unread-count`

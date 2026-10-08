@@ -765,7 +765,7 @@ PATCH `{name?, description?, is_active?}`. DELETE is a soft delete. Every group 
 - DELETE `.../groups/{group}/members/{user}`.
 - POST `.../members/{user}/move` `{group_id}` — joins as a member (a leader loses the role).
 - POST `.../groups/{group}/leader` `{user_id}` — one leader per group.
-- POST `.../arrange-random` `{group_size 2–20, replace?}` — re-deals everyone; 409 when groups exist unless `replace: true` (the message says how many assessments/assignments use the set).
+- POST `.../arrange-random` `{group_size 2–20, replace?}` — re-deals everyone; 422 when the section has no students yet; 409 when groups exist unless `replace: true` (the message says how many assessments/assignments use the set).
 
 Still web-only: the Course Files archive (folders, tags), group swap approvals and the group score (which the web does not save).
 

@@ -68,7 +68,8 @@ class DashboardController extends Controller
             }
         }
 
-        $now = now();
+        // Timetable slots are the institution's wall-clock times, so "today" and "now" must be too.
+        $now = now(app('current_tenant')->timezone ?: config('app.timezone'));
         $today = strtolower($now->format('l'));
         $currentTime = $now->format('H:i');
 

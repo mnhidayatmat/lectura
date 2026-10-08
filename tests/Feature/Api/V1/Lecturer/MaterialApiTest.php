@@ -10,7 +10,7 @@ class MaterialApiTest extends LecturerApiTestCase
 {
     public function test_lecturer_builds_sections_uploads_links_and_students_see_them(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
         $student = $this->createMember($tenant, 'student');
@@ -30,7 +30,7 @@ class MaterialApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.type', 'file')
             ->json('data.id');
 
-        Storage::disk('local')->assertExists(CourseFile::find($fileId)->storage_path);
+        Storage::disk('uploads')->assertExists(CourseFile::find($fileId)->storage_path);
 
         $this->actingAsApi($lecturer)->postJson("$base/sections/$week2/links", ['title' => 'Video', 'url' => 'not a url'])
             ->assertStatus(422);
@@ -58,7 +58,7 @@ class MaterialApiTest extends LecturerApiTestCase
 
     public function test_items_can_move_sections_but_not_leave_the_course(): void
     {
-        Storage::fake('local');
+        Storage::fake('uploads');
         $tenant = $this->createTenant();
         $lecturer = $this->createMember($tenant, 'lecturer');
         $course = $this->createCourse($tenant, $lecturer);

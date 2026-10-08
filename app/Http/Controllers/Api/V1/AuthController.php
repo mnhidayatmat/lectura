@@ -305,8 +305,7 @@ class AuthController extends Controller
             report($e);
         }
 
-        $user->tokens()->delete();
-        $user->delete();
+        $user->closeAccount();
 
         return response()->json(['message' => 'Your account has been deleted.']);
     }

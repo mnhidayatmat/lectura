@@ -144,7 +144,7 @@ class MaterialController extends Controller
             'file_name' => $request->filled('title') ? $request->string('title')->toString() : $upload->getClientOriginalName(),
             'file_type' => $upload->getMimeType(),
             'file_size_bytes' => $upload->getSize(),
-            'storage_path' => $upload->store("course-files/{$course->id}/{$folder->id}", 'local'),
+            'storage_path' => $upload->store("course-files/{$course->id}/{$folder->id}", 'uploads'),
             'description' => $request->input('description'),
             'material_section_id' => $section->id,
             'sort_order' => (int) CourseFile::where('material_section_id', $section->id)->max('sort_order') + 1,
@@ -252,7 +252,7 @@ class MaterialController extends Controller
                 report($e);
             }
         } elseif ($file->storage_path) {
-            Storage::disk('local')->delete($file->storage_path);
+            Storage::disk('uploads')->delete($file->storage_path);
         }
     }
 

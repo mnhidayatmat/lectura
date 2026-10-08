@@ -143,6 +143,39 @@ class AuthApiTest extends ApiTestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
+    public function test_a_deleted_account_keeps_no_personal_details_and_frees_its_email(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Nur Aina',
+            'email' => 'aina@example.com',
+            'password' => bcrypt('secret-password'),
+            'google_id' => 'google-1',
+            'apple_id' => 'apple-sub-1',
+            'avatar_url' => 'https://example.com/aina.jpg',
+        ]);
+
+        $this->actingAsApi($user)->deleteJson('/api/v1/me', ['password' => 'secret-password'])->assertOk();
+
+        $closed = User::withTrashed()->find($user->id);
+        $this->assertSame("deleted-{$user->id}@users.invalid", $closed->email);
+        $this->assertSame('Deleted User', $closed->name);
+        $this->assertNull($closed->password);
+        $this->assertNull($closed->google_id);
+        $this->assertNull($closed->apple_id);
+        $this->assertNull($closed->avatar_url);
+
+        // The address can open a brand-new account, as the stores expect after a deletion.
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Nur Aina',
+            'email' => 'aina@example.com',
+            'password' => 'another-strong-password',
+            'password_confirmation' => 'another-strong-password',
+        ])->assertCreated();
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'aina@example.com', 'password' => 'secret-password'])
+            ->assertStatus(422);
+    }
+
     public function test_google_only_account_is_deleted_by_confirming_the_email(): void
     {
         $user = User::factory()->create(['password' => null, 'google_id' => 'google-1']);
