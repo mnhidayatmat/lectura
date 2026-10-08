@@ -1,6 +1,25 @@
 @php
-    $currentTenant = app()->bound('current_tenant') ? app('current_tenant') : null;
+    // /profile is outside the tenant prefix, so current_tenant is never bound here: use the institution /dashboard picks.
+    $currentTenant = app()->bound('current_tenant') ? app('current_tenant') : auth()->user()->activeTenants()->first();
     $userRole = $currentTenant ? auth()->user()->roleInTenant($currentTenant->id) : null;
+    $quickLinks = [];
+    if ($currentTenant) {
+        $quickLinks = $userRole === 'student'
+            ? [
+                ['Dashboard', route('tenant.dashboard', $currentTenant->slug)],
+                ['My Courses', route('tenant.my-courses', $currentTenant->slug)],
+                ['My Attendance', route('tenant.my-attendance', $currentTenant->slug)],
+                ['Marks', route('tenant.marks', $currentTenant->slug)],
+                ['Watch', route('tenant.watch.index', $currentTenant->slug)],
+            ]
+            : [
+                ['Dashboard', route('tenant.dashboard', $currentTenant->slug)],
+                ['Courses', route('tenant.courses.index', $currentTenant->slug)],
+                ['Attendance', route('tenant.attendance.index', $currentTenant->slug)],
+                ['Materials', route('tenant.materials.index', $currentTenant->slug)],
+                ['Settings', route('tenant.settings', $currentTenant->slug)],
+            ];
+    }
 @endphp
 
 <!DOCTYPE html>
@@ -197,19 +216,17 @@
                         </div>
 
                         {{-- Quick Links --}}
-                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                            <h4 class="px-5 py-3 text-sm font-semibold text-slate-900 border-b border-slate-100">Quick Links</h4>
-                            @if($currentTenant)
-                                <a href="{{ route('tenant.settings', $currentTenant->slug) }}" class="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition text-sm">
-                                    <span class="text-slate-600">Storage Settings</span>
-                                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                </a>
-                                <a href="{{ '/' . $currentTenant->slug . '/dashboard' }}" class="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition text-sm border-t border-slate-50">
-                                    <span class="text-slate-600">Dashboard</span>
-                                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                </a>
-                            @endif
-                        </div>
+                        @if($quickLinks)
+                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                                <h4 class="px-5 py-3 text-sm font-semibold text-slate-900 border-b border-slate-100">Quick Links</h4>
+                                @foreach($quickLinks as [$label, $url])
+                                    <a href="{{ $url }}" class="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition text-sm {{ $loop->first ? '' : 'border-t border-slate-50' }}">
+                                        <span class="text-slate-600">{{ $label }}</span>
+                                        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
 
                         {{-- Danger Zone --}}
                         <div class="bg-white rounded-2xl border border-red-200 overflow-hidden" x-data="{ showDelete: false }">
@@ -248,5 +265,7 @@
             </div>
         </main>
     </div>
+
+    @livewireScriptConfig
 </body>
 </html>

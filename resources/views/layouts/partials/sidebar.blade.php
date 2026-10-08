@@ -111,7 +111,9 @@
 
             <p class="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.general') }}</p>
             <x-sidebar-link :href="$prefix.'/courses'" :active="$on('tenant.courses.index', 'tenant.courses.create', 'tenant.course-context.*')" :icon="$icons['grid']">{{ __('nav.all_courses') }}</x-sidebar-link>
-            <x-sidebar-link :href="$prefix.'/semesters'" :active="$on('tenant.academic-terms.*')" :icon="$icons['calendar']">{{ __('nav.semesters') }}</x-sidebar-link>
+            @if(in_array($userRole, ['admin', 'coordinator']))
+                <x-sidebar-link :href="$prefix.'/semesters'" :active="$on('tenant.academic-terms.*')" :icon="$icons['calendar']">{{ __('nav.semesters') }}</x-sidebar-link>
+            @endif
             <x-sidebar-link :href="$prefix.'/settings'" :active="$on('tenant.settings*')" :icon="$icons['cog']">{{ __('nav.settings') }}</x-sidebar-link>
             @if(in_array($userRole, ['admin', 'coordinator']))
                 <x-sidebar-link :href="$prefix.'/admin/settings'" :active="$active('*/admin/settings*')" :icon="$icons['cog']">{{ __('nav.admin') }}</x-sidebar-link>
@@ -137,7 +139,9 @@
             <x-sidebar-link :href="$prefix.'/files'" :active="$active('*/files*')" :icon="$icons['folder']">{{ __('nav.course_files') }}</x-sidebar-link>
             <x-sidebar-link :href="$prefix.'/portfolio'" :active="$active('*/portfolio*')" :icon="$icons['camera']">{{ __('nav.portfolio') }}</x-sidebar-link>
             <x-sidebar-link :href="$prefix.'/performance'" :active="$active('*/performance*')" :icon="$icons['chart']">{{ __('performance.title') }}</x-sidebar-link>
-            <x-sidebar-link :href="$prefix.'/semesters'" :active="$active('*/semesters*')" :icon="$icons['calendar']">{{ __('nav.semesters') }}</x-sidebar-link>
+            @if(in_array($userRole, ['admin', 'coordinator']))
+                <x-sidebar-link :href="$prefix.'/semesters'" :active="$active('*/semesters*')" :icon="$icons['calendar']">{{ __('nav.semesters') }}</x-sidebar-link>
+            @endif
             <x-sidebar-link :href="$prefix.'/settings'" :active="$active('*/settings*', '*/admin/settings*')" :icon="$icons['cog']">{{ __('nav.settings') }}</x-sidebar-link>
 
             @if(in_array($userRole, ['admin', 'coordinator']))

@@ -56,6 +56,26 @@ class AcademicTermTest extends ApiTestCase
             ->assertSessionHas('error');
     }
 
+    public function test_the_sidebar_offers_semesters_only_to_institution_staff(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $coordinator = $this->createMember($tenant, 'coordinator');
+
+        $this->actingAs($lecturer)
+            ->get("/{$tenant->slug}/semesters")
+            ->assertForbidden();
+        $this->actingAs($lecturer)
+            ->get("/{$tenant->slug}/dashboard")
+            ->assertOk()
+            ->assertDontSee("/{$tenant->slug}/semesters");
+
+        $this->actingAs($coordinator)
+            ->get("/{$tenant->slug}/dashboard")
+            ->assertOk()
+            ->assertSee("/{$tenant->slug}/semesters");
+    }
+
     public function test_a_lecturer_cannot_close_a_semester(): void
     {
         $tenant = $this->createTenant();

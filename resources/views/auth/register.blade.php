@@ -59,7 +59,7 @@
         <div class="flex items-start gap-2">
             <input id="terms" type="checkbox" required class="w-4 h-4 mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
             <label for="terms" class="text-xs text-slate-500 leading-relaxed">
-                I agree to the <a href="#" class="text-indigo-600 hover:underline">Terms of Service</a> and <a href="#" class="text-indigo-600 hover:underline">Privacy Policy</a>. I understand that my data is processed under the Malaysian PDPA.
+                I agree to the Terms of Service and <a href="{{ route('privacy') }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">Privacy Policy</a>. I understand that my data is processed under the Malaysian PDPA.
             </label>
         </div>
 

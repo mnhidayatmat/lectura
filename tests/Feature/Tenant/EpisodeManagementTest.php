@@ -30,6 +30,33 @@ class EpisodeManagementTest extends ApiTestCase
         $this->assertMatchesRegularExpression('#'.preg_quote($episodes, '#').'"\s+aria-current="page"#', $page->getContent());
     }
 
+    public function test_a_flash_message_shows_once_on_the_episodes_pages(): void
+    {
+        Storage::fake('local');
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $series = CourseSeries::create(['tenant_id' => $tenant->id, 'course_id' => $course->id, 'title' => 'Process Piping']);
+        $episode = Episode::create([
+            'tenant_id' => $tenant->id,
+            'course_series_id' => $series->id,
+            'course_id' => $course->id,
+            'episode_number' => 1,
+            'title' => 'Titis Leaves Home',
+            'status' => Episode::STATUS_DRAFT,
+            'video_disk' => 'local',
+            'video_path' => 'episodes/ep1.mp4',
+            'duration_seconds' => 275,
+        ]);
+        $episodes = "/{$tenant->slug}/materials/course/{$course->id}/episodes";
+
+        // The layout renders the banner; the pages used to render it again themselves.
+        foreach ([$episodes, "{$episodes}/{$episode->id}"] as $url) {
+            $page = $this->actingAs($lecturer)->withSession(['success' => 'Episode 1 saved.'])->get($url)->assertOk();
+            $this->assertSame(1, substr_count($page->getContent(), 'Episode 1 saved.'), $url);
+        }
+    }
+
     public function test_lecturer_uploads_an_episode_and_the_series_is_created(): void
     {
         Storage::fake('local');

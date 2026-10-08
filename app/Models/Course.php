@@ -178,6 +178,7 @@ class Course extends Model
     {
         return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))
             ->where('is_active', true)
+            ->whereHas('user')
             ->distinct('user_id')
             ->count('user_id');
     }

@@ -171,5 +171,7 @@
             </div>
         </main>
     </div>
+
+    @livewireScriptConfig
 </body>
 </html>

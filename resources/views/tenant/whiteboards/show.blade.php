@@ -23,5 +23,7 @@
         data-csrf="{{ csrf_token() }}"
         data-channel="whiteboard.{{ $whiteboard->id }}"
     ></div>
+
+    @livewireScriptConfig
 </body>
 </html>
