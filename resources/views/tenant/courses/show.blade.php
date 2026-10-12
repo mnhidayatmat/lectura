@@ -255,7 +255,7 @@
                 </div>
                 <div class="max-h-[32rem] overflow-y-auto rounded-b-2xl">
                     @forelse($semesterGroups as $group)
-                        <div class="sticky top-0 z-10 px-5 py-2 bg-slate-50/95 backdrop-blur border-b border-slate-100 flex items-center gap-2">
+                        <div class="sticky top-0 z-10 px-5 py-2 bg-slate-50/95 dark:bg-[#1c2333]/95 backdrop-blur border-b border-slate-100 flex items-center gap-2">
                             <span class="text-xs font-semibold text-slate-700">{{ $group['term']?->name ?? 'No semester' }}</span>
                             @if($group['term']?->isCurrent())
                                 <span class="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">Current</span>
