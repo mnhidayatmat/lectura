@@ -109,4 +109,32 @@ class DashboardApiTest extends LecturerApiTestCase
         $this->actingAsApi($user, 'lecturer')->getJson($this->tenantApi($tenant, 'lecturer/dashboard'))
             ->assertOk();
     }
+
+    public function test_active_courses_follow_the_lecturers_own_active_sections(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $colleague = $this->createMember($tenant, 'lecturer');
+
+        $current = $this->createCourse($tenant, $lecturer);
+        $this->createSection($current, ['is_active' => false]);
+        $this->createSection($current);
+        $this->createSection($this->createCourse($tenant, $lecturer), ['is_active' => false]);
+
+        // A colleague's course still runs, but the lecturer's own section there has ended
+        $shared = $this->createCourse($tenant, $colleague);
+        $this->createSection($shared);
+        $this->createSection($shared, ['is_active' => false], [$lecturer]);
+
+        $teaching = $this->createCourse($tenant, $colleague);
+        $this->createSection($teaching, [], [$lecturer]);
+
+        $this->actingAsApi($lecturer)->getJson($this->tenantApi($tenant, 'lecturer/dashboard'))
+            ->assertOk()
+            ->assertJsonPath('data.stats.active_courses', 2);
+
+        $this->actingAsApi($colleague)->getJson($this->tenantApi($tenant, 'lecturer/dashboard'))
+            ->assertOk()
+            ->assertJsonPath('data.stats.active_courses', 2);
+    }
 }

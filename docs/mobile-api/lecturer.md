@@ -33,7 +33,7 @@ Examples below are real responses captured from the test suite (ids/dates are il
 
 ### GET `lecturer/dashboard`
 
-Same figures as the web lecturer dashboard. `today_schedule` is sorted by `start_time`; `is_now`/`is_past` computed on the server clock. `active_sessions` lets the app resume a live QR; sessions of deactivated sections are left out. `recent_courses` = 5 most recently created accessible courses. `avg_attendance` is an int percentage or `null` (no ended sessions).
+Same figures as the web lecturer dashboard. `today_schedule` is sorted by `start_time`; `is_now`/`is_past` computed on the server clock. `active_sessions` lets the app resume a live QR; sessions of deactivated sections are left out. `recent_courses` = 5 most recently created accessible courses. `avg_attendance` is an int percentage or `null` (no ended sessions). Deviation: `active_courses` counts an `active` course only while one of its sections is active — any section for the owner, only their own for a section lecturer — so a colleague's course whose section you taught last semester drops out.
 
 ```json
 {

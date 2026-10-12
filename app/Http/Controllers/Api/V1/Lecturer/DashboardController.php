@@ -32,7 +32,8 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $ownedCourseIds = Course::where('lecturer_id', $user->id)->pluck('id');
-        $sectionCourseIds = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->pluck('course_id');
+        $ownSections = Section::whereHas('lecturers', fn ($q) => $q->where('user_id', $user->id))->get(['id', 'course_id', 'is_active']);
+        $sectionCourseIds = $ownSections->pluck('course_id');
         $allCourseIds = $ownedCourseIds->merge($sectionCourseIds)->unique();
 
         $courses = Course::whereIn('id', $allCourseIds)
@@ -40,7 +41,12 @@ class DashboardController extends Controller
             ->with(['academicTerm', 'faculty', 'sections.academicTerm'])
             ->latest()
             ->get();
-        $courseCount = $courses->where('status', 'active')->count();
+        // Owners count a course while any section runs; a section lecturer only while their own does
+        $courseCount = $courses->filter(fn (Course $course) => $course->status === 'active' && (
+            $ownedCourseIds->contains($course->id)
+                ? $course->sections->contains('is_active', true)
+                : $ownSections->where('course_id', $course->id)->contains('is_active', true)
+        ))->count();
 
         $sectionIds = Section::whereIn('course_id', $courses->pluck('id'))
             ->where('is_active', true)
