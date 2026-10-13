@@ -159,8 +159,9 @@ final class EpisodeAnalytics
             ...$this->scenes($episode->scenes, $progress, $rewinds, $started),
             'checks' => $episode->checks->map(fn (EpisodeCheck $check) => $this->check($check, $answers->where('episode_check_id', $check->id)))->values()->all(),
             'students' => $studentIds
-                ->map(function (int $id) use ($progress, $users, $answers, $duration, $idNumbers, $sectionNames) {
+                ->map(function (int $id) use ($episode, $progress, $users, $answers, $duration, $idNumbers, $sectionNames) {
                     $row = $progress->get($id);
+                    $mine = $answers->where('user_id', $id)->keyBy('episode_check_id');
 
                     return [
                         'user_id' => $id,
@@ -170,7 +171,17 @@ final class EpisodeAnalytics
                         'status' => self::status($row),
                         'watched_percent' => self::watchedPercent($row, $duration),
                         'last_watched_at' => $row?->last_watched_at?->toIso8601String(),
-                        'checks_correct' => $answers->where('user_id', $id)->where('is_correct', true)->count(),
+                        'checks_correct' => $mine->where('is_correct', true)->count(),
+                        'checks_answered' => $mine->count(),
+                        'checks_first_try_correct' => $mine->where('first_is_correct', true)->count(),
+                        'check_results' => $episode->checks->map(fn (EpisodeCheck $check) => [
+                            'check_id' => $check->id,
+                            'at_seconds' => $check->at_seconds,
+                            'answered' => $mine->has($check->id),
+                            'first_is_correct' => $mine->get($check->id)?->first_is_correct,
+                            'is_correct' => $mine->get($check->id)?->is_correct,
+                            'attempts' => (int) ($mine->get($check->id)?->attempts ?? 0),
+                        ])->values()->all(),
                     ];
                 })
                 ->sortBy(fn (array $s) => [['not_started' => 0, 'watching' => 1, 'finished' => 2][$s['status']], mb_strtolower((string) $s['name'])])

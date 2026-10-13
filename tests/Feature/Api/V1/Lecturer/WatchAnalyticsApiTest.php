@@ -125,7 +125,7 @@ class WatchAnalyticsApiTest extends LecturerApiTestCase
     public function test_episode_report_has_scene_reach_rewinds_checks_and_students(): void
     {
         $episode = $this->episode();
-        $this->seedViewing($episode);
+        $check = $this->seedViewing($episode);
 
         $this->actingAsApi($this->lecturer)->getJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}"))
             ->assertOk()
@@ -145,6 +145,12 @@ class WatchAnalyticsApiTest extends LecturerApiTestCase
             ->assertJsonPath('data.students.1.name', 'Bala Kumar')
             ->assertJsonPath('data.students.1.watched_percent', 60)
             ->assertJsonPath('data.students.3.status', 'finished')
+            ->assertJsonPath('data.students.0.checks_answered', 0)
+            ->assertJsonPath('data.students.0.check_results.0', ['check_id' => $check->id, 'at_seconds' => 160, 'answered' => false, 'first_is_correct' => null, 'is_correct' => null, 'attempts' => 0])
+            ->assertJsonPath('data.students.1.checks_answered', 1)
+            ->assertJsonPath('data.students.1.checks_first_try_correct', 0)
+            ->assertJsonPath('data.students.1.check_results.0', ['check_id' => $check->id, 'at_seconds' => 160, 'answered' => true, 'first_is_correct' => false, 'is_correct' => true, 'attempts' => 2])
+            ->assertJsonPath('data.students.3.checks_first_try_correct', 1)
             ->assertJsonPath('data.reminder.available_at', null);
     }
 

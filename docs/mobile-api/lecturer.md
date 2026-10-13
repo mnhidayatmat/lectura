@@ -946,7 +946,12 @@ covers all of them. A section that isn't mine in this course → 422 on `section
         "status": "not_started",
         "watched_percent": 0,
         "last_watched_at": null,
-        "checks_correct": 0
+        "checks_correct": 0,
+        "checks_answered": 1,
+        "checks_first_try_correct": 0,
+        "check_results": [
+          { "check_id": 31, "at_seconds": 167, "answered": true, "first_is_correct": false, "is_correct": true, "attempts": 2 }
+        ]
       }
     ],
     "reminder": { "last_sent_at": null, "available_at": null }
@@ -964,6 +969,9 @@ covers all of them. A section that isn't mine in this course → 422 on `section
   `section_id` echoes the filter in use (`null` = all).
 - `students`: not started first, then watching, then finished; by name within each.
   `section_name` labels the row only when no section is picked (`null` when filtered).
+  Quick Check score per student: `checks_answered`, `checks_first_try_correct` (right on the first
+  try) and `checks_correct` (latest answer right). `check_results` has one entry per check, in the
+  order of `checks`; an unanswered one has `answered: false` and `null` correctness.
 - `reminder`: for the sections the report covers. `available_at` is when another reminder may be
   sent (`null` = now, i.e. at least one of those sections is free); `last_sent_at` is the latest
   reminder to any of them.
