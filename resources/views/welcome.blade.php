@@ -1,693 +1,413 @@
+@php
+    $testimonials = [
+        [
+            'name' => 'Kabinesh R.',
+            'quote' => 'This app is really useful — easy for catching up faster. The video is compact and more detailed than the slides. Saves time! Interesting animation.',
+        ],
+        [
+            'name' => 'Luqman Hakim E.',
+            'quote' => 'Terlalu seronok! If this lesson were given to middle school students, they could understand it too. Interesting, mudah difahami dan more interactive.',
+            'translation' => 'So much fun! … Interesting, easy to understand and more interactive.',
+        ],
+        [
+            'name' => 'Shahrul Nizam H.',
+            'quote' => 'Alhamdulillah, so far very good. Sepanjang guna Lectura, saya sangat mudah memahami konten yang ingin disampaikan kerana maklumatnya ringkas dan menarik. Jadi proses pembelajaran senang difahami dengan lancar.',
+            'translation' => 'Using Lectura, the content is very easy to understand because it is short and engaging, so learning flows smoothly.',
+        ],
+        [
+            'name' => 'Abdul Khaleq A.',
+            'quote' => 'Quite interesting — I hope every subject is centralised into this application, because students are introduced to more than one app throughout their studies. Modern look, smooth UI, user friendly.',
+        ],
+        [
+            'name' => 'Fahmi Z.',
+            'quote' => 'Saya rasa menarik bila belajar dengan app Lectura, sebab bila tengok video tidak bosan dan senang nak faham.',
+            'translation' => 'Learning with Lectura is engaging — the videos are never boring and easy to follow.',
+        ],
+        [
+            'name' => 'Naqim',
+            'quote' => 'This app is very good and I like the interfaces. Good for Gen Z.',
+        ],
+        [
+            'name' => 'Syahir',
+            'quote' => 'The app is very good and easy to use. Easy to learn before entering class.',
+        ],
+        [
+            'name' => 'Anisa Najihah I.',
+            'quote' => 'The interface is easy to use. Maybe you can do shorts like YouTube or IG reels emphasising the important content, so students can remember easily.',
+            'shipped' => 'Now in the app: Clips',
+        ],
+        [
+            'name' => 'Shahariman S.',
+            'quote' => 'Good! I\'m excited for the next episode.',
+        ],
+    ];
+
+    $check = '<svg class="w-5 h-5 shrink-0 text-violet-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Lectura — AI Teaching Management Platform</title>
-    <meta name="description" content="AI-powered teaching management PWA for Malaysian university lecturers. Plan courses, track attendance, run quizzes, mark assessments, and analyse performance.">
+    <title>Lectura — Your class, in your pocket</title>
+    <meta name="description" content="Lectura and the Lectura Go app for iPhone and Android: animated lecture episodes, QR check-in, live quizzes, marks and feedback for students and lecturers.">
+    <meta name="theme-color" content="#14112e">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap" rel="stylesheet" />
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
         [x-cloak] { display: none !important; }
-        .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .gradient-hero { background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%); }
-        .gradient-cta { background: linear-gradient(135deg, #4F46E5 0%, #0D9488 100%); }
-        .dot-pattern { background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 24px 24px; }
-        .glow { box-shadow: 0 0 60px rgba(79, 70, 229, 0.15); }
+        html { scroll-behavior: smooth; }
+        .ink-hero {
+            background:
+                radial-gradient(60rem 40rem at 85% -10%, rgba(131, 82, 252, .45), transparent 60%),
+                radial-gradient(40rem 30rem at -10% 110%, rgba(109, 52, 224, .30), transparent 60%),
+                #14112e;
+        }
+        .grain { background-image: radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px); background-size: 22px 22px; }
+        .phone {
+            border-radius: 2.6rem;
+            padding: .55rem;
+            background: linear-gradient(160deg, #3a3460, #15122c);
+            box-shadow: 0 40px 80px -30px rgba(10, 6, 40, .8), inset 0 0 0 1px rgba(255,255,255,.08);
+        }
+        .phone img { border-radius: 2.1rem; display: block; width: 100%; height: auto; }
+        .float-a { animation: floaty 7s ease-in-out infinite; }
+        .float-b { animation: floaty 7s ease-in-out -3.5s infinite; }
+        @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @media (prefers-reduced-motion: reduce) { .float-a, .float-b { animation: none; } html { scroll-behavior: auto; } }
     </style>
 </head>
-<body class="font-jakarta antialiased text-slate-600 bg-white">
+<body class="font-sans antialiased text-slate-600 bg-white" x-data="{ mobileNav: false }">
 
-    {{-- ═══════════════════════════════════════════════════ --}}
     {{-- NAVIGATION --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <div x-data="{ mobileNav: false }">
-
-    {{-- Always-white navbar --}}
-    <nav class="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16 lg:h-20">
-                <a href="/" class="flex items-center gap-2">
-                    <img src="/icons/icon-192x192.png" alt="Lectura" class="w-8 h-8 rounded-lg">
-                    <span class="text-xl font-bold text-slate-900">Lectura</span>
+    <header class="absolute top-0 inset-x-0 z-50">
+        <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <a href="/" class="flex items-center gap-2.5">
+                    <img src="/icons/icon-192x192.png" alt="" class="w-9 h-9 rounded-xl">
+                    <span class="text-xl font-extrabold text-white tracking-tight">Lectura</span>
                 </a>
-                <div class="hidden lg:flex items-center gap-8">
-                    <a href="#features" class="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition">Features</a>
-                    <a href="#how-it-works" class="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition">How It Works</a>
-                    <a href="#pricing" class="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition">Pricing</a>
+                <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-violet-100/80">
+                    <a href="#app" class="hover:text-white transition">The app</a>
+                    <a href="#students" class="hover:text-white transition">Students</a>
+                    <a href="#lecturers" class="hover:text-white transition">Lecturers</a>
+                    <a href="#stories" class="hover:text-white transition">Stories</a>
+                    <a href="#pricing" class="hover:text-white transition">Pricing</a>
                 </div>
-                <div class="hidden lg:flex items-center gap-3">
+                <div class="hidden md:flex items-center gap-3">
                     @auth
-                        <a href="{{ route('dashboard') }}" class="text-sm font-bold text-indigo-600 px-5 py-2.5 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition">Dashboard</a>
+                        <a href="{{ route('dashboard') }}" class="text-sm font-bold px-5 py-2.5 rounded-full bg-white text-[#14112e] hover:bg-violet-50 transition">Dashboard</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm font-bold text-slate-700 px-5 py-2.5 rounded-lg border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition">Log In</a>
-                        <a href="{{ route('register') }}" class="text-sm font-bold px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg transition shadow-lg shadow-amber-500/30">Get Started Free</a>
+                        <a href="{{ route('login') }}" class="text-sm font-bold text-white px-4 py-2.5 rounded-full hover:bg-white/10 transition">Log in</a>
+                        <a href="{{ route('register') }}" class="text-sm font-bold px-5 py-2.5 rounded-full bg-white text-[#14112e] hover:bg-violet-50 transition">Get started</a>
                     @endauth
                 </div>
-                <button @click="mobileNav = !mobileNav" class="lg:hidden p-2 rounded-md text-slate-700 hover:bg-slate-100 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <button @click="mobileNav = true" class="md:hidden p-2 -mr-2 rounded-full text-white hover:bg-white/10 transition" aria-label="Open menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
                 </button>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
-    {{-- Mobile menu (shared) --}}
-    <div x-show="mobileNav" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm lg:hidden" @click="mobileNav = false">
-        <div class="bg-white rounded-b-2xl shadow-xl mx-4 mt-4 overflow-hidden" @click.stop>
+    <div x-show="mobileNav" x-cloak x-transition.opacity class="fixed inset-0 z-[60] bg-[#14112e]/70 backdrop-blur-sm md:hidden" @click="mobileNav = false" @keydown.escape.window="mobileNav = false">
+        <div class="bg-white rounded-3xl shadow-2xl m-4 overflow-hidden" @click.stop>
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <span class="text-lg font-bold text-slate-900">Lectura</span>
-                <button @click="mobileNav = false" class="p-1 text-slate-400 hover:text-slate-600">
+                <span class="text-lg font-extrabold text-slate-900">Lectura</span>
+                <button @click="mobileNav = false" class="p-1 text-slate-400 hover:text-slate-600" aria-label="Close menu">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div class="px-4 py-4 space-y-1">
-                <a href="#features" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">Features</a>
-                <a href="#how-it-works" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">How It Works</a>
-                <a href="#pricing" @click="mobileNav = false" class="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl">Pricing</a>
+            <div class="p-3">
+                @foreach (['app' => 'The app', 'students' => 'Students', 'lecturers' => 'Lecturers', 'stories' => 'Stories', 'pricing' => 'Pricing'] as $anchor => $label)
+                    <a href="#{{ $anchor }}" @click="mobileNav = false" class="block px-4 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50 rounded-2xl">{{ $label }}</a>
+                @endforeach
             </div>
-            <div class="px-4 pb-6 pt-2 space-y-2 border-t border-slate-100 mt-2">
+            <div class="p-4 pt-0 grid grid-cols-2 gap-2">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="block px-4 py-3 text-sm font-semibold text-center text-indigo-600 bg-indigo-50 rounded-xl">Go to Dashboard</a>
+                    <a href="{{ route('dashboard') }}" class="col-span-2 py-3 text-sm font-bold text-center text-white bg-violet-700 rounded-full">Go to dashboard</a>
                 @else
-                    <a href="{{ route('login') }}" class="block px-4 py-3 text-sm font-medium text-center text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50">Log In</a>
-                    <a href="{{ route('register') }}" class="block px-4 py-3 text-sm font-semibold text-center text-white bg-amber-500 hover:bg-amber-600 rounded-xl">Get Started</a>
+                    <a href="{{ route('login') }}" class="py-3 text-sm font-bold text-center text-slate-800 border border-slate-200 rounded-full">Log in</a>
+                    <a href="{{ route('register') }}" class="py-3 text-sm font-bold text-center text-white bg-violet-700 rounded-full">Get started</a>
                 @endauth
             </div>
         </div>
     </div>
 
-    </div>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
     {{-- HERO --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section class="gradient-hero dot-pattern relative overflow-hidden">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 lg:pt-40 lg:pb-28">
-            <div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                {{-- Text --}}
-                <div class="text-center lg:text-left">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 rounded-full text-indigo-300 text-xs font-medium mb-6">
-                        <span class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></span>
-                        AI-Powered Teaching Platform
-                    </div>
-
-                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
-                        Teach Smarter.
-                        <span class="block mt-2 bg-gradient-to-r from-indigo-400 to-teal-400 bg-clip-text text-transparent">From Plan to Archive.</span>
+    <section class="ink-hero relative overflow-hidden">
+        <div class="grain absolute inset-0 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 lg:pt-40 lg:pb-0">
+            <div class="lg:grid lg:grid-cols-12 lg:gap-10 items-center">
+                <div class="lg:col-span-6 lg:pb-32 text-center lg:text-left">
+                    <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 ring-1 ring-white/15 text-violet-100 text-xs font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        New: Lectura Go for iPhone &amp; Android
+                    </p>
+                    <h1 class="mt-6 text-[2.6rem] leading-[1.05] sm:text-6xl lg:text-[4.25rem] font-black text-white tracking-tight">
+                        Your class,<br>
+                        <span class="text-violet-300">in your pocket.</span>
                     </h1>
-
-                    <p class="mt-6 text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                        Lectura is the AI-powered teaching companion for university lecturers. Plan courses, track attendance, engage students, mark assessments, and analyse performance — all in one platform.
+                    <p class="mt-6 text-lg text-violet-100/75 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                        Watch animated lecture episodes, check in with a scan, answer live quizzes and see your marks — all in one app. Lecturers run the whole class from the same place.
                     </p>
 
-                    <div class="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                        <a href="{{ route('register') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/25 transition">
-                            Start Free
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                        </a>
-                        <a href="#how-it-works" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium transition">
-                            <span class="w-10 h-10 rounded-full border border-slate-600 flex items-center justify-center">
-                                <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            </span>
-                            See How It Works
-                        </a>
+                    <div class="mt-9 flex flex-wrap justify-center lg:justify-start gap-3">
+                        <x-store-badges />
                     </div>
-
-                    {{-- Trust badges --}}
-                    <div class="mt-12 flex items-center gap-6 justify-center lg:justify-start text-slate-500 text-xs">
-                        <span class="flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-teal-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                            Free to start
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-teal-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                            No credit card
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-teal-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                            PWA — works everywhere
-                        </span>
-                    </div>
+                    <p class="mt-5 text-sm text-violet-100/60">
+                        Prefer a laptop?
+                        <a href="{{ auth()->check() ? route('dashboard') : route('register') }}" class="font-semibold text-white underline decoration-violet-400 underline-offset-4 hover:decoration-white">Use Lectura on the web</a>
+                        — same account, same courses.
+                    </p>
                 </div>
 
-                {{-- Hero Visual --}}
-                <div class="mt-12 lg:mt-0 relative">
-                    <div class="relative mx-auto max-w-md lg:max-w-none">
-                        {{-- Dashboard mockup --}}
-                        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden glow">
-                            <div class="flex items-center gap-1.5 px-4 py-3 border-b border-slate-700">
-                                <div class="w-3 h-3 rounded-full bg-red-500/60"></div>
-                                <div class="w-3 h-3 rounded-full bg-yellow-500/60"></div>
-                                <div class="w-3 h-3 rounded-full bg-green-500/60"></div>
-                                <span class="ml-3 text-xs text-slate-500">lectura.app/dashboard</span>
-                            </div>
-                            <div class="p-4 space-y-3">
-                                {{-- Mini stat cards --}}
-                                <div class="grid grid-cols-3 gap-3">
-                                    <div class="bg-slate-700/50 rounded-lg p-3">
-                                        <p class="text-xs text-slate-400">Courses</p>
-                                        <p class="text-xl font-bold text-white mt-1">5</p>
-                                    </div>
-                                    <div class="bg-slate-700/50 rounded-lg p-3">
-                                        <p class="text-xs text-slate-400">Students</p>
-                                        <p class="text-xl font-bold text-white mt-1">187</p>
-                                    </div>
-                                    <div class="bg-slate-700/50 rounded-lg p-3">
-                                        <p class="text-xs text-slate-400">Attendance</p>
-                                        <p class="text-xl font-bold text-teal-400 mt-1">94%</p>
-                                    </div>
-                                </div>
-                                {{-- Chart placeholder --}}
-                                <div class="bg-slate-700/50 rounded-lg p-4">
-                                    <p class="text-xs text-slate-400 mb-3">Weekly Performance</p>
-                                    <div class="flex items-end gap-2 h-20">
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:45%"></div>
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:65%"></div>
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:55%"></div>
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:80%"></div>
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:70%"></div>
-                                        <div class="flex-1 bg-indigo-500/60 rounded-t" style="height:90%"></div>
-                                        <div class="flex-1 bg-teal-400/60 rounded-t" style="height:85%"></div>
-                                    </div>
-                                </div>
-                                {{-- Activity list --}}
-                                <div class="space-y-2">
-                                    <div class="flex items-center gap-3 bg-slate-700/50 rounded-lg px-3 py-2">
-                                        <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center"><svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
-                                        <div class="flex-1"><p class="text-xs text-white">CS201 — Attendance completed</p><p class="text-xs text-slate-500">42/45 students • 2 min ago</p></div>
-                                    </div>
-                                    <div class="flex items-center gap-3 bg-slate-700/50 rounded-lg px-3 py-2">
-                                        <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-                                        <div class="flex-1"><p class="text-xs text-white">AI Marking — 12 scripts ready</p><p class="text-xs text-slate-500">Assignment 2 • Review now</p></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {{-- Floating QR card --}}
-                        <div class="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-xl border p-3 hidden lg:block" x-data="{ qr: 1 }" x-init="setInterval(() => qr = qr >= 3 ? 1 : qr + 1, 3000)">
-                            <div class="text-center">
-                                <div class="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center mb-2 relative overflow-hidden">
-                                    <template x-for="i in 3" :key="i">
-                                        <div x-show="qr === i" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute inset-0 flex items-center justify-center">
-                                            <svg class="w-14 h-14 text-slate-800" viewBox="0 0 24 24" fill="currentColor">
-                                                <rect x="2" y="2" width="6" height="6" rx="1" :opacity="i === 1 ? 1 : 0.7"/>
-                                                <rect x="16" y="2" width="6" height="6" rx="1" :opacity="i === 2 ? 1 : 0.7"/>
-                                                <rect x="2" y="16" width="6" height="6" rx="1" :opacity="i === 3 ? 1 : 0.7"/>
-                                                <rect x="10" y="2" width="4" height="4" rx="0.5" :opacity="i === 1 ? 0.4 : 0.8"/>
-                                                <rect x="10" y="10" width="4" height="4" rx="0.5"/>
-                                                <rect x="16" y="10" width="4" height="4" rx="0.5" :opacity="i === 2 ? 0.4 : 0.8"/>
-                                                <rect x="10" y="18" width="4" height="4" rx="0.5" :opacity="i === 3 ? 0.4 : 0.8"/>
-                                                <rect x="16" y="16" width="6" height="6" rx="1" :opacity="i === 1 ? 0.6 : 1"/>
-                                            </svg>
-                                        </div>
-                                    </template>
-                                </div>
-                                <p class="text-xs font-medium text-slate-700">QR Attendance</p>
-                                <p class="text-[10px] text-slate-400">Rotates every 30s</p>
-                            </div>
-                        </div>
+                <div class="lg:col-span-6 mt-14 lg:mt-0 relative h-[380px] sm:h-[520px] lg:h-[600px]" aria-hidden="true">
+                    <div class="absolute w-[42%] sm:w-[36%] left-[2%] top-[12%] rotate-[-8deg]">
+                        <div class="phone float-b"><img src="/images/landing/live-checkin.jpg" alt=""></div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Wave divider --}}
-        <div class="absolute bottom-0 inset-x-0">
-            <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 80h1440V40C1200 70 960 0 720 40S240 70 0 40v40z" fill="white"/></svg>
-        </div>
-    </section>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- PROBLEM STATEMENT --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section class="py-20 lg:py-24">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-16">
-                <h2 class="text-3xl sm:text-4xl font-bold text-slate-900">Lecturers Deserve Better Tools</h2>
-                <p class="mt-4 text-lg text-slate-500 leading-relaxed">Juggling spreadsheets, WhatsApp, email, and paper? You signed up to teach, not to do admin.</p>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="text-center p-8 rounded-2xl bg-red-50 border border-red-100">
-                    <div class="w-14 h-14 mx-auto bg-red-100 rounded-xl flex items-center justify-center mb-5">
-                        <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="absolute w-[42%] sm:w-[36%] right-[2%] top-[16%] rotate-[8deg]">
+                        <div class="phone float-b"><img src="/images/landing/lecturer-home.jpg" alt=""></div>
                     </div>
-                    <h3 class="font-semibold text-slate-900 text-lg">Hours Lost to Admin</h3>
-                    <p class="mt-2 text-sm text-slate-500">Manual attendance, paper marking, and file organisation eat into teaching time every week.</p>
-                </div>
-
-                <div class="text-center p-8 rounded-2xl bg-amber-50 border border-amber-100">
-                    <div class="w-14 h-14 mx-auto bg-amber-100 rounded-xl flex items-center justify-center mb-5">
-                        <svg class="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    <div class="absolute w-[48%] sm:w-[42%] left-1/2 -translate-x-1/2 top-0 z-10">
+                        <div class="phone float-a"><img src="/images/landing/student-home.jpg" alt=""></div>
                     </div>
-                    <h3 class="font-semibold text-slate-900 text-lg">Files Everywhere</h3>
-                    <p class="mt-2 text-sm text-slate-500">Course materials scattered across Google Drive, email, LMS, and USB drives. No single source of truth.</p>
-                </div>
-
-                <div class="text-center p-8 rounded-2xl bg-blue-50 border border-blue-100">
-                    <div class="w-14 h-14 mx-auto bg-blue-100 rounded-xl flex items-center justify-center mb-5">
-                        <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    </div>
-                    <h3 class="font-semibold text-slate-900 text-lg">Blind to Student Struggles</h3>
-                    <p class="mt-2 text-sm text-slate-500">No easy way to spot at-risk students until it is too late. Performance data is buried in different systems.</p>
+                    <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#14112e] to-transparent z-20 lg:block hidden"></div>
                 </div>
             </div>
         </div>
     </section>
 
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- TEACHING CYCLE --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section id="how-it-works" class="py-20 lg:py-24 bg-slate-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-16">
-                <h2 class="text-3xl sm:text-4xl font-bold text-slate-900">One Platform for Your Entire Teaching Cycle</h2>
-                <p class="mt-4 text-lg text-slate-500">Lectura follows your natural workflow — from the first day of planning to the final archive.</p>
+    {{-- QUICK FACTS --}}
+    <section class="border-b border-slate-100">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            @foreach ([
+                ['10 s', 'to check a whole class in'],
+                ['2 roles', 'student & lecturer, one app'],
+                ['Offline', 'downloaded episodes play anywhere'],
+                ['BM · EN', 'bilingual on the web'],
+            ] as [$big, $small])
+                <div>
+                    <p class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{{ $big }}</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ $small }}</p>
+                </div>
+            @endforeach
+        </div>
+    </section>
+
+    {{-- THE APP --}}
+    <section id="app" class="py-20 lg:py-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-2xl">
+                <p class="text-sm font-bold uppercase tracking-widest text-violet-700">Lectura Go</p>
+                <h2 class="mt-3 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">Built for the phone first.</h2>
+                <p class="mt-4 text-lg text-slate-500 leading-relaxed">Not a website squeezed onto a small screen — a native app with the camera, notifications and offline playback your class actually needs.</p>
             </div>
 
-            <div x-data="{ active: 'plan' }" class="max-w-4xl mx-auto">
-                {{-- Phase tabs --}}
-                <div class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-10">
-                    @php
-                        $phases = [
-                            'plan' => ['Plan', '#4F46E5'],
-                            'teach' => ['Teach', '#0D9488'],
-                            'engage' => ['Engage', '#D97706'],
-                            'assess' => ['Assess', '#DC2626'],
-                            'analyse' => ['Analyse', '#7C3AED'],
-                            'improve' => ['Improve', '#059669'],
-                            'archive' => ['Archive', '#64748B'],
-                        ];
-                    @endphp
+            <div class="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                @foreach ([
+                    ['Netflix-style episodes', 'Short animated lectures per course, with scenes, captions and playback speed. Pick up exactly where you stopped.', 'M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zm5 4.5v7l6-3.5-6-3.5z'],
+                    ['Clips', 'Swipe through 9:16 clips of the key points — like, save and comment, the way students already learn.', 'M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm3 6v6l5-3-5-3z'],
+                    ['Scan to check in', 'One tap opens the camera. The QR rotates every 30 seconds, so a photo shared in the group chat is useless.', 'M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h3m-3 3h6m0-6v3'],
+                    ['Push notifications', 'New episodes, deadlines, released marks and the class wheel — on your lock screen, not buried in email.', 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 11-6 0'],
+                    ['Downloads for offline', 'Save an episode on campus Wi-Fi, watch it on the bus. Progress syncs when you are back online.', 'M12 4v11m0 0l-4-4m4 4l4-4M5 20h14'],
+                    ['Light & dark', 'A calm interface that follows your phone, with Sign in with Apple or Google in two taps.', 'M12 3a9 9 0 109 9 7 7 0 01-9-9z'],
+                ] as [$title, $body, $path])
+                    <div class="group rounded-3xl border border-slate-200 p-7 hover:border-violet-300 hover:shadow-xl hover:shadow-violet-500/5 transition">
+                        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-700 flex items-center justify-center">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="{{ $path }}"/></svg>
+                        </div>
+                        <h3 class="mt-5 text-lg font-bold text-slate-900">{{ $title }}</h3>
+                        <p class="mt-2 text-[15px] leading-relaxed text-slate-500">{{ $body }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
 
-                    @foreach($phases as $key => [$label, $color])
-                        <button @click="active = '{{ $key }}'"
-                                :class="active === '{{ $key }}' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-                                class="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-200">
-                            {{ $label }}
-                        </button>
+    {{-- STUDENTS --}}
+    <section id="students" class="py-20 lg:py-28 bg-violet-50/60">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+            <div class="order-2 lg:order-1 mt-12 lg:mt-0 flex justify-center">
+                <div class="phone w-[70%] max-w-[300px]">
+                    <img src="/images/landing/student-home.jpg" alt="Student Home in Lectura Go: courses, upcoming deadlines and recent marks" loading="lazy">
+                </div>
+            </div>
+            <div class="order-1 lg:order-2">
+                <p class="text-sm font-bold uppercase tracking-widest text-violet-700">For students</p>
+                <h2 class="mt-3 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">Come to class already knowing the story.</h2>
+                <p class="mt-4 text-lg text-slate-500 leading-relaxed">Watch the week's episode before the lecture, so class time goes on questions and practice instead of copying slides.</p>
+                <ul class="mt-8 space-y-4 text-slate-700">
+                    @foreach ([
+                        'Quick Checks inside each episode keep you honest — answer to keep watching.',
+                        'Everything due, in date order, on your Home screen.',
+                        'Marks and lecturer feedback the moment they are released.',
+                        'Join live quizzes and active-learning sessions with a code.',
+                        'Group workspace: chat, files, tasks and minutes for project teams.',
+                    ] as $line)
+                        <li class="flex gap-3">{!! $check !!}<span>{{ $line }}</span></li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    {{-- LECTURERS --}}
+    <section id="lecturers" class="py-20 lg:py-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-violet-700">For lecturers</p>
+                <h2 class="mt-3 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">Run the room from your phone.</h2>
+                <p class="mt-4 text-lg text-slate-500 leading-relaxed">Start attendance, spin the wheel and see who watched the episode while you walk to the front. Plan and mark on the web when you're at your desk.</p>
+                <div class="mt-8 grid sm:grid-cols-2 gap-4">
+                    @foreach ([
+                        ['In the app', ['Rotating QR attendance', 'Live check-in list', 'Random student wheel', 'Episode analytics & reminders']],
+                        ['On the web', ['AI teaching & active learning plans', 'AI-assisted marking', 'Assessments mapped to CLO/PLO', 'Course files & Google Drive']],
+                    ] as [$heading, $items])
+                        <div class="rounded-3xl border border-slate-200 p-6">
+                            <p class="text-sm font-bold text-slate-900">{{ $heading }}</p>
+                            <ul class="mt-3 space-y-2.5 text-[15px] text-slate-600">
+                                @foreach ($items as $item)
+                                    <li class="flex gap-2.5">{!! $check !!}<span>{{ $item }}</span></li>
+                                @endforeach
+                            </ul>
+                        </div>
                     @endforeach
                 </div>
-
-                {{-- Phase content --}}
-                <div class="bg-white rounded-2xl shadow-sm border p-8 lg:p-10 min-h-[200px]">
-                    <div x-show="active === 'plan'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">AI-Powered Teaching Plans</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">Enter your course outline, CLOs, and weekly topics. Lectura's AI generates a complete teaching plan with lesson flows, active learning activities, time allocation, and assessment alignment. Edit anything, export to PDF.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full">CLO Mapping</span>
-                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full">PDF Export</span>
-                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full">Version History</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'teach'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">Course Files & Google Drive</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">Organise all teaching materials in flexible, customisable folders. Connect your Google Drive for automatic sync. Tag files by week, CLO, or assessment type. The system suggests a folder structure but you're free to customise it.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-medium rounded-full">Google Drive Sync</span>
-                                    <span class="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-medium rounded-full">File Tagging</span>
-                                    <span class="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs font-medium rounded-full">Compliance Tracking</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'engage'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">Live Quizzes & Active Learning</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">Launch Mentimeter-style quizzes mid-lecture. MCQs, true/false, short answers — students join with a code on their phone. See real-time answer distributions, leaderboards, and engagement levels. AI suggests activities based on your topic and class size.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">Real-Time Results</span>
-                                    <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">Question Bank</span>
-                                    <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">Anonymous Mode</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'assess'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">AI-Assisted Marking & Feedback</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">Students submit PDFs. Upload your rubric and answer scheme — AI reads the scripts, suggests marks per question, and generates personalised feedback. You review and confirm. Hours of marking become minutes.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full">PDF Script Reading</span>
-                                    <span class="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full">Rubric Matrix</span>
-                                    <span class="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full">Auto Feedback</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'analyse'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">Student Performance Analytics</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">See marks by assessment, topic, and CLO. Spot weak students and weak topics instantly. Attendance-vs-performance correlations help you understand the full picture. AI flags at-risk students before they fall behind.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-medium rounded-full">CLO Analysis</span>
-                                    <span class="px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-medium rounded-full">Risk Detection</span>
-                                    <span class="px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-medium rounded-full">Trend Charts</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'improve'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">AI-Driven Interventions</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">Based on analytics, AI suggests targeted actions — revision activities, remedial quizzes, group reshuffling, and peer-assisted learning. Turn data into action with one click.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">Remedial Plans</span>
-                                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">Smart Grouping</span>
-                                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">CQI Reports</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="active === 'archive'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center flex-shrink-0"><svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-900">Semester Archive & Compliance</h3>
-                                <p class="mt-2 text-slate-500 leading-relaxed">End of semester? Archive everything — teaching plans, attendance records, assignments, marks, and feedback. Course file completeness is tracked against your institution's checklist. Ready for audit at any time.</p>
-                                <div class="mt-4 flex flex-wrap gap-2">
-                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">One-Click Archive</span>
-                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Audit Ready</span>
-                                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">Template Reuse</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+            <div class="mt-14 lg:mt-0 relative flex justify-center gap-4">
+                <div class="phone w-[46%] max-w-[260px] mt-12">
+                    <img src="/images/landing/live-checkin.jpg" alt="Live QR check-in screen counting students as they scan" loading="lazy">
+                </div>
+                <div class="phone w-[46%] max-w-[260px]">
+                    <img src="/images/landing/lecturer-home.jpg" alt="Lecturer Home showing the class happening now and today's schedule" loading="lazy">
                 </div>
             </div>
         </div>
     </section>
 
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- FEATURES DEEP DIVE --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section id="features" class="py-20 lg:py-24">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
-
-            {{-- Feature 1: QR Attendance --}}
-            <div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div>
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mb-4">Anti-Fraud</span>
-                    <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">Attendance in 10 Seconds. No Buddy System.</h3>
-                    <p class="mt-4 text-slate-500 leading-relaxed">Display a rotating QR code that changes every 30 seconds. Students scan with their phone — login required, no sharing possible. Late arrivals are automatically flagged. Export to Excel or PDF with one click.</p>
-                    <ul class="mt-6 space-y-3">
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>HMAC-based rotating QR — one code per 30 seconds</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Supports lecture, tutorial, lab, and extra sessions</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Repeated absence alerts for at-risk students</li>
-                    </ul>
-                </div>
-                <div class="mt-10 lg:mt-0 bg-slate-50 rounded-2xl p-8 flex items-center justify-center">
-                    <div class="text-center">
-                        <div class="inline-flex items-center justify-center w-32 h-32 bg-white rounded-xl shadow-md border mb-4">
-                            <svg class="w-20 h-20 text-slate-800" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="10" y="2" width="4" height="4" rx="0.5" opacity="0.4"/><rect x="10" y="10" width="4" height="4" rx="0.5"/><rect x="16" y="10" width="4" height="4" rx="0.5" opacity="0.6"/><rect x="10" y="18" width="4" height="4" rx="0.5" opacity="0.4"/><rect x="16" y="16" width="6" height="6" rx="1" opacity="0.7"/></svg>
-                        </div>
-                        <p class="text-sm font-semibold text-slate-700">CS201 — Section 01</p>
-                        <p class="text-xs text-slate-400 mt-1">42 / 45 checked in</p>
-                        <div class="mt-3 w-full bg-slate-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 93%"></div></div>
-                    </div>
-                </div>
+    {{-- TESTIMONIALS --}}
+    <section id="stories" class="ink-hero relative overflow-hidden py-20 lg:py-28">
+        <div class="grain absolute inset-0 pointer-events-none"></div>
+        <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
+                <p class="text-sm font-bold uppercase tracking-widest text-violet-300">From the class</p>
+                <h2 class="mt-3 text-3xl sm:text-5xl font-black text-white tracking-tight">“Sorry Dr., I was so amazed watching that I forgot to take notes.”</h2>
+                <p class="mt-4 text-violet-100/70">Handwritten feedback from students of <span class="font-semibold text-white">BTG3333 Piping, Section 1</span>, Semester 1 2026/2027, after Episode 2 — “The Book of Laws”.</p>
             </div>
 
-            {{-- Feature 2: AI Marking --}}
-            <div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div class="order-2">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full mb-4">Powered by AI</span>
-                    <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">Mark Smarter, Not Harder</h3>
-                    <p class="mt-4 text-slate-500 leading-relaxed">Upload student PDFs and your rubric. AI reads each script, extracts answers, compares against your marking scheme, and suggests grades with explanations. You review, adjust, and approve. AI generates personalised feedback for every student.</p>
-                    <ul class="mt-6 space-y-3">
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-teal-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>AI suggests — lecturer confirms. Always in control.</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-teal-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Structured rubric matrix for consistent marking</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-teal-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Personalised feedback adapted to student level</li>
-                    </ul>
-                </div>
-                <div class="order-1 mt-10 lg:mt-0 bg-slate-50 rounded-2xl p-6">
-                    <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm font-semibold text-slate-700">Q2 — Data Structures</p>
-                            <span class="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">AI Confidence: 92%</span>
-                        </div>
-                        <div class="bg-slate-50 rounded p-3"><p class="text-xs text-slate-500 italic">"A binary search tree maintains sorted order by ensuring left children are smaller and right children are larger..."</p></div>
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-xs text-slate-400">Suggested Mark</p><p class="text-lg font-bold text-slate-900">8 / 10</p></div>
-                            <div class="flex gap-2">
-                                <button class="px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-lg font-medium">Accept</button>
-                                <button class="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-lg font-medium">Modify</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Feature 3: Live Quiz --}}
-            <div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div>
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full mb-4">Real-Time</span>
-                    <h3 class="text-2xl sm:text-3xl font-bold text-slate-900">Turn Passive Lectures into Active Learning</h3>
-                    <p class="mt-4 text-slate-500 leading-relaxed">Launch polls, MCQs, and short answers mid-lecture. Students join with a code on their phones. See responses in real-time with live answer distributions and leaderboards. Build a question bank and reuse across semesters.</p>
-                    <ul class="mt-6 space-y-3">
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Formative, graded, or anonymous modes</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Live leaderboard and answer distribution</li>
-                        <li class="flex items-center gap-3 text-sm text-slate-600"><svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Reusable question bank across semesters</li>
-                    </ul>
-                </div>
-                <div class="mt-10 lg:mt-0 bg-slate-50 rounded-2xl p-6">
-                    <div class="bg-white rounded-lg shadow-sm border p-4">
-                        <p class="text-sm font-semibold text-slate-700 mb-4">What is the time complexity of binary search?</p>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-3"><div class="w-full bg-slate-100 rounded-lg h-8 relative overflow-hidden"><div class="bg-indigo-500 h-full rounded-lg" style="width:15%"></div><span class="absolute inset-0 flex items-center px-3 text-xs font-medium">A) O(n) — 15%</span></div></div>
-                            <div class="flex items-center gap-3"><div class="w-full bg-slate-100 rounded-lg h-8 relative overflow-hidden"><div class="bg-green-500 h-full rounded-lg" style="width:72%"></div><span class="absolute inset-0 flex items-center px-3 text-xs font-medium text-white">B) O(log n) — 72%</span></div></div>
-                            <div class="flex items-center gap-3"><div class="w-full bg-slate-100 rounded-lg h-8 relative overflow-hidden"><div class="bg-indigo-500 h-full rounded-lg" style="width:8%"></div><span class="absolute inset-0 flex items-center px-3 text-xs font-medium">C) O(n log n) — 8%</span></div></div>
-                            <div class="flex items-center gap-3"><div class="w-full bg-slate-100 rounded-lg h-8 relative overflow-hidden"><div class="bg-indigo-500 h-full rounded-lg" style="width:5%"></div><span class="absolute inset-0 flex items-center px-3 text-xs font-medium">D) O(1) — 5%</span></div></div>
-                        </div>
-                        <p class="mt-3 text-xs text-slate-400 text-center">38 / 42 students responded</p>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- BILINGUAL & PWA --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section class="py-20 lg:py-24 bg-gradient-to-br from-indigo-50 to-teal-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-12">
-                <h2 class="text-3xl sm:text-4xl font-bold text-slate-900">Built for Malaysia. Works Everywhere.</h2>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                <div class="bg-white rounded-2xl p-8 shadow-sm border">
-                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-5">
-                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-slate-900">Bilingual Interface</h3>
-                    <p class="mt-3 text-slate-500">Full interface in English and Bahasa Melayu. Switch anytime. Because your students think in both languages.</p>
-                    <div class="mt-4 flex gap-2">
-                        <span class="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-medium text-slate-700">English</span>
-                        <span class="px-3 py-1.5 bg-indigo-100 rounded-lg text-sm font-medium text-indigo-700">Bahasa Melayu</span>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-8 shadow-sm border">
-                    <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center mb-5">
-                        <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-slate-900">Progressive Web App</h3>
-                    <p class="mt-3 text-slate-500">Install on any phone or laptop. No app store required. Feels native, runs on the web. Students scan QR codes and join quizzes from their browser.</p>
-                    <div class="mt-4 flex gap-3 text-xs text-slate-500">
-                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Android</span>
-                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>iOS</span>
-                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Desktop</span>
-                    </div>
-                </div>
+            <div class="mt-14 columns-1 md:columns-2 lg:columns-3 gap-5 [&>*]:mb-5">
+                @foreach ($testimonials as $t)
+                    <figure class="break-inside-avoid rounded-3xl bg-white/[.06] ring-1 ring-white/10 p-7 backdrop-blur-sm">
+                        <svg class="w-7 h-7 text-violet-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6C6.5 6 4 8.5 4 11.6V18h6v-6H7c0-1.7 1.1-3 2.5-3V6zm10 0c-3 0-5.5 2.5-5.5 5.6V18h6v-6h-3c0-1.7 1.1-3 2.5-3V6z"/></svg>
+                        <blockquote class="mt-4 text-[17px] leading-relaxed text-white">{{ $t['quote'] }}</blockquote>
+                        @isset($t['translation'])
+                            <p class="mt-3 text-sm italic text-violet-100/60">{{ $t['translation'] }}</p>
+                        @endisset
+                        @isset($t['shipped'])
+                            <p class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-300">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                {{ $t['shipped'] }}
+                            </p>
+                        @endisset
+                        <figcaption class="mt-6 flex items-center gap-3">
+                            <span class="w-10 h-10 rounded-full bg-violet-500/30 text-violet-100 font-bold flex items-center justify-center text-sm">{{ mb_substr($t['name'], 0, 1) }}</span>
+                            <span>
+                                <span class="block text-sm font-bold text-white">{{ $t['name'] }}</span>
+                                <span class="block text-xs text-violet-100/60">BTG3333 · Section 1</span>
+                            </span>
+                        </figcaption>
+                    </figure>
+                @endforeach
             </div>
         </div>
     </section>
 
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- STATS --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section class="py-16 bg-white">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center" x-data="{ shown: false }" x-intersect.once="shown = true">
-                <div>
-                    <p class="text-3xl sm:text-4xl font-extrabold text-indigo-600" x-text="shown ? '70%' : '0%'">70%</p>
-                    <p class="mt-1 text-sm text-slate-500">Less time on marking</p>
-                </div>
-                <div>
-                    <p class="text-3xl sm:text-4xl font-extrabold text-teal-600" x-text="shown ? '10s' : '0s'">10s</p>
-                    <p class="mt-1 text-sm text-slate-500">Average check-in time</p>
-                </div>
-                <div>
-                    <p class="text-3xl sm:text-4xl font-extrabold text-amber-600" x-text="shown ? '100+' : '0'">100+</p>
-                    <p class="mt-1 text-sm text-slate-500">Concurrent quiz users</p>
-                </div>
-                <div>
-                    <p class="text-3xl sm:text-4xl font-extrabold text-violet-600" x-text="shown ? '2' : '0'">2</p>
-                    <p class="mt-1 text-sm text-slate-500">Languages supported</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
     {{-- PRICING --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section id="pricing" class="py-20 lg:py-24 bg-slate-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center max-w-2xl mx-auto mb-16">
-                <h2 class="text-3xl sm:text-4xl font-bold text-slate-900">Simple Plans for Every Faculty</h2>
-                <p class="mt-4 text-lg text-slate-500">Start free. Upgrade when you need more AI power.</p>
+    <section id="pricing" class="py-20 lg:py-28 bg-slate-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-2xl mx-auto">
+                <p class="text-sm font-bold uppercase tracking-widest text-violet-700">Pricing</p>
+                <h2 class="mt-3 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">Free for students. Simple for lecturers.</h2>
+                <p class="mt-4 text-lg text-slate-500">The app is free to download. Upgrade when you want more AI help.</p>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                {{-- Free --}}
-                <div class="bg-white rounded-2xl shadow-sm border p-8">
-                    <h3 class="text-lg font-bold text-slate-900">Free</h3>
-                    <p class="text-sm text-slate-500 mt-1">For individual lecturers</p>
-                    <p class="mt-6"><span class="text-4xl font-extrabold text-slate-900">RM0</span><span class="text-slate-400 text-sm">/month</span></p>
-                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Up to 2 courses</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>QR attendance</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Live quizzes</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>50 AI credits/month</li>
-                    </ul>
-                    <a href="{{ route('register') }}" class="mt-8 block text-center px-6 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition">Get Started</a>
-                </div>
-
-                {{-- Pro --}}
-                <div class="bg-white rounded-2xl shadow-lg border-2 border-indigo-500 p-8 relative">
-                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-full">Most Popular</div>
-                    <h3 class="text-lg font-bold text-slate-900">Pro</h3>
-                    <p class="text-sm text-slate-500 mt-1">For active lecturers</p>
-                    <p class="mt-6"><span class="text-4xl font-extrabold text-slate-900">RM49</span><span class="text-slate-400 text-sm">/month</span></p>
-                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Unlimited courses</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>AI marking & feedback</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>AI teaching plan builder</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Google Drive sync</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>1,000 AI credits/month</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Priority support</li>
-                    </ul>
-                    <a href="{{ route('register') }}" class="mt-8 block text-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/25 transition">Start Pro Trial</a>
-                </div>
-
-                {{-- Institution --}}
-                <div class="bg-white rounded-2xl shadow-sm border p-8">
-                    <h3 class="text-lg font-bold text-slate-900">Institution</h3>
-                    <p class="text-sm text-slate-500 mt-1">For universities & faculties</p>
-                    <p class="mt-6"><span class="text-4xl font-extrabold text-slate-900">Custom</span></p>
-                    <ul class="mt-8 space-y-3 text-sm text-slate-600">
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Everything in Pro</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>SSO / LDAP integration</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Admin dashboard</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Custom branding</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Unlimited AI credits</li>
-                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>PDPA compliance tools</li>
-                    </ul>
-                    <a href="mailto:hello@lectura.app" class="mt-8 block text-center px-6 py-3 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition">Contact Us</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- FINAL CTA --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <section class="gradient-cta py-20 lg:py-24 relative overflow-hidden">
-        <div class="absolute inset-0 dot-pattern opacity-30"></div>
-        <div class="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to Transform Your Teaching?</h2>
-            <p class="mt-4 text-lg text-indigo-100">Join Malaysian lecturers who are saving hours every week with Lectura.</p>
-            <div class="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center">
-                <a href="{{ route('register') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 transition text-lg">
-                    Start Free
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                </a>
-                <a href="mailto:hello@lectura.app" class="inline-flex items-center gap-2 text-indigo-100 hover:text-white font-medium transition">
-                    Contact Us
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                </a>
-            </div>
-        </div>
-    </section>
-
-    {{-- ═══════════════════════════════════════════════════ --}}
-    {{-- FOOTER --}}
-    {{-- ═══════════════════════════════════════════════════ --}}
-    <footer class="bg-slate-900 text-slate-400 py-16">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid md:grid-cols-4 gap-12">
-                <div>
-                    <div class="flex items-center gap-2 mb-4">
-                        <img src="/icons/icon-192x192.png" alt="Lectura" class="w-8 h-8 rounded-lg">
-                        <span class="text-lg font-bold text-white">Lectura</span>
+            <div class="mt-14 grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+                @foreach ([
+                    ['Free', 'For individual lecturers', 'RM0', '/month', ['Up to 2 courses', 'QR attendance', 'Live quizzes', '50 AI credits/month'], 'Get started', route('register'), false],
+                    ['Pro', 'For active lecturers', 'RM49', '/month', ['Unlimited courses', 'AI marking & feedback', 'AI teaching plan builder', 'Google Drive sync', '1,000 AI credits/month', 'Priority support'], 'Start Pro trial', route('register'), true],
+                    ['Institution', 'For universities & faculties', 'Custom', '', ['Everything in Pro', 'SSO / LDAP integration', 'Admin dashboard', 'Custom branding', 'Unlimited AI credits', 'PDPA compliance tools'], 'Contact us', 'mailto:hello@lectura.app', false],
+                ] as [$name, $for, $price, $per, $items, $cta, $href, $featured])
+                    <div @class([
+                        'relative rounded-3xl p-8 flex flex-col',
+                        'bg-[#14112e] text-violet-100/80 shadow-2xl shadow-violet-900/20 md:-my-4' => $featured,
+                        'bg-white border border-slate-200' => ! $featured,
+                    ])>
+                        @if ($featured)
+                            <span class="absolute -top-3 left-8 rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">Most popular</span>
+                        @endif
+                        <h3 @class(['text-lg font-bold', 'text-white' => $featured, 'text-slate-900' => ! $featured])>{{ $name }}</h3>
+                        <p class="text-sm mt-1">{{ $for }}</p>
+                        <p class="mt-6">
+                            <span @class(['text-4xl font-black tracking-tight', 'text-white' => $featured, 'text-slate-900' => ! $featured])>{{ $price }}</span>
+                            <span class="text-sm opacity-70">{{ $per }}</span>
+                        </p>
+                        <ul class="mt-6 space-y-3 text-[15px] flex-1">
+                            @foreach ($items as $item)
+                                <li class="flex gap-2.5">
+                                    <svg @class(['w-5 h-5 shrink-0', 'text-violet-300' => $featured, 'text-violet-600' => ! $featured]) fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    {{ $item }}
+                                </li>
+                            @endforeach
+                        </ul>
+                        <a href="{{ $href }}" @class([
+                            'mt-8 block text-center px-6 py-3 rounded-full font-bold transition',
+                            'bg-white text-[#14112e] hover:bg-violet-50' => $featured,
+                            'border border-slate-300 text-slate-800 hover:bg-slate-50' => ! $featured,
+                        ])>{{ $cta }}</a>
                     </div>
-                    <p class="text-sm leading-relaxed">AI-powered teaching management platform for Malaysian universities.</p>
-                    <p class="mt-4 text-xs text-slate-500">Made with pride in Malaysia</p>
-                </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
 
-                <div>
-                    <h4 class="font-semibold text-white text-sm mb-4">Product</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="#features" class="hover:text-white transition">Features</a></li>
-                        <li><a href="#pricing" class="hover:text-white transition">Pricing</a></li>
-                        <li><a href="#how-it-works" class="hover:text-white transition">How It Works</a></li>
-                    </ul>
+    {{-- DOWNLOAD CTA --}}
+    <section class="py-20 lg:py-24">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="ink-hero relative overflow-hidden rounded-[2.5rem] px-6 py-14 sm:px-14 sm:py-16 lg:flex lg:items-center lg:justify-between gap-10">
+                <div class="grain absolute inset-0 pointer-events-none"></div>
+                <div class="relative max-w-xl text-center lg:text-left">
+                    <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">Get Lectura Go.</h2>
+                    <p class="mt-3 text-violet-100/75 text-lg">Sign in with the account you use on the web — your courses are already there. Got a section code from your lecturer? Enter it once and you're in.</p>
                 </div>
-
-                <div>
-                    <h4 class="font-semibold text-white text-sm mb-4">Support</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="mailto:hello@lectura.app" class="hover:text-white transition">Contact Us</a></li>
-                        <li><a href="{{ route('support') }}" class="hover:text-white transition">Help Centre</a></li>
-                        <li><a href="#" class="hover:text-white transition">API Docs</a></li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h4 class="font-semibold text-white text-sm mb-4">Legal</h4>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="{{ route('privacy') }}" class="hover:text-white transition">Privacy Policy</a></li>
-                        <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
-                        <li><a href="#" class="hover:text-white transition">PDPA Compliance</a></li>
-                    </ul>
+                <div class="relative mt-8 lg:mt-0 flex flex-wrap justify-center gap-3 shrink-0">
+                    <x-store-badges />
                 </div>
             </div>
+        </div>
+    </section>
 
-            <div class="mt-12 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
-                &copy; {{ date('Y') }} Lectura. All rights reserved.
+    {{-- FOOTER --}}
+    <footer class="border-t border-slate-100">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-slate-500">
+            <div class="flex items-center gap-2.5">
+                <img src="/icons/icon-192x192.png" alt="" class="w-7 h-7 rounded-lg">
+                <span class="font-bold text-slate-900">Lectura</span>
+                <span class="text-slate-400">© {{ date('Y') }}</span>
             </div>
+            <nav class="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                <a href="{{ route('support') }}" class="hover:text-slate-900 transition">Help centre</a>
+                <a href="{{ route('privacy') }}" class="hover:text-slate-900 transition">Privacy</a>
+                <a href="mailto:hello@lectura.app" class="hover:text-slate-900 transition">hello@lectura.app</a>
+                @guest
+                    <a href="{{ route('login') }}" class="hover:text-slate-900 transition">Log in</a>
+                @endguest
+            </nav>
         </div>
     </footer>
 
-    @livewireScriptConfig
 </body>
 </html>

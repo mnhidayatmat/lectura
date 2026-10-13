@@ -69,4 +69,11 @@ return [
         'redirect' => env('GOOGLE_DRIVE_REDIRECT_URI'),
     ],
 
+    // Store listings for the Lectura Go app, shown on the landing page. Left
+    // empty, the badges read "Coming soon" and link nowhere.
+    'lectura_go' => [
+        'ios_url' => env('LECTURA_GO_IOS_URL'),
+        'android_url' => env('LECTURA_GO_ANDROID_URL'),
+    ],
+
 ];
