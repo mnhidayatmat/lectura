@@ -723,6 +723,80 @@ locked or draft episode stay hidden. Ordered by course code, then episode number
   file, poster`), the mp4s and their posters. Re-running updates the text and skips media already
   stored (`--replace-media` uploads again, `--dry-run` previews).
 
+### Clip interactions (views, likes, saves, comments)
+
+TikTok-style interactions on clips. Every route below 404s for a clip the student cannot see (the
+same rule as the list: enrolled, episode available). Counts are public to the course; who liked or
+saved is not exposed.
+
+Each clip in `student/watch/clips` also carries:
+
+```json
+{
+  "views_count": 165,
+  "likes_count": 13,
+  "comments_count": 2,
+  "saves_count": 0,
+  "liked": false,
+  "saved": true
+}
+```
+
+- `views_count`: plays, counted at most once per student per clip every 30 minutes (the feed loops).
+- `comments_count`: top-level comments plus replies, excluding deleted ones.
+
+`GET student/watch/clips?saved=1` lists only the clips the student saved, newest save first (same
+fragment). It combines with `course_id`.
+
+#### POST `student/watch/clips/{clip}/view`
+The app sends it once a clip has played for 2 s. → `{"message":"View recorded.","data":{"views_count":166}}`
+(the count is unchanged when the 30-minute window has not passed).
+
+#### POST / DELETE `student/watch/clips/{clip}/like` · POST / DELETE `student/watch/clips/{clip}/save`
+Idempotent. → `{"message":"…","data":{"liked":true,"likes_count":14}}` /
+`{"message":"…","data":{"saved":true,"saves_count":1}}`.
+
+#### GET `student/watch/clips/{clip}/comments?page=1`
+Top-level comments, most liked first, then newest; 20 per page.
+
+```json
+{
+  "data": [
+    {
+      "id": 51,
+      "body": "So the pump is the heart?",
+      "author": { "id": 9, "name": "Ali Bin Abu", "initials": "AB", "avatar_url": null, "is_lecturer": false },
+      "created_at": "2026-10-13T15:40:00+08:00",
+      "likes_count": 3,
+      "liked": false,
+      "replies_count": 1,
+      "can_delete": true,
+      "reply_to": null
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 2 }
+}
+```
+
+- `is_lecturer`: the author teaches the clip's course (shown as a "Lecturer" badge).
+- `can_delete`: the author, or a lecturer of the course.
+
+#### GET `student/watch/clips/{clip}/comments/{comment}/replies`
+All replies of a top-level comment, oldest first, same fragment (`replies_count` 0). `reply_to` is
+`{ "id": 9, "name": "Ali Bin Abu" }` when the reply answered another reply, else `null`.
+
+#### POST `student/watch/clips/{clip}/comments`
+Body `{ "body": "…" (1–500 chars), "parent_id": 51 (optional) }`. A `parent_id` that is itself a
+reply attaches the new reply to that reply's top-level comment and sets `reply_to` to its author.
+→ 201 `{"message":"Comment posted.","data":{…comment}}`.
+
+#### DELETE `student/watch/clips/{clip}/comments/{comment}`
+Author or a lecturer of the course, else 403. Deleting a top-level comment removes its replies.
+→ `{"message":"Comment deleted.","data":{"comments_count":1}}`.
+
+#### POST / DELETE `student/watch/clips/{clip}/comments/{comment}/like`
+Idempotent. → `{"message":"…","data":{"liked":true,"likes_count":4}}`.
+
 ## Marks & feedback
 
 ### GET `student/marks?filter=all|graded|pending`

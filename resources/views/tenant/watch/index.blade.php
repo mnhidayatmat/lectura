@@ -60,6 +60,8 @@
 
         @include('tenant.watch._row', ['title' => 'Continue watching', 'items' => $home['continue_watching']])
 
+        @include('tenant.watch._clips_row', ['clips' => $clips])
+
         @php
             $missedWeeks = collect($home['because_you_missed'])->pluck('week_number')->unique();
             $missedTitle = $missedWeeks->count() === 1 ? 'Because you missed Week '.$missedWeeks->first() : 'Because you missed class';

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Student\Concerns\InteractsWithEnrollments;
 use App\Http\Resources\Api\V1\Student\StudentPresenter;
 use App\Http\Resources\Api\V1\Student\WatchPresenter;
 use App\Models\AttendanceRecord;
+use App\Models\Course;
 use App\Models\CourseSeries;
 use App\Models\Episode;
 use App\Models\EpisodeCaption;
@@ -22,6 +23,7 @@ use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -100,7 +102,7 @@ final class WatchCatalog
      * Portrait clips of the episodes the student can already watch, by course code, then
      * episode and clip order. A clip of a scheduled or locked episode stays hidden.
      */
-    public function clips(User $user, ?int $courseId = null): array
+    public function clips(User $user, ?int $courseId = null, bool $saved = false): array
     {
         $courseIds = $this->enrolledCourseIds($user);
         if ($courseId !== null) {
@@ -110,15 +112,67 @@ final class WatchCatalog
             $courseIds = collect([$courseId]);
         }
 
-        return EpisodeClip::whereIn('course_id', $courseIds)
+        $clips = EpisodeClip::whereIn('course_id', $courseIds)
             ->whereHas('episode', fn ($q) => $q->visible())
             ->with('episode.course')
             ->get()
-            ->filter(fn (EpisodeClip $clip) => $clip->episode->isAvailable())
-            ->sortBy(fn (EpisodeClip $clip) => sprintf('%s|%05d|%05d', $clip->episode->course?->code, $clip->episode->episode_number, $clip->clip_number))
-            ->map(fn (EpisodeClip $clip) => $this->clip($clip))
+            ->filter(fn (EpisodeClip $clip) => $clip->episode->isAvailable());
+
+        $ids = $clips->pluck('id');
+        $liked = $ids->isEmpty() ? collect() : DB::table('episode_clip_likes')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('episode_clip_id')->flip();
+        $savedAt = $ids->isEmpty() ? collect() : DB::table('episode_clip_saves')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('created_at', 'episode_clip_id');
+
+        $clips = $saved
+            // Newest save first; the id breaks ties between saves in the same second.
+            ? $clips->filter(fn (EpisodeClip $clip) => $savedAt->has($clip->id))
+                ->sortByDesc(fn (EpisodeClip $clip) => sprintf('%s|%010d', $savedAt->get($clip->id), $clip->id))
+            : $clips->sortBy(fn (EpisodeClip $clip) => sprintf('%s|%05d|%05d', $clip->episode->course?->code, $clip->episode->episode_number, $clip->clip_number));
+
+        return $clips
+            ->map(fn (EpisodeClip $clip) => $this->clip($clip, $liked->has($clip->id), $savedAt->has($clip->id)))
             ->values()
             ->all();
+    }
+
+    /**
+     * A clip the user may see and interact with: an enrolled student once its episode is
+     * available, or a lecturer of its course. Anything else is a 404, as if it did not exist.
+     */
+    public function authorizeClip(User $user, EpisodeClip $clip): void
+    {
+        $clip->loadMissing('episode.course');
+        $episode = $clip->episode;
+
+        $visible = $episode !== null && $episode->isVisible() && $episode->isAvailable()
+            && $this->enrolledCourseIds($user)->contains((int) $clip->course_id);
+
+        if (! $visible && ! ($episode && $this->teachesCourse($user, (int) $clip->course_id))) {
+            abort(404, 'That item could not be found. It may have been removed.');
+        }
+    }
+
+    /**
+     * The course's owner or a lecturer of any of its sections.
+     */
+    public function teachesCourse(User $user, int $courseId): bool
+    {
+        return $this->courseLecturerIds($courseId)->contains($user->id);
+    }
+
+    /**
+     * @return Collection<int, int> User ids of the course's owner and its section lecturers.
+     */
+    public function courseLecturerIds(int $courseId): Collection
+    {
+        return DB::table('section_lecturers')
+            ->join('sections', 'sections.id', '=', 'section_lecturers.section_id')
+            ->where('sections.course_id', $courseId)
+            ->pluck('section_lecturers.user_id')
+            ->push(Course::withoutGlobalScopes()->whereKey($courseId)->value('lecturer_id'))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**
@@ -338,7 +392,7 @@ final class WatchCatalog
         }
     }
 
-    private function clip(EpisodeClip $clip): array
+    private function clip(EpisodeClip $clip, bool $liked = false, bool $saved = false): array
     {
         $episode = $clip->episode;
 
@@ -360,6 +414,12 @@ final class WatchCatalog
             'duration_seconds' => $clip->duration_seconds,
             'stream_url' => EpisodeMedia::clipStreamUrl($clip),
             'poster_url' => EpisodeMedia::clipPosterUrl($clip),
+            'views_count' => (int) $clip->views_count,
+            'likes_count' => (int) $clip->likes_count,
+            'comments_count' => (int) $clip->comments_count,
+            'saves_count' => (int) $clip->saves_count,
+            'liked' => $liked,
+            'saved' => $saved,
         ];
     }
 

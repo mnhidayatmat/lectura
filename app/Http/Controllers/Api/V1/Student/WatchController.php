@@ -23,9 +23,13 @@ class WatchController extends Controller
 
     public function clips(Request $request): JsonResponse
     {
-        $request->validate(['course_id' => ['nullable', 'integer']]);
+        $request->validate(['course_id' => ['nullable', 'integer'], 'saved' => ['nullable', 'boolean']]);
 
-        return response()->json(['data' => $this->catalog->clips($request->user(), $request->filled('course_id') ? $request->integer('course_id') : null)]);
+        return response()->json(['data' => $this->catalog->clips(
+            $request->user(),
+            $request->filled('course_id') ? $request->integer('course_id') : null,
+            $request->boolean('saved'),
+        )]);
     }
 
     public function series(Request $request, CourseSeries $series): JsonResponse

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Student\AssignmentController;
 use App\Http\Controllers\Api\V1\Student\AttendanceController;
+use App\Http\Controllers\Api\V1\Student\ClipController;
 use App\Http\Controllers\Api\V1\Student\CourseController;
 use App\Http\Controllers\Api\V1\Student\DashboardController;
 use App\Http\Controllers\Api\V1\Student\MarkController;
@@ -28,6 +29,17 @@ Route::prefix('student')->name('student.')->group(function () {
 
     Route::get('/watch', [WatchController::class, 'home'])->name('watch.home');
     Route::get('/watch/clips', [WatchController::class, 'clips'])->name('watch.clips');
+    Route::post('/watch/clips/{clip}/view', [ClipController::class, 'view'])->name('watch.clips.view');
+    Route::post('/watch/clips/{clip}/like', [ClipController::class, 'like'])->name('watch.clips.like');
+    Route::delete('/watch/clips/{clip}/like', [ClipController::class, 'unlike'])->name('watch.clips.unlike');
+    Route::post('/watch/clips/{clip}/save', [ClipController::class, 'save'])->name('watch.clips.save');
+    Route::delete('/watch/clips/{clip}/save', [ClipController::class, 'unsave'])->name('watch.clips.unsave');
+    Route::get('/watch/clips/{clip}/comments', [ClipController::class, 'comments'])->name('watch.clips.comments');
+    Route::post('/watch/clips/{clip}/comments', [ClipController::class, 'store'])->name('watch.clips.comments.store');
+    Route::get('/watch/clips/{clip}/comments/{comment}/replies', [ClipController::class, 'replies'])->name('watch.clips.comments.replies');
+    Route::delete('/watch/clips/{clip}/comments/{comment}', [ClipController::class, 'destroy'])->name('watch.clips.comments.destroy');
+    Route::post('/watch/clips/{clip}/comments/{comment}/like', [ClipController::class, 'likeComment'])->name('watch.clips.comments.like');
+    Route::delete('/watch/clips/{clip}/comments/{comment}/like', [ClipController::class, 'unlikeComment'])->name('watch.clips.comments.unlike');
     Route::get('/watch/series/{series}', [WatchController::class, 'series'])->name('watch.series');
     Route::get('/watch/episodes/{episode}', [WatchController::class, 'show'])->name('watch.episodes.show');
     Route::post('/watch/episodes/{episode}/progress', [WatchController::class, 'progress'])->name('watch.episodes.progress');

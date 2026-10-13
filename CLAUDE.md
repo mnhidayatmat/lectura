@@ -256,7 +256,13 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   `student/watch/clips` only while their episode is available to the student, with signed
   `/api/v1/watch/clips/{clip}/stream|poster` media. No web UI: they are imported with
   `php artisan watch:import-clips {course} {dir}` from a `manifest.json` folder (re-runs update the
-  text and skip stored media)
+  text and skip stored media). Students also get them on the web: `/watch/clips` (`tenant.watch.clips`,
+  `?course=`, `?clip=`), a scroll-snap feed where only the clip in view plays, plus a Clips row on
+  `/watch`, a sidebar item and a bottom-nav item; strings in `lang/*/watch.php`
+- Clip interactions (`Api\V1\Student\ClipController` → `ClipInteractions`): views (once per student per clip
+  every 30 min), likes, saves (`?saved=1` on the list) and `ClipComment`s with one level of replies and
+  comment likes. Counters live on `episode_clips`/`clip_comments` and move in the same transaction;
+  `WatchCatalog::authorizeClip` 404s anyone but an enrolled student (episode available) or a course lecturer
 - Contracts: `docs/mobile-api/student.md` → Watch, `docs/mobile-api/lecturer.md` → Watch analytics
 
 ### Assignments & Marking

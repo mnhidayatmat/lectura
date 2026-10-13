@@ -46,6 +46,16 @@
             <span class="text-[10px] font-medium">Live</span>
         </a>
 
+        {{-- Clips --}}
+        <a href="{{ $prefix }}/watch/clips" class="flex flex-col items-center justify-center gap-0.5 w-14 py-1 rounded-xl transition {{ $active('*/watch/clips*') ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 active:text-slate-600' }}">
+            @if($active('*/watch/clips*'))
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M7 3h10a3 3 0 013 3v12a3 3 0 01-3 3H7a3 3 0 01-3-3V6a3 3 0 013-3zm3 5.8v6.4a.6.6 0 00.9.5l5.3-3.2a.6.6 0 000-1l-5.3-3.2a.6.6 0 00-.9.5z" clip-rule="evenodd"/></svg>
+            @else
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zM10 9l5 3-5 3V9z"/></svg>
+            @endif
+            <span class="text-[10px] font-medium">{{ __('watch.clips') }}</span>
+        </a>
+
         {{-- Marks --}}
         <a href="{{ $prefix }}/marks" class="flex flex-col items-center justify-center gap-0.5 w-14 py-1 rounded-xl transition {{ $active('*/marks*') ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 active:text-slate-600' }}">
             @if($active('*/marks*'))

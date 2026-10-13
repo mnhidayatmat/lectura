@@ -25,6 +25,23 @@ class StudentWatchController extends Controller
         return view('tenant.watch.index', [
             'tenant' => app('current_tenant'),
             'home' => $this->catalog->home($request->user()),
+            'clips' => $this->catalog->clips($request->user()),
+        ]);
+    }
+
+    /**
+     * The clip feed: every enrolled course's clips, or one course's (`?course=`),
+     * opened on `?clip=` when given.
+     */
+    public function clips(Request $request): View
+    {
+        $clips = $this->catalog->clips($request->user(), $request->filled('course') ? $request->integer('course') : null);
+        $start = collect($clips)->search(fn (array $clip) => $clip['id'] === $request->integer('clip'));
+
+        return view('tenant.watch.clips', [
+            'tenant' => app('current_tenant'),
+            'clips' => $clips,
+            'start' => $start === false ? 0 : $start,
         ]);
     }
 

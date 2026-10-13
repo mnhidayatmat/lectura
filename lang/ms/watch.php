@@ -1,0 +1,18 @@
+<?php
+
+return [
+    'clips' => 'Klip',
+    'clips_subtitle' => 'Klip pendek daripada episod anda',
+    'from_episode' => 'Daripada EP :number · :title',
+    'watch_episode' => 'Tonton episod',
+    'key_point' => 'Isi penting',
+    'mute' => 'Senyapkan',
+    'unmute' => 'Nyahsenyap',
+    'tap_for_sound' => 'Ketik untuk bunyi',
+    'previous_clip' => 'Klip sebelumnya',
+    'next_clip' => 'Klip seterusnya',
+    'close' => 'Tutup',
+    'see_all' => 'Lihat semua',
+    'no_clips' => 'Belum ada klip',
+    'no_clips_message' => 'Klip pendek muncul di sini sebaik sahaja episodnya keluar.',
+];

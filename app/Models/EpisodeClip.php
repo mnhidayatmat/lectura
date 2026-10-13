@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A short portrait clip cut from an episode. Students see it once the episode
@@ -31,6 +32,10 @@ class EpisodeClip extends Model
         'video_mime',
         'video_size_bytes',
         'poster_path',
+        'views_count',
+        'likes_count',
+        'comments_count',
+        'saves_count',
     ];
 
     protected function casts(): array
@@ -40,6 +45,10 @@ class EpisodeClip extends Model
             'start_seconds' => 'integer',
             'duration_seconds' => 'integer',
             'video_size_bytes' => 'integer',
+            'views_count' => 'integer',
+            'likes_count' => 'integer',
+            'comments_count' => 'integer',
+            'saves_count' => 'integer',
         ];
     }
 
@@ -51,5 +60,10 @@ class EpisodeClip extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ClipComment::class);
     }
 }

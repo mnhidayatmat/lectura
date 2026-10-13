@@ -574,6 +574,7 @@ Route::prefix('{tenant:slug}')
 
         // Watch (Student) — animated episodes; same data and progress as the app
         Route::get('/watch', [StudentWatchController::class, 'index'])->name('tenant.watch.index');
+        Route::get('/watch/clips', [StudentWatchController::class, 'clips'])->name('tenant.watch.clips');
         Route::get('/watch/series/{series}', [StudentWatchController::class, 'series'])->name('tenant.watch.series');
         Route::get('/watch/episodes/{episode}', [StudentWatchController::class, 'episode'])->name('tenant.watch.episode');
         Route::post('/watch/episodes/{episode}/progress', [StudentWatchController::class, 'progress'])->name('tenant.watch.progress');
