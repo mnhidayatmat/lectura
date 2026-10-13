@@ -7,6 +7,7 @@ namespace App\Services\Episodes;
 use App\Models\CourseSeries;
 use App\Models\Episode;
 use App\Models\EpisodeCaption;
+use App\Models\EpisodeClip;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +79,18 @@ final class EpisodeMedia
     {
         return $series->cover_path
             ? self::link(config('lectura.episodes.disk'), $series->cover_path, null, 'api.v1.watch.series.cover', ['series' => $series->id])
+            : null;
+    }
+
+    public static function clipStreamUrl(EpisodeClip $clip): string
+    {
+        return self::link($clip->video_disk, $clip->video_path, null, 'api.v1.watch.clips.stream', ['clip' => $clip->id]);
+    }
+
+    public static function clipPosterUrl(EpisodeClip $clip): ?string
+    {
+        return $clip->poster_path
+            ? self::link($clip->video_disk, $clip->poster_path, null, 'api.v1.watch.clips.poster', ['clip' => $clip->id])
             : null;
     }
 

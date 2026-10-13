@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CourseSeries;
 use App\Models\Episode;
 use App\Models\EpisodeCaption;
+use App\Models\EpisodeClip;
 use App\Services\Episodes\EpisodeMedia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -30,6 +31,18 @@ class WatchMediaController extends Controller
         abort_unless($episode->poster_path, 404);
 
         return $this->serve($episode->video_disk ?? config('lectura.episodes.disk'), $episode->poster_path);
+    }
+
+    public function clipStream(EpisodeClip $clip): Response
+    {
+        return $this->serve($clip->video_disk, $clip->video_path, $clip->video_mime);
+    }
+
+    public function clipPoster(EpisodeClip $clip): Response
+    {
+        abort_unless($clip->poster_path, 404);
+
+        return $this->serve($clip->video_disk, $clip->poster_path);
     }
 
     public function cover(CourseSeries $series): Response

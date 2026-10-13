@@ -21,6 +21,13 @@ class WatchController extends Controller
         return response()->json(['data' => $this->catalog->home($request->user())]);
     }
 
+    public function clips(Request $request): JsonResponse
+    {
+        $request->validate(['course_id' => ['nullable', 'integer']]);
+
+        return response()->json(['data' => $this->catalog->clips($request->user(), $request->filled('course_id') ? $request->integer('course_id') : null)]);
+    }
+
     public function series(Request $request, CourseSeries $series): JsonResponse
     {
         return response()->json(['data' => $this->catalog->series($request->user(), $series)]);

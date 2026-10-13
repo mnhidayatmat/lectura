@@ -117,6 +117,11 @@ class Episode extends Model
         return $this->hasMany(EpisodeRewind::class);
     }
 
+    public function clips(): HasMany
+    {
+        return $this->hasMany(EpisodeClip::class)->orderBy('clip_number');
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PUBLISHED);

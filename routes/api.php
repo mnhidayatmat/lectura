@@ -27,6 +27,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/episodes/{episode}/poster', [WatchMediaController::class, 'poster'])->name('episodes.poster');
         Route::get('/series/{series}/cover', [WatchMediaController::class, 'cover'])->name('series.cover');
         Route::get('/captions/{caption}', [WatchMediaController::class, 'caption'])->name('captions');
+        Route::get('/clips/{clip}/stream', [WatchMediaController::class, 'clipStream'])->name('clips.stream');
+        Route::get('/clips/{clip}/poster', [WatchMediaController::class, 'clipPoster'])->name('clips.poster');
     });
 
     Route::middleware('auth:sanctum')->group(function () {

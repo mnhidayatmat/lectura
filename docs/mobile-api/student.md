@@ -685,6 +685,44 @@ Save the playback position. Send it every ~10 s while playing, on pause, and whe
 
 ---
 
+### GET `student/watch/clips?course_id=`
+
+Short portrait clips (9:16 mp4, under a minute or so) cut from the episodes, for a vertical swipe
+feed. A clip is listed only while its episode is available to the student, so clips of a scheduled,
+locked or draft episode stay hidden. Ordered by course code, then episode number, then clip number.
+`course_id` (optional) narrows the list to one course; a course the student is not enrolled in gives
+403 `You are not enrolled in this course.`
+
+```json
+{
+  "data": [
+    {
+      "id": 3,
+      "course": { "id": 8, "code": "BTG3333", "title": "Piping Engineering" },
+      "episode": { "id": 1, "series_id": 1, "episode_number": 1, "title": "I Woke Up as an Oil Slime", "week_number": 2 },
+      "clip_number": 1,
+      "title": "Pipes Are the Plant's Arteries",
+      "topic": "Source, piping, end user",
+      "takeaway": "Fluid flows source to piping system to end user.",
+      "start_seconds": 37,
+      "duration_seconds": 44,
+      "stream_url": "https://…/api/v1/watch/clips/3/stream?expires=…&signature=…",
+      "poster_url": "https://…/api/v1/watch/clips/3/poster?expires=…&signature=…"
+    }
+  ]
+}
+```
+
+- `stream_url` / `poster_url` are pre-signed like episode media (or plain public URLs when episodes
+  sit on a public disk); `topic`, `takeaway`, `start_seconds`, `duration_seconds` and `poster_url`
+  may be `null`.
+- `start_seconds`: where the clip starts in its episode, so "Watch the episode" can open there.
+- Clips have no progress, Quick Checks or downloads. They are imported with
+  `php artisan watch:import-clips {course} {dir}` from a folder holding `manifest.json` (one object
+  per clip: `episode_number, clip_number, title, topic, takeaway, start_seconds, duration_seconds,
+  file, poster`), the mp4s and their posters. Re-running updates the text and skips media already
+  stored (`--replace-media` uploads again, `--dry-run` previews).
+
 ## Marks & feedback
 
 ### GET `student/marks?filter=all|graded|pending`

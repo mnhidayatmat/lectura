@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Episodes;
 
 use App\Http\Controllers\Api\V1\Student\Concerns\InteractsWithEnrollments;
+use App\Http\Resources\Api\V1\Student\StudentPresenter;
 use App\Http\Resources\Api\V1\Student\WatchPresenter;
 use App\Models\AttendanceRecord;
 use App\Models\CourseSeries;
@@ -13,6 +14,7 @@ use App\Models\EpisodeCaption;
 use App\Models\EpisodeCheck;
 use App\Models\EpisodeCheckAnswer;
 use App\Models\EpisodeCheckOption;
+use App\Models\EpisodeClip;
 use App\Models\EpisodeProgress;
 use App\Models\EpisodeRewind;
 use App\Models\EpisodeScene;
@@ -92,6 +94,31 @@ final class WatchCatalog
                 'episodes' => $series->publishedEpisodes->map(fn (Episode $e) => $watch->episode($e))->values(),
             ])->values(),
         ];
+    }
+
+    /**
+     * Portrait clips of the episodes the student can already watch, by course code, then
+     * episode and clip order. A clip of a scheduled or locked episode stays hidden.
+     */
+    public function clips(User $user, ?int $courseId = null): array
+    {
+        $courseIds = $this->enrolledCourseIds($user);
+        if ($courseId !== null) {
+            if (! $courseIds->contains($courseId)) {
+                abort(403, 'You are not enrolled in this course.');
+            }
+            $courseIds = collect([$courseId]);
+        }
+
+        return EpisodeClip::whereIn('course_id', $courseIds)
+            ->whereHas('episode', fn ($q) => $q->visible())
+            ->with('episode.course')
+            ->get()
+            ->filter(fn (EpisodeClip $clip) => $clip->episode->isAvailable())
+            ->sortBy(fn (EpisodeClip $clip) => sprintf('%s|%05d|%05d', $clip->episode->course?->code, $clip->episode->episode_number, $clip->clip_number))
+            ->map(fn (EpisodeClip $clip) => $this->clip($clip))
+            ->values()
+            ->all();
     }
 
     /**
@@ -309,6 +336,31 @@ final class WatchCatalog
         if (! $episode->isAvailable()) {
             abort(403, 'This episode is not available yet.');
         }
+    }
+
+    private function clip(EpisodeClip $clip): array
+    {
+        $episode = $clip->episode;
+
+        return [
+            'id' => $clip->id,
+            'course' => StudentPresenter::course($episode->course),
+            'episode' => [
+                'id' => $episode->id,
+                'series_id' => $episode->course_series_id,
+                'episode_number' => $episode->episode_number,
+                'title' => $episode->title,
+                'week_number' => $episode->week_number,
+            ],
+            'clip_number' => $clip->clip_number,
+            'title' => $clip->title,
+            'topic' => $clip->topic,
+            'takeaway' => $clip->takeaway,
+            'start_seconds' => $clip->start_seconds,
+            'duration_seconds' => $clip->duration_seconds,
+            'stream_url' => EpisodeMedia::clipStreamUrl($clip),
+            'poster_url' => EpisodeMedia::clipPosterUrl($clip),
+        ];
     }
 
     /**

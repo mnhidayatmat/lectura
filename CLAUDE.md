@@ -252,6 +252,11 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   match the app. The Watch panels are always dark, and the Dimmed theme remaps `bg-white`,
   `bg-white/95` and `text-slate-300…900` in dark mode — inside those panels use fixed values
   (`bg-[#ffffff]`, `text-[#cbd5e1]`, …) or they turn dark-on-dark
+- Clips (`EpisodeClip`, `episode_clips`): short 9:16 clips cut from an episode, listed by
+  `student/watch/clips` only while their episode is available to the student, with signed
+  `/api/v1/watch/clips/{clip}/stream|poster` media. No web UI: they are imported with
+  `php artisan watch:import-clips {course} {dir}` from a `manifest.json` folder (re-runs update the
+  text and skip stored media)
 - Contracts: `docs/mobile-api/student.md` → Watch, `docs/mobile-api/lecturer.md` → Watch analytics
 
 ### Assignments & Marking
