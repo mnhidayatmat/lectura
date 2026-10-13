@@ -8,16 +8,17 @@
         <title>{{ $title ?? config('app.name', 'Lectura') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap" rel="stylesheet" />
 
         @include('layouts.partials.pwa-head')
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
         <style>
-            body { font-family: 'Plus Jakarta Sans', sans-serif; }
-            .gradient-brand { background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%); }
-            .dot-pattern { background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 20px 20px; }
+            [x-cloak] { display: none !important; }
+            body { font-family: 'Figtree', sans-serif; }
+            .ink-panel { background: radial-gradient(50rem 35rem at 90% -10%, rgba(131, 82, 252, .45), transparent 60%), radial-gradient(35rem 25rem at -10% 110%, rgba(109, 52, 224, .3), transparent 60%), #14112e; }
+            .dot-pattern { background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 22px 22px; }
         </style>
         <script>
             if (localStorage.getItem('darkMode') === 'true' || (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -35,63 +36,55 @@
         <div class="min-h-screen flex">
 
             {{-- Left Panel — Branding (hidden on mobile) --}}
-            <div class="hidden lg:flex lg:w-1/2 gradient-brand dot-pattern relative overflow-hidden">
-                <div class="absolute inset-0 flex flex-col justify-between p-12">
-                    {{-- Logo --}}
-                    <a href="/" class="flex items-center gap-2.5">
-                        <img src="/icons/icon-192x192.png" alt="Lectura" class="w-9 h-9 rounded-lg">
-                        <span class="text-xl font-bold text-white">Lectura</span>
+            <div class="hidden lg:flex lg:w-1/2 xl:w-[55%] ink-panel relative overflow-hidden">
+                <div class="dot-pattern absolute inset-0 pointer-events-none"></div>
+                <div class="relative flex flex-col justify-between w-full p-12 xl:p-16">
+                    <a href="/" class="flex items-center gap-2.5 self-start">
+                        <img src="/icons/icon-192x192.png" alt="Lectura" class="w-9 h-9 rounded-xl">
+                        <span class="text-xl font-extrabold text-white tracking-tight">Lectura</span>
                     </a>
 
-                    {{-- Center content --}}
-                    <div class="max-w-md">
-                        <h1 class="text-3xl xl:text-4xl font-bold text-white leading-tight">
-                            Teach Smarter.
-                            <span class="block mt-1 bg-gradient-to-r from-indigo-400 to-teal-400 bg-clip-text text-transparent">From Plan to Archive.</span>
-                        </h1>
-                        <p class="mt-5 text-slate-400 leading-relaxed">
-                            The AI-powered teaching companion for university lecturers. Plan courses, track attendance, run quizzes, mark assessments, and manage everything in one platform.
-                        </p>
-
-                        {{-- Feature highlights --}}
-                        <div class="mt-8 space-y-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                </div>
-                                <span class="text-sm text-slate-300">AI-generated teaching plans and feedback</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                                </div>
-                                <span class="text-sm text-slate-300">QR attendance with anti-fraud rotation</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                                <span class="text-sm text-slate-300">Live quizzes with real-time analytics</span>
+                    <div class="flex items-center gap-10 xl:gap-14">
+                        <div class="max-w-sm">
+                            <h1 class="text-4xl xl:text-5xl font-black text-white leading-[1.05] tracking-tight">
+                                Your class,<br><span class="text-violet-300">in your pocket.</span>
+                            </h1>
+                            <p class="mt-5 text-violet-100/70 leading-relaxed">
+                                One account for the web and the Lectura Go app — episodes, check-in, quizzes and marks for students, the whole room for lecturers.
+                            </p>
+                        </div>
+                        <div class="hidden xl:block shrink-0 w-52 rotate-[4deg]" aria-hidden="true">
+                            <div class="rounded-[2.2rem] p-2 bg-gradient-to-br from-[#3a3460] to-[#15122c] shadow-2xl shadow-black/50 ring-1 ring-white/10">
+                                <img src="/images/landing/student-home.jpg" alt="" class="rounded-[1.8rem] block w-full">
                             </div>
                         </div>
                     </div>
 
-                    {{-- Bottom testimonial --}}
-                    <div class="bg-white/5 rounded-xl p-5 backdrop-blur-sm border border-white/10">
-                        <p class="text-sm text-slate-300 italic leading-relaxed">"Lectura saved me 5 hours a week on attendance and marking alone. The AI feedback is surprisingly good — my students love the personalised comments."</p>
-                        <div class="mt-3 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-300">DS</div>
-                            <div>
-                                <p class="text-xs font-medium text-white">Dr. Siti Aminah</p>
-                                <p class="text-xs text-slate-500">Senior Lecturer, Computer Science</p>
-                            </div>
+                    @php
+                        $guestQuotes = [
+                            ['This app is really useful — easy for catching up faster. The video is compact and more detailed than the slides. Saves time!', 'Kabinesh R.'],
+                            ['Modern look, smooth UI, user friendly.', 'Abdul Khaleq A.'],
+                            ['The app is very good and easy to use. Easy to learn before entering class.', 'Syahir'],
+                        ];
+                    @endphp
+                    <figure class="max-w-lg rounded-3xl bg-white/[.06] ring-1 ring-white/10 p-6 backdrop-blur-sm"
+                            x-data="{ i: 0, n: {{ count($guestQuotes) }} }"
+                            x-init="if (! window.matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => i = (i + 1) % n, 6000)">
+                        <div class="grid min-h-[6.5rem]">
+                            @foreach ($guestQuotes as $q => [$quote, $name])
+                                <div class="[grid-area:1/1]" x-show="i === {{ $q }}" x-transition:enter="transition-opacity duration-700" x-transition:enter-start="opacity-0" x-transition:leave="transition-opacity duration-300" x-transition:leave-end="opacity-0" @if ($q > 0) style="display:none" @endif>
+                                    <blockquote class="text-[15px] leading-relaxed text-white">“{{ $quote }}”</blockquote>
+                                    <figcaption class="mt-4 text-xs text-violet-100/60"><span class="font-bold text-white">{{ $name }}</span> · Student, BTG3333 Piping</figcaption>
+                                </div>
+                            @endforeach
                         </div>
-                    </div>
+                        <div class="mt-4 flex gap-1.5" aria-hidden="true">
+                            @foreach ($guestQuotes as $q => $_)
+                                <button type="button" @click="i = {{ $q }}" class="h-1.5 rounded-full transition-all" :class="i === {{ $q }} ? 'w-6 bg-violet-300' : 'w-1.5 bg-white/25'" tabindex="-1"></button>
+                            @endforeach
+                        </div>
+                    </figure>
                 </div>
-
-                {{-- Decorative orbs --}}
-                <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl"></div>
-                <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-600/10 rounded-full blur-3xl"></div>
             </div>
 
             {{-- Right Panel — Form --}}
