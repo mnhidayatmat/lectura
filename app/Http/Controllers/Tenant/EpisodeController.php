@@ -10,6 +10,7 @@ use App\Models\Course;
 use App\Models\CourseSeries;
 use App\Models\CourseTopic;
 use App\Models\Episode;
+use App\Services\Episodes\EpisodeAnalytics;
 use App\Services\Episodes\EpisodeAnnouncer;
 use App\Services\Episodes\EpisodeMedia;
 use App\Services\Episodes\StoryboardParser;
@@ -35,14 +36,22 @@ class EpisodeController extends Controller
 
         $tenant = app('current_tenant');
         $series = $course->series;
+        $studentIds = EpisodeAnalytics::studentIds($this->lecturerSectionIds($course));
         $episodes = $series
-            ? $series->episodes()->with('topic')->withCount(['scenes', 'checks', 'captions', 'progress', 'progress as completed_count' => fn ($q) => $q->whereNotNull('completed_at')])->get()
+            ? $series->episodes()->with('topic')->withCount([
+                'scenes',
+                'checks',
+                'captions',
+                'progress' => fn ($q) => $q->whereIn('user_id', $studentIds),
+                'progress as completed_count' => fn ($q) => $q->whereIn('user_id', $studentIds)->whereNotNull('completed_at'),
+            ])->get()
             : collect();
         $topics = $course->topics()->orderBy('week_number')->orderBy('sort_order')->get();
         $nextNumber = ((int) $episodes->max('episode_number')) + 1;
         $maxVideoMb = $this->maxVideoMb();
+        $studentCount = $studentIds->count();
 
-        return view('tenant.episodes.index', compact('tenant', 'course', 'series', 'episodes', 'topics', 'nextNumber', 'maxVideoMb'));
+        return view('tenant.episodes.index', compact('tenant', 'course', 'series', 'episodes', 'topics', 'nextNumber', 'maxVideoMb', 'studentCount'));
     }
 
     public function saveSeries(Request $request, string $tenantSlug, Course $course): RedirectResponse

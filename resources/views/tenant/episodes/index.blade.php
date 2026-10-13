@@ -3,6 +3,18 @@
     $input = 'w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500';
     $label = 'block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1';
     $fmt = fn (?int $s) => $s ? sprintf('%d:%02d', intdiv($s, 60), $s % 60) : '—';
+    $stateOf = fn ($e) => $e->isAvailable() ? 'live' : ($e->isVisible() ? 'upcoming' : 'draft');
+    $counts = $episodes->countBy($stateOf);
+    $runtime = (int) $episodes->sum('duration_seconds');
+    $runtimeLabel = match (true) {
+        $runtime >= 3600 => sprintf('%dh %02dm total', intdiv($runtime, 3600), intdiv($runtime % 3600, 60)),
+        $runtime > 0 => max(1, intdiv($runtime, 60)).' min total',
+        default => 'No runtime yet',
+    };
+    $liveEpisodes = $episodes->filter(fn ($e) => $stateOf($e) === 'live');
+    $completion = $studentCount > 0 && $liveEpisodes->isNotEmpty()
+        ? (int) round($liveEpisodes->avg(fn ($e) => min(1, $e->completed_count / $studentCount)) * 100)
+        : null;
 @endphp
 <x-tenant-layout>
     <x-slot name="header">
@@ -31,20 +43,57 @@
         </div>
     @endif
 
+    @if($episodes->isNotEmpty())
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            @foreach([
+                ['Episodes', $episodes->count(), $runtimeLabel],
+                ['Published', $counts['live'] ?? 0, ($counts['upcoming'] ?? 0).' upcoming · '.($counts['draft'] ?? 0).' '.Str::plural('draft', $counts['draft'] ?? 0)],
+                ['Students', $studentCount, 'Active in your sections'],
+                ['Avg. finished', $completion === null ? '—' : $completion.'%', 'Across published episodes'],
+            ] as [$statLabel, $statValue, $statHint])
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ $statLabel }}</p>
+                    <p class="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{{ $statValue }}</p>
+                    <p class="text-[11px] text-slate-400 truncate">{{ $statHint }}</p>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Left: series + upload --}}
         <div class="space-y-6 lg:col-span-1">
             <form method="POST" action="{{ route('tenant.episodes.series', [$tenant->slug, $course]) }}" enctype="multipart/form-data"
+                  x-data="{ open: {{ $series && ! $errors->hasAny(['tagline', 'description', 'cover']) ? 'false' : 'true' }} }"
                   class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-3">
                 @csrf
                 @method('PUT')
-                <div>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Series</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">The show students see. One per course.</p>
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Series</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">The show students see. One per course.</p>
+                    </div>
+                    @if($series)
+                        <button type="button" @click="open = !open" :aria-expanded="open" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" x-text="open ? 'Close' : 'Edit'">Edit</button>
+                    @endif
                 </div>
                 @if($series?->cover_path)
-                    <img src="{{ \App\Services\Episodes\EpisodeMedia::coverUrl($series) }}" alt="" class="w-full aspect-video object-cover rounded-xl">
+                    <div class="relative rounded-xl overflow-hidden">
+                        <img src="{{ \App\Services\Episodes\EpisodeMedia::coverUrl($series) }}" alt="" class="w-full aspect-video object-cover">
+                        <div x-show="!open" class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                            <p class="text-sm font-bold text-[#ffffff] leading-tight">{{ $series->title }}</p>
+                            @if($series->tagline)
+                                <p class="text-xs text-[#e2e8f0] line-clamp-1">{{ $series->tagline }}</p>
+                            @endif
+                        </div>
+                    </div>
+                @elseif($series)
+                    <div x-show="!open">
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $series->title }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ $series->tagline ?: 'No tagline yet' }} · no cover image</p>
+                    </div>
                 @endif
+                <div x-show="open" @if($series) x-cloak @endif class="space-y-3">
                 <div>
                     <label for="series_title" class="{{ $label }}">Title</label>
                     <input id="series_title" name="title" required maxlength="255" value="{{ old('title', $series?->title ?? $course->title) }}" class="{{ $input }}" placeholder="Titis: A Piping Story">
@@ -65,6 +114,7 @@
                     @endif
                 </div>
                 <button type="submit" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">Save series</button>
+                </div>
             </form>
 
             <form method="POST" action="{{ route('tenant.episodes.store', [$tenant->slug, $course]) }}" enctype="multipart/form-data"
@@ -147,10 +197,20 @@
         </div>
 
         {{-- Right: episode list --}}
-        <div class="lg:col-span-2 space-y-3">
-            <div class="flex items-baseline justify-between">
+        <div class="lg:col-span-2 space-y-3" x-data="{ filter: 'all' }">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ $series?->title ?? 'No series yet' }}</h3>
-                <p class="text-xs text-slate-400">{{ $episodes->count() }} {{ Str::plural('episode', $episodes->count()) }}</p>
+                @if($episodes->isNotEmpty())
+                    <div class="inline-flex p-0.5 rounded-xl bg-slate-100 dark:bg-slate-700/60" role="tablist" aria-label="Filter episodes">
+                        @foreach(['all' => ['All', $episodes->count()], 'live' => ['Published', $counts['live'] ?? 0], 'upcoming' => ['Upcoming', $counts['upcoming'] ?? 0], 'draft' => ['Drafts', $counts['draft'] ?? 0]] as $key => [$filterLabel, $filterCount])
+                            <button type="button" role="tab" @click="filter = '{{ $key }}'" :aria-selected="filter === '{{ $key }}'"
+                                    :class="filter === '{{ $key }}' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+                                    class="px-3 py-1 text-xs font-medium rounded-lg transition">
+                                {{ $filterLabel }} <span class="tabular-nums opacity-70">{{ $filterCount }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             @if($episodes->isEmpty())
@@ -165,8 +225,16 @@
                     $live = $episode->isAvailable();
                     $scheduled = $episode->isVisible() && ! $live && $episode->publish_at !== null;
                     $comingSoon = $episode->isVisible() && ! $live && $episode->publish_at === null;
+                    $missing = array_keys(array_filter([
+                        'poster' => ! $episode->poster_path,
+                        'week' => ! $episode->week_number,
+                        'Quick Checks' => ! $episode->checks_count,
+                        'captions' => ! $episode->captions_count,
+                    ]));
+                    $finishedPct = $studentCount > 0 ? min(100, (int) round($episode->completed_count / $studentCount * 100)) : 0;
+                    $startedPct = $studentCount > 0 ? min(100, (int) round($episode->progress_count / $studentCount * 100)) : 0;
                 @endphp
-                <div x-data="{ editing: false, preview: false }" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div x-data="{ editing: false, preview: false }" x-show="filter === 'all' || filter === '{{ $stateOf($episode) }}'" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="p-4 flex gap-4">
                         <button type="button" @click="preview = !preview" class="relative w-36 shrink-0 aspect-video rounded-lg overflow-hidden bg-slate-800 group" aria-label="Preview episode {{ $episode->episode_number }}">
                             @if($poster = \App\Services\Episodes\EpisodeMedia::posterUrl($episode))
@@ -201,9 +269,30 @@
                             @if($episode->synopsis)
                                 <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">{{ $episode->synopsis }}</p>
                             @endif
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ $episode->progress_count }} started · {{ $episode->completed_count }} finished
-                                @if($episode->required_by) · Watch before {{ $episode->required_by->copy()->timezone($tz)->format('D j M, g:i A') }} @endif
+                            @if($live && $studentCount > 0)
+                                <div class="mt-2 max-w-sm">
+                                    <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden flex" role="img" aria-label="{{ $episode->completed_count }} of {{ $studentCount }} students finished, {{ $episode->progress_count }} started">
+                                        <span class="h-full bg-emerald-500" style="width: {{ $finishedPct }}%"></span>
+                                        <span class="h-full bg-emerald-200 dark:bg-emerald-800" style="width: {{ max(0, $startedPct - $finishedPct) }}%"></span>
+                                    </div>
+                                </div>
+                            @endif
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                @if($studentCount > 0)
+                                    {{ $episode->completed_count }}/{{ $studentCount }} finished · {{ $episode->progress_count }} started
+                                @else
+                                    {{ $episode->progress_count }} started · {{ $episode->completed_count }} finished
+                                @endif
+                                @if($episode->required_by)
+                                    · <span @class(['font-medium text-red-600 dark:text-red-400' => $episode->required_by->isPast() && $live && $episode->completed_count < $studentCount])>Watch before {{ $episode->required_by->copy()->timezone($tz)->format('D j M, g:i A') }}</span>
+                                @endif
                             </p>
+                            @if($missing)
+                                <p class="mt-1 inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
+                                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                                    No {{ implode(', ', $missing) }} yet
+                                </p>
+                            @endif
                             <a href="{{ route('tenant.episodes.show', [$tenant->slug, $course, $episode]) }}" class="inline-block mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
                                 {{ $episode->scenes_count }} {{ Str::plural('scene', $episode->scenes_count) }} · {{ $episode->checks_count }} Quick {{ Str::plural('Check', $episode->checks_count) }} · {{ $episode->captions_count }} caption {{ Str::plural('track', $episode->captions_count) }} →
                             </a>
@@ -316,6 +405,14 @@
                     </form>
                 </div>
             @endforeach
+
+            @if($episodes->isNotEmpty())
+                @foreach(['live' => 'No published episodes yet.', 'upcoming' => 'Nothing scheduled or locked.', 'draft' => 'No drafts.'] as $key => $emptyText)
+                    @if(! ($counts[$key] ?? 0))
+                        <p x-show="filter === '{{ $key }}'" x-cloak class="py-10 text-center text-sm text-slate-500 dark:text-slate-400">{{ $emptyText }}</p>
+                    @endif
+                @endforeach
+            @endif
         </div>
     </div>
 

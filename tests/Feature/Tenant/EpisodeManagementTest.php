@@ -299,4 +299,40 @@ class EpisodeManagementTest extends ApiTestCase
             'status' => 'published',
         ])->assertSessionHasErrors('video');
     }
+
+    public function test_the_list_counts_only_my_active_students_and_flags_missing_extras(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $course = $this->createCourse($tenant, $lecturer);
+        $section = $this->createSection($course, [], [$lecturer]);
+        [$done, $started, $idle, $outsider] = [
+            $this->createMember($tenant), $this->createMember($tenant), $this->createMember($tenant), $this->createMember($tenant),
+        ];
+        foreach ([$done, $started, $idle] as $student) {
+            $this->enroll($section, $student);
+        }
+        $series = CourseSeries::create(['tenant_id' => $tenant->id, 'course_id' => $course->id, 'title' => 'Process Piping']);
+        $episode = Episode::create([
+            'tenant_id' => $tenant->id,
+            'course_series_id' => $series->id,
+            'course_id' => $course->id,
+            'episode_number' => 1,
+            'title' => 'Titis Leaves Home',
+            'status' => Episode::STATUS_PUBLISHED,
+            'video_disk' => 'local',
+            'video_path' => 'episodes/ep1.mp4',
+            'duration_seconds' => 600,
+        ]);
+        $episode->progress()->create(['user_id' => $done->id, 'completed_at' => now()]);
+        $episode->progress()->create(['user_id' => $started->id]);
+        $episode->progress()->create(['user_id' => $outsider->id, 'completed_at' => now()]);
+
+        $this->actingAs($lecturer)->get("/{$tenant->slug}/materials/course/{$course->id}/episodes")
+            ->assertOk()
+            ->assertSee('1/3 finished · 2 started')
+            ->assertSee('33%')
+            ->assertSee('10 min total')
+            ->assertSee('No poster, week, Quick Checks, captions yet');
+    }
 }
