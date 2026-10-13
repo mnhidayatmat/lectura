@@ -136,6 +136,32 @@ final class WatchCatalog
     }
 
     /**
+     * Every clip of a course for its lecturer, unreleased ones included, in episode order.
+     * `is_available` says whether students can see it yet.
+     */
+    public function courseClips(User $user, Course $course): array
+    {
+        $clips = EpisodeClip::where('course_id', $course->id)
+            ->whereHas('episode')
+            ->with('episode.course')
+            ->get()
+            ->sortBy(fn (EpisodeClip $clip) => sprintf('%05d|%05d', $clip->episode->episode_number, $clip->clip_number));
+
+        $ids = $clips->pluck('id');
+        $liked = $ids->isEmpty() ? collect() : DB::table('episode_clip_likes')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('episode_clip_id')->flip();
+        $saved = $ids->isEmpty() ? collect() : DB::table('episode_clip_saves')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('episode_clip_id')->flip();
+
+        return $clips
+            ->map(fn (EpisodeClip $clip) => [
+                ...$this->clip($clip, $liked->has($clip->id), $saved->has($clip->id)),
+                'is_available' => $clip->isAvailable(),
+                'publish_at' => $clip->publish_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * A clip the user may see and interact with: an enrolled student once it is released,
      * or a lecturer of its course. Anything else is a 404, as if it did not exist.
      */

@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\CourseSeries;
 use App\Models\Episode;
 use App\Models\EpisodeCheckAnswer;
+use App\Models\EpisodeClip;
 use App\Models\EpisodeProgress;
 use App\Models\Tenant;
 use App\Models\User;
@@ -59,6 +60,43 @@ class WatchPreviewReleaseApiTest extends LecturerApiTestCase
     private function api(string $path): string
     {
         return $this->tenantApi($this->tenant, $path);
+    }
+
+    private function clip(Episode $episode, int $number, array $attributes = []): EpisodeClip
+    {
+        return EpisodeClip::create(array_merge([
+            'tenant_id' => $episode->tenant_id,
+            'episode_id' => $episode->id,
+            'course_id' => $episode->course_id,
+            'clip_number' => $number,
+            'title' => "Clip {$number}",
+            'duration_seconds' => 40,
+            'video_disk' => 'local',
+            'video_path' => "episodes/{$episode->course_id}/clips/ep{$episode->episode_number}-{$number}.mp4",
+        ], $attributes));
+    }
+
+    public function test_clips_lists_every_clip_of_the_course_with_release_state(): void
+    {
+        $locked = $this->episode(['episode_number' => 2, 'title' => 'Plot, Plan and Isometric', 'status' => Episode::STATUS_LOCKED]);
+        $open = $this->episode();
+        $this->clip($locked, 1, ['title' => 'Locked clip']);
+        $this->clip($open, 2, ['title' => 'Second']);
+        $this->clip($open, 1, ['title' => 'First', 'views_count' => 12]);
+
+        $this->actingAsApi($this->lecturer)->getJson($this->api("lecturer/courses/{$this->course->id}/watch/clips"))
+            ->assertOk()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.title', 'First')
+            ->assertJsonPath('data.0.views_count', 12)
+            ->assertJsonPath('data.0.is_available', true)
+            ->assertJsonPath('data.1.title', 'Second')
+            ->assertJsonPath('data.2.title', 'Locked clip')
+            ->assertJsonPath('data.2.is_available', false)
+            ->assertJsonPath('data.2.episode.episode_number', 2);
+
+        $this->actingAsApi($this->student, 'student')->getJson($this->api("lecturer/courses/{$this->course->id}/watch/clips"))
+            ->assertForbidden();
     }
 
     public function test_preview_shows_the_series_as_students_see_it(): void

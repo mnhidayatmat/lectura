@@ -66,6 +66,7 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     // Watch analytics (episodes are uploaded on the web)
     Route::get('/courses/{course}/watch', [WatchController::class, 'course'])->name('watch.course');
     Route::get('/courses/{course}/watch/preview', [WatchController::class, 'preview'])->name('watch.preview');
+    Route::get('/courses/{course}/watch/clips', [WatchController::class, 'clips'])->name('watch.clips');
     Route::get('/watch/episodes/{episode}', [WatchController::class, 'show'])->name('watch.episodes.show');
     Route::get('/watch/episodes/{episode}/preview', [WatchController::class, 'previewEpisode'])->name('watch.episodes.preview');
     Route::patch('/watch/episodes/{episode}/release', [WatchController::class, 'release'])->name('watch.episodes.release');

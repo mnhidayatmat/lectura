@@ -1005,6 +1005,14 @@ course who is not enrolled. Drafts are left out and locked or scheduled episodes
 404 `"Students can't see any episodes in this course yet."` when there is no series or every episode
 is a draft.
 
+### GET `lecturer/courses/{course}/watch/clips`
+
+Every clip of the course for its lecturer (the app's Clips menu), drafts and locked episodes
+included, ordered by episode then clip number. Each item is the student clip object
+(`student.md` → Watch clips, with the lecturer's own `liked`/`saved`) plus `is_available` (whether
+students can see it now) and `publish_at` (the clip's own hold-back, ISO-8601 or `null`). A lecturer
+of the course may like, save and comment on any of them through the student clip endpoints.
+
 ### GET `lecturer/watch/episodes/{episode}/preview`
 
 The student playback response (`GET student/watch/episodes/{episode}`) for any episode of the

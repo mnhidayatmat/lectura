@@ -131,6 +131,17 @@ class WatchController extends Controller
     }
 
     /**
+     * Every clip of the course, unreleased ones included, as the student feed shows them.
+     */
+    public function clips(Request $request, Course $course, WatchCatalog $catalog): JsonResponse
+    {
+        $this->ensureLecturer();
+        $this->authorizeCourse($course);
+
+        return response()->json(['data' => $catalog->courseClips($request->user(), $course)]);
+    }
+
+    /**
      * The student player for any episode of the course, drafts and locked ones included. Checks
      * carry their answers; nothing the lecturer does here is saved.
      */
