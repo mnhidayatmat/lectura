@@ -56,6 +56,33 @@ class WheelSpinApiTest extends LecturerApiTestCase
             ->assertJsonPath('data', null);
     }
 
+    public function test_the_spin_time_keeps_its_milliseconds_so_students_join_in_step(): void
+    {
+        $tenant = $this->createTenant();
+        $lecturer = $this->createMember($tenant, 'lecturer');
+        $section = $this->createSection($this->createCourse($tenant, $lecturer));
+        $session = $this->startAttendance($section, $lecturer);
+        $student = $this->createMember($tenant, 'student');
+        $this->enroll($section, $student);
+        $this->markAttendance($session, $student);
+
+        $this->travelTo(now()->startOfSecond()->addMilliseconds(900));
+        $this->actingAsApi($lecturer)
+            ->postJson($this->tenantApi($tenant, 'lecturer/wheel/spins'), [
+                'session_id' => $session->id,
+                'candidate_ids' => [$student->id],
+                'winner_id' => $student->id,
+                'turns' => 5,
+                'duration_ms' => 5000,
+            ])
+            ->assertOk();
+
+        $this->travel(300)->milliseconds();
+        $this->assertSame(900, RandomWheelSpin::first()->spun_at->milli);
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/wheel'))
+            ->assertJsonPath('data.elapsed_ms', 300);
+    }
+
     public function test_an_old_spin_is_no_longer_shown(): void
     {
         $tenant = $this->createTenant();

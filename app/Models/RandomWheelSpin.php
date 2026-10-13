@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -30,6 +31,15 @@ class RandomWheelSpin extends Model
             'duration_ms' => 'integer',
             'spun_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Stored to the millisecond (the column is `timestamp(3)`): students' wheels join the spin
+     * from `elapsed_ms`, and the default `Y-m-d H:i:s` format would put them up to a second ahead.
+     */
+    protected function spunAt(): Attribute
+    {
+        return Attribute::set(fn ($value) => $value === null ? null : $this->asDateTime($value)->format('Y-m-d H:i:s.v'));
     }
 
     public function attendanceSession(): BelongsTo
