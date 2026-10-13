@@ -100,7 +100,8 @@ final class WatchCatalog
 
     /**
      * Portrait clips of the episodes the student can already watch, by course code, then
-     * episode and clip order. A clip of a scheduled or locked episode stays hidden.
+     * episode and clip order. A clip of a scheduled or locked episode stays hidden, as does
+     * one whose own release time has not come.
      */
     public function clips(User $user, ?int $courseId = null, bool $saved = false): array
     {
@@ -116,7 +117,7 @@ final class WatchCatalog
             ->whereHas('episode', fn ($q) => $q->visible())
             ->with('episode.course')
             ->get()
-            ->filter(fn (EpisodeClip $clip) => $clip->episode->isAvailable());
+            ->filter(fn (EpisodeClip $clip) => $clip->isAvailable());
 
         $ids = $clips->pluck('id');
         $liked = $ids->isEmpty() ? collect() : DB::table('episode_clip_likes')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('episode_clip_id')->flip();
@@ -135,16 +136,15 @@ final class WatchCatalog
     }
 
     /**
-     * A clip the user may see and interact with: an enrolled student once its episode is
-     * available, or a lecturer of its course. Anything else is a 404, as if it did not exist.
+     * A clip the user may see and interact with: an enrolled student once it is released,
+     * or a lecturer of its course. Anything else is a 404, as if it did not exist.
      */
     public function authorizeClip(User $user, EpisodeClip $clip): void
     {
         $clip->loadMissing('episode.course');
         $episode = $clip->episode;
 
-        $visible = $episode !== null && $episode->isVisible() && $episode->isAvailable()
-            && $this->enrolledCourseIds($user)->contains((int) $clip->course_id);
+        $visible = $clip->isAvailable() && $this->enrolledCourseIds($user)->contains((int) $clip->course_id);
 
         if (! $visible && ! ($episode && $this->teachesCourse($user, (int) $clip->course_id))) {
             abort(404, 'That item could not be found. It may have been removed.');

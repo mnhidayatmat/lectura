@@ -10,12 +10,15 @@ use App\Models\EpisodeClip;
 use App\Services\Episodes\EpisodeMedia;
 use Illuminate\Console\Command;
 use Illuminate\Http\File;
+use Illuminate\Support\Carbon;
 
 /**
  * Imports portrait clips cut from a course's episodes. The folder holds the
  * MP4s, their poster JPEGs and a manifest.json listing one object per clip:
  * episode_number, clip_number, title, topic, takeaway, start_seconds,
- * duration_seconds, file, poster (file and poster relative to the folder).
+ * duration_seconds, file, poster (file and poster relative to the folder) and an
+ * optional publish_at (ISO-8601, or null to release with the episode; a row
+ * without the key keeps the clip's current release time).
  * Re-running updates the text and skips media already stored, so a folder can
  * grow as more clips are rendered.
  */
@@ -83,6 +86,9 @@ class ImportEpisodeClips extends Command
                 'start_seconds' => isset($row['start_seconds']) ? (int) floor((float) $row['start_seconds']) : null,
                 'duration_seconds' => isset($row['duration_seconds']) ? (int) round((float) $row['duration_seconds']) : null,
             ]);
+            if (array_key_exists('publish_at', $row)) {
+                $clip->publish_at = filled($row['publish_at']) ? Carbon::parse($row['publish_at'])->utc() : null;
+            }
 
             if ($dryRun) {
                 $this->line("{$label}: would be ".($isNew ? 'created' : 'updated')." ({$clip->title})");

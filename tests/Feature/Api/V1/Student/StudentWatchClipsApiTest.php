@@ -79,6 +79,31 @@ class StudentWatchClipsApiTest extends ApiTestCase
         $this->assertStringContainsString("/api/v1/watch/clips/{$first->id}/stream?expires=", $response->json('data.0.stream_url'));
     }
 
+    public function test_a_clip_releases_with_its_episode_unless_it_has_its_own_later_time(): void
+    {
+        [$tenant, , $student, $course] = $this->enrolledStudent();
+        $released = $this->episode($course, 1);
+        $withEpisode = $this->clip($released, 1);
+        $this->clip($released, 2, ['publish_at' => now()->addDay()]);
+        $due = $this->clip($released, 3, ['publish_at' => now()->subMinute()]);
+        $scheduled = $this->episode($course, 2, ['publish_at' => now()->addWeek()]);
+        $this->clip($scheduled, 1, ['publish_at' => now()->subDay()]);
+
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/watch/clips'))
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $withEpisode->id)
+            ->assertJsonPath('data.1.id', $due->id);
+
+        $this->travelTo(now()->addDays(2));
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/watch/clips'))
+            ->assertJsonCount(3, 'data');
+
+        $this->travelTo(now()->addWeek());
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'student/watch/clips'))
+            ->assertJsonCount(4, 'data');
+    }
+
     public function test_filters_by_course_and_refuses_other_courses(): void
     {
         [$tenant, $lecturer, $student, $course] = $this->enrolledStudent();
@@ -148,5 +173,21 @@ class StudentWatchClipsApiTest extends ApiTestCase
 
         $this->assertSame(1, EpisodeClip::count());
         $this->assertSame(['One, renamed', $clip->video_path], [$clip->fresh()->title, $clip->fresh()->video_path]);
+        $this->assertNull($clip->fresh()->publish_at);
+
+        $manifest[0]['publish_at'] = '2026-11-02T08:00:00+08:00';
+        file_put_contents("{$dir}/manifest.json", json_encode($manifest));
+        $this->artisan('watch:import-clips', ['course' => $course->id, 'dir' => $dir])->assertSuccessful();
+        $this->assertTrue($clip->fresh()->publish_at->eq('2026-11-02T00:00:00Z'));
+
+        unset($manifest[0]['publish_at']);
+        file_put_contents("{$dir}/manifest.json", json_encode($manifest));
+        $this->artisan('watch:import-clips', ['course' => $course->id, 'dir' => $dir])->assertSuccessful();
+        $this->assertNotNull($clip->fresh()->publish_at);
+
+        $manifest[0]['publish_at'] = null;
+        file_put_contents("{$dir}/manifest.json", json_encode($manifest));
+        $this->artisan('watch:import-clips', ['course' => $course->id, 'dir' => $dir])->assertSuccessful();
+        $this->assertNull($clip->fresh()->publish_at);
     }
 }

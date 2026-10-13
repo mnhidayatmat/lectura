@@ -248,11 +248,13 @@ class StudentClipInteractionsApiTest extends ApiTestCase
         $locked = $this->clip($this->episode($course, 1, ['status' => Episode::STATUS_LOCKED]));
         $other = $this->createCourse($tenant, $lecturer, ['code' => 'BTG3333']);
         $foreign = $this->clip($this->episode($other, 1));
+        $scheduled = $this->clip($this->episode($course, 2), 1);
+        $scheduled->update(['publish_at' => now()->addDay()]);
         $comment = ClipComment::create([
             'tenant_id' => $tenant->id, 'episode_clip_id' => $locked->id, 'user_id' => $lecturer->id, 'body' => 'Hidden',
         ]);
 
-        foreach ([$locked, $foreign] as $clip) {
+        foreach ([$locked, $foreign, $scheduled] as $clip) {
             $this->actingAsApi($student);
             $this->postJson($this->api($tenant, $clip, 'view'))->assertNotFound();
             $this->postJson($this->api($tenant, $clip, 'like'))->assertNotFound();

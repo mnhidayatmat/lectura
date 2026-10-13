@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A short portrait clip cut from an episode. Students see it once the episode
- * itself is available to them, so a clip never runs ahead of the series.
+ * A short portrait clip cut from an episode. It releases with its episode unless
+ * it has its own `publish_at`, which can only hold it back: a clip never runs
+ * ahead of the series.
  */
 class EpisodeClip extends Model
 {
@@ -32,6 +33,7 @@ class EpisodeClip extends Model
         'video_mime',
         'video_size_bytes',
         'poster_path',
+        'publish_at',
         'views_count',
         'likes_count',
         'comments_count',
@@ -45,6 +47,7 @@ class EpisodeClip extends Model
             'start_seconds' => 'integer',
             'duration_seconds' => 'integer',
             'video_size_bytes' => 'integer',
+            'publish_at' => 'datetime',
             'views_count' => 'integer',
             'likes_count' => 'integer',
             'comments_count' => 'integer',
@@ -60,6 +63,14 @@ class EpisodeClip extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function isAvailable(): bool
+    {
+        $episode = $this->episode;
+
+        return $episode !== null && $episode->isVisible() && $episode->isAvailable()
+            && ($this->publish_at === null || $this->publish_at->lte(now()));
     }
 
     public function comments(): HasMany

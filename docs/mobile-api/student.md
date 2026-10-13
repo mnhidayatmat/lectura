@@ -688,8 +688,9 @@ Save the playback position. Send it every ~10 s while playing, on pause, and whe
 ### GET `student/watch/clips?course_id=`
 
 Short portrait clips (9:16 mp4, under a minute or so) cut from the episodes, for a vertical swipe
-feed. A clip is listed only while its episode is available to the student, so clips of a scheduled,
-locked or draft episode stay hidden. Ordered by course code, then episode number, then clip number.
+feed. A clip is listed only once it is released: by default it releases with its episode (clips of
+a scheduled, locked or draft episode stay hidden), and a clip with its own `publish_at` waits for
+that time too. Its own time can only hold it back, never release it before the episode. Ordered by course code, then episode number, then clip number.
 `course_id` (optional) narrows the list to one course; a course the student is not enrolled in gives
 403 `You are not enrolled in this course.`
 
@@ -720,7 +721,8 @@ locked or draft episode stay hidden. Ordered by course code, then episode number
 - Clips have no progress, Quick Checks or downloads. They are imported with
   `php artisan watch:import-clips {course} {dir}` from a folder holding `manifest.json` (one object
   per clip: `episode_number, clip_number, title, topic, takeaway, start_seconds, duration_seconds,
-  file, poster`), the mp4s and their posters. Re-running updates the text and skips media already
+  file, poster`, plus an optional `publish_at` — ISO-8601, or `null` to release with the episode; a
+  row without the key keeps the clip's current time), the mp4s and their posters. Re-running updates the text and skips media already
   stored (`--replace-media` uploads again, `--dry-run` previews).
 
 ### Clip interactions (views, likes, saves, comments)
