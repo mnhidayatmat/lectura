@@ -55,9 +55,13 @@ class LiveHubController extends Controller
             ->limit(10)
             ->get();
 
+        // A live quiz nobody has touched for hours (a replayed copy never started, a run never
+        // ended) is not happening now; live quizzes have no auto-close, so leave it off the hub.
+        $staleHours = (int) config('lectura.active_learning.auto_close_hours');
         $liveQuizzes = $quizzes()
             ->where('category', 'live')
             ->whereIn('status', ['waiting', 'active', 'reviewing'])
+            ->when($staleHours > 0, fn ($q) => $q->where('updated_at', '>=', now()->subHours($staleHours)))
             ->latest()
             ->get();
 

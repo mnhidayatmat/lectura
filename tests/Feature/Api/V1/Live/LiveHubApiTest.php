@@ -53,6 +53,21 @@ class LiveHubApiTest extends ApiTestCase
             ->assertJsonCount(0, 'data.recent_sessions');
     }
 
+    public function test_a_live_quiz_left_untouched_for_hours_is_not_listed(): void
+    {
+        [$tenant, $lecturer, $student, $section] = $this->classroom();
+
+        $this->travelTo(now()->subHours(5));
+        $this->createQuiz($section, $lecturer, ['title' => 'Replayed, never started']);
+        $this->travelBack();
+        $fresh = $this->createQuiz($section, $lecturer, ['title' => 'Today']);
+
+        $this->actingAsApi($student)->getJson($this->tenantApi($tenant, 'live/hub'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.live_quizzes')
+            ->assertJsonPath('data.live_quizzes.0.id', $fresh->id);
+    }
+
     public function test_join_with_a_session_code_registers_the_participant(): void
     {
         [$tenant, $lecturer, $student, $section] = $this->classroom();

@@ -152,7 +152,8 @@ Never contains poll answers or the lecturer's solution.
 
 Lists (for the student's active section enrolments):
 - `active_sessions` — active-learning sessions in progress (SessionCard[])
-- `live_quizzes` — live quizzes with status `waiting | active | reviewing` (QuizCard[])
+- `live_quizzes` — live quizzes with status `waiting | active | reviewing`, updated within the last
+  `ACTIVE_LEARNING_AUTO_CLOSE_HOURS` (default 4), so a replayed copy never started or a run never ended drops off (QuizCard[])
 - `offline_quizzes` — offline quizzes open right now (`available_from ≤ now ≤ available_until`, not ended). `me.completed` tells whether the student already submitted.
 - `recent_sessions` — up to 10 completed sessions the student joined (latest first)
 - `recent_quizzes` — up to 10 quizzes the student joined that ended (or offline quizzes past their due time)
