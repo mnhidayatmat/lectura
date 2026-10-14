@@ -10,12 +10,13 @@ use App\Models\RandomWheelSpin;
 use App\Models\SectionStudent;
 use App\Models\User;
 use App\Notifications\RandomWheelPicked;
+use App\Notifications\RandomWheelSpinning;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Records the lecturer's spins so enrolled students can watch the wheel land,
- * and alerts their phones with who was picked once it stops.
+ * Records the lecturer's spins so enrolled students can watch the wheel land: their phones
+ * are told the moment it starts turning, and again with who was picked once it stops.
  */
 class WheelSpinService
 {
@@ -128,6 +129,13 @@ class WheelSpinService
 
         $course = $spin->section?->course;
         $winner = $spin->candidates[$spin->winner_index]['name'] ?? '';
+
+        // Straight away, so every phone opens the wheel and watches it turn.
+        Notification::send($students, new RandomWheelSpinning(
+            spinId: $spin->id,
+            courseId: $course?->id,
+            courseCode: $course?->code ?? '',
+        ));
 
         // Held back until the wheel stops, so the phones don't spoil the result.
         Notification::send($students, (new RandomWheelPicked(

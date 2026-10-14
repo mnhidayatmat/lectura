@@ -160,7 +160,7 @@ class WheelSpinApiTest extends LecturerApiTestCase
             ->assertForbidden();
     }
 
-    public function test_the_class_phones_are_alerted_with_who_was_picked(): void
+    public function test_the_class_phones_open_the_wheel_and_hear_who_was_picked(): void
     {
         $this->configureFcm();
         Http::fake([
@@ -191,8 +191,18 @@ class WheelSpinApiTest extends LecturerApiTestCase
             ])
             ->assertOk();
 
-        $sends = Http::recorded(fn (Request $request) => $request->url() === self::FCM_SEND)
-            ->mapWithKeys(fn ($pair) => [$pair[0]['message']['token'] => $pair[0]['message']]);
+        $messages = Http::recorded(fn (Request $request) => $request->url() === self::FCM_SEND)
+            ->map(fn ($pair) => $pair[0]['message']);
+
+        // The moment it spins, every phone is told to open the wheel, without naming the winner.
+        $spinning = $messages->filter(fn ($message) => ((array) $message['data'])['kind'] === 'random_wheel_spin')
+            ->mapWithKeys(fn ($message) => [$message['token'] => $message]);
+        $this->assertEqualsCanonicalizing(['winner-phone', 'classmate-phone'], $spinning->keys()->all());
+        $this->assertSame('Random wheel · BTG3333', $spinning['classmate-phone']['notification']['title']);
+        $this->assertStringNotContainsString('Aina', json_encode($spinning->all()));
+
+        $sends = $messages->filter(fn ($message) => ((array) $message['data'])['kind'] === 'random_wheel_pick')
+            ->mapWithKeys(fn ($message) => [$message['token'] => $message]);
 
         $this->assertSame("You've been picked!", $sends['winner-phone']['notification']['title']);
         $this->assertSame('1', ((array) $sends['winner-phone']['data'])['is_winner']);
