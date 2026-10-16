@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Assessment\AssessmentAnnouncer;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,15 +21,21 @@ class Assessment extends Model
         'tenant_id', 'course_id', 'student_group_set_id', 'parent_id',
         'title', 'type', 'method',
         'weightage', 'total_marks', 'bloom_level', 'sort_order',
-        'status', 'description', 'requires_submission', 'due_date',
+        'status', 'description', 'requires_submission', 'notify_students', 'announced_at', 'due_date',
         'instruction_file_path', 'instruction_file_name',
         'answer_scheme_path', 'answer_scheme_filename',
+    ];
+
+    protected $attributes = [
+        'notify_students' => true,
     ];
 
     protected function casts(): array
     {
         return [
             'requires_submission' => 'boolean',
+            'notify_students' => 'boolean',
+            'announced_at' => 'datetime',
             'due_date' => 'datetime',
         ];
     }
@@ -47,6 +54,12 @@ class Assessment extends Model
     ];
 
     public const STATUSES = ['draft', 'active', 'completed'];
+
+    protected static function booted(): void
+    {
+        // However it is released (web form, plan status change, script), students hear once.
+        static::saved(fn (Assessment $assessment) => app(AssessmentAnnouncer::class)->announceIfReleased($assessment));
+    }
 
     public function course(): BelongsTo
     {

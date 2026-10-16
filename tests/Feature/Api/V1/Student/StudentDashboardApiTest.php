@@ -19,6 +19,7 @@ class StudentDashboardApiTest extends ApiTestCase
         $this->createAssessment($course, [
             'title' => 'Project Report',
             'requires_submission' => true,
+            'notify_students' => false,
             'due_date' => now()->addDays(3),
         ]);
 

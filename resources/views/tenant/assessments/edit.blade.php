@@ -162,6 +162,15 @@
                                 @error('due_date') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
 
+                            <label class="flex items-start gap-3 px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                                <input type="hidden" name="notify_students" value="0">
+                                <input type="checkbox" name="notify_students" value="1" @checked(old('notify_students', $assessment->notify_students)) class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>
+                                    <span class="block text-sm font-medium text-slate-900 dark:text-white">Notify students when released</span>
+                                    <span class="block text-xs text-slate-400 mt-0.5">Enrolled students get a notification and a phone push once the assessment is Active.</span>
+                                </span>
+                            </label>
+
                             {{-- Require Group Submission --}}
                             <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <button type="button" @click="requiresGroupSubmission = !requiresGroupSubmission"

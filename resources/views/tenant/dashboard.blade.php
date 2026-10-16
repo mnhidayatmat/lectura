@@ -234,6 +234,62 @@
         {{-- Student Dashboard --}}
         <div class="space-y-6">
 
+            {{-- Assessments due: submitted green, within a week amber, within 48 hours red --}}
+            @if($dueAssessments->isNotEmpty())
+                @php
+                    $pendingCount = $dueAssessments->where('submitted', false)->count();
+                    $dueTones = [
+                        'urgent' => ['card' => 'bg-red-50 border-red-200', 'bar' => 'bg-red-500', 'text' => 'text-red-700 dark:text-red-400', 'badge' => 'bg-red-100 text-red-700 dark:text-red-400'],
+                        'soon' => ['card' => 'bg-amber-50 border-amber-200', 'bar' => 'bg-amber-500', 'text' => 'text-amber-700 dark:text-amber-400', 'badge' => 'bg-amber-100 text-amber-700 dark:text-amber-400'],
+                        'later' => ['card' => 'bg-blue-50 border-blue-200', 'bar' => 'bg-blue-500', 'text' => 'text-blue-700 dark:text-blue-400', 'badge' => 'bg-blue-100 text-blue-700 dark:text-blue-400'],
+                        'submitted' => ['card' => 'bg-emerald-50 border-emerald-200', 'bar' => 'bg-emerald-500', 'text' => 'text-emerald-700 dark:text-emerald-400', 'badge' => 'bg-emerald-100 text-emerald-700 dark:text-emerald-400'],
+                    ];
+                @endphp
+                <div class="bg-white rounded-2xl border-2 {{ $pendingCount > 0 ? 'border-red-200' : 'border-emerald-200' }} overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-9 h-9 rounded-xl {{ $pendingCount > 0 ? 'bg-red-100 text-red-600 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:text-emerald-400' }} flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            </span>
+                            <div class="min-w-0">
+                                <h3 class="font-semibold text-slate-900">Assessments due</h3>
+                                <p class="text-xs text-slate-500">{{ $pendingCount > 0 ? $pendingCount.' to submit' : 'All submitted' }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ route('tenant.my-assessments', $tenant->slug) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex-shrink-0">View all</a>
+                    </div>
+                    <div class="p-3 space-y-2">
+                        @foreach($dueAssessments as $item)
+                            @php
+                                $a = $item['assessment'];
+                                $t = $dueTones[$item['tone']];
+                            @endphp
+                            <a href="{{ route('tenant.my-assessments.show', [$tenant->slug, $a->course, $a]) }}"
+                               class="relative flex items-center gap-3 rounded-xl border {{ $t['card'] }} pl-4 pr-3 py-3 overflow-hidden hover:shadow-sm transition">
+                                <span class="absolute left-0 inset-y-0 w-1.5 {{ $t['bar'] }}"></span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-slate-900 truncate">{{ $a->title }}</p>
+                                    <p class="text-xs mt-0.5 {{ $t['text'] }}">
+                                        {{ $a->course->code }} · Due {{ $a->due_date->copy()->timezone($tenant->timezone ?: config('app.timezone'))->format('D j M, g:i A') }}
+                                        @unless($item['submitted']) · {{ $a->due_date->diffForHumans(['parts' => 1]) }} @endunless
+                                    </p>
+                                </div>
+                                @if($item['submitted'])
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 {{ $t['badge'] }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                        Submitted
+                                    </span>
+                                @else
+                                    <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 {{ $t['badge'] }}">
+                                        {{ $item['tone'] === 'urgent' ? 'Due soon' : 'Submit' }}
+                                    </span>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             {{-- Welcome --}}
             <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-6 text-white relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8"></div>
@@ -334,20 +390,6 @@
                         @endforeach
                     </div>
                 @endif
-            </div>
-
-            {{-- Upcoming Deadlines --}}
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100">
-                    <h3 class="font-semibold text-slate-900">Upcoming Deadlines</h3>
-                </div>
-                <div class="p-6 flex flex-col items-center text-center">
-                    <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mb-3">
-                        <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <p class="text-sm text-slate-500">No upcoming deadlines</p>
-                    <p class="text-xs text-slate-400 mt-1">Assignment due dates will appear here</p>
-                </div>
             </div>
 
             {{-- Recent Marks --}}

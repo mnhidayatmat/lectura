@@ -317,6 +317,8 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - **Scoring**: `AssessmentScore` (per-student), `AssessmentItem` (question/rubric line items), `AssessmentCloScore` (per-CLO attainment). `AssessmentScoreService` computes scores; supports manual entry and compute-from-items. Scores are released/unreleased to students (gated visibility)
 - **Submissions**: `AssessmentSubmission` + `AssessmentSubmissionFile`; lecturers mark, annotate (image annotations via `SubmissionAnnotationController`), and `SubmissionReportStampingService` stamps report PDFs
 - Assessment reports/exports at `/courses/{course}/assessment-reports`; student view at `/my-assessments`
+- Release notice: `Assessment::booted()` calls `AssessmentAnnouncer` on every save, which sends `AssessmentPublished` (database + FCM, kind `assessment_published`) to the course's active students once (`announced_at`, claimed atomically) when an assessment with `requires_submission` and `notify_students` (default on, a checkbox on the create/edit forms) becomes `active`/`completed`. Rows already visible when the column arrived were stamped as announced
+- Student dashboard opens with "Assessments due" (`DashboardController::dueAssessments`, next five by due date): submitted green with a check, otherwise blue → amber within 7 days → red within 48 hours. The app's Home "Coming up" uses the same rule (`deadlineTone`)
 
 ### Student Groups & Group Workspace
 

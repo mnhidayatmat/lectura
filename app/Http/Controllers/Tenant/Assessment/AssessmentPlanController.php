@@ -167,6 +167,7 @@ class AssessmentPlanController extends Controller
             'clo_ids' => ['nullable', 'array'],
             'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
+            'notify_students' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date' => ['nullable', 'date'],
@@ -216,6 +217,7 @@ class AssessmentPlanController extends Controller
             'bloom_level' => $request->bloom_level,
             'description' => $request->description,
             'requires_submission' => $requiresSubmission,
+            'notify_students' => $request->boolean('notify_students', true),
             'due_date' => $request->due_date,
             'sort_order' => $course->assessments()->count(),
             'status' => $initialStatus,
@@ -298,6 +300,7 @@ class AssessmentPlanController extends Controller
             'clo_ids' => ['nullable', 'array'],
             'clo_ids.*' => ['integer', 'exists:course_learning_outcomes,id'],
             'requires_submission' => ['nullable', 'boolean'],
+            'notify_students' => ['nullable', 'boolean'],
             'requires_group_submission' => ['nullable', 'boolean'],
             'student_group_set_id' => ['nullable', 'exists:student_group_sets,id'],
             'due_date' => ['nullable', 'date'],
@@ -326,6 +329,7 @@ class AssessmentPlanController extends Controller
             ]),
             [
                 'requires_submission' => $requiresSubmission,
+                'notify_students' => $request->boolean('notify_students', $assessment->notify_students),
                 'student_group_set_id' => $requiresGroupSubmission ? $request->student_group_set_id : null,
             ]
         ));
