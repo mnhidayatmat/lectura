@@ -34,7 +34,7 @@
                             <span class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">{{ $q->points }} pts</span>
                         </div>
                         <div class="p-6">
-                            <p class="text-base font-semibold text-slate-900 dark:text-white mb-5">{{ $q->text }}</p>
+                            <p class="text-base font-semibold text-slate-900 dark:text-white mb-5 whitespace-pre-line">{{ $q->text }}</p>
 
                             <div class="space-y-3">
                                 @foreach($q->options as $opt)

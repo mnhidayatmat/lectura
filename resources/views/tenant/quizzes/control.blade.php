@@ -161,7 +161,7 @@
                     <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ $q->time_limit_seconds }}s &middot; {{ $q->points }} pts</span>
                 </div>
                 <div class="p-6">
-                    <p class="text-lg font-semibold text-slate-900 mb-6">{{ $q->text }}</p>
+                    <p class="text-lg font-semibold text-slate-900 mb-6 whitespace-pre-line">{{ $q->text }}</p>
 
                     {{-- Distribution bars — no correct answer highlight yet --}}
                     <div class="space-y-3">
@@ -201,7 +201,7 @@
                     <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ $q->points }} pts</span>
                 </div>
                 <div class="p-6">
-                    <p class="text-lg font-semibold text-slate-900 mb-6">{{ $q->text }}</p>
+                    <p class="text-lg font-semibold text-slate-900 mb-6 whitespace-pre-line">{{ $q->text }}</p>
 
                     {{-- Distribution bars WITH correct answer highlight --}}
                     <div class="space-y-3">

@@ -119,7 +119,7 @@
                                 <a href="#question-{{ $item->number }}" class="flex items-start gap-3 rounded-xl bg-white/70 dark:bg-slate-800/60 px-3 py-2 hover:bg-white dark:hover:bg-slate-800 transition">
                                     <span class="text-xs font-bold text-red-700 dark:text-red-400 mt-0.5 flex-shrink-0">Q{{ $item->number }}</span>
                                     <span class="flex-1 min-w-0">
-                                        <span class="block text-sm text-slate-800 dark:text-slate-200">{{ $item->question->text }}</span>
+                                        <span class="block text-sm text-slate-800 dark:text-slate-200 whitespace-pre-line">{{ $item->question->text }}</span>
                                         @if($item->top_wrong)
                                             <span class="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">Most common wrong answer: <strong>{{ $item->top_wrong['label'] }} – {{ $item->top_wrong['text'] }}</strong> ({{ $item->top_wrong['count'] }})</span>
                                         @endif
@@ -207,7 +207,7 @@
                     <div id="question-{{ $stat->number }}" class="px-5 sm:px-6 py-5 scroll-mt-20">
                         <div class="flex items-start justify-between gap-3">
                             <p class="text-sm font-medium text-slate-900 dark:text-white">
-                                <span class="text-slate-400 mr-1">Q{{ $stat->number }}.</span>{{ $q->text }}
+                                <span class="text-slate-400 mr-1">Q{{ $stat->number }}.</span><span class="whitespace-pre-line">{{ $q->text }}</span>
                             </p>
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 {{ $pctTone($stat->correct_pct) }}">
                                 {{ $stat->correct_pct === null ? 'No answers' : $stat->correct_pct.'% correct' }}

@@ -40,7 +40,7 @@
                         </span>
                     </div>
                     <div class="p-6">
-                        <p class="text-sm font-semibold text-slate-900 dark:text-white mb-4">{{ $q->text }}</p>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-white mb-4 whitespace-pre-line">{{ $q->text }}</p>
                         <div class="space-y-2">
                             @foreach($q->options as $opt)
                                 @php

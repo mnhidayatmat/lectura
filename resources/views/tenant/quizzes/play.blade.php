@@ -34,7 +34,7 @@
                     <span class="text-xs font-medium" :class="answered ? 'text-emerald-600' : 'text-indigo-600'" x-text="answered ? 'Answered!' : (question?.points || 1) + ' pts'"></span>
                 </div>
 
-                <p class="text-lg font-semibold text-slate-900 mb-6" x-text="question?.text"></p>
+                <p class="text-lg font-semibold text-slate-900 mb-6 whitespace-pre-line" x-text="question?.text"></p>
 
                 <div class="space-y-3">
                     <template x-for="opt in question?.options || []" :key="opt.id">
