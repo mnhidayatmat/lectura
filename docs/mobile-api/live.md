@@ -18,6 +18,7 @@ Routes (names prefixed `api.v1.tenant.live.`):
 | POST | `live/join` | Resolve a 6-char join code to a session or quiz |
 | GET | `live/quizzes/{quiz}` | Quiz bootstrap (registers participant when playable) |
 | GET | `live/quizzes/{quiz}/state` | Live quiz state — poll every ~2 s |
+| POST | `live/quizzes/{quiz}/nickname` | Set the name shown on the board (lobby) |
 | POST | `live/quizzes/{quiz}/respond` | Answer the open live question |
 | POST | `live/quizzes/{quiz}/submit-offline` | Submit all answers of an offline quiz |
 | GET | `live/quizzes/{quiz}/result` | Personal result with correct answers |
@@ -264,9 +265,18 @@ Poll every ~2 s while the screen is visible; stop when `phase == "finished"`. Th
 | `phase` | `lobby` (waiting for lecturer) · `answering` (a question is open) · `reveal` (last question closed; answer + standings shown) · `finished` (reviewing/ended) |
 | `participant_count` | joined students |
 | `question_total` | |
-| `question` | `answering`: open Question + `remaining_seconds` (int, informational — the lecturer closes the question). `reveal`: revealed Question + `remaining_seconds: null`. Otherwise `null` |
-| `me` | `joined`, `display_name`, `score`, `answered`, `selected_option_id`, `answer_text` (for the current question), `is_correct` + `points_earned` (reveal only; `null` if no answer = "Time's up"), `rank` (reveal/finished; ties share a rank) |
-| `leaderboard` | reveal/finished: top 10 `[{rank, name, score, is_me}]`, else `null`; ties share a rank like `me.rank` (1, 1, 3). Names are pseudonyms for anonymous quizzes |
+| `question` | `answering`: open Question + `remaining_seconds` (int). The timer is enforced: answers more than 3 s after it runs out are refused, and the lecturer's board closes the question when it hits 0 or everyone has answered. `reveal`: revealed Question + `remaining_seconds: null`. Otherwise `null` |
+| `me` | `joined`, `display_name` (the nickname shown on the board), `score` (marks), `points` (game points), `answered`, `selected_option_id`, `answer_text` (for the current question); reveal only: `is_correct` + `points_earned` (marks; both `null` if no answer = "Time's up") and `points_gained` (game points); reveal/finished: `rank` + `previous_rank` |
+| `leaderboard` | reveal/finished: top 10 `[{rank, previous_rank, name, score, points, gained, is_me}]`, else `null`. Names are nicknames (pseudonyms for anonymous quizzes) |
+
+**Game points (Mentimeter style).** Live quizzes rank by game points, not marks. A correct answer earns
+500–1000 points: 1000 at once, falling linearly to 500 at the time limit, timed by the server from
+when the question opened (`response_time_ms` from the app is ignored). Wrong or no answer earns 0.
+Marks (`score`, `points_earned`) are unchanged — the question's points for a correct answer — and are
+what grading and `GET result`'s `score`/`max_score` use. Ranking order: points, then marks; equal on
+both share a rank (1, 1, 3). `previous_rank` is the rank before the question just revealed (`null`
+after the first question, when nobody had scored yet), so `previous_rank - rank` is the movement (▲/▼);
+`gained` is what that question added. `GET result` adds `points` and, for live quizzes, ranks by them.
 
 Lobby:
 ```json
@@ -320,10 +330,10 @@ Reveal:
       ],
       "correct_option_id": 2, "explanation": "Explanation 1", "remaining_seconds": null
     },
-    "me": { "joined": true, "display_name": "Nur Aina", "score": 2, "answered": true, "selected_option_id": 2, "answer_text": null, "is_correct": true, "points_earned": 2, "rank": 1 },
+    "me": { "joined": true, "display_name": "Nur Aina", "score": 2, "points": 935, "answered": true, "selected_option_id": 2, "answer_text": null, "is_correct": true, "points_earned": 2, "points_gained": 935, "rank": 1, "previous_rank": null },
     "leaderboard": [
-      { "rank": 1, "name": "Nur Aina", "score": 2, "is_me": true },
-      { "rank": 2, "name": "Hafiz Rahman", "score": 0, "is_me": false }
+      { "rank": 1, "previous_rank": null, "name": "Nur Aina", "score": 2, "points": 935, "gained": 935, "is_me": true },
+      { "rank": 2, "previous_rank": null, "name": "Hafiz Rahman", "score": 0, "points": 0, "gained": 0, "is_me": false }
     ]
   }
 }
@@ -345,6 +355,19 @@ Finished (show final score + rank; offer `GET result`):
 ```
 
 Errors: `422 "This quiz is not a live quiz."` (offline quiz), `403`, `404`.
+
+### POST `live/quizzes/{quiz}/nickname` (live quizzes only)
+
+Sets the name shown on the lecturer's board and leaderboards (offer it in the lobby). Joins the student if needed.
+
+Body: `{ "nickname": "Pipe Master" }` — required, max 30 characters; control characters are removed and
+spaces collapsed.
+
+Success (`200`): `{ "message": "Name saved.", "data": { "display_name": "Pipe Master" } }`
+
+Errors: `422 errors.nickname` (missing, too long, or blank after cleaning: "Please enter a name."),
+`422 "This quiz is not running."` (offline or ended), `422 "Names are hidden in this quiz."` (anonymous),
+`403 "You are not enrolled in this section."`.
 
 ### POST `live/quizzes/{quiz}/respond` (live quizzes only)
 
@@ -368,6 +391,7 @@ Duplicate (`200`, returns the stored answer):
 Errors:
 - `403 "You have not joined this quiz."` — call `GET live/quizzes/{quiz}` (or join) first.
 - `422 "Question is not active."` — question closed/not open yet (refresh state).
+- `422 "Time is up for this question."` — more than 3 s past the question's time limit.
 - `422 errors.session_question_id` (missing), `errors.selected_option_id` ("Please choose an answer." / "The selected option is invalid."), `errors.answer_text` ("Please type your answer.").
 - `422 "This quiz is not a live quiz."`, `403 "You are not enrolled in this section."`.
 

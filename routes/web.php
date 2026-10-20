@@ -445,6 +445,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/quiz/join', [QuizController::class, 'join'])->name('tenant.quizzes.join');
         Route::get('/quiz/{session}/play', [QuizController::class, 'play'])->name('tenant.quizzes.play');
         Route::post('/quiz/{session}/respond', [QuizController::class, 'respond'])->name('tenant.quizzes.respond');
+        Route::post('/quiz/{session}/nickname', [QuizController::class, 'nickname'])->name('tenant.quizzes.nickname');
         Route::get('/quiz/{session}/student-state', [QuizController::class, 'studentState'])->name('tenant.quizzes.student-state');
         Route::post('/quiz/{session}/submit-offline', [QuizController::class, 'submitOffline'])->name('tenant.quizzes.submit-offline');
         Route::get('/quiz/{session}/offline-result', [QuizController::class, 'offlineResult'])->name('tenant.quizzes.offlineResult');

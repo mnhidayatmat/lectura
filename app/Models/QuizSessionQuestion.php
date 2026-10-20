@@ -13,13 +13,14 @@ class QuizSessionQuestion extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'quiz_session_id', 'question_id', 'sort_order', 'status', 'opened_at', 'closed_at',
+        'quiz_session_id', 'question_id', 'sort_order', 'status', 'opened_at', 'opened_at_ms', 'closed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'opened_at' => 'datetime',
+            'opened_at_ms' => 'integer',
             'closed_at' => 'datetime',
         ];
     }

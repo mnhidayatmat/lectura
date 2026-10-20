@@ -12,10 +12,9 @@ use App\Models\QuizParticipant;
 use App\Models\QuizResponse;
 use App\Models\QuizSession;
 use App\Models\QuizSessionQuestion;
-use Illuminate\Database\UniqueConstraintViolationException;
+use App\Services\Quiz\LiveQuizService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -23,7 +22,7 @@ class QuizPlayController extends Controller
 {
     use InteractsWithLiveQuizzes;
 
-    private const STATE_CACHE_SECONDS = 2;
+    public function __construct(private LiveQuizService $game) {}
 
     public function show(Request $request, QuizSession $session): JsonResponse
     {
@@ -71,74 +70,36 @@ class QuizPlayController extends Controller
             abort(422, 'This quiz is not a live quiz.');
         }
 
-        $shared = Cache::remember(
-            "api_quiz_session_{$session->id}_state",
-            self::STATE_CACHE_SECONDS,
-            fn () => $this->sharedState($session),
-        );
+        return response()->json(['data' => $this->game->playerState($session, $this->findParticipant($session, $user))]);
+    }
 
-        $participant = $this->findParticipant($session, $user);
-        $phase = $shared['phase'];
-        $question = $shared['question'];
+    public function nickname(Request $request, QuizSession $session): JsonResponse
+    {
+        $request->validate([
+            'nickname' => ['required', 'string', 'max:'.LiveQuizService::NICKNAME_MAX],
+        ]);
 
-        if ($question && $phase === 'answering' && $question['opened_at']) {
-            $elapsed = now()->getTimestamp() - strtotime($question['opened_at']);
-            $question['remaining_seconds'] = max(0, $question['time_limit'] - $elapsed);
-        } elseif ($question) {
-            $question['remaining_seconds'] = null;
+        $user = $request->user();
+        $this->authorizeQuiz($session, $user);
+
+        if ($session->isOffline() || ! $session->isLive()) {
+            abort(422, 'This quiz is not running.');
         }
 
-        $me = [
-            'joined' => $participant !== null,
-            'display_name' => $participant?->display_name,
-            'score' => (float) ($participant?->total_score ?? 0),
-            'answered' => false,
-            'selected_option_id' => null,
-            'answer_text' => null,
-            'is_correct' => null,
-            'points_earned' => null,
-            'rank' => null,
-        ];
-
-        if ($participant && $question && in_array($phase, ['answering', 'reveal'], true)) {
-            $response = QuizResponse::where('quiz_session_question_id', $question['session_question_id'])
-                ->where('quiz_participant_id', $participant->id)
-                ->first();
-
-            $me['answered'] = $response !== null;
-            $me['selected_option_id'] = $response?->selected_option_id;
-            $me['answer_text'] = $response?->answer_text;
-
-            if ($phase === 'reveal') {
-                $me['is_correct'] = $response ? (bool) $response->is_correct : null;
-                $me['points_earned'] = $response ? (float) $response->points_earned : null;
-            }
+        if ($session->is_anonymous) {
+            abort(422, 'Names are hidden in this quiz.');
         }
 
-        if ($participant && in_array($phase, ['reveal', 'finished'], true)) {
-            $me['rank'] = QuizParticipant::where('quiz_session_id', $session->id)
-                ->where('total_score', '>', $participant->total_score)
-                ->count() + 1;
+        if ($this->game->cleanNickname($request->nickname) === '') {
+            throw ValidationException::withMessages(['nickname' => 'Please enter a name.']);
         }
 
-        $leaderboard = $shared['leaderboard'] === null ? null : array_map(function (array $entry) use ($participant) {
-            $entry['is_me'] = $participant !== null && $entry['participant_id'] === $participant->id;
-            unset($entry['participant_id']);
-
-            return $entry;
-        }, $shared['leaderboard']);
+        $participant = $this->registerParticipant($session, $user);
+        $this->game->rename($participant, $request->nickname);
 
         return response()->json([
-            'data' => [
-                'server_time' => now()->toIso8601String(),
-                'status' => $shared['status'],
-                'phase' => $phase,
-                'participant_count' => $shared['participant_count'],
-                'question_total' => $shared['question_total'],
-                'question' => $question,
-                'me' => $me,
-                'leaderboard' => $leaderboard,
-            ],
+            'message' => 'Name saved.',
+            'data' => ['display_name' => $participant->fresh()->display_name],
         ]);
     }
 
@@ -174,6 +135,10 @@ class QuizPlayController extends Controller
             abort(422, 'Question is not active.');
         }
 
+        if ($this->game->isExpired($sq) && ! QuizResponse::where('quiz_session_question_id', $sq->id)->where('quiz_participant_id', $participant->id)->exists()) {
+            abort(422, 'Time is up for this question.');
+        }
+
         $existing = QuizResponse::where('quiz_session_question_id', $sq->id)
             ->where('quiz_participant_id', $participant->id)
             ->first();
@@ -200,32 +165,12 @@ class QuizPlayController extends Controller
             throw ValidationException::withMessages(['selected_option_id' => 'Please choose an answer.']);
         }
 
-        $isCorrect = $option !== null && $option->is_correct;
-        $points = $isCorrect ? (float) $question->points : 0;
+        [$response, $existing] = $this->game->answer($participant, $sq, $option, $answerText);
 
-        try {
-            $response = QuizResponse::create([
-                'quiz_session_question_id' => $sq->id,
-                'quiz_participant_id' => $participant->id,
-                'selected_option_id' => $option?->id,
-                'answer_text' => $answerText !== '' ? $answerText : null,
-                'is_correct' => $isCorrect,
-                'points_earned' => $points,
-                'response_time_ms' => $request->response_time_ms,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            $existing = QuizResponse::where('quiz_session_question_id', $sq->id)
-                ->where('quiz_participant_id', $participant->id)
-                ->firstOrFail();
-
-            return response()->json(['message' => 'Already answered.', 'data' => $this->answerData($existing)]);
-        }
-
-        if ($points > 0) {
-            $participant->increment('total_score', $points);
-        }
-
-        return response()->json(['message' => 'Answer submitted.', 'data' => $this->answerData($response)]);
+        return response()->json([
+            'message' => $existing ? 'Already answered.' : 'Answer submitted.',
+            'data' => $this->answerData($response),
+        ]);
     }
 
     public function submitOffline(Request $request, QuizSession $session): JsonResponse
@@ -304,79 +249,6 @@ class QuizPlayController extends Controller
         return response()->json(['data' => $this->resultData($session, $participant)]);
     }
 
-    /**
-     * Session-wide state shared by every student (cached briefly).
-     */
-    private function sharedState(QuizSession $session): array
-    {
-        $questions = $session->sessionQuestions()->with('question.options')->get();
-        $active = $questions->firstWhere('status', 'active');
-        $closed = null;
-
-        $phase = match (true) {
-            $session->status === 'waiting' => 'lobby',
-            in_array($session->status, ['reviewing', 'ended'], true) => 'finished',
-            $active !== null => 'answering',
-            default => 'reveal',
-        };
-
-        if ($phase === 'reveal') {
-            $closed = $questions->where('status', 'closed')->sortByDesc('closed_at')->first();
-
-            if (! $closed) {
-                $phase = 'lobby';
-            }
-        }
-
-        $current = $phase === 'answering' ? $active : ($phase === 'reveal' ? $closed : null);
-        $question = null;
-
-        if ($current) {
-            $position = $questions->search(fn (QuizSessionQuestion $q) => $q->id === $current->id) + 1;
-            $question = (new QuizQuestionResource($current, $position, $questions->count(), $phase === 'reveal'))->resolve();
-        }
-
-        $leaderboard = null;
-
-        if (in_array($phase, ['reveal', 'finished'], true)) {
-            // Ties share a rank ("1, 1, 3"), matching `me.rank` and the result screen.
-            $rank = 0;
-            $previousScore = null;
-            $leaderboard = QuizParticipant::where('quiz_session_id', $session->id)
-                ->with('user:id,name')
-                ->orderByDesc('total_score')
-                ->orderBy('id')
-                ->take(10)
-                ->get()
-                ->values()
-                ->map(function (QuizParticipant $p, int $i) use ($session, &$rank, &$previousScore) {
-                    $score = (float) $p->total_score;
-
-                    if ($score !== $previousScore) {
-                        $rank = $i + 1;
-                        $previousScore = $score;
-                    }
-
-                    return [
-                        'rank' => $rank,
-                        'participant_id' => $p->id,
-                        'name' => $session->is_anonymous ? $p->display_name : ($p->user?->name ?? $p->display_name),
-                        'score' => $score,
-                    ];
-                })
-                ->all();
-        }
-
-        return [
-            'status' => $session->status,
-            'phase' => $phase,
-            'participant_count' => QuizParticipant::where('quiz_session_id', $session->id)->count(),
-            'question_total' => $questions->count(),
-            'question' => $question,
-            'leaderboard' => $leaderboard,
-        ];
-    }
-
     private function resultAvailable(QuizSession $session, int $answeredCount): bool
     {
         if ($session->isOffline()) {
@@ -418,9 +290,12 @@ class QuizPlayController extends Controller
             'correct_count' => $correctCount,
             'question_count' => $total,
             'accuracy' => $total > 0 ? (int) round($correctCount / $total * 100) : 0,
-            'rank' => QuizParticipant::where('quiz_session_id', $session->id)
-                ->where('total_score', '>', $participant->total_score)
-                ->count() + 1,
+            'rank' => $session->isOffline()
+                ? QuizParticipant::where('quiz_session_id', $session->id)
+                    ->where('total_score', '>', $participant->total_score)
+                    ->count() + 1
+                : $this->game->standings($session)->firstWhere('participant_id', $participant->id)['rank'] ?? null,
+            'points' => (int) $participant->game_score,
             'participant_count' => QuizParticipant::where('quiz_session_id', $session->id)->count(),
             'questions' => $questions,
         ];

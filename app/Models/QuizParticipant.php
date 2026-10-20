@@ -11,13 +11,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class QuizParticipant extends Model
 {
     protected $fillable = [
-        'quiz_session_id', 'user_id', 'display_name', 'total_score', 'joined_at',
+        'quiz_session_id', 'user_id', 'display_name', 'total_score', 'game_score', 'joined_at',
     ];
 
     protected function casts(): array
     {
         return [
             'total_score' => 'decimal:2',
+            'game_score' => 'integer',
             'joined_at' => 'datetime',
         ];
     }

@@ -283,6 +283,14 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - Auto-marks absent students when session ends
 - Manual status override: present, late, absent, excused
 
+### Live Quiz (Mentimeter style)
+
+- `App\Services\Quiz\LiveQuizService` is the one game engine for the web board, the web player and the mobile API: start / close / advance / finish, speed scoring, nicknames, standings, `boardState()` (lecturer) and `playerState()` (students, same payload on web and API, session part cached 2 s)
+- Two scores: **marks** (`quiz_responses.points_earned`, `quiz_participants.total_score`, the question's points for a correct answer — used by results/grading) and **game points** (`game_points`, `game_score`): 1000 for an instant correct answer down to 500 at the time limit, timed from `quiz_session_questions.opened_at_ms`. Live rankings (board, player, app, results page) sort by game points, then marks
+- The timer is enforced: answers more than `GRACE_MS` (3 s) past the limit get 422. The board (`resources/js/quiz-board.js`, `tenant/quizzes/control.blade.php`) auto-closes a question at 0 s or when everyone answered; flow is lobby (join code + QR, names pop in) → question → answer bars → animated leaderboard (rank movement via `previous_rank`, `null` before anyone scored) → … → podium → End & save. Space/→/PageDown advance (clickers), F toggles full screen
+- Students set a nickname in the lobby (`display_name`, max 30, not for anonymous quizzes): web `POST /quiz/{session}/nickname`, API `POST live/quizzes/{quiz}/nickname`. The web player is `resources/js/quiz-player.js`
+- `sessionQuestions()` is ordered by `sort_order`; call `reorder()` before ordering by `closed_at`
+
 ### Random Present Student Wheel
 
 - Lecturer tool for randomly selecting present students during class

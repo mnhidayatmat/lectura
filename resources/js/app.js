@@ -7,6 +7,8 @@ import { mathModal } from './tiptap-math';
 import groupChat from './group-chat';
 import activitySorter from './activity-sorter';
 import listSorter from './list-sorter';
+import quizBoard from './quiz-board';
+import quizPlayer from './quiz-player';
 
 window.QRCode = QRCode;
 
@@ -28,6 +30,8 @@ Alpine.data('mathModal', mathModal);
 Alpine.data('groupChat', groupChat);
 Alpine.data('activitySorter', activitySorter);
 Alpine.data('listSorter', listSorter);
+Alpine.data('quizBoard', quizBoard);
+Alpine.data('quizPlayer', quizPlayer);
 
 // Also expose on window for any inline x-data expressions
 window.tiptapEditor = tiptapEditor;

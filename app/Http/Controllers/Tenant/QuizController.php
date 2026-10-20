@@ -18,6 +18,7 @@ use App\Models\QuizSession;
 use App\Models\QuizSessionQuestion;
 use App\Models\Section;
 use App\Models\SectionStudent;
+use App\Services\Quiz\LiveQuizService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,8 @@ class QuizController extends Controller
 {
     use AuthorizesCourseAccess;
     use RedirectsToCourseContext;
+
+    public function __construct(private LiveQuizService $game) {}
 
     /**
      * Quiz list for lecturer — grouped by course, then by folder.
@@ -468,140 +471,81 @@ class QuizController extends Controller
     }
 
     /**
-     * Lecturer control panel — run the quiz live.
+     * Lecturer's presenter board — run the quiz live (lobby, questions, standings, podium).
      */
     public function control(string $tenantSlug, QuizSession $session): View
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeOwner($session);
 
-        $session->load([
-            'section.course',
-            'sessionQuestions.question.options',
-            'sessionQuestions.responses',
-            'participants.user',
-        ]);
+        $session->load('section.course');
+        $board = $this->game->boardState($session);
+        $joinUrl = route('tenant.quizzes.join', [app('current_tenant')->slug, 'code' => $session->join_code]);
 
-        $questions = $session->sessionQuestions;
-        $activeQ = $session->activeQuestion();
-
-        // Determine phase and the question to display
-        $phase = 'answering';
-        $revealQ = null;
-        $revealIndex = -1;
-        $currentIndex = $activeQ ? $questions->search(fn ($q) => $q->id === $activeQ->id) : -1;
-        $responseCount = $activeQ ? $activeQ->responses->count() : 0;
-
-        if (! $activeQ && $session->status === 'active') {
-            $revealQ = $questions->where('status', 'closed')->sortByDesc('closed_at')->first();
-            if ($revealQ) {
-                $phase = 'reveal';
-                $revealIndex = $questions->search(fn ($q) => $q->id === $revealQ->id);
-                $responseCount = $revealQ->responses->count();
-            }
-        }
-
-        return view('tenant.quizzes.control', compact(
-            'session', 'questions', 'activeQ', 'phase', 'revealQ', 'revealIndex', 'currentIndex', 'responseCount'
-        ));
+        return view('tenant.quizzes.control', compact('session', 'board', 'joinUrl'));
     }
 
     /**
-     * API: Start the quiz (move from waiting to active, open first question).
+     * Start the quiz: lobby closes and the first question opens.
      */
-    public function start(string $tenantSlug, QuizSession $session): RedirectResponse
+    public function start(Request $request, string $tenantSlug, QuizSession $session): JsonResponse|RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeOwner($session);
+        $this->game->start($session);
 
-        if ($session->status !== 'waiting') {
-            return back();
-        }
-
-        $session->update(['status' => 'active', 'started_at' => now()]);
-
-        $firstQ = $session->sessionQuestions()->orderBy('sort_order')->first();
-        if ($firstQ) {
-            $firstQ->update(['status' => 'active', 'opened_at' => now()]);
-        }
-
-        Cache::forget("quiz_session_{$session->id}_state");
-        Cache::forget("quiz_session_{$session->id}_lobby");
-
-        return back();
+        return $this->boardResponse($request, $session);
     }
 
     /**
-     * Close the current active question — enters the reveal phase.
-     * Students see results + leaderboard. Lecturer sees correct-answer distribution.
+     * Close the open question — the board shows the answers, then the standings.
      */
-    public function closeQuestion(string $tenantSlug, QuizSession $session): RedirectResponse
+    public function closeQuestion(Request $request, string $tenantSlug, QuizSession $session): JsonResponse|RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeOwner($session);
+        $this->game->closeActive($session);
 
-        $current = $session->activeQuestion();
-        if ($current) {
-            $current->update(['status' => 'closed', 'closed_at' => now()]);
-        }
-
-        Cache::forget("quiz_session_{$session->id}_state");
-
-        return back();
+        return $this->boardResponse($request, $session);
     }
 
     /**
-     * Advance to the next question (only callable during reveal phase, after closeQuestion).
+     * Open the next question, or move to the final standings after the last one.
      */
-    public function nextQuestion(string $tenantSlug, QuizSession $session): RedirectResponse
+    public function nextQuestion(Request $request, string $tenantSlug, QuizSession $session): JsonResponse|RedirectResponse
     {
-        if ($session->lecturer_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizeOwner($session);
+        $this->game->advance($session);
 
-        // Open next pending question
-        $next = $session->sessionQuestions()->where('status', 'pending')->orderBy('sort_order')->first();
-        if ($next) {
-            $next->update(['status' => 'active', 'opened_at' => now()]);
-        } else {
-            // No more questions — move to reviewing
-            $session->update(['status' => 'reviewing']);
-        }
-
-        Cache::forget("quiz_session_{$session->id}_state");
-
-        return back();
+        return $this->boardResponse($request, $session);
     }
 
     /**
      * End quiz session.
      */
-    public function end(string $tenantSlug, QuizSession $session): RedirectResponse
+    public function end(Request $request, string $tenantSlug, QuizSession $session): JsonResponse|RedirectResponse
+    {
+        $this->authorizeOwner($session);
+        $this->game->finish($session);
+
+        $url = route('tenant.quizzes.results', ['tenant' => app('current_tenant')->slug, 'session' => $session->id]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['redirect' => $url]);
+        }
+
+        return redirect($url)->with('success', 'Quiz ended.');
+    }
+
+    protected function authorizeOwner(QuizSession $session): void
     {
         if ($session->lecturer_id !== auth()->id()) {
             abort(403);
         }
+    }
 
-        // Close any active question
-        $session->sessionQuestions()->where('status', 'active')->update(['status' => 'closed', 'closed_at' => now()]);
-
-        // Calculate scores
-        foreach ($session->participants as $participant) {
-            $total = QuizResponse::where('quiz_participant_id', $participant->id)->sum('points_earned');
-            $participant->update(['total_score' => $total]);
-        }
-
-        $session->update(['status' => 'ended', 'ended_at' => now()]);
-
-        Cache::forget("quiz_session_{$session->id}_state");
-
-        return redirect()->route('tenant.quizzes.results', [
-            'tenant' => app('current_tenant')->slug,
-            'session' => $session->id,
-        ])->with('success', 'Quiz ended.');
+    protected function boardResponse(Request $request, QuizSession $session): JsonResponse|RedirectResponse
+    {
+        return $request->expectsJson()
+            ? response()->json($this->game->boardState($session))
+            : back();
     }
 
     /**
@@ -710,32 +654,44 @@ class QuizController extends Controller
         $hardest = $answeredQuestions->sortBy('correct_pct')->first();
         $reteach = $answeredQuestions->where('correct_pct', '<', 60)->sortBy('correct_pct')->take(3)->values();
 
+        // Live runs rank by game points (speed), like the board; offline quizzes by marks.
+        $live = ! $session->isOffline();
         $rank = 0;
-        $previousScore = null;
-        $leaderboard = $participants->sortByDesc('total_score')->values()->map(function (QuizParticipant $p, int $i) use (&$rank, &$previousScore, $session, $questionCount) {
-            $score = (float) $p->total_score;
-            if ($previousScore === null || $score < $previousScore) {
-                $rank = $i + 1;
-            }
-            $previousScore = $score;
+        $previousKey = null;
+        $leaderboard = $participants
+            ->sort(fn (QuizParticipant $a, QuizParticipant $b) => $live
+                ? [$b->game_score, (float) $b->total_score, $a->id] <=> [$a->game_score, (float) $a->total_score, $b->id]
+                : [(float) $b->total_score, $a->id] <=> [(float) $a->total_score, $b->id])
+            ->values()
+            ->map(function (QuizParticipant $p, int $i) use (&$rank, &$previousKey, $session, $questionCount, $live) {
+                $score = (float) $p->total_score;
+                $key = $live ? $p->game_score.'|'.$score : (string) $score;
+                if ($key !== $previousKey) {
+                    $rank = $i + 1;
+                }
+                $previousKey = $key;
 
-            $answered = $p->responses->count();
-            $correct = $p->responses->where('is_correct', true)->count();
-            $avgMs = $p->responses->whereNotNull('response_time_ms')->avg('response_time_ms');
+                $answered = $p->responses->count();
+                $correct = $p->responses->where('is_correct', true)->count();
+                $avgMs = $p->responses->whereNotNull('response_time_ms')->avg('response_time_ms');
+                $realName = $p->user?->name;
 
-            return (object) [
-                'rank' => $rank,
-                'name' => $session->is_anonymous
-                    ? ($p->display_name ?: 'Anonymous')
-                    : ($p->user?->name ?? $p->display_name ?? 'Student'),
-                'score' => $score,
-                'correct' => $correct,
-                'answered' => $answered,
-                'unanswered' => max(0, $questionCount - $answered),
-                'accuracy' => $answered > 0 ? (int) round($correct / $answered * 100) : 0,
-                'avg_seconds' => $avgMs !== null ? round($avgMs / 1000, 1) : null,
-            ];
-        });
+                return (object) [
+                    'rank' => $rank,
+                    'name' => $session->is_anonymous
+                        ? ($p->display_name ?: 'Anonymous')
+                        : ($realName ?? $p->display_name ?? 'Student'),
+                    'nickname' => ! $session->is_anonymous && $p->display_name && $p->display_name !== $realName
+                        ? $p->display_name : null,
+                    'score' => $score,
+                    'points' => $live ? (int) $p->game_score : null,
+                    'correct' => $correct,
+                    'answered' => $answered,
+                    'unanswered' => max(0, $questionCount - $answered),
+                    'accuracy' => $answered > 0 ? (int) round($correct / $answered * 100) : 0,
+                    'avg_seconds' => $avgMs !== null ? round($avgMs / 1000, 1) : null,
+                ];
+            });
 
         $totalResponses = $questionStats->sum('answered');
         $summary = [
@@ -767,63 +723,13 @@ class QuizController extends Controller
     }
 
     /**
-     * API: Get quiz state (polled by lecturer control panel).
-     *
-     * Phase 'answering' — active question is open, correct answer NOT included.
-     * Phase 'reveal'    — question is closed, correct answer included for display.
+     * API: board state for the lecturer's presenter screen (polled).
      */
     public function state(string $tenantSlug, QuizSession $session): JsonResponse
     {
         $this->authorizeSessionView($session);
 
-        $activeQ = $session->activeQuestion();
-
-        // Determine phase
-        $phase = 'answering';
-        $questionForState = $activeQ;
-
-        if (! $activeQ && $session->status === 'active') {
-            // Reveal phase: show the most-recently-closed question
-            $questionForState = $session->sessionQuestions()
-                ->where('status', 'closed')
-                ->latest('closed_at')
-                ->first();
-            $phase = $questionForState ? 'reveal' : 'answering';
-        }
-
-        $responseCount = 0;
-        $distribution = [];
-        $correctLabel = null;
-
-        if ($questionForState) {
-            $responseCount = QuizResponse::where('quiz_session_question_id', $questionForState->id)->count();
-
-            $countsByOption = QuizResponse::where('quiz_session_question_id', $questionForState->id)
-                ->whereNotNull('selected_option_id')
-                ->selectRaw('selected_option_id, COUNT(*) as cnt')
-                ->groupBy('selected_option_id')
-                ->pluck('cnt', 'selected_option_id');
-
-            $question = $questionForState->question()->with('options')->first();
-            foreach ($question->options as $opt) {
-                $distribution[$opt->label] = $countsByOption[$opt->id] ?? 0;
-                if ($phase === 'reveal' && $opt->is_correct) {
-                    $correctLabel = $opt->label;
-                }
-            }
-        }
-
-        $participantCount = QuizParticipant::where('quiz_session_id', $session->id)->count();
-
-        return response()->json([
-            'status' => $session->status,
-            'phase' => $phase,
-            'participants' => $participantCount,
-            'responses' => $responseCount,
-            'distribution' => $distribution,
-            'correct_label' => $correctLabel,  // null during answering phase
-            'active_question_id' => $activeQ?->id,
-        ]);
+        return response()->json($this->game->boardState($session));
     }
 
     // ── Student Endpoints ──
@@ -928,64 +834,76 @@ class QuizController extends Controller
         $request->validate([
             'session_question_id' => ['required', 'integer'],
             'selected_option_id' => ['nullable', 'integer'],
-            'answer_text' => ['nullable', 'string'],
-            'response_time_ms' => ['nullable', 'integer'],
+            'answer_text' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $user = auth()->user();
         $participant = QuizParticipant::where('quiz_session_id', $session->id)
-            ->where('user_id', $user->id)->first();
+            ->where('user_id', auth()->id())->first();
 
         if (! $participant) {
-            return response()->json(['error' => 'Not joined.'], 403);
+            return response()->json(['message' => 'Not joined.'], 403);
         }
 
         $sq = QuizSessionQuestion::where('id', $request->session_question_id)
             ->where('quiz_session_id', $session->id)
             ->where('status', 'active')
+            ->with('question.options')
             ->first();
 
         if (! $sq) {
-            return response()->json(['error' => 'Question is not active.'], 422);
+            return response()->json(['message' => 'Question is not active.'], 422);
         }
 
-        // Check duplicate
-        $existing = QuizResponse::where('quiz_session_question_id', $sq->id)
-            ->where('quiz_participant_id', $participant->id)->first();
+        $option = $request->filled('selected_option_id')
+            ? $sq->question->options->firstWhere('id', (int) $request->selected_option_id)
+            : null;
 
-        if ($existing) {
-            return response()->json(['message' => 'Already answered.']);
+        if ($request->filled('selected_option_id') && ! $option) {
+            return response()->json(['message' => 'The selected option is invalid.'], 422);
         }
 
-        // Score
-        $isCorrect = false;
-        $points = 0;
-        $question = $sq->question;
+        $answered = QuizResponse::where('quiz_session_question_id', $sq->id)
+            ->where('quiz_participant_id', $participant->id)
+            ->exists();
 
-        if ($request->selected_option_id) {
-            $option = QuestionOption::find($request->selected_option_id);
-            $isCorrect = $option && $option->is_correct;
-            $points = $isCorrect ? (float) $question->points : 0;
+        if (! $answered && $this->game->isExpired($sq)) {
+            return response()->json(['message' => 'Time is up for this question.'], 422);
         }
 
-        $response = QuizResponse::create([
-            'quiz_session_question_id' => $sq->id,
-            'quiz_participant_id' => $participant->id,
-            'selected_option_id' => $request->selected_option_id,
-            'answer_text' => $request->answer_text,
-            'is_correct' => $isCorrect,
-            'points_earned' => $points,
-            'response_time_ms' => $request->response_time_ms,
-        ]);
-
-        // Increment score in-place — avoids a SUM recalculation across all responses
-        if ($points > 0) {
-            $participant->increment('total_score', $points);
-        }
+        [, $existing] = $this->game->answer($participant, $sq, $option, trim((string) $request->answer_text));
 
         return response()->json([
-            'message' => 'Answer submitted.',
+            'message' => $existing ? 'Already answered.' : 'Answer submitted.',
         ]);
+    }
+
+    /**
+     * Student picks the name shown on the board and leaderboard.
+     */
+    public function nickname(Request $request, string $tenantSlug, QuizSession $session): JsonResponse
+    {
+        $request->validate([
+            'nickname' => ['required', 'string', 'max:'.LiveQuizService::NICKNAME_MAX],
+        ]);
+
+        if ($session->isOffline() || ! $session->isLive() || $session->is_anonymous) {
+            return response()->json(['message' => 'Names cannot be changed in this quiz.'], 422);
+        }
+
+        if ($this->game->cleanNickname($request->nickname) === '') {
+            return response()->json(['message' => 'Please enter a name.', 'errors' => ['nickname' => ['Please enter a name.']]], 422);
+        }
+
+        $participant = QuizParticipant::where('quiz_session_id', $session->id)
+            ->where('user_id', auth()->id())->first();
+
+        if (! $participant) {
+            return response()->json(['message' => 'Not joined.'], 403);
+        }
+
+        $this->game->rename($participant, $request->nickname);
+
+        return response()->json(['message' => 'Name saved.', 'display_name' => $participant->fresh()->display_name]);
     }
 
     /**
@@ -1091,7 +1009,7 @@ class QuizController extends Controller
                 ->get()
                 ->map(fn ($p) => [
                     'id' => $p->id,
-                    'name' => $session->is_anonymous ? $p->display_name : ($p->user->name ?? $p->display_name),
+                    'name' => $this->game->displayName($p),
                     'joined_at' => optional($p->joined_at)->toIso8601String(),
                 ])
                 ->values();
@@ -1107,137 +1025,14 @@ class QuizController extends Controller
     }
 
     /**
-     * API: Get current question state for student (polling — live quiz).
-     *
-     * The active question and session status are cached for 3 seconds and shared
-     * across all students in the session. Only per-student data (answered/score)
-     * is queried individually, keeping DB load flat regardless of participant count.
+     * API: live quiz state for the student's player (polled). Same payload as the mobile API.
      */
     public function studentState(string $tenantSlug, QuizSession $session): JsonResponse
     {
-        $user = auth()->user();
-
-        // Shared cache: same active question and phase for every student — busted on lecturer action
-        $shared = Cache::remember("quiz_session_{$session->id}_state", 3, function () use ($session) {
-            $activeQ = $session->activeQuestion();
-
-            // Reveal phase: no active question but session still running
-            if (! $activeQ && $session->status === 'active') {
-                $closedQ = $session->sessionQuestions()
-                    ->where('status', 'closed')
-                    ->latest('closed_at')
-                    ->first();
-
-                if ($closedQ) {
-                    $q = $closedQ->question()->with('options')->first();
-                    $correctOptionId = $q->options->where('is_correct', true)->first()?->id;
-
-                    // Leaderboard is stable during reveal (no new answers possible)
-                    $leaderboard = QuizParticipant::where('quiz_session_id', $session->id)
-                        ->with('user:id,name')
-                        ->orderByDesc('total_score')
-                        ->take(10)
-                        ->get()
-                        ->values()
-                        ->map(fn ($p, $i) => [
-                            'rank' => $i + 1,
-                            'name' => $session->is_anonymous ? $p->display_name : $p->user->name,
-                            'score' => (float) $p->total_score,
-                        ]);
-
-                    return [
-                        'status' => $session->status,
-                        'phase' => 'reveal',
-                        'active_q_id' => null,
-                        'closed_q_id' => $closedQ->id,
-                        'correct_option_id' => $correctOptionId,
-                        'question' => null,
-                        'leaderboard' => $leaderboard,
-                    ];
-                }
-            }
-
-            if (! $activeQ) {
-                return [
-                    'status' => $session->status,
-                    'phase' => 'done',
-                    'active_q_id' => null,
-                    'closed_q_id' => null,
-                    'question' => null,
-                    'leaderboard' => null,
-                    'participant_count' => QuizParticipant::where('quiz_session_id', $session->id)->count(),
-                ];
-            }
-
-            $q = $activeQ->question()->with('options')->first();
-
-            return [
-                'status' => $session->status,
-                'phase' => 'answering',
-                'active_q_id' => $activeQ->id,
-                'closed_q_id' => null,
-                'correct_option_id' => null,
-                'question' => [
-                    'session_question_id' => $activeQ->id,
-                    'text' => $q->text,
-                    'type' => $q->question_type,
-                    'time_limit' => $q->time_limit_seconds,
-                    'points' => $q->points,
-                    'options' => $q->options->map(fn ($o) => [
-                        'id' => $o->id,
-                        'label' => $o->label,
-                        'text' => $o->text,
-                    ])->toArray(),
-                ],
-                'leaderboard' => null,
-            ];
-        });
-
-        // Per-student queries (fast: uses unique index on quiz_participants + quiz_responses)
         $participant = QuizParticipant::where('quiz_session_id', $session->id)
-            ->where('user_id', $user->id)
-            ->select(['id', 'total_score'])
+            ->where('user_id', auth()->id())
             ->first();
 
-        $answered = false;
-        $myAnswer = null;   // selected_option_id during reveal
-        $isCorrect = null;  // bool during reveal
-        $myRank = null;     // int during reveal
-
-        if ($shared['phase'] === 'answering' && $shared['active_q_id'] && $participant) {
-            $answered = QuizResponse::where('quiz_session_question_id', $shared['active_q_id'])
-                ->where('quiz_participant_id', $participant->id)
-                ->exists();
-        }
-
-        if ($shared['phase'] === 'reveal' && $shared['closed_q_id'] && $participant) {
-            $myResponse = QuizResponse::where('quiz_session_question_id', $shared['closed_q_id'])
-                ->where('quiz_participant_id', $participant->id)
-                ->select(['selected_option_id', 'is_correct'])
-                ->first();
-
-            $myAnswer = $myResponse?->selected_option_id;
-            $isCorrect = $myResponse?->is_correct;
-
-            // Rank = number of participants scoring higher + 1
-            $myRank = QuizParticipant::where('quiz_session_id', $session->id)
-                ->where('total_score', '>', $participant->total_score)
-                ->count() + 1;
-        }
-
-        return response()->json([
-            'status' => $shared['status'],
-            'phase' => $shared['phase'],
-            'question' => $shared['question'],
-            'answered' => $answered,
-            'score' => $participant?->total_score ?? 0,
-            // Reveal-phase fields
-            'correct_option_id' => $shared['correct_option_id'] ?? null,
-            'my_answer' => $myAnswer,
-            'is_correct' => $isCorrect,
-            'my_rank' => $myRank,
-            'leaderboard' => $shared['leaderboard'],
-            'participant_count' => $shared['participant_count'] ?? null,
-        ]);
+        return response()->json($this->game->playerState($session, $participant));
     }
 }

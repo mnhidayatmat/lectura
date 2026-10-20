@@ -11,6 +11,7 @@ Route::prefix('live')->name('live.')->group(function () {
 
     Route::get('/quizzes/{session}', [QuizPlayController::class, 'show'])->name('quizzes.show');
     Route::get('/quizzes/{session}/state', [QuizPlayController::class, 'state'])->name('quizzes.state');
+    Route::post('/quizzes/{session}/nickname', [QuizPlayController::class, 'nickname'])->name('quizzes.nickname');
     Route::post('/quizzes/{session}/respond', [QuizPlayController::class, 'respond'])->name('quizzes.respond');
     Route::post('/quizzes/{session}/submit-offline', [QuizPlayController::class, 'submitOffline'])->name('quizzes.submit-offline');
     Route::get('/quizzes/{session}/result', [QuizPlayController::class, 'result'])->name('quizzes.result');

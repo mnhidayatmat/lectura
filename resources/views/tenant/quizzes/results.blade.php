@@ -146,6 +146,9 @@
                             <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 text-slate-500 dark:text-slate-400">
                                 <th class="text-center px-4 py-3 font-medium w-14">Rank</th>
                                 <th class="text-left px-4 py-3 font-medium">Student</th>
+                                @unless($session->isOffline())
+                                    <th class="text-center px-4 py-3 font-medium">Points</th>
+                                @endunless
                                 <th class="text-center px-4 py-3 font-medium">Score</th>
                                 <th class="text-center px-4 py-3 font-medium">Correct</th>
                                 <th class="text-center px-4 py-3 font-medium hidden sm:table-cell">Accuracy</th>
@@ -167,9 +170,17 @@
                                             <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-300 flex-shrink-0">
                                                 {{ Str::upper(Str::substr($row->name, 0, 1)) }}
                                             </div>
-                                            <span class="font-medium text-slate-900 dark:text-white truncate">{{ $row->name }}</span>
+                                            <div class="min-w-0">
+                                                <span class="block font-medium text-slate-900 dark:text-white truncate">{{ $row->name }}</span>
+                                                @if($row->nickname)
+                                                    <span class="block text-[11px] text-slate-400 truncate">as “{{ $row->nickname }}”</span>
+                                                @endif
+                                            </div>
                                         </div>
                                     </td>
+                                    @unless($session->isOffline())
+                                        <td class="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200 tabular-nums whitespace-nowrap">{{ number_format($row->points) }}</td>
+                                    @endunless
                                     <td class="px-4 py-3 text-center font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
                                         {{ rtrim(rtrim(number_format($row->score, 1), '0'), '.') }}<span class="text-xs font-normal text-slate-400"> / {{ rtrim(rtrim(number_format($summary['max_score'], 1), '0'), '.') }}</span>
                                     </td>

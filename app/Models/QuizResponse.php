@@ -11,7 +11,7 @@ class QuizResponse extends Model
 {
     protected $fillable = [
         'quiz_session_question_id', 'quiz_participant_id', 'answer_text',
-        'selected_option_id', 'is_correct', 'points_earned', 'response_time_ms',
+        'selected_option_id', 'is_correct', 'points_earned', 'game_points', 'response_time_ms',
     ];
 
     protected function casts(): array
@@ -19,6 +19,7 @@ class QuizResponse extends Model
         return [
             'is_correct' => 'boolean',
             'points_earned' => 'decimal:2',
+            'game_points' => 'integer',
         ];
     }
 
