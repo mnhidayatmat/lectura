@@ -101,6 +101,9 @@ return [
     */
 
     'quiz' => [
+        // A live quiz with no activity (opened, started, question opened or closed) for this
+        // many hours is ended automatically (0 turns this off).
+        'auto_close_hours' => (int) env('QUIZ_AUTO_CLOSE_HOURS', 3),
         'max_concurrent_participants' => env('QUIZ_MAX_PARTICIPANTS', 100),
         'default_time_limit_seconds' => 30,
         'join_code_length' => 6,

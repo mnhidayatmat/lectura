@@ -49,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Auto-close active-learning sessions left open (throttled; works without cron)
         $middleware->appendToGroup('web', \App\Http\Middleware\CloseStaleActiveLearningSessions::class);
         $middleware->appendToGroup('api', \App\Http\Middleware\CloseStaleActiveLearningSessions::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\CloseStaleLiveQuizzes::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\CloseStaleLiveQuizzes::class);
 
         // MCP + OAuth endpoints — no CSRF cookie needed
         $middleware->validateCsrfTokens(except: [

@@ -111,6 +111,50 @@ class LiveQuizService
         $this->forget($session);
     }
 
+    /**
+     * End live quizzes left open with no activity for `lectura.quiz.auto_close_hours`:
+     * a lobby nobody started, or a run the lecturer never ended. Returns how many closed.
+     */
+    public function closeStale(): int
+    {
+        $hours = (int) config('lectura.quiz.auto_close_hours');
+        if ($hours <= 0) {
+            return 0;
+        }
+
+        // Quizzes of every institution are swept, so run without the request's tenant binding.
+        $tenant = app()->bound('current_tenant') ? app('current_tenant') : null;
+        app()->forgetInstance('current_tenant');
+
+        $closed = 0;
+        try {
+            $cutoff = now()->subHours($hours);
+
+            QuizSession::withoutGlobalScopes()
+                ->where('category', 'live')
+                ->whereIn('status', ['waiting', 'active', 'reviewing'])
+                ->where('updated_at', '<=', $cutoff)
+                ->whereDoesntHave('sessionQuestions', fn ($q) => $q
+                    ->where('opened_at', '>', $cutoff)
+                    ->orWhere('closed_at', '>', $cutoff))
+                ->get()
+                ->each(function (QuizSession $session) use (&$closed) {
+                    try {
+                        $this->finish($session);
+                        $closed++;
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                });
+        } finally {
+            if ($tenant !== null) {
+                app()->instance('current_tenant', $tenant);
+            }
+        }
+
+        return $closed;
+    }
+
     public function open(QuizSessionQuestion $question): void
     {
         $question->update(['status' => 'active', 'opened_at' => now(), 'opened_at_ms' => $this->nowMs()]);

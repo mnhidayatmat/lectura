@@ -9,6 +9,7 @@ use App\Models\QuizSession;
 use App\Models\QuizSessionQuestion;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Tests\Feature\Api\V1\ApiTestCase;
 use Tests\Feature\Api\V1\Live\Concerns\BuildsLiveFixtures;
 
@@ -251,6 +252,51 @@ class LiveQuizGameTest extends ApiTestCase
             $this->actingAs($student)->postJson("/{$tenant->slug}/quizzes/{$quiz->id}/{$action}")->assertForbidden();
         }
         $this->assertSame('waiting', $quiz->fresh()->status);
+    }
+
+    public function test_quizzes_left_idle_for_hours_are_closed_on_the_next_request(): void
+    {
+        [$tenant, $lecturer, $student, $section] = $this->classroom();
+
+        Carbon::setTestNow('2026-10-20 08:00:00');
+        $lobby = $this->createQuiz($section, $lecturer, ['title' => 'Lobby nobody started']);
+        $running = $this->runningQuiz($section, $lecturer, [$student]);
+        $busy = $this->runningQuiz($section, $lecturer, [$student]);
+        $offline = $this->createQuiz($section, $lecturer, [
+            'category' => 'offline', 'status' => 'active', 'available_from' => now(), 'available_until' => now()->addDays(7),
+        ]);
+
+        // Two hours later the third quiz moves on; nothing has been idle for three hours yet.
+        Carbon::setTestNow('2026-10-20 10:00:00');
+        $this->actingAs($lecturer)->postJson("/{$tenant->slug}/quizzes/{$busy->id}/close")->assertOk();
+        $this->actingAs($lecturer)->postJson("/{$tenant->slug}/quizzes/{$busy->id}/next")->assertOk();
+        $this->assertSame('waiting', $lobby->fresh()->status);
+
+        Carbon::setTestNow('2026-10-20 11:30:00');
+        Cache::forget('live-quiz:sweep');
+        $this->actingAs($student)->get("/{$tenant->slug}/dashboard");
+
+        $this->assertSame('ended', $lobby->fresh()->status);
+        $this->assertSame('ended', $running->fresh()->status);
+        $this->assertNotNull($running->fresh()->ended_at);
+        $this->assertSame('active', $busy->fresh()->status, 'a question opened 1.5 h ago keeps the quiz open');
+        $this->assertSame('active', $offline->fresh()->status, 'offline quizzes follow their own window');
+    }
+
+    public function test_the_close_stale_command_and_turning_it_off(): void
+    {
+        [, $lecturer, , $section] = $this->classroom();
+        Carbon::setTestNow('2026-10-20 08:00:00');
+        $quiz = $this->createQuiz($section, $lecturer);
+        Carbon::setTestNow('2026-10-20 12:00:00');
+
+        config(['lectura.quiz.auto_close_hours' => 0]);
+        $this->artisan('quizzes:close-stale')->expectsOutput('0 quiz(zes) closed.')->assertSuccessful();
+        $this->assertSame('waiting', $quiz->fresh()->status);
+
+        config(['lectura.quiz.auto_close_hours' => 3]);
+        $this->artisan('quizzes:close-stale')->expectsOutput('1 quiz(zes) closed.')->assertSuccessful();
+        $this->assertSame('ended', $quiz->fresh()->status);
     }
 
     /**

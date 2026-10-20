@@ -24,3 +24,10 @@ Artisan::command('active-learning:close-stale', function (\App\Services\ActiveLe
 })->purpose('End active-learning sessions left open past the time limit');
 
 Schedule::command('active-learning:close-stale')->everyTenMinutes()->withoutOverlapping();
+
+// Live quizzes: end lobbies and runs left idle past QUIZ_AUTO_CLOSE_HOURS.
+Artisan::command('quizzes:close-stale', function (\App\Services\Quiz\LiveQuizService $quizzes) {
+    $this->info($quizzes->closeStale().' quiz(zes) closed.');
+})->purpose('End live quizzes left open with no activity past the time limit');
+
+Schedule::command('quizzes:close-stale')->everyTenMinutes()->withoutOverlapping();
