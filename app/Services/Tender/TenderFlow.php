@@ -213,7 +213,7 @@ class TenderFlow
             if (! $judge->submitted_at || $judge->reconciled_at) {
                 throw new TenderRuleException('You have finished reconciling.');
             }
-            $open = $this->compiler->reconcilable($this->compiler->compile($session));
+            $open = $session->reconcile_criteria ?? [];
 
             DB::transaction(function () use ($judge, $scores, $open, $criteria) {
                 foreach ($scores as $row) {
@@ -321,11 +321,16 @@ class TenderFlow
         if ($session->reconcile_started_at) {
             throw new TenderRuleException('The Judges have already had their reconcile round.');
         }
-        if ($this->compiler->compile($session)['flag_count'] === 0) {
+        $sheet = $this->compiler->compile($session);
+        if ($sheet['flag_count'] === 0) {
             throw new TenderRuleException('Nothing is flagged, so there is nothing to reconcile.');
         }
 
-        $session->update(['status' => 'reconcile', 'reconcile_started_at' => now()]);
+        $session->update([
+            'status' => 'reconcile',
+            'reconcile_started_at' => now(),
+            'reconcile_criteria' => $this->compiler->reconcilable($sheet),
+        ]);
 
         return $session;
     }
@@ -612,6 +617,7 @@ class TenderFlow
             $judge->session->update([
                 'status' => 'scoring',
                 'reconcile_started_at' => null,
+                'reconcile_criteria' => null,
                 'reconciled_at' => null,
                 'review_status' => null,
                 'reviewed_at' => null,

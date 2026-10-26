@@ -151,7 +151,7 @@ class TenderPresenter
                 'communication' => $p->communication,
             ])->values()->all(),
             // Which rows to look at again; never the other Judge's levels.
-            'reconcile_criteria' => $reconcile ? $this->compiler->reconcilable($this->compiler->compile($session)) : [],
+            'reconcile_criteria' => $reconcile ? ($session->reconcile_criteria ?? []) : [],
         ];
     }
 

@@ -16,7 +16,7 @@ class TenderSession extends Model
 
     protected $fillable = [
         'tender_game_id', 'code', 'week', 'sort_order', 'status', 'first_company', 'lead_group_a',
-        'lead_group_b', 'change_order_note', 'scoring_started_at', 'reconcile_started_at', 'reconciled_at',
+        'lead_group_b', 'change_order_note', 'scoring_started_at', 'reconcile_started_at', 'reconcile_criteria', 'reconciled_at',
         'announced_at', 'winner', 'tie_break', 'sudden_death_winner', 'result', 'review_status',
         'review_comment', 'reviewed_by', 'reviewed_at',
     ];
@@ -29,6 +29,7 @@ class TenderSession extends Model
             'lead_group_b' => 'integer',
             'scoring_started_at' => 'datetime',
             'reconcile_started_at' => 'datetime',
+            'reconcile_criteria' => 'array',
             'reconciled_at' => 'datetime',
             'announced_at' => 'datetime',
             'reviewed_at' => 'datetime',

@@ -246,6 +246,15 @@ class TenderApiTest extends ApiTestCase
         $this->actingAsApi($j2)->getJson($this->url("sessions/{$session->id}"))
             ->assertJsonPath('data.my_judge.reconcile_criteria', ['intro']);
 
+        // Judge 1 moves Intro A to 3, which clears the flag; the row stays open for the round.
+        $this->actingAsApi($j1)->putJson($this->url("sessions/{$session->id}/card"), ['scores' => [
+            ['criterion' => 'intro', 'level_a' => 3, 'level_b' => 3],
+        ]])->assertOk()->assertJsonPath('data.my_judge.reconcile_criteria', ['intro']);
+        $this->putJson($this->url("sessions/{$session->id}/card"), ['scores' => [
+            ['criterion' => 'intro', 'level_a' => 4, 'level_b' => 3],
+        ]])->assertOk()->assertJsonPath('data.my_judge.scores.0.level_a_after', null);
+
+        $this->actingAsApi($j2);
         // Judge 2 moves Intro A to 3; a change to an unflagged row is ignored.
         $this->putJson($this->url("sessions/{$session->id}/card"), ['scores' => [
             ['criterion' => 'intro', 'level_a' => 3, 'level_b' => 3],
