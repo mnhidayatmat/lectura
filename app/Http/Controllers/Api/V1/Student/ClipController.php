@@ -25,10 +25,14 @@ class ClipController extends Controller
     public function view(Request $request, EpisodeClip $clip): JsonResponse
     {
         $this->catalog->authorizeClip($request->user(), $clip);
+        $request->validate(['completed' => ['nullable', 'boolean']]);
 
         return response()->json([
             'message' => 'View recorded.',
-            'data' => ['views_count' => $this->interactions->recordView($request->user(), $clip)],
+            'data' => [
+                'views_count' => $this->interactions->recordView($request->user(), $clip, $request->boolean('completed')),
+                'watched' => $this->catalog->hasWatchedClip($request->user(), $clip),
+            ],
         ]);
     }
 

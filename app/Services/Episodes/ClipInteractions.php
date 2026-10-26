@@ -24,36 +24,43 @@ final class ClipInteractions
 
     public function __construct(private readonly WatchCatalog $catalog) {}
 
-    public function recordView(User $user, EpisodeClip $clip): int
+    /**
+     * Counts a play (once per window) and, with [completed], marks the clip watched
+     * the first time the student plays it to its end.
+     */
+    public function recordView(User $user, EpisodeClip $clip, bool $completed = false): int
     {
-        DB::transaction(function () use ($user, $clip) {
+        DB::transaction(function () use ($user, $clip, $completed) {
             $view = DB::table('episode_clip_views')
                 ->where('episode_clip_id', $clip->id)
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
                 ->first();
 
-            if ($view && $view->last_viewed_at && now()->subMinutes(self::VIEW_WINDOW_MINUTES)->lt($view->last_viewed_at)) {
-                return;
-            }
+            $counts = ! ($view && $view->last_viewed_at && now()->subMinutes(self::VIEW_WINDOW_MINUTES)->lt($view->last_viewed_at));
 
             if ($view) {
-                DB::table('episode_clip_views')->where('id', $view->id)->update([
-                    'plays' => $view->plays + 1,
-                    'last_viewed_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $changes = $counts ? ['plays' => $view->plays + 1, 'last_viewed_at' => now()] : [];
+                if ($completed && $view->completed_at === null) {
+                    $changes['completed_at'] = now();
+                }
+                if ($changes !== []) {
+                    DB::table('episode_clip_views')->where('id', $view->id)->update($changes + ['updated_at' => now()]);
+                }
             } else {
                 DB::table('episode_clip_views')->insert([
                     'episode_clip_id' => $clip->id,
                     'user_id' => $user->id,
                     'plays' => 1,
                     'last_viewed_at' => now(),
+                    'completed_at' => $completed ? now() : null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
-            EpisodeClip::withoutGlobalScopes()->whereKey($clip->id)->increment('views_count');
+            if ($counts) {
+                EpisodeClip::withoutGlobalScopes()->whereKey($clip->id)->increment('views_count');
+            }
         });
 
         return (int) EpisodeClip::withoutGlobalScopes()->whereKey($clip->id)->value('views_count');

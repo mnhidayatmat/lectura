@@ -80,6 +80,32 @@ class StudentClipInteractionsApiTest extends ApiTestCase
         $this->assertDatabaseHas('episode_clip_views', ['episode_clip_id' => $clip->id, 'user_id' => $student->id, 'plays' => 2]);
     }
 
+    public function test_a_clip_played_to_its_end_is_watched_and_no_longer_new(): void
+    {
+        [$tenant, , $student, , $clip, $classmate] = $this->setUpClip();
+        $list = $this->tenantApi($tenant, 'student/watch/clips');
+
+        $this->actingAsApi($student)->getJson($list)
+            ->assertJsonPath('data.0.watched', false)
+            ->assertJsonPath('data.0.is_new', true);
+
+        $this->actingAsApi($student)->postJson($this->api($tenant, $clip, 'view'))
+            ->assertJsonPath('data.watched', false);
+        // Completing inside the view window marks it watched without counting another view.
+        $this->actingAsApi($student)->postJson($this->api($tenant, $clip, 'view'), ['completed' => true])
+            ->assertJson(['data' => ['views_count' => 1, 'watched' => true]]);
+
+        $this->actingAsApi($student)->getJson($list)
+            ->assertJsonPath('data.0.watched', true)
+            ->assertJsonPath('data.0.is_new', false);
+        $this->actingAsApi($classmate)->getJson($list)
+            ->assertJsonPath('data.0.watched', false);
+
+        $this->travel(15)->days();
+        $this->actingAsApi($classmate)->getJson($list)
+            ->assertJsonPath('data.0.is_new', false);
+    }
+
     public function test_like_and_save_are_idempotent_and_show_in_the_list(): void
     {
         [$tenant, , $student, , $clip, $classmate] = $this->setUpClip();

@@ -740,18 +740,30 @@ Each clip in `student/watch/clips` also carries:
   "comments_count": 2,
   "saves_count": 0,
   "liked": false,
-  "saved": true
+  "saved": true,
+  "watched": false,
+  "released_at": "2026-10-20T08:00:00+08:00",
+  "is_new": true
 }
 ```
 
 - `views_count`: plays, counted at most once per student per clip every 30 minutes (the feed loops).
+- `watched`: the student has played the clip to its end at least once (see `view` with `completed`).
+  The app's feed passes over watched clips and offers them again only after an "all caught up" page.
+- `released_at`: when students could first see the clip — the latest of its episode's release, its
+  own `publish_at` and its import (clips added to an old episode are still new). `null` only in the
+  lecturer list for a locked episode with no release time.
+- `is_new`: released within `lectura.episodes.new_days` (14) and not watched yet; the app plays these
+  first, newest release first, and badges them "New".
 - `comments_count`: top-level comments plus replies, excluding deleted ones.
 
 `GET student/watch/clips?saved=1` lists only the clips the student saved, newest save first (same
 fragment). It combines with `course_id`.
 
 #### POST `student/watch/clips/{clip}/view`
-The app sends it once a clip has played for 2 s. → `{"message":"View recorded.","data":{"views_count":166}}`
+The app sends it once a clip has played for 2 s, and again with `{ "completed": true }` once it has
+played 90% of the clip, which marks it watched (the first time only; it counts a view only if the
+30-minute window has passed). → `{"message":"View recorded.","data":{"views_count":166,"watched":true}}`
 (the count is unchanged when the 30-minute window has not passed).
 
 #### POST / DELETE `student/watch/clips/{clip}/like` · POST / DELETE `student/watch/clips/{clip}/save`

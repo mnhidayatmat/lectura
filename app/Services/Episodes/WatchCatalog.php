@@ -122,6 +122,7 @@ final class WatchCatalog
         $ids = $clips->pluck('id');
         $liked = $ids->isEmpty() ? collect() : DB::table('episode_clip_likes')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('episode_clip_id')->flip();
         $savedAt = $ids->isEmpty() ? collect() : DB::table('episode_clip_saves')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->pluck('created_at', 'episode_clip_id');
+        $watched = $ids->isEmpty() ? collect() : DB::table('episode_clip_views')->where('user_id', $user->id)->whereIn('episode_clip_id', $ids)->whereNotNull('completed_at')->pluck('episode_clip_id')->flip();
 
         $clips = $saved
             // Newest save first; the id breaks ties between saves in the same second.
@@ -130,7 +131,7 @@ final class WatchCatalog
             : $clips->sortBy(fn (EpisodeClip $clip) => sprintf('%s|%05d|%05d', $clip->episode->course?->code, $clip->episode->episode_number, $clip->clip_number));
 
         return $clips
-            ->map(fn (EpisodeClip $clip) => $this->clip($clip, $liked->has($clip->id), $savedAt->has($clip->id)))
+            ->map(fn (EpisodeClip $clip) => $this->clip($clip, $liked->has($clip->id), $savedAt->has($clip->id), $watched->has($clip->id)))
             ->values()
             ->all();
     }
@@ -159,6 +160,12 @@ final class WatchCatalog
             ])
             ->values()
             ->all();
+    }
+
+    /** The student has played the clip to its end at least once. */
+    public function hasWatchedClip(User $user, EpisodeClip $clip): bool
+    {
+        return DB::table('episode_clip_views')->where('user_id', $user->id)->where('episode_clip_id', $clip->id)->whereNotNull('completed_at')->exists();
     }
 
     /**
@@ -418,9 +425,10 @@ final class WatchCatalog
         }
     }
 
-    private function clip(EpisodeClip $clip, bool $liked = false, bool $saved = false): array
+    private function clip(EpisodeClip $clip, bool $liked = false, bool $saved = false, bool $watched = false): array
     {
         $episode = $clip->episode;
+        $releasedAt = $clip->releasedAt();
 
         return [
             'id' => $clip->id,
@@ -446,6 +454,10 @@ final class WatchCatalog
             'saves_count' => (int) $clip->saves_count,
             'liked' => $liked,
             'saved' => $saved,
+            'watched' => $watched,
+            'released_at' => $releasedAt?->toIso8601String(),
+            'is_new' => ! $watched && $clip->isAvailable() && $releasedAt !== null
+                && $releasedAt->gte(now()->subDays((int) config('lectura.episodes.new_days'))),
         ];
     }
 

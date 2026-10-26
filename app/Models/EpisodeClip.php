@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A short portrait clip cut from an episode. It releases with its episode unless
@@ -71,6 +72,20 @@ class EpisodeClip extends Model
 
         return $episode !== null && $episode->isVisible() && $episode->isAvailable()
             && ($this->publish_at === null || $this->publish_at->lte(now()));
+    }
+
+    /**
+     * When students could first see it: the latest of its episode's release, its own
+     * release time and its import (clips added to an old episode are still new).
+     */
+    public function releasedAt(): ?Carbon
+    {
+        $episodeAt = $this->episode?->availableAt();
+        if ($episodeAt === null) {
+            return null;
+        }
+
+        return collect([$episodeAt, $this->publish_at, $this->created_at])->filter()->max();
     }
 
     public function comments(): HasMany
