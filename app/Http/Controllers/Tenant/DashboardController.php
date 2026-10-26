@@ -6,10 +6,16 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\AssessmentScore;
 use App\Models\AssessmentSubmission;
+use App\Models\Assignment;
+use App\Models\AttendanceRecord;
+use App\Models\AttendanceSession;
 use App\Models\Course;
 use App\Models\SectionStudent;
+use App\Models\StudentMark;
 use App\Models\User;
+use App\Services\Attendance\AttendanceWarningService;
 use App\Services\Course\CourseContextService;
 use App\Services\Episodes\WatchCatalog;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +30,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         protected CourseContextService $courseContext,
+        protected AttendanceWarningService $warningService,
     ) {}
 
     public function __invoke(string $tenantSlug): View|RedirectResponse
@@ -44,6 +51,14 @@ class DashboardController extends Controller
             }
         }
 
+        if ($role === 'student') {
+            return view('tenant.dashboard', [
+                'tenant' => $tenant,
+                'role' => $role,
+                ...$this->studentData(auth()->user()),
+            ]);
+        }
+
         return view('tenant.dashboard', [
             'tenant' => $tenant,
             'role' => $role,
@@ -52,10 +67,99 @@ class DashboardController extends Controller
             'avgAttendance' => null,
             'courses' => collect(),
             'todaySchedule' => collect(),
-            'dueAssessments' => $role === 'student' ? $this->dueAssessments(auth()->user()) : collect(),
-            // The Watch banner must never break the dashboard.
-            'watchFeatured' => $role === 'student' ? rescue(fn () => app(WatchCatalog::class)->home(auth()->user())['featured'], null, report: true) : null,
         ]);
+    }
+
+    private function studentData(User $user): array
+    {
+        $enrollments = SectionStudent::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->with('section.course.lecturer', 'section.course.attendancePolicy')
+            ->get()
+            ->filter(fn (SectionStudent $e) => $e->section?->course);
+
+        $courses = $enrollments->groupBy(fn (SectionStudent $e) => $e->section->course_id)
+            ->map(fn ($group) => $group->first()->section->course)
+            ->values();
+
+        $attendance = $courses->mapWithKeys(fn (Course $course) => [
+            $course->id => $this->warningService->getAbsenceSummary($course, $user),
+        ]);
+        $tracked = $attendance->filter(fn (array $summary) => $summary['total_sessions'] > 0);
+
+        $dueAssessments = $this->dueAssessments($user);
+
+        return [
+            'enrolledCourses' => $courses,
+            'courseAttendance' => $attendance,
+            'attendanceRate' => $tracked->isNotEmpty() ? round($tracked->avg('attendance_rate')) : null,
+            'attendanceWarning' => $attendance->contains(fn (array $summary) => $summary['warning_level'] !== null),
+            'openCheckIns' => $this->openCheckIns($user, $enrollments->pluck('section_id')),
+            'dueAssessments' => $dueAssessments,
+            'pendingCount' => $dueAssessments->where('submitted', false)->count(),
+            'recentMarks' => $this->recentMarks($user, $courses->pluck('id')),
+            // The Watch banner must never break the dashboard.
+            'watchFeatured' => rescue(fn () => app(WatchCatalog::class)->home($user)['featured'], null, report: true),
+        ];
+    }
+
+    /** Attendance sessions running now that the student has not checked in to. */
+    private function openCheckIns(User $user, Collection $sectionIds): Collection
+    {
+        $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
+            ->where('status', 'active')
+            ->with('section.course')
+            ->latest('started_at')
+            ->get();
+
+        $answered = AttendanceRecord::where('user_id', $user->id)
+            ->whereIn('attendance_session_id', $sessions->pluck('id'))
+            ->pluck('attendance_session_id');
+
+        return $sessions->reject(fn (AttendanceSession $session) => $answered->contains($session->id))->values();
+    }
+
+    /** The latest released marks, assignments and assessments together, newest first. */
+    private function recentMarks(User $user, Collection $courseIds): Collection
+    {
+        $marks = StudentMark::where('user_id', $user->id)
+            ->where('is_final', true)
+            ->whereIn('assignment_id', Assignment::whereIn('course_id', $courseIds)->pluck('id'))
+            ->with('assignment.course')
+            ->latest('finalized_at')
+            ->limit(4)
+            ->get()
+            ->map(fn (StudentMark $mark) => [
+                'title' => $mark->assignment?->title,
+                'course' => $mark->assignment?->course,
+                'raw' => (float) $mark->total_marks,
+                'max' => (float) $mark->max_marks,
+                'percentage' => $mark->percentage !== null ? (float) $mark->percentage : null,
+                'grade' => $mark->grade,
+                'released_at' => $mark->finalized_at,
+            ]);
+
+        $scores = AssessmentScore::where('user_id', $user->id)
+            ->where('is_released', true)
+            ->whereHas('assessment', fn ($q) => $q->whereIn('course_id', $courseIds))
+            ->with('assessment.course')
+            ->latest('released_at')
+            ->limit(4)
+            ->get()
+            ->map(fn (AssessmentScore $score) => [
+                'title' => $score->assessment?->title,
+                'course' => $score->assessment?->course,
+                'raw' => (float) $score->raw_marks,
+                'max' => (float) $score->max_marks,
+                'percentage' => $score->percentage !== null ? (float) $score->percentage : null,
+                'grade' => null,
+                'released_at' => $score->released_at,
+            ]);
+
+        return collect($marks)->concat($scores)
+            ->sortByDesc(fn (array $mark) => $mark['released_at']?->timestamp ?? 0)
+            ->take(4)
+            ->values();
     }
 
     /**

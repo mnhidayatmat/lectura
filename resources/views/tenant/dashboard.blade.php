@@ -1,10 +1,29 @@
 <x-tenant-layout>
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            @if($role === 'student')
+                @php $hour = (int) now()->timezone($tenant->timezone ?: config('app.timezone'))->format('G'); @endphp
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ now()->timezone($tenant->timezone ?: config('app.timezone'))->format('l, j F Y') }}</p>
+                    <h2 class="mt-1 text-2xl font-bold text-slate-900">{{ $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening') }}, {{ explode(' ', auth()->user()->name)[0] }}</h2>
+                    <p class="mt-1 text-sm text-slate-500 truncate">Welcome back · {{ $tenant->name }}</p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <a href="{{ route('tenant.live-hub', $tenant->slug) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-xl transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Live session
+                    </a>
+                    <a href="{{ route('tenant.scan', $tenant->slug) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                        Scan QR
+                    </a>
+                </div>
+            @else
             <div>
                 <h2 class="text-2xl font-bold text-slate-900">{{ __('nav.dashboard') }}</h2>
                 <p class="mt-1 text-sm text-slate-500">{{ $tenant->name }} — {{ now()->format('l, j F Y') }}</p>
             </div>
+            @endif
             @if($role !== 'student')
                 <div class="flex items-center gap-2">
                     <a href="{{ '/' . $tenant->slug }}/attendance" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
@@ -232,182 +251,246 @@
         </div>
     @else
         {{-- Student Dashboard --}}
+        @php
+            $tz = $tenant->timezone ?: config('app.timezone');
+            $dueTones = [
+                'urgent' => ['dot' => 'bg-red-500', 'text' => 'text-red-600 dark:text-red-400', 'badge' => 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/30'],
+                'soon' => ['dot' => 'bg-amber-500', 'text' => 'text-amber-600 dark:text-amber-400', 'badge' => 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30'],
+                'later' => ['dot' => 'bg-blue-500', 'text' => 'text-slate-500', 'badge' => 'bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10'],
+                'submitted' => ['dot' => 'bg-emerald-500', 'text' => 'text-slate-500', 'badge' => 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30'],
+            ];
+            $markTone = fn (?float $pct) => match (true) {
+                $pct === null => 'text-slate-900',
+                $pct >= 80 => 'text-emerald-600 dark:text-emerald-400',
+                $pct >= 50 => 'text-slate-900',
+                default => 'text-red-600 dark:text-red-400',
+            };
+            $latestMark = $recentMarks->first();
+        @endphp
+
         <div class="space-y-6">
 
-            {{-- Assessments due: submitted green, within a week amber, within 48 hours red --}}
-            @if($dueAssessments->isNotEmpty())
-                @php
-                    $pendingCount = $dueAssessments->where('submitted', false)->count();
-                    $dueTones = [
-                        'urgent' => ['card' => 'bg-red-50 border-red-200', 'bar' => 'bg-red-500', 'text' => 'text-red-700 dark:text-red-400', 'badge' => 'bg-red-100 text-red-700 dark:text-red-400'],
-                        'soon' => ['card' => 'bg-amber-50 border-amber-200', 'bar' => 'bg-amber-500', 'text' => 'text-amber-700 dark:text-amber-400', 'badge' => 'bg-amber-100 text-amber-700 dark:text-amber-400'],
-                        'later' => ['card' => 'bg-blue-50 border-blue-200', 'bar' => 'bg-blue-500', 'text' => 'text-blue-700 dark:text-blue-400', 'badge' => 'bg-blue-100 text-blue-700 dark:text-blue-400'],
-                        'submitted' => ['card' => 'bg-emerald-50 border-emerald-200', 'bar' => 'bg-emerald-500', 'text' => 'text-emerald-700 dark:text-emerald-400', 'badge' => 'bg-emerald-100 text-emerald-700 dark:text-emerald-400'],
-                    ];
-                @endphp
-                <div class="bg-white rounded-2xl border-2 {{ $pendingCount > 0 ? 'border-red-200' : 'border-emerald-200' }} overflow-hidden">
-                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <span class="w-9 h-9 rounded-xl {{ $pendingCount > 0 ? 'bg-red-100 text-red-600 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:text-emerald-400' }} flex items-center justify-center flex-shrink-0">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                            </span>
-                            <div class="min-w-0">
-                                <h3 class="font-semibold text-slate-900">Assessments due</h3>
-                                <p class="text-xs text-slate-500">{{ $pendingCount > 0 ? $pendingCount.' to submit' : 'All submitted' }}</p>
-                            </div>
-                        </div>
-                        <a href="{{ route('tenant.my-assessments', $tenant->slug) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex-shrink-0">View all</a>
-                    </div>
-                    <div class="p-3 space-y-2">
-                        @foreach($dueAssessments as $item)
-                            @php
-                                $a = $item['assessment'];
-                                $t = $dueTones[$item['tone']];
-                            @endphp
-                            <a href="{{ route('tenant.my-assessments.show', [$tenant->slug, $a->course, $a]) }}"
-                               class="relative flex items-center gap-3 rounded-xl border {{ $t['card'] }} pl-4 pr-3 py-3 overflow-hidden hover:shadow-sm transition">
-                                <span class="absolute left-0 inset-y-0 w-1.5 {{ $t['bar'] }}"></span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold text-slate-900 truncate">{{ $a->title }}</p>
-                                    <p class="text-xs mt-0.5 {{ $t['text'] }}">
-                                        {{ $a->course->code }} · Due {{ $a->due_date->copy()->timezone($tenant->timezone ?: config('app.timezone'))->format('D j M, g:i A') }}
-                                        @unless($item['submitted']) · {{ $a->due_date->diffForHumans(['parts' => 1]) }} @endunless
-                                    </p>
-                                </div>
-                                @if($item['submitted'])
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 {{ $t['badge'] }}">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                        Submitted
-                                    </span>
-                                @else
-                                    <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 {{ $t['badge'] }}">
-                                        {{ $item['tone'] === 'urgent' ? 'Due soon' : 'Submit' }}
-                                    </span>
-                                @endif
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Welcome --}}
-            <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-6 text-white relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-8"></div>
-                <div class="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
-                <div class="relative">
-                    <p class="text-indigo-200 text-sm">{{ now()->format('l, j F Y') }}</p>
-                    <h2 class="text-xl font-bold mt-1">Welcome back, {{ explode(' ', auth()->user()->name)[0] }}!</h2>
-                    <p class="text-sm text-indigo-200 mt-2">{{ $tenant->name }}</p>
-                </div>
-            </div>
-
-            {{-- Watch: the episode for this week, or the one due next --}}
-            @if($watchFeatured ?? null)
-                @php $wf = $watchFeatured; @endphp
-                <a href="{{ route($wf['is_available'] ? 'tenant.watch.episode' : 'tenant.watch.series', [$tenant->slug, $wf['is_available'] ? $wf['id'] : $wf['series_id']]) }}"
-                   class="group relative block overflow-hidden rounded-2xl bg-slate-950 text-white min-h-[9rem]">
-                    @if($wf['poster_url'])
-                        <img src="{{ $wf['poster_url'] }}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-70 transition duration-300 group-hover:scale-105">
-                    @endif
-                    <span class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-transparent"></span>
-                    <span class="relative flex items-center gap-4 p-5">
-                        <span class="w-12 h-12 shrink-0 rounded-full bg-[#fffffff2] flex items-center justify-center"><svg class="w-5 h-5 text-slate-950 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
-                        <span class="min-w-0">
-                            <span class="block text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-400">Watch · {{ $wf['series_title'] }}</span>
-                            <span class="block text-lg font-bold leading-tight">EP {{ $wf['episode_number'] }} · {{ $wf['title'] }}</span>
-                            <span class="block text-xs text-[#cbd5e1] mt-0.5">
-                                {{ $wf['course']['code'] }}
-                                @if($wf['week_number']) · Week {{ $wf['week_number'] }} @endif
-                                @if($wf['progress'] && ! $wf['progress']['completed']) · {{ $wf['progress']['watched_percent'] }}% watched @endif
-                            </span>
+            {{-- Attendance open right now --}}
+            @foreach($openCheckIns as $session)
+                <a href="{{ route('tenant.scan', $tenant->slug) }}"
+                   class="flex items-center gap-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-5 py-4 text-white shadow-sm transition">
+                    <span class="relative flex h-3 w-3 flex-shrink-0">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#fff] opacity-60"></span>
+                        <span class="relative inline-flex h-3 w-3 rounded-full bg-[#fff]"></span>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-semibold">Attendance is open · {{ $session->section?->course?->code }}</span>
+                        <span class="block text-xs text-emerald-100 truncate">
+                            {{ $session->section?->name }}@if($session->week_number) · Week {{ $session->week_number }}@endif · started {{ $session->started_at?->diffForHumans() }}
                         </span>
                     </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-xl bg-[#fff] px-3 py-2 text-xs font-semibold text-emerald-700 flex-shrink-0">Check in</span>
                 </a>
-            @endif
+            @endforeach
 
-            {{-- Quick Actions --}}
-            <div class="grid grid-cols-2 gap-3">
-                <a href="{{ '/' . $tenant->slug }}/scan" class="bg-white rounded-2xl border border-slate-200 p-4 text-center hover:shadow-md transition group">
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-emerald-200 transition">
-                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                    </div>
-                    <p class="text-sm font-semibold text-slate-900">Scan QR</p>
-                    <p class="text-xs text-slate-400 mt-0.5">Check in attendance</p>
-                </a>
-
-                <a href="{{ '/' . $tenant->slug }}/my-courses" class="bg-white rounded-2xl border border-slate-200 p-4 text-center hover:shadow-md transition group">
-                    <div class="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-200 transition">
-                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                    </div>
-                    <p class="text-sm font-semibold text-slate-900">My Courses</p>
-                    <p class="text-xs text-slate-400 mt-0.5">View enrolled courses</p>
-                </a>
+            {{-- At a glance --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+                    <p class="text-xs font-medium text-slate-500">Enrolled courses</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900 tabular-nums">{{ $enrolledCourses->count() }}</p>
+                    <p class="mt-1 text-xs text-slate-400">This semester</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+                    <p class="text-xs font-medium text-slate-500">To submit</p>
+                    <p class="mt-2 text-2xl font-bold tabular-nums {{ $pendingCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900' }}">{{ $pendingCount }}</p>
+                    <p class="mt-1 text-xs text-slate-400 truncate">
+                        @php $next = $dueAssessments->firstWhere('submitted', false); @endphp
+                        {{ $next ? 'Next due '.$next['assessment']->due_date->diffForHumans(['parts' => 1]) : 'Nothing pending' }}
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+                    <p class="text-xs font-medium text-slate-500">Attendance</p>
+                    <p class="mt-2 text-2xl font-bold tabular-nums {{ $attendanceWarning ? 'text-red-600 dark:text-red-400' : 'text-slate-900' }}">{{ $attendanceRate !== null ? $attendanceRate.'%' : '—' }}</p>
+                    <p class="mt-1 text-xs truncate {{ $attendanceWarning ? 'text-red-600 dark:text-red-400 font-medium' : 'text-slate-400' }}">
+                        {{ $attendanceWarning ? 'Warning issued' : ($attendanceRate !== null ? 'Across all courses' : 'No classes yet') }}
+                    </p>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+                    <p class="text-xs font-medium text-slate-500">Latest mark</p>
+                    <p class="mt-2 text-2xl font-bold tabular-nums {{ $markTone($latestMark['percentage'] ?? null) }}">
+                        {{ $latestMark && $latestMark['percentage'] !== null ? round($latestMark['percentage']).'%' : '—' }}
+                    </p>
+                    <p class="mt-1 text-xs text-slate-400 truncate">{{ $latestMark ? ($latestMark['course']?->code.' · '.$latestMark['title']) : 'None released yet' }}</p>
+                </div>
             </div>
 
-            {{-- Enrolled Courses --}}
-            @php
-                $enrollments = \App\Models\SectionStudent::where('user_id', auth()->id())
-                    ->where('is_active', true)
-                    ->with('section.course.lecturer')
-                    ->get()
-                    ->filter(fn ($e) => $e->section?->course);
-                $enrolledCourses = $enrollments->groupBy(fn ($e) => $e->section->course_id)
-                    ->map(fn ($g) => $g->first()->section->course)->values();
-            @endphp
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="font-semibold text-slate-900">My Courses</h3>
-                    <a href="{{ '/' . $tenant->slug }}/my-courses" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
-                </div>
-                @if($enrolledCourses->isEmpty())
-                    <div class="p-6 flex flex-col items-center text-center">
-                        <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
-                            <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                        </div>
-                        <p class="text-sm font-medium text-slate-900">No courses yet</p>
-                        <p class="text-xs text-slate-400 mt-1 max-w-xs">Ask your lecturer for a section invite code to enroll.</p>
-                        <form method="POST" action="{{ route('tenant.my-courses.enroll', $tenant->slug) }}" class="mt-4 w-full">
-                            @csrf
-                            <div class="flex gap-2">
-                                <input type="text" name="invite_code" placeholder="Enter invite code" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 text-center uppercase tracking-widest" maxlength="20" required />
-                                <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">Join</button>
+            <div class="grid lg:grid-cols-3 gap-6 items-start">
+
+                {{-- Main column --}}
+                <div class="lg:col-span-2 space-y-6">
+
+                    {{-- Assessments due: submitted green, within a week amber, within 48 hours red --}}
+                    @if($dueAssessments->isNotEmpty())
+                        <section class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <h3 class="font-semibold text-slate-900">Assessments due</h3>
+                                    <p class="text-xs text-slate-500 mt-0.5">{{ $pendingCount > 0 ? $pendingCount.' to submit' : 'All submitted' }}</p>
+                                </div>
+                                <a href="{{ route('tenant.my-assessments', $tenant->slug) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex-shrink-0">View all</a>
                             </div>
-                            @error('invite_code') <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p> @enderror
-                        </form>
-                    </div>
-                @else
-                    <div class="divide-y divide-slate-100">
-                        @foreach($enrolledCourses->take(5) as $c)
-                            <a href="{{ route('tenant.my-courses.show', [$tenant->slug, $c]) }}" class="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition">
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-xs font-bold text-white">{{ strtoupper(substr($c->code, 0, 2)) }}</span>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold text-slate-900 truncate">{{ $c->code }}</p>
-                                    <p class="text-xs text-slate-400 truncate">{{ $c->title }}</p>
-                                </div>
-                                <svg class="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </a>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
+                            <ul class="divide-y divide-slate-100">
+                                @foreach($dueAssessments as $item)
+                                    @php
+                                        $a = $item['assessment'];
+                                        $t = $dueTones[$item['tone']];
+                                        $due = $a->due_date->copy()->timezone($tz);
+                                    @endphp
+                                    <li>
+                                        <a href="{{ route('tenant.my-assessments.show', [$tenant->slug, $a->course, $a]) }}"
+                                           class="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition">
+                                            <div class="w-12 flex-shrink-0 rounded-xl border border-slate-200 text-center py-1.5">
+                                                <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-none">{{ $due->format('M') }}</p>
+                                                <p class="text-lg font-bold text-slate-900 leading-tight tabular-nums">{{ $due->format('j') }}</p>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-semibold text-slate-900 truncate">{{ $a->title }}</p>
+                                                <p class="text-xs mt-0.5 flex items-center gap-1.5 {{ $t['text'] }}">
+                                                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {{ $t['dot'] }}"></span>
+                                                    <span class="truncate">
+                                                        {{ $a->course->code }} · {{ $due->format('D, g:i A') }}
+                                                        @unless($item['submitted']) · {{ $a->due_date->diffForHumans(['parts' => 1]) }} @endunless
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            @if($item['submitted'])
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset flex-shrink-0 {{ $t['badge'] }}">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                                    Submitted
+                                                </span>
+                                            @else
+                                                <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ring-inset flex-shrink-0 {{ $t['badge'] }}">
+                                                    {{ $item['tone'] === 'urgent' ? 'Due soon' : 'Submit' }}
+                                                </span>
+                                            @endif
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </section>
+                    @endif
 
-            {{-- Recent Marks --}}
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="font-semibold text-slate-900">Recent Marks</h3>
-                    <a href="{{ '/' . $tenant->slug }}/marks" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
-                </div>
-                <div class="p-6 flex flex-col items-center text-center">
-                    <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center mb-3">
-                        <svg class="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    </div>
-                    <p class="text-sm text-slate-500">No marks available yet</p>
-                    <p class="text-xs text-slate-400 mt-1">Your assessment results and AI feedback will show here</p>
-                </div>
-            </div>
+                    {{-- Watch: the episode for this week, or the one due next --}}
+                    @if($watchFeatured ?? null)
+                        @php $wf = $watchFeatured; @endphp
+                        <a href="{{ route($wf['is_available'] ? 'tenant.watch.episode' : 'tenant.watch.series', [$tenant->slug, $wf['is_available'] ? $wf['id'] : $wf['series_id']]) }}"
+                           class="group relative block overflow-hidden rounded-2xl bg-slate-950 text-white">
+                            @if($wf['poster_url'])
+                                <img src="{{ $wf['poster_url'] }}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-70 transition duration-300 group-hover:scale-105">
+                            @endif
+                            <span class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-transparent"></span>
+                            <span class="relative flex items-center gap-4 p-5 sm:p-6 min-h-[8.5rem]">
+                                <span class="w-12 h-12 shrink-0 rounded-full bg-[#fffffff2] flex items-center justify-center transition group-hover:scale-105"><svg class="w-5 h-5 text-slate-950 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+                                <span class="min-w-0">
+                                    <span class="block text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-400">Watch · {{ $wf['series_title'] }}</span>
+                                    <span class="block text-lg font-bold leading-tight mt-0.5">EP {{ $wf['episode_number'] }} · {{ $wf['title'] }}</span>
+                                    <span class="block text-xs text-[#cbd5e1] mt-1">
+                                        {{ $wf['course']['code'] }}
+                                        @if($wf['week_number']) · Week {{ $wf['week_number'] }} @endif
+                                        @if($wf['progress'] && ! $wf['progress']['completed']) · {{ $wf['progress']['watched_percent'] }}% watched @endif
+                                    </span>
+                                    @if($wf['progress'] && ! $wf['progress']['completed'] && $wf['progress']['watched_percent'] > 0)
+                                        <span class="mt-2.5 block h-1 w-40 rounded-full bg-[#ffffff33] overflow-hidden"><span class="block h-full bg-amber-400" style="width: {{ $wf['progress']['watched_percent'] }}%"></span></span>
+                                    @endif
+                                </span>
+                            </span>
+                        </a>
+                    @endif
 
+                    {{-- Recent Marks --}}
+                    <section class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="font-semibold text-slate-900">Recent marks</h3>
+                            <a href="{{ route('tenant.marks', $tenant->slug) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
+                        </div>
+                        @if($recentMarks->isEmpty())
+                            <div class="px-5 py-10 text-center">
+                                <p class="text-sm font-medium text-slate-700">No marks released yet</p>
+                                <p class="text-xs text-slate-400 mt-1">Results and feedback appear here once your lecturer releases them.</p>
+                            </div>
+                        @else
+                            <ul class="divide-y divide-slate-100">
+                                @foreach($recentMarks as $mark)
+                                    <li class="flex items-center gap-4 px-5 py-3.5">
+                                        @if($mark['course'])
+                                            <x-course-avatar :course="$mark['course']" size="sm" />
+                                        @endif
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-semibold text-slate-900 truncate">{{ $mark['title'] }}</p>
+                                            <p class="text-xs text-slate-500 mt-0.5 truncate">
+                                                {{ $mark['course']?->code }}@if($mark['released_at']) · Released {{ $mark['released_at']->diffForHumans() }}@endif
+                                            </p>
+                                            @if($mark['percentage'] !== null)
+                                                <div class="mt-2 h-1.5 w-full max-w-[12rem] rounded-full bg-slate-100 overflow-hidden">
+                                                    <div class="h-full rounded-full {{ $mark['percentage'] >= 80 ? 'bg-emerald-500' : ($mark['percentage'] >= 50 ? 'bg-indigo-500' : 'bg-red-500') }}" style="width: {{ min(100, max(0, $mark['percentage'])) }}%"></div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="text-right flex-shrink-0">
+                                            <p class="text-base font-bold tabular-nums {{ $markTone($mark['percentage']) }}">
+                                                {{ $mark['percentage'] !== null ? round($mark['percentage']).'%' : '—' }}
+                                            </p>
+                                            <p class="text-xs text-slate-400 tabular-nums">
+                                                {{ rtrim(rtrim(number_format($mark['raw'], 2), '0'), '.') }} / {{ rtrim(rtrim(number_format($mark['max'], 2), '0'), '.') }}@if($mark['grade']) · {{ $mark['grade'] }}@endif
+                                            </p>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </section>
+                </div>
+
+                {{-- Side column --}}
+                <aside class="space-y-6">
+                    <section class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="font-semibold text-slate-900">My courses</h3>
+                            <a href="{{ route('tenant.my-courses', $tenant->slug) }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all</a>
+                        </div>
+                        @if($enrolledCourses->isEmpty())
+                            <div class="p-5 text-center">
+                                <p class="text-sm font-medium text-slate-900">No courses yet</p>
+                                <p class="text-xs text-slate-400 mt-1">Ask your lecturer for a section invite code to enroll.</p>
+                                <form method="POST" action="{{ route('tenant.my-courses.enroll', $tenant->slug) }}" class="mt-4">
+                                    @csrf
+                                    <div class="flex gap-2">
+                                        <input type="text" name="invite_code" placeholder="Invite code" class="min-w-0 flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 text-center uppercase tracking-widest" maxlength="20" required />
+                                        <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition">Join</button>
+                                    </div>
+                                    @error('invite_code') <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </form>
+                            </div>
+                        @else
+                            <ul class="divide-y divide-slate-100">
+                                @foreach($enrolledCourses->take(6) as $c)
+                                    @php $att = $courseAttendance[$c->id] ?? null; @endphp
+                                    <li>
+                                        <a href="{{ route('tenant.my-courses.show', [$tenant->slug, $c]) }}" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition">
+                                            <x-course-avatar :course="$c" size="sm" />
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-semibold text-slate-900 truncate">{{ $c->code }}</p>
+                                                <p class="text-xs text-slate-500 truncate">{{ $c->title }}</p>
+                                            </div>
+                                            @if($att && $att['total_sessions'] > 0)
+                                                <span class="text-right flex-shrink-0">
+                                                    <span class="block text-sm font-semibold tabular-nums {{ $att['warning_level'] !== null ? 'text-red-600 dark:text-red-400' : 'text-slate-700' }}">{{ round($att['attendance_rate']) }}%</span>
+                                                    <span class="block text-[10px] text-slate-400">attendance</span>
+                                                </span>
+                                            @endif
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </section>
+                </aside>
+            </div>
         </div>
     @endif
 </x-tenant-layout>
