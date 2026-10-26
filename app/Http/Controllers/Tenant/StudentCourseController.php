@@ -28,7 +28,8 @@ class StudentCourseController extends Controller
         $enrollments = SectionStudent::where('user_id', $user->id)
             ->where('is_active', true)
             ->with(['section.course.lecturer', 'section.course.sections' => fn ($q) => $q->withCount('activeStudents')])
-            ->get();
+            ->get()
+            ->filter(fn ($e) => $e->section?->course);
 
         // Group by course (student may be in multiple sections of same course)
         $courses = $enrollments->groupBy(fn ($e) => $e->section->course_id)->map(function ($group) {

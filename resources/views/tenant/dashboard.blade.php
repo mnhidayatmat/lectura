@@ -349,7 +349,8 @@
                 $enrollments = \App\Models\SectionStudent::where('user_id', auth()->id())
                     ->where('is_active', true)
                     ->with('section.course.lecturer')
-                    ->get();
+                    ->get()
+                    ->filter(fn ($e) => $e->section?->course);
                 $enrolledCourses = $enrollments->groupBy(fn ($e) => $e->section->course_id)
                     ->map(fn ($g) => $g->first()->section->course)->values();
             @endphp
