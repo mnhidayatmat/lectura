@@ -100,9 +100,29 @@
                             @else
                                 <p class="text-sm text-slate-400">{{ __('tender.no_judge') }}</p>
                             @endif
+
+                            @if($eligible && ! ($j?->submitted_at))
+                                <form method="POST" action="{{ route('tenant.tender.judge', [$tenantSlug, $course, $game, $session]) }}" class="mt-3 flex gap-2">
+                                    @csrf
+                                    <input type="hidden" name="slot" value="{{ $slot }}">
+                                    <select name="user_id" required class="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-slate-300 text-sm">
+                                        <option value="">{{ $j ? __('tender.replace_judge') : __('tender.choose_judge') }}</option>
+                                        @foreach($eligible[$slot] as $row)
+                                            <option value="{{ $row['member']->user_id }}">{{ $row['member']->user->name }} · {{ __('tender.group_n', ['n' => $row['member']->group_no]) }}{{ $row['judged_before'] ? ' · '.trans_choice('tender.judged_before', $row['judged_before'], ['count' => $row['judged_before']]) : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg">{{ __('tender.assign') }}</button>
+                                </form>
+                            @endif
                         </div>
                     @endforeach
                 </div>
+
+                @if($eligible && (! $session->lead_group_a || ! $session->lead_group_b))
+                    <p class="mt-3 text-xs text-amber-700">{{ __('tender.lead_groups_unset') }}</p>
+                @elseif($eligible)
+                    <p class="mt-3 text-xs text-slate-500">{{ __('tender.judge_rule') }}</p>
+                @endif
 
                 @php($replaced = $judges->whereNotNull('replaced_at'))
                 @if($replaced->isNotEmpty())

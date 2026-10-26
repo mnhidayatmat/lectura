@@ -328,7 +328,8 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   only once every card is in and never the retrenched name, nobody sees individual rankings
 - Students play in Lectura Go (`live/tender/…`, contract in `docs/mobile-api/live.md` → Piping Design
   Tender). Lecturers use the web at `/courses/{course}/tender` (`Tenant\Tender\TenderGameController`,
-  sidebar "Tender Game"): roster, live view of the cards (auto-refreshes every 10 s while the session
+  sidebar "Tender Game"): roster, Judge assignment for both companies (same rules as the Leader's,
+  `assignJudge`), live view of the cards (auto-refreshes every 10 s while the session
   runs), Approve/Query, unlock a card (back to scoring; the Leader announces again), appeals (open until
   noon, institution time, the day after), CSV export of approved levels. The game never writes a mark:
   company criteria are exported for Part 1, group criteria are labelled a first read

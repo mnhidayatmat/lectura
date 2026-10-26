@@ -156,9 +156,12 @@ class TenderGameController extends Controller
         $appeals = $session->appeals()->with('user')->get();
         $pitchRanking = $this->presenter->pitchRanking($session);
         $myJudge = $judges->first(fn (TenderJudge $j) => ! $j->replaced_at && $j->user_id === auth()->id());
+        $eligible = ! $session->isGrandFinal() && in_array($session->status, ['setup', 'scoring'], true)
+            ? [1 => $this->flow->eligibleJudges($session, 1), 2 => $this->flow->eligibleJudges($session, 2)]
+            : null;
 
         return view('tenant.tender.session', compact(
-            'course', 'game', 'session', 'judges', 'sheet', 'events', 'appeals', 'pitchRanking', 'myJudge',
+            'course', 'game', 'session', 'judges', 'sheet', 'events', 'appeals', 'pitchRanking', 'myJudge', 'eligible',
         ));
     }
 
@@ -181,6 +184,21 @@ class TenderGameController extends Controller
         $this->flow->unlockCard($judge);
 
         return back()->with('success', __('tender.unlocked', ['name' => $judge->displayName()]));
+    }
+
+    /** The lecturer names a student Judge, under the same rules as the Leader. */
+    public function assignJudge(Request $request, string $tenantSlug, Course $course, TenderGame $game, TenderSession $session): RedirectResponse
+    {
+        $this->authorizeSession($course, $game, $session);
+        $data = $request->validate([
+            'slot' => ['required', 'integer', Rule::in([1, 2])],
+            'user_id' => ['required', 'integer'],
+        ]);
+
+        $user = User::findOrFail($data['user_id']);
+        $this->flow->assignJudge($session, (int) $data['slot'], $user);
+
+        return back()->with('success', __('tender.judge_assigned', ['name' => $user->name, 'slot' => $data['slot']]));
     }
 
     public function staffJudge(Request $request, string $tenantSlug, Course $course, TenderGame $game, TenderSession $session): RedirectResponse

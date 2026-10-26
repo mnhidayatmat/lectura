@@ -686,6 +686,7 @@ Route::prefix('{tenant:slug}')
             Route::put('/{game}/sessions/{session}/week', [TenderGameController::class, 'updateWeek'])->name('tenant.tender.week');
             Route::get('/{game}/sessions/{session}', [TenderGameController::class, 'session'])->name('tenant.tender.session');
             Route::post('/{game}/sessions/{session}/review', [TenderGameController::class, 'review'])->name('tenant.tender.review');
+            Route::post('/{game}/sessions/{session}/judges', [TenderGameController::class, 'assignJudge'])->name('tenant.tender.judge');
             Route::post('/{game}/sessions/{session}/staff-judges', [TenderGameController::class, 'staffJudge'])->name('tenant.tender.staff-judge');
             Route::get('/{game}/sessions/{session}/card', [TenderGameController::class, 'card'])->name('tenant.tender.card');
             Route::post('/{game}/sessions/{session}/card', [TenderGameController::class, 'saveCard'])->name('tenant.tender.card.save');
