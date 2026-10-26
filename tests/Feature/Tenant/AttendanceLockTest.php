@@ -277,4 +277,16 @@ class AttendanceLockTest extends LecturerApiTestCase
             ->assertSessionHas('error');
         $this->assertSame('pending', $excuse->fresh()->status);
     }
+
+    public function test_my_attendance_skips_a_course_that_was_deleted(): void
+    {
+        $gone = $this->createCourse($this->tenant, $this->lecturer, ['code' => 'OLD101']);
+        $this->enroll($this->createSection($gone), $this->aina);
+        $gone->delete();
+
+        $this->actingAs($this->aina)->get($this->web('/my-attendance'))
+            ->assertOk()
+            ->assertSee($this->course->code)
+            ->assertDontSee('OLD101');
+    }
 }

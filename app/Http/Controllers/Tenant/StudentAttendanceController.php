@@ -34,7 +34,8 @@ class StudentAttendanceController extends Controller
         $enrollments = SectionStudent::where('user_id', $user->id)
             ->where('is_active', true)
             ->with(['section.course.lecturer', 'section.course.attendancePolicy'])
-            ->get();
+            ->get()
+            ->filter(fn ($e) => $e->section?->course);
 
         $courses = $enrollments->groupBy(fn ($e) => $e->section->course_id)->map(function ($group) use ($user) {
             $course = $group->first()->section->course;
