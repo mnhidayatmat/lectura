@@ -18,6 +18,7 @@ use App\Models\StudentGroup;
 use App\Models\User;
 use App\Notifications\AssessmentSubmissionReceived;
 use App\Services\GoogleDriveService;
+use App\Support\SubmissionFiles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,9 +33,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class StudentAssessmentController extends Controller
 {
-    public const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+    public const ACCEPTED_EXTENSIONS = SubmissionFiles::EXTENSIONS;
 
-    public const MAX_FILE_SIZE_KB = 25600;
+    public const MAX_FILE_SIZE_KB = SubmissionFiles::MAX_KB;
 
     public const MAX_NOTES_LENGTH = 1000;
 
@@ -412,7 +413,7 @@ class StudentAssessmentController extends Controller
     {
         $request->validate([
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:'.self::MAX_FILE_SIZE_KB, 'mimes:'.implode(',', self::ACCEPTED_EXTENSIONS)],
+            'files.*' => SubmissionFiles::rules(),
             'notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES_LENGTH],
         ]);
     }

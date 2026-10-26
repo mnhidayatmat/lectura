@@ -88,7 +88,7 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonPath('data.title', 'Lab Report 1')
             ->assertJsonPath('data.total_marks', 50)
             ->assertJsonPath('data.instruction_file.extension', 'pdf')
-            ->assertJsonPath('data.submission_rules.accepted_extensions', ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'])
+            ->assertJsonPath('data.submission_rules.accepted_extensions', ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'zip', 'mod'])
             ->assertJsonPath('data.submission_rules.max_file_size_kb', 25600)
             ->assertJsonPath('data.submission', null)
             ->assertJsonPath('data.can_submit', true)
@@ -122,6 +122,33 @@ class StudentAssessmentApiTest extends ApiTestCase
         Notification::assertSentTo($this->lecturer, AssessmentSubmissionReceived::class);
 
         $this->get($response->json('data.submission.files.0.download_url'))->assertOk();
+    }
+
+    public function test_a_caepipe_model_and_a_zip_can_be_submitted(): void
+    {
+        $assessment = $this->createAssessment();
+
+        $this->actingAsApi($this->student)->postJson($this->showUrl($assessment).'/submit', [
+            'files' => [
+                UploadedFile::fake()->create('LAB2.mod', 40, 'application/octet-stream'),
+                UploadedFile::fake()->create('lab2-output.zip', 40, 'application/zip'),
+            ],
+        ])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data.submission.files');
+
+        $this->assertDatabaseHas('assessment_submission_files', ['file_name' => 'LAB2.mod']);
+    }
+
+    public function test_a_file_renamed_to_pdf_is_refused(): void
+    {
+        $assessment = $this->createAssessment();
+
+        $this->actingAsApi($this->student)->postJson($this->showUrl($assessment).'/submit', [
+            'files' => [UploadedFile::fake()->create('report.pdf', 10, 'application/x-msdownload')],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('files.0');
     }
 
     public function test_late_submission_is_flagged(): void

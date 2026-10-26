@@ -117,7 +117,7 @@ Assessments that require submission (`status` active or completed) across all co
       "download_url": "https://lectura.example/api/v1/t/utm/assessments/courses/12/44/instruction"
     },
     "submission_rules": {
-      "accepted_extensions": ["pdf", "jpg", "jpeg", "png", "doc", "docx"],
+      "accepted_extensions": ["pdf", "jpg", "jpeg", "png", "doc", "docx", "zip", "mod"],
       "max_file_size_kb": 25600,
       "max_notes_length": 1000,
       "multiple_files": true

@@ -264,9 +264,9 @@
                             <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer" @click="$refs.fileInput.click()">
                                 <svg class="w-8 h-8 mx-auto text-slate-400 dark:text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                 <p class="text-sm text-slate-600 dark:text-slate-400">Click to upload or drag files here</p>
-                                <p class="text-xs text-slate-400 mt-1">PDF, Images, Word — max 25MB each</p>
+                                <p class="text-xs text-slate-400 mt-1">PDF, images, Word, ZIP, CAEPIPE .mod — max 25MB each</p>
                             </div>
-                            <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" x-ref="fileInput" class="hidden" @change="files = Array.from($event.target.files)">
+                            <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.zip,.mod" x-ref="fileInput" class="hidden" @change="files = Array.from($event.target.files)">
 
                             {{-- File names --}}
                             <template x-if="files.length > 0">
@@ -385,9 +385,9 @@
                         <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer" @click="$refs.fileInput.click()">
                             <svg class="w-8 h-8 mx-auto text-slate-400 dark:text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                             <p class="text-sm text-slate-600 dark:text-slate-400">Click to upload or drag files here</p>
-                            <p class="text-xs text-slate-400 mt-1">PDF, Images, Word — max 25MB each</p>
+                            <p class="text-xs text-slate-400 mt-1">PDF, images, Word, ZIP, CAEPIPE .mod — max 25MB each</p>
                         </div>
-                        <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" x-ref="fileInput" class="hidden" @change="files = Array.from($event.target.files)">
+                        <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.zip,.mod" x-ref="fileInput" class="hidden" @change="files = Array.from($event.target.files)">
 
                         {{-- File names --}}
                         <template x-if="files.length > 0">

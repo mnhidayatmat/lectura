@@ -18,6 +18,7 @@ use App\Notifications\AssessmentMarksReleased;
 use App\Notifications\AssessmentSubmissionReceived;
 use App\Services\Assessment\SubmissionReportStampingService;
 use App\Services\GoogleDriveService;
+use App\Support\SubmissionFiles;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -804,7 +805,7 @@ class AssessmentSubmissionController extends Controller
 
         $request->validate([
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+            'files.*' => SubmissionFiles::rules(),
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -1118,7 +1119,7 @@ class AssessmentSubmissionController extends Controller
 
         $request->validate([
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:25600', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
+            'files.*' => SubmissionFiles::rules(),
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
