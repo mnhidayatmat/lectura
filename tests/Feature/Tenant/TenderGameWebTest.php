@@ -11,6 +11,7 @@ use App\Models\TenderGame;
 use App\Models\TenderSession;
 use App\Models\User;
 use App\Services\Tender\TenderFlow;
+use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Api\V1\ApiTestCase;
 
 /**
@@ -124,6 +125,28 @@ class TenderGameWebTest extends ApiTestCase
             ->assertSee('Alpha Piping')
             ->assertSee('Session 1')
             ->assertSee('Grand Final');
+    }
+
+    public function test_the_game_page_lists_what_the_roster_still_lacks(): void
+    {
+        $game = $this->game();
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))
+            ->assertOk()
+            ->assertSee('Setup checks')
+            ->assertSee('No Leader assigned.')
+            ->assertSee('Alpha Piping has no Managing Director.')
+            ->assertSee('Beta Engineering Group 2 has 0 active members; groups start with 3.');
+
+        $this->roster($game);
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))
+            ->assertOk()
+            ->assertSee('No deputy assigned.')
+            ->assertDontSee('No Leader assigned.')
+            ->assertDontSee('has no Managing Director')
+            ->assertDontSee('groups start with 3')
+            ->assertSee('0 of 7 sessions announced');
     }
 
     public function test_two_mds_in_one_company_are_refused(): void
@@ -273,6 +296,31 @@ class TenderGameWebTest extends ApiTestCase
         // A second choice replaces the first while the card is open.
         $this->post($url, ['slot' => 1, 'user_id' => $people['a'][4]->id])->assertSessionHas('success');
         $this->assertSame($people['a'][4]->id, $session->activeJudges()->where('slot', 1)->value('user_id'));
+    }
+
+    public function test_the_lecturer_deletes_a_game_with_everything_in_it(): void
+    {
+        Storage::fake('uploads');
+        $game = $this->game();
+        $people = $this->roster($game);
+        $session = $game->sessions()->where('code', 'S1')->first();
+        $this->scoreAndAnnounce($session, $people);
+        Storage::disk('uploads')->put('tender/photo.jpg', 'x');
+        $session->activeJudges()->where('slot', 1)->update(['paper_photo_path' => 'tender/photo.jpg']);
+
+        $other = $this->createMember($this->tenant, 'lecturer');
+        $this->actingAs($other)->delete($this->base("/{$game->id}"))->assertForbidden();
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))->assertSee('Delete game');
+        $this->delete($this->base("/{$game->id}"))
+            ->assertRedirect($this->base())
+            ->assertSessionHas('success');
+
+        $this->assertNull(TenderGame::withoutGlobalScopes()->find($game->id));
+        foreach (['tender_sessions', 'tender_members', 'tender_judges', 'tender_scores'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        Storage::disk('uploads')->assertMissing('tender/photo.jpg');
     }
 
     public function test_another_lecturer_cannot_open_the_game(): void

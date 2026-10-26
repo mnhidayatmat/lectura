@@ -81,7 +81,46 @@ class TenderGameController extends Controller
         $sizes = ['A' => $this->flow->companySize($game, 'A'), 'B' => $this->flow->companySize($game, 'B')];
         $pendingAppeals = TenderAppeal::whereIn('tender_session_id', $game->sessions->pluck('id'))->whereNull('decision')->count();
 
-        return view('tenant.tender.show', compact('course', 'game', 'students', 'standings', 'sizes', 'pendingAppeals'));
+        $checks = $this->setupChecks($game);
+
+        return view('tenant.tender.show', compact('course', 'game', 'students', 'standings', 'sizes', 'pendingAppeals', 'checks'));
+    }
+
+    /** What the roster still lacks against the Student Guide: a Leader, a deputy, an MD and two groups of 3 per company. */
+    private function setupChecks(TenderGame $game): array
+    {
+        $members = $game->members;
+        $checks = [];
+
+        if (! $members->contains('role', 'leader')) {
+            $checks[] = __('tender.check_no_leader');
+        }
+        if (! $members->contains('role', 'deputy')) {
+            $checks[] = __('tender.check_no_deputy');
+        }
+
+        // Retrenchment shrinks groups once play starts, so exact sizes only matter before then.
+        $started = $game->sessions->contains(fn ($session) => $session->status !== 'setup');
+
+        foreach (TenderGame::COMPANIES as $company) {
+            $players = $members->where('role', 'student')->where('company', $company)->where('status', 'active');
+            $name = $game->companyName($company);
+
+            if (! $players->contains('is_md', true)) {
+                $checks[] = __('tender.check_no_md', ['company' => $name]);
+            }
+            if ($players->count() < TenderFlow::MIN_COMPANY || $players->count() > TenderFlow::MAX_COMPANY) {
+                $checks[] = __('tender.check_company_size', ['company' => $name, 'count' => $players->count()]);
+            }
+            foreach ([1, 2] as $group) {
+                $count = $players->where('group_no', $group)->count();
+                if ($count < TenderFlow::MIN_GROUP || (! $started && $count !== 3)) {
+                    $checks[] = __('tender.check_group_size', ['company' => $name, 'n' => $group, 'count' => $count]);
+                }
+            }
+        }
+
+        return $checks;
     }
 
     /**
@@ -133,6 +172,21 @@ class TenderGameController extends Controller
         }
 
         return back()->with('success', __('tender.roster_saved'));
+    }
+
+    public function destroy(string $tenantSlug, Course $course, TenderGame $game): RedirectResponse
+    {
+        $this->authorizeGame($course, $game);
+
+        $photos = TenderJudge::whereIn('tender_session_id', $game->sessions()->pluck('id'))
+            ->whereNotNull('paper_photo_path')
+            ->pluck('paper_photo_path');
+
+        $game->delete();
+        Storage::disk('uploads')->delete($photos->all());
+
+        return redirect()->route('tenant.tender.index', [$tenantSlug, $course])
+            ->with('success', __('tender.deleted', ['title' => $game->title]));
     }
 
     public function updateWeek(Request $request, string $tenantSlug, Course $course, TenderGame $game, TenderSession $session): RedirectResponse
