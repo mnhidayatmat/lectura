@@ -28,6 +28,9 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
+    /** Attendance below this is shown in red when the course policy sets no bar threshold. */
+    private const MIN_ATTENDANCE = 80;
+
     public function __construct(
         protected CourseContextService $courseContext,
         protected AttendanceWarningService $warningService,
@@ -82,9 +85,15 @@ class DashboardController extends Controller
             ->map(fn ($group) => $group->first()->section->course)
             ->values();
 
-        $attendance = $courses->mapWithKeys(fn (Course $course) => [
-            $course->id => $this->warningService->getAbsenceSummary($course, $user),
-        ]);
+        $attendance = $courses->mapWithKeys(function (Course $course) use ($user) {
+            $summary = $this->warningService->getAbsenceSummary($course, $user);
+            $minimum = (float) ($course->attendancePolicy?->bar_threshold ?? self::MIN_ATTENDANCE);
+
+            return [$course->id => [
+                ...$summary,
+                'low' => $summary['total_sessions'] > 0 && $summary['attendance_rate'] < $minimum,
+            ]];
+        });
         $tracked = $attendance->filter(fn (array $summary) => $summary['total_sessions'] > 0);
 
         $dueAssessments = $this->dueAssessments($user);
@@ -94,6 +103,7 @@ class DashboardController extends Controller
             'courseAttendance' => $attendance,
             'attendanceRate' => $tracked->isNotEmpty() ? round($tracked->avg('attendance_rate')) : null,
             'attendanceWarning' => $attendance->contains(fn (array $summary) => $summary['warning_level'] !== null),
+            'lowAttendanceCourses' => $courses->filter(fn (Course $course) => $attendance[$course->id]['low'])->values(),
             'openCheckIns' => $this->openCheckIns($user, $enrollments->pluck('section_id')),
             'dueAssessments' => $dueAssessments,
             'pendingCount' => $dueAssessments->where('submitted', false)->count(),

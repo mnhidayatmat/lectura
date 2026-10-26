@@ -3,6 +3,7 @@
 namespace Tests\Feature\Tenant;
 
 use App\Models\AssessmentSubmission;
+use App\Models\AttendancePolicy;
 use App\Models\AttendanceRecord;
 use App\Models\StudentMark;
 use Tests\Feature\Api\V1\ApiTestCase;
@@ -84,7 +85,9 @@ class StudentDashboardDueAssessmentsTest extends ApiTestCase
         $response = $this->actingAs($student)->get("/{$tenant->slug}/dashboard")->assertOk();
 
         $this->assertEquals(50, $response->viewData('attendanceRate'));
-        $response->assertSee('Attendance is open · SKMM1203')
+        $this->assertSame(['SKMM1203'], $response->viewData('lowAttendanceCourses')->pluck('code')->all());
+        $response->assertSee('Low in SKMM1203')
+            ->assertSee('Attendance is open · SKMM1203')
             ->assertSee('Week 3')
             ->assertSeeInOrder(['Recent marks', 'Quiz 1', '90%', '18 / 20 · A'])
             ->assertSeeInOrder(['My courses', 'SKMM1203', '50%']);
@@ -105,5 +108,26 @@ class StudentDashboardDueAssessmentsTest extends ApiTestCase
             ->assertOk()
             ->assertDontSee('Attendance is open')
             ->assertSee('No marks released yet');
+    }
+
+    public function test_low_attendance_follows_the_course_bar_threshold(): void
+    {
+        [$tenant, $lecturer, $student, $course, $section] = $this->enrolledStudent();
+        AttendancePolicy::create(['tenant_id' => $tenant->id, 'course_id' => $course->id, 'mode' => 'percentage', 'warning_thresholds' => [], 'bar_threshold' => 40]);
+
+        foreach (['present', 'absent'] as $status) {
+            $session = $this->createAttendanceSession($section, $lecturer, ['status' => 'ended']);
+            AttendanceRecord::create([
+                'tenant_id' => $tenant->id,
+                'attendance_session_id' => $session->id,
+                'user_id' => $student->id,
+                'status' => $status,
+            ]);
+        }
+
+        $response = $this->actingAs($student)->get("/{$tenant->slug}/dashboard")->assertOk();
+
+        $this->assertTrue($response->viewData('lowAttendanceCourses')->isEmpty());
+        $response->assertSee('Across all courses')->assertDontSee('Low in');
     }
 }

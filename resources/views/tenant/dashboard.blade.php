@@ -305,9 +305,16 @@
                 </div>
                 <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
                     <p class="text-xs font-medium text-slate-500">Attendance</p>
-                    <p class="mt-2 text-2xl font-bold tabular-nums {{ $attendanceWarning ? 'text-red-600 dark:text-red-400' : 'text-slate-900' }}">{{ $attendanceRate !== null ? $attendanceRate.'%' : '—' }}</p>
-                    <p class="mt-1 text-xs truncate {{ $attendanceWarning ? 'text-red-600 dark:text-red-400 font-medium' : 'text-slate-400' }}">
-                        {{ $attendanceWarning ? 'Warning issued' : ($attendanceRate !== null ? 'Across all courses' : 'No classes yet') }}
+                    @php $attendanceAlert = $attendanceWarning || $lowAttendanceCourses->isNotEmpty(); @endphp
+                    <p class="mt-2 text-2xl font-bold tabular-nums {{ $attendanceAlert ? 'text-red-600 dark:text-red-400' : 'text-slate-900' }}">{{ $attendanceRate !== null ? $attendanceRate.'%' : '—' }}</p>
+                    <p class="mt-1 text-xs truncate {{ $attendanceAlert ? 'text-red-600 dark:text-red-400 font-medium' : 'text-slate-400' }}">
+                        @if($lowAttendanceCourses->isNotEmpty())
+                            Low in {{ $lowAttendanceCourses->pluck('code')->join(', ') }}
+                        @elseif($attendanceWarning)
+                            Warning issued
+                        @else
+                            {{ $attendanceRate !== null ? 'Across all courses' : 'No classes yet' }}
+                        @endif
                     </p>
                 </div>
                 <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
@@ -479,7 +486,7 @@
                                             </div>
                                             @if($att && $att['total_sessions'] > 0)
                                                 <span class="text-right flex-shrink-0">
-                                                    <span class="block text-sm font-semibold tabular-nums {{ $att['warning_level'] !== null ? 'text-red-600 dark:text-red-400' : 'text-slate-700' }}">{{ round($att['attendance_rate']) }}%</span>
+                                                    <span class="block text-sm font-semibold tabular-nums {{ $att['low'] || $att['warning_level'] !== null ? 'text-red-600 dark:text-red-400' : 'text-slate-700' }}">{{ round($att['attendance_rate']) }}%</span>
                                                     <span class="block text-[10px] text-slate-400">attendance</span>
                                                 </span>
                                             @endif
