@@ -39,6 +39,7 @@ return [
     'whiteboards' => 'Papan Putih',
     'classroom' => 'Bilik Darjah',
     'random_wheel' => 'Roda Rawak',
+    'tender_game' => 'Permainan Tender',
     'student_groups' => 'Kumpulan Pelajar',
     'assess' => 'Penilaian',
     'assessments' => 'Penilaian',

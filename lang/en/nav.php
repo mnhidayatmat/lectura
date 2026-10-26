@@ -39,6 +39,7 @@ return [
     'whiteboards' => 'Whiteboards',
     'classroom' => 'Classroom',
     'random_wheel' => 'Random Wheel',
+    'tender_game' => 'Tender Game',
     'student_groups' => 'Student Groups',
     'assess' => 'Assess',
     'assessments' => 'Assessments',

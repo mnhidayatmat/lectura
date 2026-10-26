@@ -41,6 +41,8 @@ use App\Http\Controllers\Tenant\PerformanceController;
 use App\Http\Controllers\Tenant\PortfolioController;
 use App\Http\Controllers\Tenant\QuizController;
 use App\Http\Controllers\Tenant\RandomWheelController;
+use App\Http\Controllers\Tenant\Tender\TenderGameController;
+use App\Http\Controllers\Tenant\Tender\TenderPublicController;
 use App\Http\Controllers\Tenant\RoleSwitchController;
 use App\Http\Controllers\Tenant\SectionController;
 use App\Http\Controllers\Tenant\SettingsController;
@@ -123,6 +125,12 @@ Route::get('/dashboard', function () {
     // No tenant — send to onboarding
     return redirect()->route('onboarding');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+// Grand Final card for an invited staff member: the one-time link is the authorization.
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/tender-judge/{token}', [TenderPublicController::class, 'guest'])->name('tender.guest.show');
+    Route::post('/tender-judge/{token}', [TenderPublicController::class, 'guestSave'])->name('tender.guest.save');
+});
 
 Route::get('/onboarding', [OnboardingController::class, 'show'])->middleware('auth')->name('onboarding');
 Route::post('/onboarding', [OnboardingController::class, 'store'])->middleware('auth')->name('onboarding.store');
@@ -667,6 +675,26 @@ Route::prefix('{tenant:slug}')
         Route::post('/session/{session}/respond', [StudentSessionController::class, 'respond'])->name('tenant.session.respond');
         Route::get('/session/{session}/state', [StudentSessionController::class, 'state'])->name('tenant.session.student-state');
         Route::get('/session/{session}/review', [StudentSessionController::class, 'review'])->name('tenant.session.review');
+
+        // Piping Design Tender game (per-course)
+        Route::prefix('courses/{course}/tender')->group(function () {
+            Route::get('/', [TenderGameController::class, 'index'])->name('tenant.tender.index');
+            Route::post('/', [TenderGameController::class, 'store'])->name('tenant.tender.store');
+            Route::get('/{game}', [TenderGameController::class, 'show'])->name('tenant.tender.show');
+            Route::put('/{game}/roster', [TenderGameController::class, 'updateRoster'])->name('tenant.tender.roster');
+            Route::get('/{game}/export', [TenderGameController::class, 'export'])->name('tenant.tender.export');
+            Route::put('/{game}/sessions/{session}/week', [TenderGameController::class, 'updateWeek'])->name('tenant.tender.week');
+            Route::get('/{game}/sessions/{session}', [TenderGameController::class, 'session'])->name('tenant.tender.session');
+            Route::post('/{game}/sessions/{session}/review', [TenderGameController::class, 'review'])->name('tenant.tender.review');
+            Route::post('/{game}/sessions/{session}/staff-judges', [TenderGameController::class, 'staffJudge'])->name('tenant.tender.staff-judge');
+            Route::get('/{game}/sessions/{session}/card', [TenderGameController::class, 'card'])->name('tenant.tender.card');
+            Route::post('/{game}/sessions/{session}/card', [TenderGameController::class, 'saveCard'])->name('tenant.tender.card.save');
+            Route::post('/{game}/sessions/{session}/judges/{judge}/unlock', [TenderGameController::class, 'unlock'])->name('tenant.tender.unlock');
+            Route::get('/{game}/sessions/{session}/judges/{judge}/photo', [TenderGameController::class, 'paperPhoto'])->name('tenant.tender.photo');
+            Route::post('/{game}/sessions/{session}/appeals/{appeal}', [TenderGameController::class, 'decideAppeal'])->name('tenant.tender.appeal');
+        });
+        Route::get('/tender/sessions/{session}/projector', [TenderPublicController::class, 'projector'])->name('tenant.tender.projector');
+        Route::get('/tender/sessions/{session}/projector/state', [TenderPublicController::class, 'projectorState'])->name('tenant.tender.projector.state');
 
         // Student Groups (per-course)
         Route::prefix('courses/{course}/groups')->group(function () {

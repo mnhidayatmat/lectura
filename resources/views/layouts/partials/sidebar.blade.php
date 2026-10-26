@@ -19,6 +19,7 @@
     $courseRoute = fn (string $name) => route($name, ['tenant' => $tenant->slug, 'course' => $contextCourse->id]);
 
     $icons = [
+        'trophy' => 'M8 21h8m-4-4v4m-5-17h10v5a5 5 0 01-10 0V4zm10 1h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3',
         'home' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
         'dashboard' => 'M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zm10-2a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z',
         'info' => 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -98,6 +99,7 @@
             <x-sidebar-link :href="$courseRoute('tenant.attendance.course')" :active="$on('tenant.attendance.*')" :icon="$icons['check']">{{ __('nav.attendance') }}</x-sidebar-link>
             <x-sidebar-link :href="$prefix.'/random-wheel'" :active="$on('tenant.random-wheel*')" :icon="$icons['wheel']">{{ __('nav.random_wheel') }}</x-sidebar-link>
             <x-sidebar-link :href="$courseRoute('tenant.student-groups.index')" :active="$on('tenant.student-groups.*')" :icon="$icons['group']">{{ __('nav.student_groups') }}</x-sidebar-link>
+            <x-sidebar-link :href="$courseRoute('tenant.tender.index')" :active="$on('tenant.tender.*')" :icon="$icons['trophy']">{{ __('nav.tender_game') }}</x-sidebar-link>
 
             <p class="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{{ __('nav.assess') }}</p>
             <x-sidebar-link :href="$courseRoute('tenant.assessments.index')" :active="$on('tenant.assessments.*')" :icon="$icons['clipboard']">{{ __('nav.assessments') }}</x-sidebar-link>

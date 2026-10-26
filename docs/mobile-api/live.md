@@ -641,6 +641,136 @@ Errors: `422 "This session is still in progress."` (open the live screen instead
 
 ---
 
+## Piping Design Tender (`live/tender/…`)
+
+A course game run in class (BTG3333 Student Guide, Sections 3, 6 and 7): two companies (A and B) present each
+session, one student **Judge** from each company scores both, a student **Leader** (or deputy) outside both
+companies runs and compiles the session, and the lecturer approves it on the web. The game result never
+changes marks. Only students on a game's roster see it: anyone else gets `404 "Tender game not found."`.
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `live/tender` | roster | My games (GameSummary list) |
+| GET | `live/tender/games/{game}` | roster | Game with its seven sessions and my task in each |
+| GET | `live/tender/sessions/{session}` | roster | Session payload — poll every 3 s while open |
+| PATCH | `live/tender/sessions/{session}` | Leader | Setup: `first_company`, `lead_group_a`, `lead_group_b` (1/2), `change_order_note` |
+| POST | `live/tender/sessions/{session}/judges` | Leader | `{slot: 1|2, user_id}` — put a student in a slot (replaces an unsubmitted Judge) |
+| POST | `live/tender/sessions/{session}/start` | Leader | setup → scoring |
+| POST | `live/tender/sessions/{session}/reconcile` | Leader | compiled → reconcile (once, only with flags) |
+| POST | `live/tender/sessions/{session}/reconcile/end` | Leader | reconcile → compiled (when the 2 minutes are up) |
+| POST | `live/tender/sessions/{session}/announce` | Leader | compiled → announced; `{sudden_death_winner: "A"|"B"}` only when everything is level |
+| POST | `live/tender/sessions/{session}/hires` | Leader | `{company, kind: hire|hire_back|pass, consultant_id?}` |
+| POST | `live/tender/sessions/{session}/judges/{judge}/paper` | Leader | Multipart: `scores` (JSON string, Card rows), `pitches` (JSON string), `photo` (image) — a paper card copied in, submitted at once |
+| POST | `live/tender/sessions/{session}/declare` | Judge | `{conflict: bool}` — `false` confirms the declaration; `true` frees the slot for a substitute |
+| PUT | `live/tender/sessions/{session}/card` | Judge | `{scores: [CardRow], pitches?: [Pitch]}` — draft save (any subset of rows) |
+| POST | `live/tender/sessions/{session}/card/submit` | Judge | Lock the card |
+| POST | `live/tender/sessions/{session}/card/reconciled` | Judge | Done reconciling |
+| POST | `live/tender/sessions/{session}/retrench` | losing MD | `{user_id, reason}` |
+| POST | `live/tender/sessions/{session}/appeal` | company member | `{body}` (20–3000 chars) |
+
+Every action returns `{"message", "data": Session}` — the same payload as the GET, so the app replaces its
+state with it. Rule violations are `422 {"message"}` with a sentence to show as is (e.g. `"Write a line of
+evidence for 3D Plant Model."`, `"The winner chooses first."`). Non-Leaders calling Leader routes get
+`403 "Only the Leader or deputy runs the session."`; non-Judges calling card routes `403 "You are not a Judge
+for this session."`.
+
+### Session status
+
+`setup` → `scoring` → `compiled` ⇄ `reconcile` → `announced`. When the last card is submitted the server moves
+`scoring` → `compiled` itself. `review_status` (`null`, `approved`, `queried`) is the lecturer's decision and
+sits beside the status; when the lecturer unlocks a card the session goes back to `scoring` and the Leader
+announces again.
+
+### GameSummary
+
+```json
+{
+  "id": 3, "title": "Project TERATAI",
+  "course": {"id": 12, "code": "BTG3333", "title": "Piping"},
+  "me": {"role": "student", "company": "A", "company_name": "Company A", "group_no": 2, "is_md": false, "status": "active"},
+  "companies": [{"key": "A", "name": "Company A", "size": 6, "wins": 1}, {"key": "B", "name": "Company B", "size": 5, "wins": 0}],
+  "champion": null
+}
+```
+
+`me.role`: `student`, `leader` or `deputy` (Leader and deputy have `company: null`). `me.status`: `active` or
+`consultant` (retrenched; keeps company and group). `champion` is the Grand Final winner once announced.
+
+The game endpoint adds `sessions`: `[{id, code: "S1"…"S6"|"GF", label: "Session 1"|"Grand Final", week, status,
+winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `judge`, `reconcile`, `run`
+(Leader), `retrench` (losing MD) or `null`. `winner` and `totals` are `null` until announced.
+
+### Session
+
+```json
+{
+  "id": 21, "game_id": 3, "code": "S1", "label": "Session 1", "week": 5, "status": "scoring",
+  "is_grand_final": false, "first_company": "A", "lead_group_a": 1, "lead_group_b": 1,
+  "change_order_note": "CO-1: design temperature raised to 220 °C",
+  "scoring_started_at": "…", "reconcile_started_at": null, "announced_at": null, "review_status": null,
+  "server_time": "…",
+  "companies": {"A": "Company A", "B": "Company B"},
+  "criteria": [{"key": "intro", "label": "Introduction and Scope", "max": 35.0, "min_level": 1}, …],
+  "consultants": [{"user_id": 88, "name": "…", "company": "B"}],
+  "result": null,
+  "me": { …as GameSummary.me },
+  "my_judge": null,
+  "leader": null,
+  "retrenchment_task": null,
+  "my_appeal": null,
+  "can_appeal": false
+}
+```
+
+- `criteria` are only the rows scored this session (Student Guide, Section 6); `min_level` is `0` only for
+  `compliance` (no slide). Keys: `intro`, `plant_3d`, `layout`, `pid_iso`, `software`, `analysis`,
+  `fabrication`, `compliance`, `change_order`, `defence`.
+- `result` once announced: `{winner, tie_break: null|"compliance"|"defence"|"change_order"|"sudden_death",
+  totals: {A, B}, appeal_deadline}`. Appeals are open until `appeal_deadline` (noon, institution time, the next day).
+- `my_judge` (when I hold a slot): `{id, slot, company, declared, submitted, reconciled, from_paper,
+  scores: [CardRow + level_a_after, level_b_after], pitches: [Pitch], reconcile_criteria: [key]}`. It never
+  contains the other Judge's levels. `reconcile_criteria` lists the rows I may change during `reconcile`.
+- `leader` (Leader/deputy only): `{judges: [{id, slot, name, company, guest, declared, submitted, reconciled,
+  from_paper}], eligible_judges: {"1": [{user_id, name, group_no, judged_before}], "2": […]} | null (setup and
+  scoring), sheet: Sheet | null (from compiled on), reconcilable: [key], can_reconcile, pitch_ranking:
+  [{user_id, name, total}], retrenchment: {company, status: pending|named|at_floor} | null, hires: [{kind,
+  company, user_id, name}], company_sizes: {A, B}}`. Slot 1 is Company A's Judge, slot 2 Company B's; eligible
+  students are sorted by how often they have judged. The retrenched student's name is never in this object.
+- `retrenchment_task` (losing MD, S1–S5, until named): `{company, eligible: [{user_id, name, group_no}]}` —
+  only students whose removal keeps every group at 2 and the company at 4; the MD is never listed.
+- `my_appeal`: `{body, decision: null|upheld|dismissed, decision_note, created_at}`.
+
+### CardRow and Pitch
+
+`CardRow`: `{criterion, level_a, level_b, evidence}` — levels 1–4 (0–4 on `compliance`), evidence ≤ 500 chars.
+Submit requires both levels and non-empty evidence on every row. During `reconcile`, `PUT card` only reads
+`level_a`/`level_b` of `reconcile_criteria` rows and stores them as the after-reconcile levels (the originals
+are kept).
+
+`Pitch`: `{consultant_id, relevant, credible, standards, communication}`, each 1–4 (total out of 16). Leave a
+consultant out if they did not pitch.
+
+### Sheet
+
+```json
+{
+  "criteria": [{"key": "intro", "label": "…", "max": 35.0,
+                "a": {"j1": 4, "j2": 3, "mark": 30.63, "flag": false},
+                "b": {"j1": 3, "j2": 3, "mark": 26.25, "flag": false}}, …],
+  "totals": {"A": 81.88, "B": 68.13},
+  "judge_totals": {"A": {"1": 85.0, "2": 78.75}, "B": {"1": 66.25, "2": 70.0}},
+  "totals_flag": {"A": false, "B": false},
+  "flag_count": 0, "single_judge": false,
+  "winner": "A", "tie_break": null, "needs_sudden_death": false
+}
+```
+
+Mark = (J1 + J2) ÷ 8 × max (one Judge: level ÷ 4 × max, `single_judge: true`). A row is flagged when the
+Judges differ by 2+ levels; `totals_flag` when one Judge's total for a company is more than 10 marks from the
+other's, which opens every row to reconcile. After the announcement the sheet is the snapshot taken then.
+
+---
+
 ## Differences from the web app (intentional)
 
 - Live quizzes require section enrolment (the web `play` page only checks it for offline quizzes). Enrolments must be active.

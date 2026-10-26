@@ -308,6 +308,36 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   the winner gets a database notification. Students watch at `/{tenant}/live-wheel` (polls `/live-wheel/state`
   every 2s) or in Lectura Go's Live tab (`student/wheel`); spins older than 3 hours are not shown
 
+### Piping Design Tender (course game)
+
+- A two-company classroom game from the BTG3333 Student Guide: weekly sessions S1–S6 and a Grand Final,
+  each worth 100 marks, scored by one student Judge per company and compiled by a student Leader (or
+  deputy) outside both companies. `TenderGame` (tenant-scoped, per course, optional section) →
+  `TenderMember` (roster: `role` student/leader/deputy, `company` A/B, `group_no` 1/2, `is_md`, `status`
+  active/consultant) and `TenderSession` (created with the game; `status` setup → scoring → compiled ⇄
+  reconcile → announced; `review_status` approved/queried beside it) → `TenderJudge` (slot 1 = Company A's
+  Judge, slot 2 = B's; a conflict or substitution sets `replaced_at`, so read `activeJudges()`) →
+  `TenderScore` (per criterion: both companies' levels, the after-reconcile levels, one evidence line) and
+  `TenderPitchScore`; `TenderRosterEvent` (retrench, at_floor, hire, hire_back, pass) and `TenderAppeal`
+- Rules live in `App\Services\Tender\TenderFlow`, which throws `TenderRuleException` (renders 422 JSON on
+  the API, `back()->with('error')` on the web). The scoring table is `TenderCriteria` (Section 6 of the
+  guide); `TenderCompiler` is the Compile Sheet: (J1 + J2) ÷ 8 × max, a flag at 2+ levels apart or judge
+  totals more than 10 apart (which opens every row to the one reconcile round), tie-break compliance →
+  defence → Change Order → sudden death recorded by the Leader. The announcement snapshots the sheet into
+  `result`. `TenderPresenter` decides visibility: a Judge never sees the other card, the Leader sees levels
+  only once every card is in and never the retrenched name, nobody sees individual rankings
+- Students play in Lectura Go (`live/tender/…`, contract in `docs/mobile-api/live.md` → Piping Design
+  Tender). Lecturers use the web at `/courses/{course}/tender` (`Tenant\Tender\TenderGameController`,
+  sidebar "Tender Game"): roster, live view of the cards (auto-refreshes every 10 s while the session
+  runs), Approve/Query, unlock a card (back to scoring; the Leader announces again), appeals (open until
+  noon, institution time, the day after), CSV export of approved levels. The game never writes a mark:
+  company criteria are exported for Part 1, group criteria are labelled a first read
+- Grand Final: student Judges are refused; the lecturer scores on the web card and an invited staff member
+  through a one-time link `/tender-judge/{token}` (`TenderPublicController`, outside auth; only the
+  SHA-256 of the token is stored, so the link is shown once). The projector view
+  `/{tenant}/tender/sessions/{session}/projector` (Leader, deputy or course lecturer) polls every 3 s and
+  shows no Judge names
+
 ### Admin Panel
 
 - Super admin dashboard at `/admin` with institution, user, AI usage, and activity management
