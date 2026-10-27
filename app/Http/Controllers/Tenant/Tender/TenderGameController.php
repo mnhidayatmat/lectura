@@ -55,12 +55,7 @@ class TenderGameController extends Controller
     {
         $this->authorizeCourseAccess($course);
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:120'],
-            'section_id' => ['nullable', 'integer', Rule::in($this->lecturerSections($course)->pluck('id'))],
-            'company_a_name' => ['required', 'string', 'max:60'],
-            'company_b_name' => ['required', 'string', 'max:60', 'different:company_a_name'],
-        ]);
+        $data = $this->validateGame($request, $course);
 
         $game = $this->flow->createGame($data + [
             'course_id' => $course->id,
@@ -69,6 +64,15 @@ class TenderGameController extends Controller
 
         return redirect()->route('tenant.tender.show', [$tenantSlug, $course, $game])
             ->with('success', __('tender.created'));
+    }
+
+    public function update(Request $request, string $tenantSlug, Course $course, TenderGame $game): RedirectResponse
+    {
+        $this->authorizeGame($course, $game);
+
+        $game->update($this->validateGame($request, $course));
+
+        return back()->with('success', __('tender.game_saved'));
     }
 
     public function show(string $tenantSlug, Course $course, TenderGame $game): View
@@ -82,8 +86,9 @@ class TenderGameController extends Controller
         $pendingAppeals = TenderAppeal::whereIn('tender_session_id', $game->sessions->pluck('id'))->whereNull('decision')->count();
 
         $checks = $this->setupChecks($game);
+        $sections = $this->lecturerSections($course)->orderBy('name')->get();
 
-        return view('tenant.tender.show', compact('course', 'game', 'students', 'standings', 'sizes', 'pendingAppeals', 'checks'));
+        return view('tenant.tender.show', compact('course', 'game', 'students', 'standings', 'sizes', 'pendingAppeals', 'checks', 'sections'));
     }
 
     /** What the roster still lacks against the Student Guide: a Leader, a deputy, an MD and two groups of 3 per company. */
@@ -410,6 +415,16 @@ class TenderGameController extends Controller
     // ── Helpers ─────────────────────────────────────────────────────
 
     /** @return Collection<int, User> */
+    private function validateGame(Request $request, Course $course): array
+    {
+        return $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+            'section_id' => ['nullable', 'integer', Rule::in($this->lecturerSections($course)->pluck('id'))],
+            'company_a_name' => ['required', 'string', 'max:60'],
+            'company_b_name' => ['required', 'string', 'max:60', 'different:company_a_name'],
+        ]);
+    }
+
     private function rosterCandidates(Course $course, TenderGame $game): Collection
     {
         $sectionIds = $game->section_id ? [$game->section_id] : $this->lecturerSections($course)->pluck('id')->all();

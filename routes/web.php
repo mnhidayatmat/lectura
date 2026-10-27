@@ -681,6 +681,7 @@ Route::prefix('{tenant:slug}')
             Route::get('/', [TenderGameController::class, 'index'])->name('tenant.tender.index');
             Route::post('/', [TenderGameController::class, 'store'])->name('tenant.tender.store');
             Route::get('/{game}', [TenderGameController::class, 'show'])->name('tenant.tender.show');
+            Route::put('/{game}', [TenderGameController::class, 'update'])->name('tenant.tender.update');
             Route::delete('/{game}', [TenderGameController::class, 'destroy'])->name('tenant.tender.destroy');
             Route::put('/{game}/roster', [TenderGameController::class, 'updateRoster'])->name('tenant.tender.roster');
             Route::get('/{game}/export', [TenderGameController::class, 'export'])->name('tenant.tender.export');

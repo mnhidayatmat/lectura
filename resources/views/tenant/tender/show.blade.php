@@ -1,5 +1,6 @@
 <x-tenant-layout>
     <x-slot name="header">
+        <div x-data="{ editing: @js($errors->hasAny(['title', 'section_id', 'company_a_name', 'company_b_name'])) }">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div class="min-w-0">
                 <a href="{{ route('tenant.tender.index', [app('current_tenant')->slug, $course]) }}" class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700">
@@ -10,6 +11,11 @@
                 <p class="mt-1 text-sm text-slate-500">{{ $game->company_a_name }} vs {{ $game->company_b_name }}</p>
             </div>
             <div class="flex flex-wrap gap-2 self-start sm:self-auto">
+            <button type="button" @click="editing = ! editing" :aria-expanded="editing"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                {{ __('tender.edit') }}
+            </button>
             <a href="{{ route('tenant.tender.export', [app('current_tenant')->slug, $course, $game]) }}"
                class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -25,6 +31,46 @@
                 </button>
             </form>
             </div>
+        </div>
+
+        <form x-show="editing" x-cloak method="POST" action="{{ route('tenant.tender.update', [app('current_tenant')->slug, $course, $game]) }}"
+              class="mt-4 bg-white rounded-2xl border border-slate-200 p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+            @csrf
+            @method('PUT')
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('tender.game_title') }}</label>
+                <input name="title" value="{{ old('title', $game->title) }}" required maxlength="120"
+                       class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500">
+                <x-input-error :messages="$errors->get('title')" class="mt-1" />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('tender.section') }}</label>
+                <select name="section_id" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                    <option value="">{{ __('tender.all_sections') }}</option>
+                    @foreach($sections as $s)
+                        <option value="{{ $s->id }}" @selected(old('section_id', $game->section_id) == $s->id)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+                <x-input-error :messages="$errors->get('section_id')" class="mt-1" />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('tender.company_a') }}</label>
+                <input name="company_a_name" value="{{ old('company_a_name', $game->company_a_name) }}" required maxlength="60"
+                       class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                <x-input-error :messages="$errors->get('company_a_name')" class="mt-1" />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('tender.company_b') }}</label>
+                <input name="company_b_name" value="{{ old('company_b_name', $game->company_b_name) }}" required maxlength="60"
+                       class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                <x-input-error :messages="$errors->get('company_b_name')" class="mt-1" />
+            </div>
+            <p class="sm:col-span-2 lg:col-span-4 text-xs text-slate-500">{{ __('tender.edit_hint') }}</p>
+            <div class="sm:col-span-2 lg:col-span-4 flex justify-end gap-2">
+                <button type="button" @click="editing = false" class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800">{{ __('tender.cancel') }}</button>
+                <button class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl">{{ __('tender.save_game') }}</button>
+            </div>
+        </form>
         </div>
     </x-slot>
 

@@ -323,6 +323,37 @@ class TenderGameWebTest extends ApiTestCase
         Storage::disk('uploads')->assertMissing('tender/photo.jpg');
     }
 
+    public function test_the_lecturer_edits_the_game_details_and_keeps_the_roster(): void
+    {
+        $game = $this->game();
+        $this->roster($game);
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))->assertSee('Save changes');
+
+        $this->put($this->base("/{$game->id}"), [
+            'title' => 'Project TERATAI 2',
+            'section_id' => $this->section->id,
+            'company_a_name' => 'Megah Holding',
+            'company_b_name' => 'Tetra Gas',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $game->refresh();
+        $this->assertSame(['Project TERATAI 2', 'Megah Holding', 'Tetra Gas'], [$game->title, $game->company_a_name, $game->company_b_name]);
+        $this->assertSame(13, $game->members()->count());
+
+        $this->put($this->base("/{$game->id}"), [
+            'title' => 'Same names',
+            'company_a_name' => 'Tetra Gas',
+            'company_b_name' => 'Tetra Gas',
+        ])->assertSessionHasErrors('company_b_name');
+        $this->assertSame('Project TERATAI 2', $game->fresh()->title);
+
+        $other = $this->createMember($this->tenant, 'lecturer');
+        $this->actingAs($other)->put($this->base("/{$game->id}"), [
+            'title' => 'Taken over', 'company_a_name' => 'X', 'company_b_name' => 'Y',
+        ])->assertForbidden();
+    }
+
     public function test_another_lecturer_cannot_open_the_game(): void
     {
         $game = $this->game();
