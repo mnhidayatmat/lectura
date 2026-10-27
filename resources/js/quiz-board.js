@@ -1,13 +1,19 @@
 // Lecturer's presenter screen for a live quiz (Mentimeter style): lobby with names
 // popping in, the open question with a countdown, the answer reveal, the standings
 // after every question and a podium at the end. State comes from polling the board
-// endpoint; actions POST and get the new state straight back.
+// endpoint; actions POST and get the new state straight back. Music follows the
+// phase: a lobby groove, a thinking loop with ticks over the last 5 seconds, a sting
+// when time is up, a hit for the standings and a drum roll and fanfare for the podium.
+
+import quizSounds from './quiz-sounds';
 
 export const OPTION_COLORS = ['#7c3aed', '#0284c7', '#d97706', '#e11d48', '#059669', '#475569'];
 
 const ROW_HEIGHT = 64;
 
 export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
+    let sound = null;
+
     return {
         s: initial,
         view: initial.phase,
@@ -27,8 +33,19 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
         rowHeight: ROW_HEIGHT,
         pollTimer: null,
         timers: [],
+        soundMuted: false,
+        soundUnlocked: false,
+        lastTick: null,
 
         init() {
+            sound = quizSounds({
+                storageKey: 'lectura-quiz-board-muted',
+                onChange: (state) => {
+                    this.soundMuted = state.muted;
+                    this.soundUnlocked = state.unlocked;
+                },
+            });
+            this.soundMuted = sound.state.muted;
             this.apply(initial, true);
             this.poll();
             setInterval(() => this.tick(), 250);
@@ -47,11 +64,13 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
 
         apply(state, first = false) {
             const before = this.s;
+            const viewBefore = this.view;
             const questionChanged = before.question?.session_question_id !== state.question?.session_question_id;
 
             const incoming = (state.participants || []).filter((p) => !this.known.has(p.id)).map((p) => p.id);
             incoming.forEach((id) => this.known.add(id));
             if (incoming.length && !first) {
+                sound?.play('pop', 0.8);
                 this.freshIds = [...this.freshIds, ...incoming];
                 setTimeout(() => { this.freshIds = this.freshIds.filter((id) => !incoming.includes(id)); }, 2500);
             }
@@ -81,6 +100,25 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
             } else {
                 this.view = state.phase;
             }
+
+            this.cue(viewBefore, questionChanged, first);
+        },
+
+        // ── Sound ──
+
+        cue(viewBefore, questionChanged, first) {
+            if (!sound) {
+                return;
+            }
+            const music = { lobby: 'lobby', answering: 'question' }[this.view] ?? null;
+            sound.music(music);
+            if (!first && this.view === 'reveal' && (viewBefore === 'answering' || questionChanged)) {
+                sound.play('timeup');
+            }
+        },
+
+        toggleSound() {
+            sound?.toggle();
         },
 
         async poll() {
@@ -166,7 +204,7 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
                     if (this.podiumStep < 3) {
                         this.timers.forEach(clearTimeout);
                         this.podiumStep = 3;
-                        this.burst();
+                        this.celebrate();
                         return null;
                     }
                     return this.end();
@@ -194,6 +232,8 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
                 this.primary();
             } else if (event.key === 'f' || event.key === 'F') {
                 this.toggleFullscreen();
+            } else if (event.key === 'm' || event.key === 'M') {
+                this.toggleSound();
             }
         },
 
@@ -224,6 +264,10 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
                 return;
             }
             this.remaining = Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000));
+            if (this.remaining > 0 && this.remaining <= 5 && this.remaining !== this.lastTick) {
+                sound?.play('tick', 0.9);
+            }
+            this.lastTick = this.remaining;
             const everyone = this.s.participant_count > 0 && this.s.answered_count >= this.s.participant_count;
             if (!this.autoClosing && !this.busy && (this.remaining === 0 || everyone)) {
                 this.autoClosing = true;
@@ -269,10 +313,12 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
             }));
             this.view = 'leaderboard';
             this.rememberView('leaderboard');
+            sound?.music(null);
 
             if (!animate) {
                 return;
             }
+            sound?.play('leaderboard');
             setTimeout(() => {
                 this.rows.forEach((row, index) => {
                     row.pos = index;
@@ -335,6 +381,7 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
                 return;
             }
             this.podiumStep = 0;
+            sound?.play('podium_roll');
             const count = Math.min(3, (this.s.leaderboard || []).length);
             const steps = [[1, 900], [2, 2400], [3, 4200]].filter(([step]) => step > 3 - count);
             if (count < 3) {
@@ -343,7 +390,7 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
             this.timers = steps.map(([step, delay]) => setTimeout(() => {
                 this.podiumStep = step;
                 if (step === 3) {
-                    this.burst();
+                    this.celebrate();
                 }
             }, delay));
         },
@@ -351,6 +398,12 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
         // Place 3rd shows at step 1, 2nd at step 2, 1st at step 3.
         placeShown(place) {
             return this.podiumStep >= 4 - place;
+        },
+
+        celebrate() {
+            sound?.stopEffects();
+            sound?.play('fanfare');
+            this.burst();
         },
 
         burst() {

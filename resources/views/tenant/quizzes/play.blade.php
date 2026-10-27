@@ -24,7 +24,13 @@
                     <span class="w-6 h-6 -ml-1.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold" x-text="(savedName || '?').trim().charAt(0).toUpperCase()"></span>
                     <span class="truncate" x-text="savedName"></span>
                 </span>
-                <span class="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-300/15 text-amber-200 px-3 py-1 font-bold tabular-nums">
+                <button type="button" @click="toggleSound()" class="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/15 px-2.5 py-1 text-white/80 transition"
+                        :aria-label="soundMuted ? 'Turn sound on' : 'Turn sound off'">
+                    <svg x-show="!soundMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM15.54 8.46a5 5 0 010 7.07M18.36 5.64a9 9 0 010 12.73"/></svg>
+                    <svg x-show="soundMuted" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM17 9l4 6M21 9l-4 6"/></svg>
+                    <span x-show="!soundMuted && !soundUnlocked" x-cloak class="text-xs font-medium text-amber-200">Tap for sound</span>
+                </button>
+                <span class="inline-flex items-center gap-1 rounded-full bg-amber-300/15 text-amber-200 px-3 py-1 font-bold tabular-nums">
                     <span x-text="(me.points || 0).toLocaleString()"></span> pts
                 </span>
             </div>

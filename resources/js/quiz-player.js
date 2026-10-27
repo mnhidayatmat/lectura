@@ -1,10 +1,14 @@
 // Student's live quiz player on the web: pick a nickname in the lobby, answer against
 // the clock, then see the result, points and rank after each question. Same state
-// payload as the Lectura Go app (`LiveQuizService::playerState`).
+// payload as the Lectura Go app (`LiveQuizService::playerState`). The same music as
+// the board plays quieter here, with the student's own correct/wrong sound.
 
 import { OPTION_COLORS } from './quiz-board';
+import quizSounds from './quiz-sounds';
 
 export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialName, anonymous }) {
+    let sound = null;
+
     return {
         s: null,
         colors: OPTION_COLORS,
@@ -20,8 +24,20 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
         deadline: null,
         anonymous,
         pollTimer: null,
+        soundMuted: false,
+        soundUnlocked: false,
+        lastTick: null,
 
         init() {
+            sound = quizSounds({
+                storageKey: 'lectura-quiz-player-muted',
+                volume: 0.6,
+                onChange: (state) => {
+                    this.soundMuted = state.muted;
+                    this.soundUnlocked = state.unlocked;
+                },
+            });
+            this.soundMuted = sound.state.muted;
             this.poll();
             setInterval(() => this.tick(), 250);
         },
@@ -78,13 +94,38 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
                 this.savedName = state.me.display_name;
                 this.nickname = state.me.display_name;
             }
+            const before = this.s;
             this.s = state;
+            this.cue(before, questionChanged);
+        },
+
+        cue(before, questionChanged) {
+            const phase = this.s.status === 'ended' ? 'ended' : this.phase;
+            sound.music({ lobby: 'lobby', answering: 'question' }[phase] ?? null);
+            if (!before) {
+                return;
+            }
+            const entered = before.phase !== phase || questionChanged;
+            if (phase === 'reveal' && entered) {
+                const correct = this.s.me?.is_correct;
+                sound.play(correct === true ? 'correct' : (correct === false ? 'wrong' : 'timeup'));
+            } else if (phase === 'finished' && entered) {
+                sound.play('fanfare');
+            }
+        },
+
+        toggleSound() {
+            sound?.toggle();
         },
 
         tick() {
             this.remaining = this.phase === 'answering' && this.deadline !== null
                 ? Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000))
                 : null;
+            if (this.remaining > 0 && this.remaining <= 5 && this.remaining !== this.lastTick && !this.locked) {
+                sound?.play('tick', 0.8);
+            }
+            this.lastTick = this.remaining;
         },
 
         timerFraction() {
@@ -106,6 +147,7 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
                     throw new Error(body.message || 'Your answer was not saved.');
                 }
                 this.lockedQuestion = questionId;
+                sound?.play('pop');
                 navigator.vibrate?.(30);
             } catch (error) {
                 this.pendingId = null;

@@ -77,7 +77,13 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         <span x-text="s.participant_count"></span>
                     </div>
-                    <button type="button" @click="toggleFullscreen()" class="ml-auto p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition" :title="fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'">
+                    <button type="button" @click="toggleSound()" class="ml-auto inline-flex items-center gap-2 p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition"
+                            :title="soundMuted ? 'Turn music on (M)' : 'Turn music off (M)'" :aria-label="soundMuted ? 'Turn music on' : 'Turn music off'">
+                        <span x-show="!soundMuted && !soundUnlocked" x-cloak class="text-xs font-medium text-amber-300 animate-pulse">Click anywhere for music</span>
+                        <svg x-show="!soundMuted" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM15.54 8.46a5 5 0 010 7.07M18.36 5.64a9 9 0 010 12.73"/></svg>
+                        <svg x-show="soundMuted" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM17 9l4 6M21 9l-4 6"/></svg>
+                    </button>
+                    <button type="button" @click="toggleFullscreen()" class="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition" :title="fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'">
                         <svg x-show="!fullscreen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
                         <svg x-show="fullscreen" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4v4H4M16 4v4h4M8 20v-4H4M16 20v-4h4"/></svg>
                     </button>
