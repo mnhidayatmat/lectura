@@ -143,6 +143,28 @@
         color: #44536b;
     }
 
+    /* Rich text (instructions, notes, feedback): the typography plugin's slate
+       palette is dark-on-dark here, so map it to the Dimmed text hierarchy. */
+    .dark .prose {
+        --tw-prose-body: #c3cddc;
+        --tw-prose-headings: #e6ebf3;
+        --tw-prose-lead: #c3cddc;
+        --tw-prose-links: #a5b4fc;
+        --tw-prose-bold: #e6ebf3;
+        --tw-prose-counters: #8b9ab5;
+        --tw-prose-bullets: #6b7d99;
+        --tw-prose-hr: #354158;
+        --tw-prose-quotes: #d1d9e6;
+        --tw-prose-quote-borders: #4a5872;
+        --tw-prose-captions: #8b9ab5;
+        --tw-prose-kbd: #e6ebf3;
+        --tw-prose-code: #e6ebf3;
+        --tw-prose-pre-code: #d1d9e6;
+        --tw-prose-pre-bg: #1c2333;
+        --tw-prose-th-borders: #4a5872;
+        --tw-prose-td-borders: #354158;
+    }
+
     /* ─── Colored Backgrounds (badges, pills, indicators) ─── */
     /* Dimmed versions that glow gently instead of washing out */
 
@@ -183,6 +205,18 @@
     .dark .text-amber-800 { color: #fcd34d; }
     .dark .text-red-800 { color: #fca5a5; }
     .dark .text-indigo-800 { color: #a5b4fc; }
+
+    /* Strongest tints (headings in callouts, the working solution). :where() keeps
+       the specificity low so an explicit dark: colour still wins, and the quiz
+       board, whose podium stays light in both themes, is left alone. */
+    .dark .text-amber-900:where(:not(.qb-stage *)) { color: #fde68a; }
+    .dark .text-emerald-900:where(:not(.qb-stage *)) { color: #a7f3d0; }
+    .dark .text-indigo-900:where(:not(.qb-stage *)) { color: #c7d2fe; }
+    .dark .text-red-900:where(:not(.qb-stage *)) { color: #fecaca; }
+    .dark .text-rose-900:where(:not(.qb-stage *)) { color: #fecdd3; }
+    .dark .text-teal-900:where(:not(.qb-stage *)) { color: #99f6e4; }
+    .dark .text-orange-900:where(:not(.qb-stage *)) { color: #fed7aa; }
+    .dark .text-fuchsia-900:where(:not(.qb-stage *)) { color: #f5d0fe; }
 
     /* ─── Form Inputs ─── */
 
