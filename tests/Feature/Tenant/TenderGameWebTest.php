@@ -127,25 +127,14 @@ class TenderGameWebTest extends ApiTestCase
             ->assertSee('Grand Final');
     }
 
-    public function test_the_game_page_lists_what_the_roster_still_lacks(): void
+    public function test_the_game_page_shows_no_setup_checks(): void
     {
         $game = $this->game();
 
         $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))
             ->assertOk()
-            ->assertSee('Setup checks')
-            ->assertSee('No Leader assigned.')
-            ->assertSee('Alpha Piping has no Managing Director.')
-            ->assertSee('Beta Engineering Group 2 has 0 active members; groups start with 3.');
-
-        $this->roster($game);
-
-        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))
-            ->assertOk()
-            ->assertSee('No deputy assigned.')
-            ->assertDontSee('No Leader assigned.')
-            ->assertDontSee('has no Managing Director')
-            ->assertDontSee('groups start with 3')
+            ->assertDontSee('Setup checks')
+            ->assertDontSee('No deputy assigned.')
             ->assertSee('0 of 7 sessions announced');
     }
 

@@ -137,23 +137,10 @@
             </div>
         </section>
 
-        {{-- Appeals and setup checks --}}
-        @if($pendingAppeals > 0 || $checks)
+        {{-- Appeals --}}
+        @if($pendingAppeals > 0)
             <section class="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 px-5 py-4">
-                @if($pendingAppeals > 0)
-                    <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">{{ trans_choice('tender.pending_appeals', $pendingAppeals, ['count' => $pendingAppeals]) }}</p>
-                @endif
-                @if($checks)
-                    <p class="text-sm font-semibold text-amber-900 dark:text-amber-200 {{ $pendingAppeals > 0 ? 'mt-3' : '' }}">{{ __('tender.checks_title') }}</p>
-                    <ul class="mt-2 space-y-1">
-                        @foreach($checks as $check)
-                            <li class="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
-                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-                                {{ $check }}
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
+                <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">{{ trans_choice('tender.pending_appeals', $pendingAppeals, ['count' => $pendingAppeals]) }}</p>
             </section>
         @endif
 
