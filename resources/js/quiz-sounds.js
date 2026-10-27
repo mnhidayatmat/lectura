@@ -8,7 +8,7 @@ const BASE = '/sounds/quiz/';
 const NAMES = ['lobby', 'question', 'tick', 'timeup', 'correct', 'wrong', 'pop', 'leaderboard', 'podium_roll', 'fanfare'];
 const FADE = 0.35;
 
-export default function quizSounds({ storageKey, volume = 1, onChange = () => {} }) {
+export default function quizSounds({ storageKey, volume = 1, clips = NAMES, onChange = () => {} }) {
     let ctx = null;
     let master = null;
     const buffers = {};
@@ -42,7 +42,7 @@ export default function quizSounds({ storageKey, volume = 1, onChange = () => {}
         if (!audio) {
             return Promise.resolve();
         }
-        loading ??= Promise.all(NAMES.map(async (name) => {
+        loading ??= Promise.all(clips.map(async (name) => {
             try {
                 const response = await fetch(`${BASE}quiz_${name}.wav`);
                 buffers[name] = await audio.decodeAudioData(await response.arrayBuffer());

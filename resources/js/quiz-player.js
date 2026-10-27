@@ -1,7 +1,8 @@
 // Student's live quiz player on the web: pick a nickname in the lobby, answer against
 // the clock, then see the result, points and rank after each question. Same state
-// payload as the Lectura Go app (`LiveQuizService::playerState`). The same music as
-// the board plays quieter here, with the student's own correct/wrong sound.
+// payload as the Lectura Go app (`LiveQuizService::playerState`). Sound effects only
+// (the music plays on the lecturer's board): ticks over the last 5 seconds, a pop when
+// the answer is in, the student's own correct/wrong sound and a fanfare at the end.
 
 import { OPTION_COLORS } from './quiz-board';
 import quizSounds from './quiz-sounds';
@@ -32,6 +33,7 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
             sound = quizSounds({
                 storageKey: 'lectura-quiz-player-muted',
                 volume: 0.6,
+                clips: ['tick', 'pop', 'correct', 'wrong', 'timeup', 'fanfare'],
                 onChange: (state) => {
                     this.soundMuted = state.muted;
                     this.soundUnlocked = state.unlocked;
@@ -101,7 +103,6 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
 
         cue(before, questionChanged) {
             const phase = this.s.status === 'ended' ? 'ended' : this.phase;
-            sound.music({ lobby: 'lobby', answering: 'question' }[phase] ?? null);
             if (!before) {
                 return;
             }
