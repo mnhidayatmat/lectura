@@ -283,6 +283,7 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 - New student flash banner: "[Name] just checked in!" with green highlight, auto-dismisses after 3s
 - `refreshToken` API returns full records array (name, status, time) sorted newest first
 - Student scan page with camera QR detection via `html5-qrcode`
+- QR check-in is for Lectura Go and the installed PWA only. `layouts/partials/pwa-head` adds `is-pwa` to `<html>` in standalone/fullscreen display mode; `.pwa-only` (the Scan links in the student sidebar, bottom nav and dashboard) is hidden without it and `.web-only` with it. In a browser tab `/scan` shows a "Check in from the app" notice with the store badges instead of the camera. This is presentation only: the check-in endpoint itself is unchanged
 - Auto-marks absent students when session ends
 - Manual status override: present, late, absent, excused
 

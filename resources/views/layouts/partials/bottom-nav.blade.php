@@ -29,7 +29,7 @@
         </a>
 
         {{-- Scan (FAB center) --}}
-        <a href="{{ $prefix }}/scan" class="flex flex-col items-center justify-center gap-0.5 w-14 py-1 rounded-xl transition {{ $active('*/scan') ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 active:text-slate-600' }}">
+        <a href="{{ $prefix }}/scan" class="pwa-only flex flex-col items-center justify-center gap-0.5 w-14 py-1 rounded-xl transition {{ $active('*/scan') ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 active:text-slate-600' }}">
             <div class="w-11 h-11 -mt-5 rounded-2xl {{ $active('*/scan') ? 'bg-indigo-600 shadow-lg shadow-indigo-600/30' : 'bg-slate-900 dark:bg-slate-600 shadow-lg shadow-slate-900/30' }} flex items-center justify-center">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
             </div>

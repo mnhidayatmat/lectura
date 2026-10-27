@@ -3,7 +3,22 @@
         <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Scan QR Attendance</h2>
     </x-slot>
 
-    <div class="max-w-md mx-auto space-y-6" x-data="qrScanner('{{ route('tenant.attendance.checkin', app('current_tenant')->slug) }}', '{{ csrf_token() }}')">
+    {{-- In a browser tab students check in from Lectura Go or the installed web app, never here --}}
+    <div class="web-only max-w-md mx-auto">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/15 flex items-center justify-center mx-auto">
+                <svg class="w-7 h-7 text-indigo-600 dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            </div>
+            <h3 class="mt-4 text-lg font-semibold text-slate-900 dark:text-white">Check in from the app</h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">QR attendance works in the Lectura Go app, or in Lectura installed on your phone's home screen. It is not available in a browser tab.</p>
+            <div class="mt-5 flex flex-wrap justify-center gap-3">
+                <x-store-badges />
+            </div>
+            <p class="mt-5 text-xs text-slate-500">To install the web app, open this site on your phone and choose <span class="font-medium">Add to Home Screen</span> (Safari's Share menu, or Chrome's ⋮ menu).</p>
+        </div>
+    </div>
+
+    <div class="pwa-only max-w-md mx-auto space-y-6" x-data="qrScanner('{{ route('tenant.attendance.checkin', app('current_tenant')->slug) }}', '{{ csrf_token() }}')">
 
         {{-- Scanner --}}
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -36,16 +51,6 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     Start Camera
                 </button>
-
-                {{-- PWA standalone warning --}}
-                <div x-show="isStandalonePwa() && !cameraActive && !result" x-cloak class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
-                    <p class="text-sm text-blue-800 dark:text-blue-300">
-                        <span class="font-semibold">Tip:</span> If the camera doesn't work, open this page in
-                        <span x-show="/iPhone|iPad/.test(navigator.userAgent)">Safari</span>
-                        <span x-show="!/iPhone|iPad/.test(navigator.userAgent)">Chrome</span>
-                        instead of the installed app.
-                    </p>
-                </div>
 
                 {{-- Error message for camera issues --}}
                 <div x-show="cameraError" x-cloak class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl">
@@ -106,7 +111,7 @@
                     // Check if camera API is available
                     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                         if (this.isStandalonePwa()) {
-                            this.cameraError = 'Camera is not available in the installed app. Please open this page in Safari or Chrome instead. Tap the share button ↗ and select "Open in Safari".';
+                            this.cameraError = 'Camera is not available in the installed web app on this phone. Please check in with the Lectura Go app.';
                         } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
                             this.cameraError = 'Camera requires a secure (HTTPS) connection. Please contact your lecturer.';
                         } else {
