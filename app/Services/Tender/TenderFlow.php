@@ -58,7 +58,7 @@ class TenderFlow
         $this->expectStatus($session, ['setup'], 'The session has started; its setup is fixed.');
 
         $session->fill(array_intersect_key($data, array_flip([
-            'first_company', 'lead_group_a', 'lead_group_b', 'change_order_note',
+            'first_company', 'change_order_note',
         ])))->save();
 
         return $session;
@@ -66,8 +66,7 @@ class TenderFlow
 
     /**
      * Student Judges who may take a slot: active members of that slot's company
-     * (slot 1 = Company A, slot 2 = Company B) from the group that is not
-     * presenting. Consultants cannot judge.
+     * (slot 1 = Company A, slot 2 = Company B). Consultants cannot judge.
      *
      * @return Collection<int, array{member: TenderMember, judged_before: int}>
      */
@@ -78,7 +77,6 @@ class TenderFlow
         }
 
         $company = $slot === 1 ? 'A' : 'B';
-        $leadGroup = $session->leadGroup($company);
 
         $judgedBefore = TenderJudge::query()
             ->whereNull('replaced_at')
@@ -90,9 +88,7 @@ class TenderFlow
             ->pluck('n', 'user_id');
 
         return $session->game->members()->with('user')->get()
-            ->filter(fn (TenderMember $m) => $m->isActiveStudent()
-                && $m->company === $company
-                && ($leadGroup === null || $m->group_no !== $leadGroup))
+            ->filter(fn (TenderMember $m) => $m->isActiveStudent() && $m->company === $company)
             ->sortBy(fn (TenderMember $m) => [(int) ($judgedBefore[$m->user_id] ?? 0), $m->user->name])
             ->values()
             ->map(fn (TenderMember $m) => [
@@ -115,7 +111,7 @@ class TenderFlow
             ->first(fn ($row) => $row['member']->user_id === $user->id);
 
         if (! $eligible) {
-            throw new TenderRuleException('That student cannot judge this slot: a Judge comes from the company\'s group that is not presenting, and consultants cannot judge.');
+            throw new TenderRuleException('That student cannot judge this slot: a Judge comes from that slot\'s company, and consultants cannot judge.');
         }
 
         return $this->placeJudge($session, $slot, [
@@ -162,8 +158,8 @@ class TenderFlow
         $this->expectStatus($session, ['setup'], 'The session has already started.');
 
         if (! $session->isGrandFinal()) {
-            if (! $session->first_company || ! $session->lead_group_a || ! $session->lead_group_b) {
-                throw new TenderRuleException('Set who presents first and each company\'s lead group before starting.');
+            if (! $session->first_company) {
+                throw new TenderRuleException('Set who presents first before starting.');
             }
         }
 

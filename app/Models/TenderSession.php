@@ -15,8 +15,8 @@ class TenderSession extends Model
     public const STATUSES = ['setup', 'scoring', 'compiled', 'reconcile', 'announced'];
 
     protected $fillable = [
-        'tender_game_id', 'code', 'week', 'sort_order', 'status', 'first_company', 'lead_group_a',
-        'lead_group_b', 'change_order_note', 'scoring_started_at', 'reconcile_started_at', 'reconcile_criteria', 'reconciled_at',
+        'tender_game_id', 'code', 'week', 'sort_order', 'status', 'first_company',
+        'change_order_note', 'scoring_started_at', 'reconcile_started_at', 'reconcile_criteria', 'reconciled_at',
         'announced_at', 'winner', 'tie_break', 'sudden_death_winner', 'result', 'review_status',
         'review_comment', 'reviewed_by', 'reviewed_at',
     ];
@@ -25,8 +25,6 @@ class TenderSession extends Model
     {
         return [
             'week' => 'integer',
-            'lead_group_a' => 'integer',
-            'lead_group_b' => 'integer',
             'scoring_started_at' => 'datetime',
             'reconcile_started_at' => 'datetime',
             'reconcile_criteria' => 'array',
@@ -86,11 +84,6 @@ class TenderSession extends Model
     public function criteria(): array
     {
         return TenderCriteria::forSession($this->code);
-    }
-
-    public function leadGroup(string $company): ?int
-    {
-        return $company === 'A' ? $this->lead_group_a : $this->lead_group_b;
     }
 
     public function retrenches(): bool

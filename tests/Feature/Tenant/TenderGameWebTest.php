@@ -89,7 +89,7 @@ class TenderGameWebTest extends ApiTestCase
     {
         $flow = app(TenderFlow::class);
         app()->instance('current_tenant', $this->tenant);
-        $flow->setup($session, ['first_company' => 'A', 'lead_group_a' => 1, 'lead_group_b' => 1]);
+        $flow->setup($session, ['first_company' => 'A']);
         $j1 = $flow->assignJudge($session, 1, $people['a'][3]);
         $j2 = $flow->assignJudge($session, 2, $people['b'][3]);
         $flow->start($session->fresh());
@@ -275,18 +275,17 @@ class TenderGameWebTest extends ApiTestCase
         $game = $this->game();
         $people = $this->roster($game);
         $session = $game->sessions()->where('code', 'S1')->first();
-        $session->update(['lead_group_a' => 1, 'lead_group_b' => 2]);
         $url = $this->base("/{$game->id}/sessions/{$session->id}/judges");
 
         $this->actingAs($this->lecturer)->get($this->base("/{$game->id}/sessions/{$session->id}"))
             ->assertOk()
             ->assertSee($people['a'][3]->name)
-            ->assertDontSee('<option value="'.$people['a'][0]->id.'"', false);
+            ->assertSee('<option value="'.$people['a'][0]->id.'"', false);
 
         $this->post($url, ['slot' => 1, 'user_id' => $people['a'][3]->id])->assertSessionHas('success');
         $this->post($url, ['slot' => 2, 'user_id' => $people['b'][0]->id])->assertSessionHas('success');
-        // Company B's group 2 is presenting, so its members cannot judge.
-        $this->post($url, ['slot' => 2, 'user_id' => $people['b'][4]->id])->assertSessionHas('error');
+        // Slot 2 is Company B's Judge.
+        $this->post($url, ['slot' => 2, 'user_id' => $people['a'][4]->id])->assertSessionHas('error');
 
         $this->assertSame(
             [1 => $people['a'][3]->id, 2 => $people['b'][0]->id],

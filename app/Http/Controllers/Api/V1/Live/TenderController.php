@@ -57,8 +57,6 @@ class TenderController extends Controller
         $this->leader($request, $session);
         $data = $request->validate([
             'first_company' => ['sometimes', 'nullable', Rule::in(TenderGame::COMPANIES)],
-            'lead_group_a' => ['sometimes', 'nullable', 'integer', Rule::in([1, 2])],
-            'lead_group_b' => ['sometimes', 'nullable', 'integer', Rule::in([1, 2])],
             'change_order_note' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 

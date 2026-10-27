@@ -653,7 +653,7 @@ changes marks. Only students on a game's roster see it: anyone else gets `404 "T
 | GET | `live/tender` | roster | My games (GameSummary list) |
 | GET | `live/tender/games/{game}` | roster | Game with its seven sessions and my task in each |
 | GET | `live/tender/sessions/{session}` | roster | Session payload — poll every 3 s while open |
-| PATCH | `live/tender/sessions/{session}` | Leader | Setup: `first_company`, `lead_group_a`, `lead_group_b` (1/2), `change_order_note` |
+| PATCH | `live/tender/sessions/{session}` | Leader | Setup: `first_company`, `change_order_note` |
 | POST | `live/tender/sessions/{session}/judges` | Leader | `{slot: 1|2, user_id}` — put a student in a slot (replaces an unsubmitted Judge) |
 | POST | `live/tender/sessions/{session}/start` | Leader | setup → scoring |
 | POST | `live/tender/sessions/{session}/reconcile` | Leader | compiled → reconcile (once, only with flags) |
@@ -705,7 +705,7 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
 ```json
 {
   "id": 21, "game_id": 3, "code": "S1", "label": "Session 1", "week": 5, "status": "scoring",
-  "is_grand_final": false, "first_company": "A", "lead_group_a": 1, "lead_group_b": 1,
+  "is_grand_final": false, "first_company": "A",
   "change_order_note": "CO-1: design temperature raised to 220 °C",
   "scoring_started_at": "…", "reconcile_started_at": null, "announced_at": null, "review_status": null,
   "server_time": "…",

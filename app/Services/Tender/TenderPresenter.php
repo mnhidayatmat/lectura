@@ -80,8 +80,6 @@ class TenderPresenter
             'status' => $session->status,
             'is_grand_final' => $session->isGrandFinal(),
             'first_company' => $session->first_company,
-            'lead_group_a' => $session->lead_group_a,
-            'lead_group_b' => $session->lead_group_b,
             'change_order_note' => $session->change_order_note,
             'scoring_started_at' => $session->scoring_started_at?->toIso8601String(),
             'reconcile_started_at' => $session->reconcile_started_at?->toIso8601String(),

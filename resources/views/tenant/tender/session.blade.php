@@ -15,7 +15,6 @@
                 </h2>
                 <p class="mt-1 text-sm text-slate-500">{{ __('tender.week_n', ['n' => $session->week]) }}
                     @if($session->first_company) · {{ __('tender.first_presenter', ['company' => $game->companyName($session->first_company)]) }} @endif
-                    @if($session->lead_group_a) · {{ __('tender.lead_groups', ['a' => $session->lead_group_a, 'b' => $session->lead_group_b]) }} @endif
                 </p>
             </div>
             <a href="{{ route('tenant.tender.projector', [$tenantSlug, $session]) }}" target="_blank"
@@ -118,9 +117,7 @@
                     @endforeach
                 </div>
 
-                @if($eligible && (! $session->lead_group_a || ! $session->lead_group_b))
-                    <p class="mt-3 text-xs text-amber-700">{{ __('tender.lead_groups_unset') }}</p>
-                @elseif($eligible)
+                @if($eligible)
                     <p class="mt-3 text-xs text-slate-500">{{ __('tender.judge_rule') }}</p>
                 @endif
 

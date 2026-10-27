@@ -83,7 +83,7 @@ class TenderApiTest extends ApiTestCase
 
         $this->actingAsApi($this->leader)
             ->patchJson($this->url("sessions/{$session->id}"), [
-                'first_company' => 'A', 'lead_group_a' => 1, 'lead_group_b' => 1, 'change_order_note' => 'CO-1',
+                'first_company' => 'A', 'change_order_note' => 'CO-1',
             ])->assertOk();
 
         $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 1, 'user_id' => $this->students['A'][2][0]->id])->assertOk();
@@ -170,16 +170,16 @@ class TenderApiTest extends ApiTestCase
         $this->assertStringNotContainsString('Seen on slide', json_encode($json));
     }
 
-    public function test_judges_come_from_the_group_that_is_not_presenting_and_never_a_consultant(): void
+    public function test_judges_come_from_their_own_company_and_never_a_consultant(): void
     {
         $session = $this->s1();
-        $this->actingAsApi($this->leader)->patchJson($this->url("sessions/{$session->id}"), [
-            'first_company' => 'A', 'lead_group_a' => 1, 'lead_group_b' => 2,
-        ])->assertOk();
+        $this->actingAsApi($this->leader)->patchJson($this->url("sessions/{$session->id}"), ['first_company' => 'A'])
+            ->assertOk()
+            ->assertJsonMissingPath('data.lead_group_a');
 
-        // A presenting member of Company A cannot judge.
+        // Any active member of Company A may judge slot 1, whichever group they are in.
         $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 1, 'user_id' => $this->students['A'][1][1]->id])
-            ->assertStatus(422);
+            ->assertOk();
         // Slot 2 belongs to Company B.
         $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 2, 'user_id' => $this->students['A'][2][1]->id])
             ->assertStatus(422);
