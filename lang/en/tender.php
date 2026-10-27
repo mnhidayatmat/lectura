@@ -21,6 +21,7 @@ return [
     'save_game' => 'Save changes',
     'game_saved' => 'Game details saved.',
     'delete' => 'Delete game',
+    'delete_hint' => 'Removes every session, Judge card, score, appeal and roster entry. This cannot be undone.',
     'delete_confirm' => 'Delete ":title"? Every session, Judge card, score, appeal and roster entry goes with it. This cannot be undone.',
     'deleted' => '":title" was deleted.',
     'champion' => 'Tender Champion',

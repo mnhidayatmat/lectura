@@ -21,6 +21,7 @@ return [
     'save_game' => 'Simpan perubahan',
     'game_saved' => 'Butiran permainan disimpan.',
     'delete' => 'Padam permainan',
+    'delete_hint' => 'Membuang semua sesi, kad Hakim, markah, rayuan dan senarai ahli. Tindakan ini tidak boleh dibatalkan.',
     'delete_confirm' => 'Padam ":title"? Semua sesi, kad Hakim, markah, rayuan dan senarai ahli turut dipadam. Tindakan ini tidak boleh dibatalkan.',
     'deleted' => '":title" telah dipadam.',
     'champion' => 'Juara Tender',

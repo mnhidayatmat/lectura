@@ -21,20 +21,12 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 {{ __('tender.export') }}
             </a>
-            <form method="POST" action="{{ route('tenant.tender.destroy', [app('current_tenant')->slug, $course, $game]) }}"
-                  onsubmit="return confirm(@js(__('tender.delete_confirm', ['title' => $game->title])))">
-                @csrf
-                @method('DELETE')
-                <button class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-xl hover:bg-red-50 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    {{ __('tender.delete') }}
-                </button>
-            </form>
             </div>
         </div>
 
-        <form x-show="editing" x-cloak method="POST" action="{{ route('tenant.tender.update', [app('current_tenant')->slug, $course, $game]) }}"
-              class="mt-4 bg-white rounded-2xl border border-slate-200 p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+        <div x-show="editing" x-cloak class="mt-4 bg-white rounded-2xl border border-slate-200 p-5">
+        <form method="POST" action="{{ route('tenant.tender.update', [app('current_tenant')->slug, $course, $game]) }}"
+              class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
             @csrf
             @method('PUT')
             <div>
@@ -71,6 +63,23 @@
                 <button class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl">{{ __('tender.save_game') }}</button>
             </div>
         </form>
+
+        <div class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <p class="text-sm font-medium text-slate-900">{{ __('tender.delete') }}</p>
+                <p class="text-xs text-slate-500">{{ __('tender.delete_hint') }}</p>
+            </div>
+            <form method="POST" action="{{ route('tenant.tender.destroy', [app('current_tenant')->slug, $course, $game]) }}"
+                  onsubmit="return confirm(@js(__('tender.delete_confirm', ['title' => $game->title])))">
+                @csrf
+                @method('DELETE')
+                <button class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-xl hover:bg-red-50 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    {{ __('tender.delete') }}
+                </button>
+            </form>
+        </div>
+        </div>
         </div>
     </x-slot>
 
