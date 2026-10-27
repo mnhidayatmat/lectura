@@ -152,6 +152,15 @@ class TenderGameWebTest extends ApiTestCase
             ->assertOk()
             ->assertSee('Ophir Offshore Tender (BTG2663)')
             ->assertSee('Retrenchment stops at 9.');
+
+        $session = $game->sessions()->where('code', 'S1')->first();
+        $this->get($this->base("/{$game->id}/sessions/{$session->id}"))
+            ->assertOk()
+            ->assertSee('Judge 4')
+            ->assertSee('J4 · B');
+
+        $csv = $this->get($this->base("/{$game->id}/export"))->assertOk()->streamedContent();
+        $this->assertStringStartsWith('Session,Criterion,"Applies to",Company,"Judge 1","Judge 2","Judge 3","Judge 4",Average', $csv);
     }
 
     public function test_two_mds_in_one_company_are_refused(): void

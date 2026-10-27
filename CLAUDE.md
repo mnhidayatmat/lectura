@@ -321,7 +321,7 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   `TenderMember` (roster: `role` student/leader/deputy, `company` A/B, `group_no` 1/2, `is_md`, `status`
   active/consultant) and `TenderSession` (created with the game; `status` setup → scoring → compiled ⇄
   reconcile → announced; `review_status` approved/queried beside it) → `TenderJudge` (slot 1 = Company A's
-  Judge, slot 2 = B's; a conflict or substitution sets `replaced_at`, so read `activeJudges()`) →
+  Judge, slot 2 = B's; `TenderRules::judgeSlots()` adds slots 3 = A and 4 = B for Ophir; a conflict or substitution sets `replaced_at`, so read `activeJudges()`) →
   `TenderScore` (per criterion: both companies' levels, the after-reconcile levels, one evidence line) and
   `TenderPitchScore`; `TenderRosterEvent` (retrench, at_floor, hire, hire_back, pass) and `TenderAppeal`
 - Rules live in `App\Services\Tender\TenderFlow`, which throws `TenderRuleException` (renders 422 JSON on

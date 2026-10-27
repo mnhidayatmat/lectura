@@ -210,6 +210,49 @@ class OphirTenderApiTest extends ApiTestCase
             ->assertJsonPath('data.leader.company_sizes.B', 9);
     }
 
+    public function test_four_judges_two_from_each_company_are_averaged(): void
+    {
+        $session = $this->sessionFor('S1');
+        $judges = [1 => $this->students['A'][1], 2 => $this->students['B'][1], 3 => $this->students['A'][2], 4 => $this->students['B'][2]];
+
+        $this->actingAsApi($this->leader)->getJson($this->url("sessions/{$session->id}"))
+            ->assertJsonPath('data.rules.judge_slots', ['1' => 'A', '2' => 'B', '3' => 'A', '4' => 'B'])
+            ->assertJsonCount(4, 'data.leader.eligible_judges')
+            ->assertJsonCount(11, 'data.leader.eligible_judges.3');
+
+        $this->patchJson($this->url("sessions/{$session->id}"), ['first_company' => 'A'])->assertOk();
+        foreach ($judges as $slot => $user) {
+            $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => $slot, 'user_id' => $user->id])->assertOk();
+        }
+
+        // One slot each, from the slot's own company, and no fifth slot.
+        $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 3, 'user_id' => $judges[1]->id])->assertStatus(422);
+        $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 3, 'user_id' => $this->students['B'][3]->id])->assertStatus(422);
+        $this->postJson($this->url("sessions/{$session->id}/judges"), ['slot' => 5, 'user_id' => $this->students['A'][3]->id])->assertStatus(422);
+        $this->getJson($this->url("sessions/{$session->id}"))->assertJsonCount(10, 'data.leader.eligible_judges.3');
+
+        $this->postJson($this->url("sessions/{$session->id}/start"))->assertOk();
+
+        // Technical for A: 22, 20, 18, 16 averages 19; highest and lowest are 6 apart on 25, flagged.
+        foreach ([1 => 22, 2 => 20, 3 => 18, 4 => 16] as $slot => $mark) {
+            $this->card($judges[$slot], $session, ['technical' => [$mark, 20]]);
+        }
+
+        $sheet = $this->actingAsApi($this->leader)->getJson($this->url("sessions/{$session->id}"))
+            ->assertJsonPath('data.status', 'compiled')
+            ->json('data.leader.sheet');
+
+        $technical = collect($sheet['criteria'])->firstWhere('key', 'technical');
+        $this->assertSame([1 => 22, 2 => 20, 3 => 18, 4 => 16], $technical['a']['judges']);
+        $this->assertEqualsWithDelta(19.0, $technical['a']['mark'], 0.001);
+        $this->assertTrue($technical['a']['flag']);
+        $this->assertCount(4, $sheet['judge_totals']['A']);
+        $this->assertFalse($sheet['totals_flag']['A']);
+        $this->assertEqualsWithDelta(79.0, $sheet['totals']['A'], 0.001);
+        $this->assertEqualsWithDelta(80.0, $sheet['totals']['B'], 0.001);
+        $this->assertSame('B', $sheet['winner']);
+    }
+
     public function test_student_judges_score_the_grand_final(): void
     {
         $final = $this->sessionFor('GF');

@@ -194,7 +194,7 @@ class TenderPresenter
 
         $eligible = [];
         if (in_array($session->status, ['setup', 'scoring'], true)) {
-            foreach ([1, 2] as $slot) {
+            foreach (array_keys($game->rules()->judgeSlots()) as $slot) {
                 $eligible[(string) $slot] = $this->flow->eligibleJudges($session, $slot)->map(fn ($row) => [
                     'user_id' => $row['member']->user_id,
                     'name' => $row['member']->user->name,

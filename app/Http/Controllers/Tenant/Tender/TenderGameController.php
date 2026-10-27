@@ -181,7 +181,7 @@ class TenderGameController extends Controller
         $pitchRanking = $this->presenter->pitchRanking($session);
         $myJudge = $judges->first(fn (TenderJudge $j) => ! $j->replaced_at && $j->user_id === auth()->id());
         $eligible = ! $session->staffJudged() && in_array($session->status, ['setup', 'scoring'], true)
-            ? [1 => $this->flow->eligibleJudges($session, 1), 2 => $this->flow->eligibleJudges($session, 2)]
+            ? collect($game->rules()->judgeSlots())->map(fn ($c, $slot) => $this->flow->eligibleJudges($session, $slot))->all()
             : null;
 
         return view('tenant.tender.session', compact(
@@ -215,7 +215,7 @@ class TenderGameController extends Controller
     {
         $this->authorizeSession($course, $game, $session);
         $data = $request->validate([
-            'slot' => ['required', 'integer', Rule::in([1, 2])],
+            'slot' => ['required', 'integer', 'between:1,4'],
             'user_id' => ['required', 'integer'],
         ]);
 
@@ -309,20 +309,21 @@ class TenderGameController extends Controller
 
         return response()->streamDownload(function () use ($sessions, $game) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Session', 'Criterion', 'Applies to', 'Company', 'Judge 1', 'Judge 2', 'Average', 'Session marks', 'Max']);
+            $slots = array_keys($game->rules()->judgeSlots());
+            fputcsv($out, ['Session', 'Criterion', 'Applies to', 'Company', ...array_map(fn ($s) => 'Judge '.$s, $slots), 'Average', 'Session marks', 'Max']);
 
             foreach ($sessions as $session) {
                 foreach ($session->result['criteria'] ?? [] as $row) {
                     foreach (['A', 'B'] as $company) {
                         $cell = $row[strtolower($company)];
-                        $levels = array_values(array_filter([$cell['j1'], $cell['j2']], fn ($l) => $l !== null));
+                        $byJudge = array_map(fn ($s) => $cell['judges'][$s] ?? $cell['j'.$s] ?? null, $slots);
+                        $levels = array_values(array_filter($byJudge, fn ($l) => $l !== null));
                         fputcsv($out, [
                             $session->code,
                             $row['label'],
                             in_array($row['key'], $game->rules()->companyCriteria(), true) ? 'Company (every member)' : 'Group (first read)',
                             $game->companyName($company),
-                            $cell['j1'],
-                            $cell['j2'],
+                            ...$byJudge,
                             $levels ? round(array_sum($levels) / count($levels), 2) : null,
                             $cell['mark'],
                             $row['max'],

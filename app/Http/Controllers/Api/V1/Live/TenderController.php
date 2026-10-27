@@ -69,7 +69,7 @@ class TenderController extends Controller
     {
         $this->leader($request, $session);
         $data = $request->validate([
-            'slot' => ['required', 'integer', Rule::in([1, 2])],
+            'slot' => ['required', 'integer', 'between:1,4'],
             'user_id' => ['required', 'integer'],
         ]);
 

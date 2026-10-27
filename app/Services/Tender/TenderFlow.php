@@ -66,7 +66,8 @@ class TenderFlow
 
     /**
      * Student Judges who may take a slot: active members of that slot's company
-     * (slot 1 = Company A, slot 2 = Company B). Consultants cannot judge.
+     * (the ruleset's judgeSlots) not already judging another slot this session.
+     * Consultants cannot judge.
      *
      * @return Collection<int, array{member: TenderMember, judged_before: int}>
      */
@@ -76,7 +77,8 @@ class TenderFlow
             return collect();
         }
 
-        $company = $slot === 1 ? 'A' : 'B';
+        $company = $session->game->rules()->judgeSlots()[$slot] ?? null;
+        $elsewhere = $session->activeJudges()->where('slot', '!=', $slot)->whereNotNull('user_id')->pluck('user_id')->all();
 
         $judgedBefore = TenderJudge::query()
             ->whereNull('replaced_at')
@@ -88,7 +90,8 @@ class TenderFlow
             ->pluck('n', 'user_id');
 
         return $session->game->members()->with('user')->get()
-            ->filter(fn (TenderMember $m) => $m->isActiveStudent() && $m->company === $company)
+            ->filter(fn (TenderMember $m) => $m->isActiveStudent() && $m->company === $company
+                && ! in_array($m->user_id, $elsewhere, true))
             ->sortBy(fn (TenderMember $m) => [(int) ($judgedBefore[$m->user_id] ?? 0), $m->user->name])
             ->values()
             ->map(fn (TenderMember $m) => [
@@ -101,7 +104,7 @@ class TenderFlow
     public function assignJudge(TenderSession $session, int $slot, User $user): TenderJudge
     {
         $this->expectStatus($session, ['setup', 'scoring'], 'Judges can only change before the cards are in.');
-        $this->expectSlot($slot);
+        $this->expectSlot($session, $slot);
 
         if ($session->staffJudged()) {
             throw new TenderRuleException('At the Grand Final the lecturer and an invited staff member score; student Judges do not.');
@@ -111,7 +114,7 @@ class TenderFlow
             ->first(fn ($row) => $row['member']->user_id === $user->id);
 
         if (! $eligible) {
-            throw new TenderRuleException('That student cannot judge this slot: a Judge comes from that slot\'s company, and consultants cannot judge.');
+            throw new TenderRuleException('That student cannot judge this slot: a Judge comes from that slot\'s company, judges one slot only, and consultants cannot judge.');
         }
 
         return $this->placeJudge($session, $slot, [
@@ -722,7 +725,7 @@ class TenderFlow
 
     private function expectGrandFinalStaffChange(TenderSession $session, int $slot): void
     {
-        $this->expectSlot($slot);
+        $this->expectSlot($session, $slot);
         if (! $session->staffJudged()) {
             throw new TenderRuleException($session->isGrandFinal()
                 ? 'Student Judges score this Grand Final.'
@@ -731,10 +734,11 @@ class TenderFlow
         $this->expectStatus($session, ['setup', 'scoring'], 'Judges can only change before the cards are in.');
     }
 
-    private function expectSlot(int $slot): void
+    private function expectSlot(TenderSession $session, int $slot): void
     {
-        if (! in_array($slot, [1, 2], true)) {
-            throw new TenderRuleException('There are two Judge slots.');
+        $slots = $session->game->rules()->judgeSlots();
+        if (! isset($slots[$slot])) {
+            throw new TenderRuleException('There are '.count($slots).' Judge slots.');
         }
     }
 

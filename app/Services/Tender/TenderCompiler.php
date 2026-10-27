@@ -10,9 +10,9 @@ use Illuminate\Support\Collection;
 
 /**
  * The Leader's Compile Sheet, worked out by the server: each company's mark is the
- * average of the two Judges' marks (Piping turns a level into level ÷ 4 × maximum),
- * flagged where the Judges differ by the ruleset's gap or their totals by more
- * than 10 marks, and the winner with the ruleset's tie-break.
+ * average of the Judges' marks (Piping turns a level into level ÷ 4 × maximum),
+ * flagged where the highest and lowest Judge differ by the ruleset's gap or their
+ * totals by more than 10 marks, and the winner with the ruleset's tie-break.
  */
 class TenderCompiler
 {
@@ -60,12 +60,15 @@ class TenderCompiler
                 $given = array_values(array_filter($levels, fn ($l) => $l !== null));
                 $mark = $given === [] ? 0.0
                     : array_sum(array_map(fn ($l) => $rules->marks($l, $max), $given)) / count($given);
-                $flag = count($given) === 2 && $rules->flagged($given[0], $given[1], $max);
+                $flag = count($given) >= 2 && $rules->flagged(max($given), min($given), $max);
                 $flagCount += $flag ? 1 : 0;
 
                 $row[strtolower($company)] = [
                     'j1' => $levels[1] ?? null,
                     'j2' => $levels[2] ?? null,
+                    'judges' => array_map(fn ($slot) => $levels[$slot] ?? null, array_combine(
+                        array_keys($rules->judgeSlots()), array_keys($rules->judgeSlots()),
+                    )),
                     'mark' => round($mark, 2),
                     'flag' => $flag,
                 ];
@@ -78,8 +81,7 @@ class TenderCompiler
         $totalsFlag = [];
         foreach (['A', 'B'] as $company) {
             $byJudge = $judgeTotals[$company];
-            $totalsFlag[$company] = count($byJudge) === 2
-                && abs(($byJudge[1] ?? 0) - ($byJudge[2] ?? 0)) > self::TOTALS_GAP;
+            $totalsFlag[$company] = count($byJudge) >= 2 && max($byJudge) - min($byJudge) > self::TOTALS_GAP;
             $flagCount += $totalsFlag[$company] ? 1 : 0;
             $judgeTotals[$company] = array_map(fn ($t) => round($t, 2), $byJudge);
             $totals[$company] = round($totals[$company], 2);

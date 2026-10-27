@@ -8,7 +8,8 @@ namespace App\Services\Tender;
  * The rules a tender game is played by. `piping` is the BTG3333 Piping Design
  * Tender (levels 1 to 4, the criteria due each session); `ophir` is the BTG2663
  * Ophir Offshore Tender (a band, then a mark inside it, on the same seven
- * criteria every week; two retrenched per loss; student Judges at the Grand Final).
+ * criteria every week; four Judges, two per company; two retrenched per loss;
+ * student Judges at the Grand Final).
  */
 final class TenderRules
 {
@@ -128,6 +129,17 @@ final class TenderRules
         return $this->isOphir() ? array_keys(self::OPHIR_CRITERIA) : TenderCriteria::COMPANY_CRITERIA;
     }
 
+    /**
+     * Judge slots and the company each Judge comes from. Piping has one Judge per
+     * company; Ophir two, alternating so slots 1 and 2 still mean A and B.
+     *
+     * @return array<int, string>
+     */
+    public function judgeSlots(): array
+    {
+        return $this->isOphir() ? [1 => 'A', 2 => 'B', 3 => 'A', 4 => 'B'] : [1 => 'A', 2 => 'B'];
+    }
+
     /** A company is never retrenched below this. */
     public function minCompany(): int
     {
@@ -193,6 +205,7 @@ final class TenderRules
             'note_label' => $this->noteLabel(),
             'flag_rule' => $this->flagRule(),
             'retrench_count' => $this->retrenchCount(),
+            'judge_slots' => $this->judgeSlots(),
         ];
     }
 }

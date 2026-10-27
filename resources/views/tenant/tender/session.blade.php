@@ -2,6 +2,7 @@
     @php($tenantSlug = app('current_tenant')->slug)
     @php($criteria = $session->criteria())
     @php($active = $judges->whereNull('replaced_at')->keyBy('slot'))
+    @php($slots = $game->rules()->judgeSlots())
     @php($live = in_array($session->status, ['setup', 'scoring', 'compiled', 'reconcile'], true))
 
     <x-slot name="header">
@@ -64,11 +65,11 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 class="font-semibold text-slate-900 mb-3">{{ __('tender.judges') }}</h3>
                 <div class="grid sm:grid-cols-2 gap-3">
-                    @foreach([1, 2] as $slot)
+                    @foreach(array_keys($slots) as $slot)
                         @php($j = $active[$slot] ?? null)
                         <div class="rounded-xl border border-slate-200 p-4">
                             <p class="text-xs text-slate-500">{{ __('tender.judge_n', ['n' => $slot]) }}
-                                @unless($session->staffJudged()) · {{ $game->companyName($slot === 1 ? 'A' : 'B') }} @endunless</p>
+                                @unless($session->staffJudged()) · {{ $game->companyName($slots[$slot]) }} @endunless</p>
                             @if($j)
                                 <p class="font-medium text-slate-900">{{ $j->displayName() }} @if($j->isGuest()) <span class="text-xs text-slate-500">({{ __('tender.guest') }})</span> @endif</p>
                                 <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
@@ -170,7 +171,7 @@
                         <thead class="bg-slate-50 text-xs text-slate-500">
                             <tr>
                                 <th class="text-left px-4 py-2">{{ __('tender.criterion') }}</th>
-                                @foreach([1, 2] as $slot)
+                                @foreach(array_keys($slots) as $slot)
                                     <th class="text-center px-2 py-2">J{{ $slot }} · A</th>
                                     <th class="text-center px-2 py-2">J{{ $slot }} · B</th>
                                 @endforeach
@@ -184,7 +185,7 @@
                                         <p class="font-medium text-slate-900">{{ $game->rules()->label($key) }}</p>
                                         <p class="text-xs text-slate-500">{{ __('tender.max', ['max' => $max + 0]) }}</p>
                                     </td>
-                                    @foreach([1, 2] as $slot)
+                                    @foreach(array_keys($slots) as $slot)
                                         @php($score = ($active[$slot] ?? null)?->scores->firstWhere('criterion', $key))
                                         @foreach(['a', 'b'] as $c)
                                             @php($orig = $score?->{'level_'.$c})
@@ -199,7 +200,7 @@
                                         @endforeach
                                     @endforeach
                                     <td class="px-4 py-2 text-xs text-slate-600 space-y-1 min-w-[16rem]">
-                                        @foreach([1, 2] as $slot)
+                                        @foreach(array_keys($slots) as $slot)
                                             @php($ev = ($active[$slot] ?? null)?->scores->firstWhere('criterion', $key)?->evidence)
                                             @if($ev)<p><span class="font-semibold">J{{ $slot }}:</span> {{ $ev }}</p>@endif
                                         @endforeach
@@ -252,7 +253,7 @@
                                 <td class="px-4 py-2" colspan="2">{{ __('tender.judge_totals') }}</td>
                                 @foreach(['A', 'B'] as $c)
                                     <td class="px-4 py-2 text-right tabular-nums {{ $sheet['totals_flag'][$c] ? 'text-amber-800 font-semibold' : '' }}">
-                                        {{ number_format($sheet['judge_totals'][$c][1] ?? 0, 2) }} / {{ number_format($sheet['judge_totals'][$c][2] ?? 0, 2) }}
+                                        {{ collect(array_keys($slots))->map(fn ($s) => number_format($sheet['judge_totals'][$c][$s] ?? 0, 2))->implode(' / ') }}
                                         @if($sheet['totals_flag'][$c]) ⚑ @endif
                                     </td>
                                 @endforeach

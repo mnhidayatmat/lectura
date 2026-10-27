@@ -654,9 +654,12 @@ marked. `ophir` (BTG2663 Ophir Offshore Tender) differs in:
 - **Scoring:** the same seven criteria every session (`technical` 25, `compliance` 25, `data`, `integration`,
   `defence`, `communication`, `progress` 10 each). A Judge picks a band, then a whole **mark** from 0 to the
   criterion's maximum, sent in `level_a`/`level_b`. Each criterion carries `max_level` and `bands`
-  (`[{label: Excellent|Good|Fair|Poor, min, max}]`, best first). A company's mark is the average of the two
-  Judges' marks; a row is flagged when they differ by 20% of the criterion or more; totals more than 10 apart
-  flag as in Piping. Tie-break: `compliance`, `defence`, `technical`, then sudden death.
+  (`[{label: Excellent|Good|Fair|Poor, min, max}]`, best first). A company's mark is the average of the
+  Judges' marks; a row is flagged when the highest and lowest Judge differ by 20% of the criterion or more;
+  Judge totals more than 10 apart (highest to lowest) flag as in Piping. Tie-break: `compliance`, `defence`, `technical`, then sudden death.
+- **Judges:** four slots, two per company: `rules.judge_slots` is `{"1": "A", "2": "B", "3": "A", "4": "B"}`
+  (Piping sends `{"1": "A", "2": "B"}`). A student holds one slot only, so a student judging one slot is left
+  out of the other slots' `eligible_judges`. Scoring compiles once every assigned Judge has submitted.
 - **Sessions:** S1–S6 and GF on weeks 5–11. Student Judges score the Grand Final too (no staff slots).
 - **Retrenchment:** after S1–S6 the losing MD names **two** students, one call at a time
   (`retrenchment_task.remaining` counts down); no group goes to zero and no company below 9, so a company one
@@ -669,7 +672,7 @@ marked. `ophir` (BTG2663 Ophir Offshore Tender) differs in:
 | GET | `live/tender/games/{game}` | roster | Game with its seven sessions and my task in each |
 | GET | `live/tender/sessions/{session}` | roster | Session payload — poll every 3 s while open |
 | PATCH | `live/tender/sessions/{session}` | Leader | Setup: `first_company`, `change_order_note` |
-| POST | `live/tender/sessions/{session}/judges` | Leader | `{slot: 1|2, user_id}` — put a student in a slot (replaces an unsubmitted Judge) |
+| POST | `live/tender/sessions/{session}/judges` | Leader | `{slot: 1–4 (a key of rules.judge_slots), user_id}` — put a student in a slot (replaces an unsubmitted Judge) |
 | POST | `live/tender/sessions/{session}/start` | Leader | setup → scoring |
 | POST | `live/tender/sessions/{session}/reconcile` | Leader | compiled → reconcile (once, only with flags) |
 | POST | `live/tender/sessions/{session}/reconcile/end` | Leader | reconcile → compiled (when the 2 minutes are up) |
@@ -723,7 +726,8 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
   "is_grand_final": false, "first_company": "A",
   "change_order_note": "CO-1: design temperature raised to 220 °C",
   "rules": {"key": "piping", "scale": "levels", "note_label": "Change Order",
-            "flag_rule": "The Judges differ by 2 or more levels", "retrench_count": 1},
+            "flag_rule": "The Judges differ by 2 or more levels", "retrench_count": 1,
+            "judge_slots": {"1": "A", "2": "B"}},
   "scoring_started_at": "…", "reconcile_started_at": null, "announced_at": null, "review_status": null,
   "server_time": "…",
   "companies": {"A": "Company A", "B": "Company B"},
@@ -748,10 +752,10 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
   scores: [CardRow + level_a_after, level_b_after], pitches: [Pitch], reconcile_criteria: [key]}`. It never
   contains the other Judge's levels. `reconcile_criteria` lists the rows I may change during `reconcile`.
 - `leader` (Leader/deputy only): `{judges: [{id, slot, name, company, guest, declared, submitted, reconciled,
-  from_paper}], eligible_judges: {"1": [{user_id, name, group_no, judged_before}], "2": […]} | null (setup and
+  from_paper}], eligible_judges: {"1": [{user_id, name, group_no, judged_before}], "2": […], … one per judge slot} | null (setup and
   scoring), sheet: Sheet | null (from compiled on), reconcilable: [key], can_reconcile, pitch_ranking:
   [{user_id, name, total}], retrenchment: {company, status: pending|named|at_floor} | null, hires: [{kind,
-  company, user_id, name}], company_sizes: {A, B}}`. Slot 1 is Company A's Judge, slot 2 Company B's; eligible
+  company, user_id, name}], company_sizes: {A, B}}`. `rules.judge_slots` names each slot's company (Piping: slot 1 A, slot 2 B); eligible
   students are sorted by how often they have judged. The retrenched student's name is never in this object.
 - `retrenchment_task` (losing MD, S1–S5, until named): `{company, remaining, eligible: [{user_id, name, group_no}]}` —
   only students whose removal keeps every group at 2 and the company at 4; the MD is never listed.
@@ -772,8 +776,8 @@ consultant out if they did not pitch.
 ```json
 {
   "criteria": [{"key": "intro", "label": "…", "max": 35.0,
-                "a": {"j1": 4, "j2": 3, "mark": 30.63, "flag": false},
-                "b": {"j1": 3, "j2": 3, "mark": 26.25, "flag": false}}, …],
+                "a": {"j1": 4, "j2": 3, "judges": {"1": 4, "2": 3}, "mark": 30.63, "flag": false},
+                "b": {"j1": 3, "j2": 3, "judges": {"1": 3, "2": 3}, "mark": 26.25, "flag": false}}, …],
   "totals": {"A": 81.88, "B": 68.13},
   "judge_totals": {"A": {"1": 85.0, "2": 78.75}, "B": {"1": 66.25, "2": 70.0}},
   "totals_flag": {"A": false, "B": false},
@@ -781,6 +785,9 @@ consultant out if they did not pitch.
   "winner": "A", "tie_break": null, "needs_sudden_death": false
 }
 ```
+
+`judges` holds each slot's score (null until that card is in); `j1`/`j2` repeat slots 1 and 2 for older
+builds. `judge_totals` has one entry per Judge who submitted.
 
 Mark = (J1 + J2) ÷ 8 × max (one Judge: level ÷ 4 × max, `single_judge: true`). A row is flagged when the
 Judges differ by 2+ levels; `totals_flag` when one Judge's total for a company is more than 10 marks from the
