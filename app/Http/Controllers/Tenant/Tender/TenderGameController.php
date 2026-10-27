@@ -13,10 +13,10 @@ use App\Models\TenderJudge;
 use App\Models\TenderMember;
 use App\Models\TenderSession;
 use App\Models\User;
-use App\Services\Tender\TenderCriteria;
 use App\Services\Tender\TenderFlow;
 use App\Services\Tender\TenderPresenter;
 use App\Services\Tender\TenderRuleException;
+use App\Services\Tender\TenderRules;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +56,9 @@ class TenderGameController extends Controller
     {
         $this->authorizeCourseAccess($course);
 
-        $data = $this->validateGame($request, $course);
+        $data = $this->validateGame($request, $course) + $request->validate([
+            'ruleset' => ['sometimes', Rule::in(TenderRules::RULESETS)],
+        ]);
 
         $game = $this->flow->createGame($data + [
             'course_id' => $course->id,
@@ -178,7 +180,7 @@ class TenderGameController extends Controller
         $appeals = $session->appeals()->with('user')->get();
         $pitchRanking = $this->presenter->pitchRanking($session);
         $myJudge = $judges->first(fn (TenderJudge $j) => ! $j->replaced_at && $j->user_id === auth()->id());
-        $eligible = ! $session->isGrandFinal() && in_array($session->status, ['setup', 'scoring'], true)
+        $eligible = ! $session->staffJudged() && in_array($session->status, ['setup', 'scoring'], true)
             ? [1 => $this->flow->eligibleJudges($session, 1), 2 => $this->flow->eligibleJudges($session, 2)]
             : null;
 
@@ -307,7 +309,7 @@ class TenderGameController extends Controller
 
         return response()->streamDownload(function () use ($sessions, $game) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Session', 'Criterion', 'Applies to', 'Company', 'Judge 1 level', 'Judge 2 level', 'Average level', 'Session marks', 'Max']);
+            fputcsv($out, ['Session', 'Criterion', 'Applies to', 'Company', 'Judge 1', 'Judge 2', 'Average', 'Session marks', 'Max']);
 
             foreach ($sessions as $session) {
                 foreach ($session->result['criteria'] ?? [] as $row) {
@@ -317,7 +319,7 @@ class TenderGameController extends Controller
                         fputcsv($out, [
                             $session->code,
                             $row['label'],
-                            in_array($row['key'], TenderCriteria::COMPANY_CRITERIA, true) ? 'Company (every member)' : 'Group (first read)',
+                            in_array($row['key'], $game->rules()->companyCriteria(), true) ? 'Company (every member)' : 'Group (first read)',
                             $game->companyName($company),
                             $cell['j1'],
                             $cell['j2'],

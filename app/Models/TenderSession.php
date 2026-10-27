@@ -83,12 +83,18 @@ class TenderSession extends Model
     /** @return array<string, float> criterion => maximum marks */
     public function criteria(): array
     {
-        return TenderCriteria::forSession($this->code);
+        return $this->game->rules()->criteria($this->code);
     }
 
     public function retrenches(): bool
     {
-        return in_array($this->code, ['S1', 'S2', 'S3', 'S4', 'S5'], true);
+        return in_array($this->code, $this->game->rules()->retrenchingSessions(), true);
+    }
+
+    /** A Grand Final scored by the lecturer and invited staff instead of student Judges. */
+    public function staffJudged(): bool
+    {
+        return $this->isGrandFinal() && $this->game->rules()->staffFinal();
     }
 
     /** Appeals close at noon, institution time, the day after the announcement. */

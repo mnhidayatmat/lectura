@@ -81,6 +81,7 @@ class TenderPresenter
             'is_grand_final' => $session->isGrandFinal(),
             'first_company' => $session->first_company,
             'change_order_note' => $session->change_order_note,
+            'rules' => $game->rules()->toArray(),
             'scoring_started_at' => $session->scoring_started_at?->toIso8601String(),
             'reconcile_started_at' => $session->reconcile_started_at?->toIso8601String(),
             'announced_at' => $session->announced_at?->toIso8601String(),
@@ -237,6 +238,7 @@ class TenderPresenter
 
         return [
             'company' => $me->company,
+            'remaining' => $this->flow->retrenchesLeft($session),
             'eligible' => $this->flow->retrenchable($session)->map(fn (TenderMember $m) => [
                 'user_id' => $m->user_id,
                 'name' => $m->user->name,
@@ -279,13 +281,16 @@ class TenderPresenter
 
     private function criteria(TenderSession $session): array
     {
+        $rules = $session->game->rules();
         $rows = [];
         foreach ($session->criteria() as $key => $max) {
             $rows[] = [
                 'key' => $key,
-                'label' => TenderCriteria::label($key),
+                'label' => $rules->label($key),
                 'max' => $max,
-                'min_level' => TenderCriteria::minLevel($key),
+                'min_level' => $rules->minScore($key),
+                'max_level' => $rules->maxScore($max),
+                'bands' => $rules->bands($max),
             ];
         }
 

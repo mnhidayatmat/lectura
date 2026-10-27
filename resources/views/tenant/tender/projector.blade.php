@@ -47,7 +47,7 @@
 
     <script>
         function tenderProjector(url) {
-            const tieBreaks = @js(collect(['compliance', 'defence', 'change_order', 'sudden_death'])->mapWithKeys(fn ($k) => [$k => __('tender.tie_break_'.$k)]));
+            const tieBreaks = @js(collect(['compliance', 'defence', 'change_order', 'technical', 'sudden_death'])->mapWithKeys(fn ($k) => [$k => __('tender.tie_break_'.$k)]));
             return {
                 state: { status: @js($session->status), label: @js($session->label()), totals: [] },
                 tieBreak(key) { return tieBreaks[key] || ''; },

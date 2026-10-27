@@ -9,10 +9,10 @@ use App\Models\TenderSession;
 use Illuminate\Support\Collection;
 
 /**
- * The Leader's Compile Sheet (Student Guide, Appendix C), worked out by the server:
- * company mark = (Judge 1 level + Judge 2 level) ÷ 8 × maximum, flags where the
- * Judges differ by 2 or more levels or their totals by more than 10 marks, and
- * the winner with the tie-break.
+ * The Leader's Compile Sheet, worked out by the server: each company's mark is the
+ * average of the two Judges' marks (Piping turns a level into level ÷ 4 × maximum),
+ * flagged where the Judges differ by the ruleset's gap or their totals by more
+ * than 10 marks, and the winner with the ruleset's tie-break.
  */
 class TenderCompiler
 {
@@ -42,9 +42,10 @@ class TenderCompiler
         $totals = ['A' => 0.0, 'B' => 0.0];
         $judgeTotals = ['A' => [], 'B' => []];
         $flagCount = 0;
+        $rules = $session->game->rules();
 
         foreach ($session->criteria() as $key => $max) {
-            $row = ['key' => $key, 'label' => TenderCriteria::label($key), 'max' => $max];
+            $row = ['key' => $key, 'label' => $rules->label($key), 'max' => $max];
 
             foreach (['A', 'B'] as $company) {
                 $levels = [];
@@ -52,13 +53,14 @@ class TenderCompiler
                     $level = $judge->scores->firstWhere('criterion', $key)?->effective($company);
                     $levels[$slot] = $level;
                     if ($level !== null) {
-                        $judgeTotals[$company][$slot] = ($judgeTotals[$company][$slot] ?? 0) + $level / 4 * $max;
+                        $judgeTotals[$company][$slot] = ($judgeTotals[$company][$slot] ?? 0) + $rules->marks($level, $max);
                     }
                 }
 
                 $given = array_values(array_filter($levels, fn ($l) => $l !== null));
-                $mark = $given === [] ? 0.0 : array_sum($given) / (4 * count($given)) * $max;
-                $flag = count($given) === 2 && abs($given[0] - $given[1]) >= self::LEVEL_GAP;
+                $mark = $given === [] ? 0.0
+                    : array_sum(array_map(fn ($l) => $rules->marks($l, $max), $given)) / count($given);
+                $flag = count($given) === 2 && $rules->flagged($given[0], $given[1], $max);
                 $flagCount += $flag ? 1 : 0;
 
                 $row[strtolower($company)] = [
@@ -83,7 +85,7 @@ class TenderCompiler
             $totals[$company] = round($totals[$company], 2);
         }
 
-        [$winner, $tieBreak] = $this->winner($totals, $rows);
+        [$winner, $tieBreak] = $this->winner($totals, $rows, $rules->tieBreak());
 
         return [
             'criteria' => $rows,
@@ -120,14 +122,14 @@ class TenderCompiler
     /**
      * @return array{0: ?string, 1: ?string}
      */
-    private function winner(array $totals, array $rows): array
+    private function winner(array $totals, array $rows, array $tieBreak): array
     {
         if ($totals['A'] !== $totals['B']) {
             return [$totals['A'] > $totals['B'] ? 'A' : 'B', null];
         }
 
         $byKey = collect($rows)->keyBy('key');
-        foreach (TenderCriteria::TIE_BREAK as $key) {
+        foreach ($tieBreak as $key) {
             $a = $byKey[$key]['a']['mark'] ?? 0;
             $b = $byKey[$key]['b']['mark'] ?? 0;
             if ($a !== $b) {

@@ -39,10 +39,10 @@ class TenderFlow
         return DB::transaction(function () use ($attributes) {
             $game = TenderGame::create($attributes);
 
-            foreach (TenderCriteria::SESSIONS as $i => $code) {
+            foreach (array_keys($game->rules()->defaultWeeks()) as $i => $code) {
                 $game->sessions()->create([
                     'code' => $code,
-                    'week' => TenderCriteria::DEFAULT_WEEKS[$code],
+                    'week' => $game->rules()->defaultWeeks()[$code],
                     'sort_order' => $i,
                 ]);
             }
@@ -72,7 +72,7 @@ class TenderFlow
      */
     public function eligibleJudges(TenderSession $session, int $slot): Collection
     {
-        if ($session->isGrandFinal()) {
+        if ($session->staffJudged()) {
             return collect();
         }
 
@@ -103,7 +103,7 @@ class TenderFlow
         $this->expectStatus($session, ['setup', 'scoring'], 'Judges can only change before the cards are in.');
         $this->expectSlot($slot);
 
-        if ($session->isGrandFinal()) {
+        if ($session->staffJudged()) {
             throw new TenderRuleException('At the Grand Final the lecturer and an invited staff member score; student Judges do not.');
         }
 
@@ -157,7 +157,7 @@ class TenderFlow
     {
         $this->expectStatus($session, ['setup'], 'The session has already started.');
 
-        if (! $session->isGrandFinal()) {
+        if (! $session->staffJudged()) {
             if (! $session->first_company) {
                 throw new TenderRuleException('Set who presents first before starting.');
             }
@@ -211,7 +211,7 @@ class TenderFlow
             }
             $open = $session->reconcile_criteria ?? [];
 
-            DB::transaction(function () use ($judge, $scores, $open, $criteria) {
+            DB::transaction(function () use ($judge, $session, $scores, $open, $criteria) {
                 foreach ($scores as $row) {
                     $key = $row['criterion'];
                     if (! isset($criteria[$key]) || ! in_array($key, $open, true)) {
@@ -222,8 +222,8 @@ class TenderFlow
                         continue;
                     }
                     $score->update([
-                        'level_a_after' => $this->changedLevel($key, $row['level_a'] ?? null, $score->level_a),
-                        'level_b_after' => $this->changedLevel($key, $row['level_b'] ?? null, $score->level_b),
+                        'level_a_after' => $this->changedLevel($session, $key, $row['level_a'] ?? null, $score->level_a),
+                        'level_b_after' => $this->changedLevel($session, $key, $row['level_b'] ?? null, $score->level_b),
                     ]);
                 }
             });
@@ -239,15 +239,15 @@ class TenderFlow
             throw new TenderRuleException('Confirm the declaration before scoring.');
         }
 
-        DB::transaction(function () use ($judge, $scores, $pitches, $criteria) {
+        DB::transaction(function () use ($judge, $session, $scores, $pitches, $criteria) {
             foreach ($scores as $row) {
                 $key = $row['criterion'];
                 if (! isset($criteria[$key])) {
-                    throw new TenderRuleException(TenderCriteria::label($key).' is not scored this session.');
+                    throw new TenderRuleException($session->game->rules()->label($key).' is not scored this session.');
                 }
                 $judge->scores()->updateOrCreate(['criterion' => $key], [
-                    'level_a' => $this->checkedLevel($key, $row['level_a'] ?? null),
-                    'level_b' => $this->checkedLevel($key, $row['level_b'] ?? null),
+                    'level_a' => $this->checkedLevel($session, $key, $row['level_a'] ?? null),
+                    'level_b' => $this->checkedLevel($session, $key, $row['level_b'] ?? null),
                     'evidence' => isset($row['evidence']) ? Str::limit(trim((string) $row['evidence']), 500, '') : null,
                 ]);
             }
@@ -269,13 +269,14 @@ class TenderFlow
         }
 
         $scores = $judge->scores()->get()->keyBy('criterion');
+        $rules = $judge->session->game->rules();
         foreach (array_keys($judge->session->criteria()) as $key) {
             $score = $scores[$key] ?? null;
             if (! $score || $score->level_a === null || $score->level_b === null) {
-                throw new TenderRuleException('Give both companies a level for '.TenderCriteria::label($key).'.');
+                throw new TenderRuleException('Give both companies a '.($rules->isOphir() ? 'mark' : 'level').' for '.$rules->label($key).'.');
             }
             if (blank($score->evidence)) {
-                throw new TenderRuleException('Write a line of evidence for '.TenderCriteria::label($key).'.');
+                throw new TenderRuleException('Write a line of evidence for '.$rules->label($key).'.');
             }
         }
 
@@ -389,7 +390,7 @@ class TenderFlow
             $loser = $winner === 'A' ? 'B' : 'A';
             if ($session->retrenches()
                 && $session->rosterEvents()->whereIn('kind', ['retrench', 'at_floor'])->doesntExist()
-                && $this->companySize($session->game, $loser) <= self::MIN_COMPANY) {
+                && $this->companySize($session->game, $loser) <= $session->game->rules()->minCompany()) {
                 $session->rosterEvents()->create(['kind' => 'at_floor', 'company' => $loser]);
             }
         });
@@ -409,8 +410,8 @@ class TenderFlow
     // ── Retrenchment and consultants ────────────────────────────────
 
     /**
-     * Students the losing company's MD may retrench: no group below 2 and no
-     * company below 4 afterwards. The MD stays to run the company.
+     * Students the losing company's MD may retrench: no group and no company below
+     * the ruleset's floor afterwards. The MD stays to run the company.
      *
      * @return Collection<int, TenderMember>
      */
@@ -424,14 +425,15 @@ class TenderFlow
         $active = $session->game->members()->with('user')->get()
             ->filter(fn (TenderMember $m) => $m->isActiveStudent() && $m->company === $company);
 
-        if ($active->count() <= self::MIN_COMPANY) {
+        $rules = $session->game->rules();
+        if ($active->count() <= $rules->minCompany()) {
             return collect();
         }
 
         $groupSizes = $active->countBy('group_no');
 
         return $active
-            ->filter(fn (TenderMember $m) => ! $m->is_md && ($groupSizes[$m->group_no] ?? 0) > self::MIN_GROUP)
+            ->filter(fn (TenderMember $m) => ! $m->is_md && ($groupSizes[$m->group_no] ?? 0) > $rules->minGroup())
             ->sortBy(fn (TenderMember $m) => $m->user->name)
             ->values();
     }
@@ -442,13 +444,25 @@ class TenderFlow
             return null;
         }
 
-        $event = $session->rosterEvents()->whereIn('kind', ['retrench', 'at_floor'])->first();
+        $events = $session->rosterEvents()->whereIn('kind', ['retrench', 'at_floor'])->get();
+        if ($events->contains('kind', 'at_floor')) {
+            return 'at_floor';
+        }
+        if ($events->isEmpty()) {
+            return 'pending';
+        }
 
-        return match ($event?->kind) {
-            'retrench' => 'named',
-            'at_floor' => 'at_floor',
-            default => 'pending',
-        };
+        // Ophir retrenches two; the MD names them one at a time, and stops early at the floor.
+        return $this->retrenchesLeft($session, $events->count()) > 0 ? 'pending' : 'named';
+    }
+
+    /** How many more students the losing MD still has to name this session. */
+    public function retrenchesLeft(TenderSession $session, ?int $named = null): int
+    {
+        $named ??= $session->rosterEvents()->where('kind', 'retrench')->count();
+        $left = $session->game->rules()->retrenchCount() - $named;
+
+        return $left > 0 && $this->retrenchable($session)->isNotEmpty() ? $left : 0;
     }
 
     public function retrench(TenderSession $session, TenderMember $md, User $student, string $reason): TenderRosterEvent
@@ -466,7 +480,7 @@ class TenderFlow
 
         $member = $this->retrenchable($session)->firstWhere('user_id', $student->id);
         if (! $member) {
-            throw new TenderRuleException('That student cannot be retrenched: no group may go below 2 and no company below 4.');
+            throw new TenderRuleException($session->game->rules()->retrenchRule());
         }
 
         return DB::transaction(function () use ($session, $member, $company, $reason, $md) {
@@ -533,8 +547,8 @@ class TenderFlow
             if ($events->where('kind', 'hire_back')->isNotEmpty()) {
                 throw new TenderRuleException('The winner has already taken a consultant back this session.');
             }
-            if ($this->companySize($session->game, $winner) >= self::MAX_COMPANY) {
-                throw new TenderRuleException('A company never goes above 6.');
+            if ($this->companySize($session->game, $winner) >= $this->hireCap($session->game, $winner)) {
+                throw new TenderRuleException('A company never goes above '.$this->hireCap($session->game, $winner).'.');
             }
         }
 
@@ -550,6 +564,14 @@ class TenderFlow
                 'created_by' => $by->id,
             ]);
         });
+    }
+
+    /** Piping caps a company at 6; Ophir at its starting size (consultants keep their company). */
+    public function hireCap(TenderGame $game, string $company): int
+    {
+        return $game->rules()->isOphir()
+            ? $game->members()->where('role', 'student')->where('company', $company)->count()
+            : TenderFlow::MAX_COMPANY;
     }
 
     public function companySize(TenderGame $game, string $company): int
@@ -701,8 +723,10 @@ class TenderFlow
     private function expectGrandFinalStaffChange(TenderSession $session, int $slot): void
     {
         $this->expectSlot($slot);
-        if (! $session->isGrandFinal()) {
-            throw new TenderRuleException('Staff score only at the Grand Final.');
+        if (! $session->staffJudged()) {
+            throw new TenderRuleException($session->isGrandFinal()
+                ? 'Student Judges score this Grand Final.'
+                : 'Staff score only at the Grand Final.');
         }
         $this->expectStatus($session, ['setup', 'scoring'], 'Judges can only change before the cards are in.');
     }
@@ -728,26 +752,31 @@ class TenderFlow
         }
     }
 
-    private function checkedLevel(string $criterion, mixed $level): ?int
+    private function checkedLevel(TenderSession $session, string $criterion, mixed $level): ?int
     {
         if ($level === null || $level === '') {
             return null;
         }
 
+        $rules = $session->game->rules();
         $level = (int) $level;
-        if ($level < TenderCriteria::minLevel($criterion) || $level > 4) {
-            throw new TenderRuleException($criterion === 'compliance'
-                ? 'The compliance slide takes level 0 to 4.'
-                : TenderCriteria::label($criterion).' takes level 1 to 4.');
+        $min = $rules->minScore($criterion);
+        $max = $rules->maxScore($session->criteria()[$criterion] ?? 0);
+        if ($level < $min || $level > $max) {
+            throw new TenderRuleException(match (true) {
+                $rules->isOphir() => $rules->label($criterion).' takes a mark from 0 to '.$max.'.',
+                $criterion === 'compliance' => 'The compliance slide takes level 0 to 4.',
+                default => $rules->label($criterion).' takes level 1 to 4.',
+            });
         }
 
         return $level;
     }
 
     /** An after-reconcile level is kept only when it differs from the original. */
-    private function changedLevel(string $criterion, mixed $level, ?int $original): ?int
+    private function changedLevel(TenderSession $session, string $criterion, mixed $level, ?int $original): ?int
     {
-        $level = $this->checkedLevel($criterion, $level);
+        $level = $this->checkedLevel($session, $criterion, $level);
 
         return $level === null || $level === $original ? null : $level;
     }

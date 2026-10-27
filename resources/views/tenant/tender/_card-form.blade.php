@@ -21,16 +21,22 @@
 
     @foreach($session->criteria() as $key => $max)
         @php($s = $scores[$key] ?? null)
-        @php($min = \App\Services\Tender\TenderCriteria::minLevel($key))
+        @php($rules = $game->rules())
+        @php($min = $rules->minScore($key))
         <div class="bg-white rounded-2xl border border-slate-200 p-4">
             <div class="flex items-baseline justify-between gap-3">
-                <p class="font-medium text-slate-900">{{ \App\Services\Tender\TenderCriteria::label($key) }}</p>
+                <p class="font-medium text-slate-900">{{ $rules->label($key) }}</p>
                 <p class="text-xs text-slate-500">{{ __('tender.max', ['max' => $max + 0]) }}</p>
             </div>
             <div class="mt-3 grid sm:grid-cols-2 gap-3">
                 @foreach(['a' => 'A', 'b' => 'B'] as $field => $company)
                     <div>
                         <p class="text-xs font-medium text-slate-500 mb-1">{{ $game->companyName($company) }}</p>
+                        @if($rules->isOphir())
+                            <input type="number" name="scores[{{ $key }}][level_{{ $field }}]" min="0" max="{{ $rules->maxScore($max) }}" step="1"
+                                   value="{{ old("scores.$key.level_$field", $s?->{'level_'.$field}) }}" @disabled($locked)
+                                   class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm tabular-nums">
+                        @else
                         <div class="flex gap-1.5">
                             @for($level = $min; $level <= 4; $level++)
                                 <label class="flex-1">
@@ -40,6 +46,7 @@
                                 </label>
                             @endfor
                         </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

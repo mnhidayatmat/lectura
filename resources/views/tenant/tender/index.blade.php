@@ -16,7 +16,7 @@
                     <div class="flex items-center justify-between gap-4">
                         <div class="min-w-0">
                             <p class="font-semibold text-slate-900 truncate">{{ $g->title }}</p>
-                            <p class="text-sm text-slate-500">{{ $g->company_a_name }} vs {{ $g->company_b_name }}
+                            <p class="text-sm text-slate-500">{{ __('tender.ruleset_'.$g->rules()->key) }} · {{ $g->company_a_name }} vs {{ $g->company_b_name }}
                                 · {{ $g->section?->name ?? __('tender.all_sections') }}</p>
                         </div>
                         <span class="text-xs font-medium text-slate-500 whitespace-nowrap">{{ trans_choice('tender.players', $g->members_count, ['count' => $g->members_count]) }}</span>
@@ -46,6 +46,14 @@
                     <option value="">{{ __('tender.all_sections') }}</option>
                     @foreach($sections as $s)
                         <option value="{{ $s->id }}" @selected(old('section_id') == $s->id)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('tender.ruleset') }}</label>
+                <select name="ruleset" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                    @foreach(\App\Services\Tender\TenderRules::RULESETS as $r)
+                        <option value="{{ $r }}" @selected(old('ruleset', str_contains($course->code, '2663') ? 'ophir' : 'piping') === $r)>{{ __('tender.ruleset_'.$r) }}</option>
                     @endforeach
                 </select>
             </div>

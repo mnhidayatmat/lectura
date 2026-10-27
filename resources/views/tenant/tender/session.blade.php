@@ -47,7 +47,7 @@
 
     @if($session->change_order_note)
         <div class="mb-6 bg-white rounded-2xl border border-slate-200 p-5">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('tender.change_order') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __($game->rules()->isOphir() ? 'tender.mission' : 'tender.change_order') }}</p>
             <p class="mt-1 text-sm text-slate-800 whitespace-pre-line">{{ $session->change_order_note }}</p>
         </div>
     @endif
@@ -68,7 +68,7 @@
                         @php($j = $active[$slot] ?? null)
                         <div class="rounded-xl border border-slate-200 p-4">
                             <p class="text-xs text-slate-500">{{ __('tender.judge_n', ['n' => $slot]) }}
-                                @unless($session->isGrandFinal()) · {{ $game->companyName($slot === 1 ? 'A' : 'B') }} @endunless</p>
+                                @unless($session->staffJudged()) · {{ $game->companyName($slot === 1 ? 'A' : 'B') }} @endunless</p>
                             @if($j)
                                 <p class="font-medium text-slate-900">{{ $j->displayName() }} @if($j->isGuest()) <span class="text-xs text-slate-500">({{ __('tender.guest') }})</span> @endif</p>
                                 <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
@@ -131,7 +131,7 @@
                     </p>
                 @endif
 
-                @if($session->isGrandFinal() && in_array($session->status, ['setup', 'scoring'], true))
+                @if($session->staffJudged() && in_array($session->status, ['setup', 'scoring'], true))
                     <form method="POST" action="{{ route('tenant.tender.staff-judge', [$tenantSlug, $course, $game, $session]) }}"
                           x-data="{ mode: 'me' }" class="mt-4 pt-4 border-t border-slate-100 grid sm:grid-cols-4 gap-3 items-end">
                         @csrf
@@ -181,7 +181,7 @@
                             @foreach($criteria as $key => $max)
                                 <tr>
                                     <td class="px-4 py-2">
-                                        <p class="font-medium text-slate-900">{{ \App\Services\Tender\TenderCriteria::label($key) }}</p>
+                                        <p class="font-medium text-slate-900">{{ $game->rules()->label($key) }}</p>
                                         <p class="text-xs text-slate-500">{{ __('tender.max', ['max' => $max + 0]) }}</p>
                                     </td>
                                     @foreach([1, 2] as $slot)
@@ -237,7 +237,7 @@
                                     @foreach(['a', 'b'] as $c)
                                         <td class="px-4 py-2 text-right tabular-nums {{ $row[$c]['flag'] ? 'bg-amber-50 text-amber-900 font-semibold' : '' }}">
                                             {{ number_format($row[$c]['mark'], 2) }}
-                                            @if($row[$c]['flag']) <span title="{{ __('tender.flag_levels') }}">⚑</span> @endif
+                                            @if($row[$c]['flag']) <span title="{{ __($game->rules()->isOphir() ? 'tender.flag_marks' : 'tender.flag_levels') }}">⚑</span> @endif
                                         </td>
                                     @endforeach
                                 </tr>

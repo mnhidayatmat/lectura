@@ -641,12 +641,27 @@ Errors: `422 "This session is still in progress."` (open the live screen instead
 
 ---
 
-## Piping Design Tender (`live/tender/…`)
+## Piping Design Tender and Ophir Offshore Tender (`live/tender/…`)
 
 A course game run in class (BTG3333 Student Guide, Sections 3, 6 and 7): two companies (A and B) present each
 session, one student **Judge** from each company scores both, a student **Leader** (or deputy) outside both
 companies runs and compiles the session, and the lecturer approves it on the web. The game result never
 changes marks. Only students on a game's roster see it: anyone else gets `404 "Tender game not found."`.
+
+Each game has a ruleset, sent as the session's `rules` object; everything below describes `piping` unless
+marked. `ophir` (BTG2663 Ophir Offshore Tender) differs in:
+
+- **Scoring:** the same seven criteria every session (`technical` 25, `compliance` 25, `data`, `integration`,
+  `defence`, `communication`, `progress` 10 each). A Judge picks a band, then a whole **mark** from 0 to the
+  criterion's maximum, sent in `level_a`/`level_b`. Each criterion carries `max_level` and `bands`
+  (`[{label: Excellent|Good|Fair|Poor, min, max}]`, best first). A company's mark is the average of the two
+  Judges' marks; a row is flagged when they differ by 20% of the criterion or more; totals more than 10 apart
+  flag as in Piping. Tie-break: `compliance`, `defence`, `technical`, then sudden death.
+- **Sessions:** S1–S6 and GF on weeks 5–11. Student Judges score the Grand Final too (no staff slots).
+- **Retrenchment:** after S1–S6 the losing MD names **two** students, one call at a time
+  (`retrenchment_task.remaining` counts down); no group goes to zero and no company below 9, so a company one
+  above the floor names one. A hire-back never takes the winner above its starting size.
+- `change_order_note` is the week's mission (`rules.note_label: "Mission"`).
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
@@ -707,10 +722,12 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
   "id": 21, "game_id": 3, "code": "S1", "label": "Session 1", "week": 5, "status": "scoring",
   "is_grand_final": false, "first_company": "A",
   "change_order_note": "CO-1: design temperature raised to 220 °C",
+  "rules": {"key": "piping", "scale": "levels", "note_label": "Change Order",
+            "flag_rule": "The Judges differ by 2 or more levels", "retrench_count": 1},
   "scoring_started_at": "…", "reconcile_started_at": null, "announced_at": null, "review_status": null,
   "server_time": "…",
   "companies": {"A": "Company A", "B": "Company B"},
-  "criteria": [{"key": "intro", "label": "Introduction and Scope", "max": 35.0, "min_level": 1}, …],
+  "criteria": [{"key": "intro", "label": "Introduction and Scope", "max": 35.0, "min_level": 1, "max_level": 4, "bands": []}, …],
   "consultants": [{"user_id": 88, "name": "…", "company": "B"}],
   "result": null,
   "me": { …as GameSummary.me },
@@ -736,7 +753,7 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
   [{user_id, name, total}], retrenchment: {company, status: pending|named|at_floor} | null, hires: [{kind,
   company, user_id, name}], company_sizes: {A, B}}`. Slot 1 is Company A's Judge, slot 2 Company B's; eligible
   students are sorted by how often they have judged. The retrenched student's name is never in this object.
-- `retrenchment_task` (losing MD, S1–S5, until named): `{company, eligible: [{user_id, name, group_no}]}` —
+- `retrenchment_task` (losing MD, S1–S5, until named): `{company, remaining, eligible: [{user_id, name, group_no}]}` —
   only students whose removal keeps every group at 2 and the company at 4; the MD is never listed.
 - `my_appeal`: `{body, decision: null|upheld|dismissed, decision_note, created_at}`.
 

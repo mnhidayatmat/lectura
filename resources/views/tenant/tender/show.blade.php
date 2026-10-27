@@ -8,7 +8,7 @@
                     {{ __('tender.title') }}
                 </a>
                 <h2 class="mt-1 text-2xl font-bold text-slate-900 truncate">{{ $game->title }}</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ $game->company_a_name }} vs {{ $game->company_b_name }}</p>
+                <p class="mt-1 text-sm text-slate-500">{{ $game->company_a_name }} vs {{ $game->company_b_name }} · {{ __('tender.ruleset_'.$game->rules()->key) }}</p>
             </div>
             <div class="flex flex-wrap gap-2 self-start sm:self-auto">
             <button type="button" @click="editing = ! editing" :aria-expanded="editing"
@@ -232,7 +232,7 @@
             <div class="px-5 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div class="min-w-0">
                     <h3 class="font-semibold text-slate-900">{{ __('tender.roster') }}</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">{{ __('tender.roster_hint') }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ __($game->rules()->isOphir() ? 'tender.roster_hint_ophir' : 'tender.roster_hint') }}</p>
                 </div>
                 <button class="self-start lg:self-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">{{ __('tender.save_roster') }}</button>
             </div>
@@ -247,13 +247,13 @@
                                 <span class="truncate">{{ $game->companyName($c) }}</span>
                             </p>
                             <span class="text-xs tabular-nums font-semibold"
-                                  :class="activeIn('{{ $c }}') < {{ \App\Services\Tender\TenderFlow::MIN_COMPANY }} || activeIn('{{ $c }}') > {{ \App\Services\Tender\TenderFlow::MAX_COMPANY }} ? 'text-red-600 dark:text-red-400' : 'text-slate-500'"
-                                  x-text="activeIn('{{ $c }}') + ' / 6'"></span>
+                                  :class="activeIn('{{ $c }}') < {{ $game->rules()->minCompany() }} || activeIn('{{ $c }}') > {{ $game->rules()->maxCompany() }} ? 'text-red-600 dark:text-red-400' : 'text-slate-500'"
+                                  x-text="activeIn('{{ $c }}') + ' / {{ $game->rules()->maxCompany() }}'"></span>
                         </div>
                         <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
                             @foreach([1, 2] as $g)
                                 <span class="px-2 py-0.5 rounded-md tabular-nums"
-                                      :class="inGroup('{{ $c }}', '{{ $g }}') === 3 ? '{{ $accent[$c]['soft'] }}' : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300'"
+                                      :class="{{ $game->rules()->isOphir() ? "inGroup('$c', '$g') > 0" : "inGroup('$c', '$g') === 3" }} ? '{{ $accent[$c]['soft'] }}' : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300'"
                                       x-text="{{ \Illuminate\Support\Js::from(__('tender.group_n', ['n' => $g]).' · ') }} + inGroup('{{ $c }}', '{{ $g }}')"></span>
                             @endforeach
                             <span class="px-2 py-0.5 rounded-md"

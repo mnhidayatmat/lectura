@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Tender\TenderRules;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * The Piping Design Tender game: two companies compete across weekly sessions,
- * scored by student Judges and compiled by a student Leader.
+ * A tender game: two companies compete across weekly sessions, scored by
+ * student Judges and compiled by a student Leader, under its ruleset's rules.
  */
 class TenderGame extends Model
 {
@@ -20,7 +21,7 @@ class TenderGame extends Model
     public const COMPANIES = ['A', 'B'];
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'section_id', 'title', 'company_a_name', 'company_b_name', 'created_by',
+        'tenant_id', 'course_id', 'section_id', 'title', 'ruleset', 'company_a_name', 'company_b_name', 'created_by',
     ];
 
     public function course(): BelongsTo
@@ -41,6 +42,11 @@ class TenderGame extends Model
     public function sessions(): HasMany
     {
         return $this->hasMany(TenderSession::class)->orderBy('sort_order');
+    }
+
+    public function rules(): TenderRules
+    {
+        return TenderRules::for($this->ruleset);
     }
 
     public function companyName(?string $company): string

@@ -138,6 +138,22 @@ class TenderGameWebTest extends ApiTestCase
             ->assertSee('0 of 7 sessions announced');
     }
 
+    public function test_the_lecturer_creates_an_ophir_game(): void
+    {
+        $this->actingAs($this->lecturer)->post($this->base(''), [
+            'title' => 'Ophir', 'ruleset' => 'ophir', 'company_a_name' => 'Lautan Emas', 'company_b_name' => 'Bayu Timur',
+        ])->assertRedirect();
+
+        $game = TenderGame::where('title', 'Ophir')->firstOrFail();
+        $this->assertSame('ophir', $game->ruleset);
+        $this->assertSame(11, $game->sessions()->where('code', 'GF')->value('week'));
+
+        $this->actingAs($this->lecturer)->get($this->base("/{$game->id}"))
+            ->assertOk()
+            ->assertSee('Ophir Offshore Tender (BTG2663)')
+            ->assertSee('Retrenchment stops at 9.');
+    }
+
     public function test_two_mds_in_one_company_are_refused(): void
     {
         $game = $this->game();
