@@ -17,6 +17,7 @@ use App\Services\Tender\TenderCriteria;
 use App\Services\Tender\TenderFlow;
 use App\Services\Tender\TenderPresenter;
 use App\Services\Tender\TenderRuleException;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -46,7 +47,7 @@ class TenderGameController extends Controller
         $this->authorizeCourseAccess($course);
 
         $games = TenderGame::where('course_id', $course->id)->withCount('members')->with('section')->latest()->get();
-        $sections = $this->lecturerSections($course)->orderBy('name')->get();
+        $sections = $this->gameSections($course)->orderBy('name')->get();
 
         return view('tenant.tender.index', compact('course', 'games', 'sections'));
     }
@@ -70,7 +71,7 @@ class TenderGameController extends Controller
     {
         $this->authorizeGame($course, $game);
 
-        $game->update($this->validateGame($request, $course));
+        $game->update($this->validateGame($request, $course, $game));
 
         return back()->with('success', __('tender.game_saved'));
     }
@@ -85,7 +86,7 @@ class TenderGameController extends Controller
         $sizes = ['A' => $this->flow->companySize($game, 'A'), 'B' => $this->flow->companySize($game, 'B')];
         $pendingAppeals = TenderAppeal::whereIn('tender_session_id', $game->sessions->pluck('id'))->whereNull('decision')->count();
 
-        $sections = $this->lecturerSections($course)->orderBy('name')->get();
+        $sections = $this->gameSections($course, $game)->orderBy('name')->get();
 
         return view('tenant.tender.show', compact('course', 'game', 'students', 'standings', 'sizes', 'pendingAppeals', 'sections'));
     }
@@ -377,19 +378,30 @@ class TenderGameController extends Controller
     // ── Helpers ─────────────────────────────────────────────────────
 
     /** @return Collection<int, User> */
-    private function validateGame(Request $request, Course $course): array
+    private function validateGame(Request $request, Course $course, ?TenderGame $game = null): array
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:120'],
-            'section_id' => ['nullable', 'integer', Rule::in($this->lecturerSections($course)->pluck('id'))],
+            'section_id' => ['nullable', 'integer', Rule::in($this->gameSections($course, $game)->pluck('id'))],
             'company_a_name' => ['required', 'string', 'max:60'],
             'company_b_name' => ['required', 'string', 'max:60', 'different:company_a_name'],
         ]);
     }
 
+    /**
+     * The lecturer's active sections (a past semester's are switched off), plus the
+     * game's own section so an older game can still be edited.
+     */
+    private function gameSections(Course $course, ?TenderGame $game = null): HasMany
+    {
+        return $this->lecturerSections($course)->where(fn ($q) => $q->where('is_active', true)
+            ->when($game?->section_id, fn ($q, $id) => $q->orWhere('id', $id)));
+    }
+
+    /** Students of the game's section, or of every active section; anyone already on the roster stays. */
     private function rosterCandidates(Course $course, TenderGame $game): Collection
     {
-        $sectionIds = $game->section_id ? [$game->section_id] : $this->lecturerSections($course)->pluck('id')->all();
+        $sectionIds = $game->section_id ? [$game->section_id] : $this->gameSections($course)->pluck('id')->all();
 
         return User::query()
             ->whereHas('sections', fn ($q) => $q->whereIn('sections.id', $sectionIds)->where('section_students.is_active', true))
