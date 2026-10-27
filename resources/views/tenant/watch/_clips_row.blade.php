@@ -1,4 +1,4 @@
-{{-- Portrait clip cards; each opens the clip feed on that clip. Needs $clips and $tenant. --}}
+{{-- Portrait clip cards; each opens the clip feed on that clip, with New and watched marks. Needs $clips and $tenant. --}}
 @if(count($clips))
     <section aria-label="{{ __('watch.clips') }}">
         <div class="flex items-baseline justify-between mb-3">
@@ -17,6 +17,11 @@
                         @endif
                         <span class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent"></span>
                         <svg class="absolute top-2 left-2 w-5 h-5 text-[#ffffff] drop-shadow" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        @if($clip['is_new'])
+                            <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-[#0f766e] text-[10px] font-bold text-[#ffffff]">{{ __('watch.new') }}</span>
+                        @elseif($clip['watched'])
+                            <svg class="absolute top-2 right-2 w-5 h-5 text-[#ffffff] drop-shadow" fill="currentColor" viewBox="0 0 24 24" role="img" aria-label="{{ __('watch.watched') }}"><path fill-rule="evenodd" d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.7 7.7a1 1 0 00-1.4-1.4L11 12.6l-2.3-2.3a1 1 0 00-1.4 1.4l3 3a1 1 0 001.4 0l5-5z" clip-rule="evenodd"/></svg>
+                        @endif
                         <span class="absolute left-2 right-2 bottom-2">
                             <span class="block text-[10px] font-bold text-[#cbd5e1]">EP {{ $clip['episode']['episode_number'] }}</span>
                             <span class="block text-xs font-bold leading-tight text-[#ffffff] line-clamp-3">{{ $clip['title'] }}</span>

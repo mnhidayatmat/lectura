@@ -73,7 +73,7 @@ class StudentWatchClipsWebTest extends ApiTestCase
 
         $this->actingAs($student)->get("/{$tenant->slug}/watch/clips?clip={$second->id}")
             ->assertOk()
-            ->assertSee('clipFeed(1)', false);
+            ->assertSee('clipFeed(1,', false);
 
         app()->setLocale('ms');
         $this->assertSame('Tonton episod', __('watch.watch_episode'));
@@ -94,6 +94,60 @@ class StudentWatchClipsWebTest extends ApiTestCase
             ->assertOk()
             ->assertSee(route('tenant.watch.clips', [$tenant->slug, 'clip' => $clip->id]), false)
             ->assertSee('Is a Pipe Hanger Piping?');
+    }
+
+    public function test_watched_clips_wait_behind_the_caught_up_card_and_new_ones_lead(): void
+    {
+        [$tenant, , $student, $course] = $this->enrolledStudent();
+        $old = $this->clip($course, 1, 'An older clip');
+        $old->forceFill(['created_at' => now()->subMonth()])->save();
+        $old->episode->forceFill(['created_at' => now()->subMonth()])->save();
+        $watched = $this->clip($course, 2, 'Already watched');
+        $this->clip($course, 3, 'Fresh off the press');
+
+        $this->actingAs($student)->postJson("/{$tenant->slug}/watch/clips/{$watched->id}/watched")
+            ->assertOk()->assertJsonPath('data.watched', true);
+        $this->assertDatabaseHas('episode_clip_views', ['episode_clip_id' => $watched->id, 'user_id' => $student->id, 'plays' => 0]);
+        $this->assertSame(0, $watched->fresh()->views_count);
+
+        $feed = "/{$tenant->slug}/watch/clips";
+        $this->actingAs($student)->get($feed)
+            ->assertOk()
+            ->assertSeeInOrder(['Fresh off the press', 'An older clip', "You're all caught up"], false)
+            ->assertDontSee('Already watched')
+            ->assertSee('Watch again')
+            ->assertSee('New');
+
+        $this->actingAs($student)->get("{$feed}?again=1")
+            ->assertOk()
+            ->assertSeeInOrder(['Fresh off the press', 'An older clip', 'Already watched'])
+            ->assertDontSee("You're all caught up", false);
+
+        // A watched clip opened from a row leads the feed.
+        $this->actingAs($student)->get("{$feed}?clip={$watched->id}")
+            ->assertSeeInOrder(['Already watched', 'Fresh off the press'])
+            ->assertSee('clipFeed(0,', false);
+
+        // The episode picker narrows the feed to one episode, watched clips included.
+        $this->actingAs($student)->get("{$feed}?episode={$watched->episode_id}")
+            ->assertOk()
+            ->assertSee('EP 2 · Episode 2')
+            ->assertSee('Already watched')
+            ->assertSee('Watched');
+
+        // The /watch row puts watched clips last.
+        $this->actingAs($student)->get("/{$tenant->slug}/watch")
+            ->assertSeeInOrder(['Fresh off the press', 'An older clip', 'Already watched']);
+    }
+
+    public function test_marking_a_clip_watched_needs_a_clip_the_student_can_see(): void
+    {
+        [$tenant, $lecturer, $student] = $this->enrolledStudent();
+        $other = $this->createCourse($tenant, $lecturer, ['code' => 'BTG3333']);
+        $clip = $this->clip($other, 1, 'Not my course');
+
+        $this->actingAs($student)->postJson("/{$tenant->slug}/watch/clips/{$clip->id}/watched")->assertNotFound();
+        $this->assertDatabaseMissing('episode_clip_views', ['episode_clip_id' => $clip->id]);
     }
 
     public function test_empty_feed_and_other_courses(): void

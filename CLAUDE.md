@@ -258,7 +258,10 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
   `php artisan watch:import-clips {course} {dir}` from a `manifest.json` folder (re-runs update the
   text and skip stored media). Students also get them on the web: `/watch/clips` (`tenant.watch.clips`,
   `?course=`, `?clip=`), a scroll-snap feed where only the clip in view plays, plus a Clips row on
-  `/watch`, a sidebar item and a bottom-nav item; strings in `lang/*/watch.php`
+  `/watch`, a sidebar item and a bottom-nav item; strings in `lang/*/watch.php`. Like the app it is
+  ordered by `WatchCatalog::arrangeClipFeed`: new clips first, watched ones (played to 90%, posted to
+  `tenant.watch.clips.watched`, which marks without counting a view) held behind an "all caught up"
+  card whose Watch again is `?again=1`; `?episode=` (the top-left picker) shows one episode's clips
 - Clip interactions (`Api\V1\Student\ClipController` → `ClipInteractions`): views (once per student per clip
   every 30 min), likes, saves (`?saved=1` on the list) and `ClipComment`s with one level of replies and
   comment likes. Counters live on `episode_clips`/`clip_comments` and move in the same transaction;

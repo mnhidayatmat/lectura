@@ -67,6 +67,27 @@ final class ClipInteractions
     }
 
     /**
+     * Marks the clip watched without counting a view (the web feed counts none); a row it
+     * creates has no `last_viewed_at`, so the app's next view still counts.
+     */
+    public function markWatched(User $user, EpisodeClip $clip): void
+    {
+        DB::table('episode_clip_views')->insertOrIgnore([
+            'episode_clip_id' => $clip->id,
+            'user_id' => $user->id,
+            'plays' => 0,
+            'completed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('episode_clip_views')
+            ->where('episode_clip_id', $clip->id)
+            ->where('user_id', $user->id)
+            ->whereNull('completed_at')
+            ->update(['completed_at' => now(), 'updated_at' => now()]);
+    }
+
+    /**
      * Adds or removes the user's like or save; repeating either changes nothing.
      *
      * @param  'likes'|'saves'  $kind

@@ -162,6 +162,31 @@ final class WatchCatalog
             ->all();
     }
 
+    /**
+     * The order the clip feed plays in, as in the app (`arrangeClipFeed`): clips released
+     * recently and not watched come first, newest release first, then the other unwatched
+     * clips in list order. Watched clips are held back for "Watch again", except $keepId
+     * (the clip the student opened), which leads the feed.
+     *
+     * @param  array<int, array<string, mixed>>  $clips  rows from clips()
+     * @return array{up_next: array<int, array<string, mixed>>, watched: array<int, array<string, mixed>>}
+     */
+    public function arrangeClipFeed(array $clips, ?int $keepId = null): array
+    {
+        $clips = collect($clips)->values();
+        $fresh = $clips->filter(fn (array $clip) => $clip['is_new'] && ! $clip['watched'])
+            ->sortBy(fn (array $clip, int $index) => sprintf('%020d|%05d', PHP_INT_MAX - (strtotime((string) $clip['released_at']) ?: 0), $index));
+
+        return [
+            'up_next' => [
+                ...$clips->filter(fn (array $clip) => $clip['id'] === $keepId && $clip['watched'])->values(),
+                ...$fresh->values(),
+                ...$clips->filter(fn (array $clip) => ! $clip['is_new'] && ! $clip['watched'])->values(),
+            ],
+            'watched' => $clips->filter(fn (array $clip) => $clip['watched'] && $clip['id'] !== $keepId)->values()->all(),
+        ];
+    }
+
     /** The student has played the clip to its end at least once. */
     public function hasWatchedClip(User $user, EpisodeClip $clip): bool
     {

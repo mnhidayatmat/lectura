@@ -1,13 +1,17 @@
 <x-tenant-layout>
     {{-- Clips: a vertical scroll-snap feed, one clip per screen, like the app's Clips tab.
          The clips carry their title, captions and key point in the picture, so the video
-         stays whole and the details sit below it. Always dark: fixed colours only. --}}
-    <div x-data="clipFeed({{ (int) $start }})"
+         stays whole and the details sit below it. New clips come first and watched ones wait
+         behind the "all caught up" card, as in the app. Always dark: fixed colours only. --}}
+    @php
+        $feedUrl = fn (array $query = []) => route('tenant.watch.clips', [$tenant->slug, ...array_filter(['course' => $courseId, ...$query])]);
+    @endphp
+    <div x-data="clipFeed({{ (int) $start }}, @js(csrf_token()))"
          @keydown.window.arrow-down.prevent="go(1)"
          @keydown.window.arrow-up.prevent="go(-1)"
          class="relative rounded-3xl bg-slate-950 text-slate-100 shadow-xl overflow-hidden">
 
-        @if(empty($clips))
+        @if(! $hasClips)
             <div class="py-20 px-6 text-center">
                 <div class="mx-auto w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
                     <svg class="w-7 h-7 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 6v12a2 2 0 002 2h12a2 2 0 002-2V6M4 6l2-3h12l2 3M10 10l5 3-5 3v-6z"/></svg>
@@ -25,13 +29,60 @@
                 <span x-show="muted">{{ __('watch.tap_for_sound') }}</span>
             </button>
 
+            {{-- The episode picker, and the episode the feed is narrowed to. --}}
+            <div class="absolute top-3 left-3 z-20 flex items-center gap-2 max-w-[calc(100%-9rem)]" x-data="{ open: false }" @keydown.escape.window="open = false">
+                <button type="button" @click="open = !open" :aria-expanded="open" aria-haspopup="true"
+                        class="shrink-0 inline-flex items-center gap-2 h-10 px-3 rounded-full bg-[#000000]/60 text-[#ffffff] text-sm font-semibold backdrop-blur hover:bg-[#000000]/75 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10"/></svg>
+                    <span class="hidden sm:inline">{{ __('watch.choose_episode') }}</span>
+                    <span class="sr-only sm:hidden">{{ __('watch.choose_episode') }}</span>
+                </button>
+                @if($episode)
+                    <a href="{{ $feedUrl() }}" aria-label="{{ __('watch.all_episodes') }}"
+                       class="min-w-0 inline-flex items-center gap-1.5 h-8 pl-3 pr-2 rounded-full bg-[#000000]/60 text-[#ffffff] text-xs font-bold backdrop-blur hover:bg-[#000000]/75 transition">
+                        <span class="truncate">{{ __('watch.episode_chip', ['number' => $episode['number'], 'title' => $episode['title']]) }}</span>
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </a>
+                @endif
+                <div x-show="open" x-cloak x-transition.opacity @click.outside="open = false"
+                     class="absolute left-0 top-12 w-80 max-w-[calc(100vw-2.5rem)] max-h-[60vh] overflow-y-auto rounded-2xl bg-[#1e293b] p-2 shadow-2xl ring-1 ring-[#ffffff]/10">
+                    <p class="px-3 pt-2 pb-1 text-xs font-extrabold uppercase tracking-widest text-[#94a3b8]">{{ __('watch.choose_episode') }}</p>
+                    <a href="{{ $feedUrl() }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#334155] transition">
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold text-[#ffffff]">{{ __('watch.all_episodes') }}</span>
+                            <span class="block text-xs text-[#94a3b8]">{{ __('watch.all_episodes_hint') }}</span>
+                        </span>
+                        @unless($episode)
+                            <svg class="w-5 h-5 shrink-0 text-[#c4b5fd]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        @endunless
+                    </a>
+                    @foreach($episodes as $item)
+                        <a href="{{ $feedUrl(['episode' => $item['id']]) }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#334155] transition">
+                            <span class="shrink-0 px-1.5 py-0.5 rounded bg-[#0f172a] text-[10px] font-bold text-[#e2e8f0]">EP {{ $item['number'] }}</span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-sm font-bold text-[#ffffff] line-clamp-2">{{ $item['title'] }}</span>
+                                <span class="block text-xs text-[#94a3b8]">{{ $multiCourse ? $item['course_code'].' · ' : '' }}{{ trans_choice('watch.clip_count', $item['count'], ['count' => $item['count']]) }}</span>
+                            </span>
+                            @if($item['new'])
+                                <span class="shrink-0 px-2 py-0.5 rounded-full bg-[#14b8a6]/20 text-[11px] font-bold text-[#5eead4]">{{ __('watch.new') }}</span>
+                            @elseif($item['watched'])
+                                <span class="shrink-0 px-2 py-0.5 rounded-full bg-[#10b981]/20 text-[11px] font-bold text-[#6ee7b7]">{{ __('watch.watched') }}</span>
+                            @endif
+                            @if($episode && $episode['id'] === $item['id'])
+                                <svg class="w-5 h-5 shrink-0 text-[#c4b5fd]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+
             {{-- Previous / next for a mouse; touch swipes the feed. --}}
             <div class="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 flex-col gap-2">
                 <button type="button" @click="go(-1)" :disabled="current === 0" aria-label="{{ __('watch.previous_clip') }}"
                         class="w-11 h-11 rounded-full bg-[#1e293b] text-[#ffffff] flex items-center justify-center hover:bg-[#334155] disabled:opacity-30 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                 </button>
-                <button type="button" @click="go(1)" :disabled="current === {{ count($clips) - 1 }}" aria-label="{{ __('watch.next_clip') }}"
+                <button type="button" @click="go(1)" :disabled="current >= {{ count($clips) - ($caughtUp ? 0 : 1) }}" aria-label="{{ __('watch.next_clip') }}"
                         class="w-11 h-11 rounded-full bg-[#1e293b] text-[#ffffff] flex items-center justify-center hover:bg-[#334155] disabled:opacity-30 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
@@ -49,6 +100,7 @@
                                        class="absolute inset-0 w-full h-full object-contain cursor-pointer"
                                        playsinline loop muted preload="none"
                                        @play="paused = false" @pause="paused = true"
+                                       @unless($clip['watched']) @timeupdate="watchProgress($el, @js(route('tenant.watch.clips.watched', [$tenant->slug, $clip['id']])))" @endunless
                                        @click="$el.paused ? $el.play() : $el.pause()"></video>
                                 <span x-show="paused && current === {{ $index }}" x-cloak class="pointer-events-none absolute inset-0 flex items-center justify-center">
                                     <span class="w-16 h-16 rounded-full bg-[#000000]/50 flex items-center justify-center">
@@ -61,6 +113,11 @@
                         <div class="w-full max-w-[420px] pt-3">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span class="shrink-0 px-1.5 py-0.5 rounded bg-[#1e293b] text-[10px] font-bold text-[#e2e8f0]">{{ $clip['course']['code'] }}</span>
+                                @if($clip['is_new'])
+                                    <span class="shrink-0 px-2 py-0.5 rounded-full bg-[#14b8a6]/20 text-[11px] font-bold text-[#5eead4]">{{ __('watch.new') }}</span>
+                                @elseif($clip['watched'])
+                                    <span class="shrink-0 px-2 py-0.5 rounded-full bg-[#10b981]/20 text-[11px] font-bold text-[#6ee7b7]">{{ __('watch.watched') }}</span>
+                                @endif
                                 <p class="truncate text-xs text-[#94a3b8]">{{ __('watch.from_episode', ['number' => $clip['episode']['episode_number'], 'title' => $clip['episode']['title']]) }}</p>
                             </div>
                             <h3 class="mt-1.5 text-lg font-extrabold leading-tight text-[#ffffff] line-clamp-2">{{ $clip['title'] }}</h3>
@@ -104,6 +161,23 @@
                         @endif
                     </section>
                 @endforeach
+
+                @if($caughtUp)
+                    <section x-ref="end" data-index="{{ count($clips) }}" class="h-full snap-start snap-always flex items-center justify-center px-6">
+                        <div class="max-w-sm text-center">
+                            <svg class="mx-auto w-16 h-16 text-[#ffffff]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <h3 class="mt-4 text-2xl font-extrabold text-[#ffffff]">{{ __('watch.caught_up') }}</h3>
+                            <p class="mt-2 text-sm leading-relaxed text-[#cbd5e1]">{{ __('watch.caught_up_message') }}</p>
+                            @if($canWatchAgain)
+                                <a href="{{ $feedUrl(['again' => 1]) }}"
+                                   class="mt-6 inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-[#ffffff] text-[#020617] text-sm font-bold hover:bg-[#e2e8f0] transition">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    {{ __('watch.watch_again') }}
+                                </a>
+                            @endif
+                        </div>
+                    </section>
+                @endif
             </div>
         @endif
     </div>
@@ -112,10 +186,11 @@
         <script>
             // Only the clip on screen plays; the rest pause and rewind. Sound is one switch for all.
             // Videos load only when on screen or next, so a long feed never opens every stream at once.
-            function clipFeed(start) {
+            function clipFeed(start, csrf) {
                 return {
                     muted: true,
                     current: start,
+                    watchSent: new Set(),
                     resumeAfterKeyPoint: false,
                     resumeOnShow: false,
                     sections() {
@@ -150,6 +225,10 @@
                         });
                         const observer = new IntersectionObserver((entries) => {
                             entries.forEach((entry) => {
+                                if (entry.target === this.$refs.end) {
+                                    if (entry.isIntersecting && entry.intersectionRatio >= 0.6) this.current = Number(entry.target.dataset.index);
+                                    return;
+                                }
                                 const video = this.videoOf(entry.target);
                                 if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
                                     this.current = Number(entry.target.dataset.index);
@@ -163,19 +242,28 @@
                             });
                         }, { root: this.$refs.feed, threshold: [0, 0.6] });
                         this.sections().forEach((section) => observer.observe(section));
+                        if (this.$refs.end) observer.observe(this.$refs.end);
                         if (start > 0) {
                             this.$nextTick(() => this.sections()[start]?.scrollIntoView({ block: 'start' }));
                         }
                     },
                     go(delta) {
-                        const target = this.sections()[this.current + delta];
+                        const target = this.sections()[this.current + delta] ?? (delta > 0 ? this.$refs.end : null);
                         if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     },
                     toggleMute() {
                         this.muted = !this.muted;
                         this.sections().forEach((section) => { this.videoOf(section).muted = this.muted; });
-                        const video = this.videoOf(this.sections()[this.current]);
-                        if (!this.muted && video.paused) video.play().catch(() => {});
+                        const section = this.sections()[this.current];
+                        if (section && !this.muted && this.videoOf(section).paused) this.videoOf(section).play().catch(() => {});
+                    },
+                    // Played to 90%, a clip is watched and the feed passes over it from the next visit.
+                    watchProgress(video, url) {
+                        if (this.watchSent.has(url) || !video.duration || video.currentTime < video.duration * 0.9) return;
+                        this.watchSent.add(url);
+                        fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf } })
+                            .then((res) => { if (!res.ok) this.watchSent.delete(url); })
+                            .catch(() => this.watchSent.delete(url));
                     },
                     openKeyPoint(el) {
                         const section = el.closest('[data-clip]');
