@@ -8,6 +8,7 @@ use App\Models\CourseSeries;
 use App\Models\Episode;
 use App\Models\EpisodeCheckAnswer;
 use App\Models\EpisodeProgress;
+use App\Models\QuizSession;
 use App\Services\Episodes\EpisodeMedia;
 use Illuminate\Support\Collection;
 
@@ -20,11 +21,13 @@ final class WatchPresenter
      * @param  Collection<int, EpisodeProgress>  $progress  The student's progress, keyed by episode id
      * @param  Collection<int, int>  $checkCounts  Quick Checks per episode, keyed by episode id
      * @param  Collection<int, Collection<int, EpisodeCheckAnswer>>  $answers  The student's latest answers, grouped by episode id
+     * @param  Collection<int, QuizSession>  $liveQuizzes  Linked quizzes running for the student, keyed by episode id
      */
     public function __construct(
         private readonly Collection $progress,
         private readonly Collection $checkCounts = new Collection,
         private readonly Collection $answers = new Collection,
+        private readonly Collection $liveQuizzes = new Collection,
     ) {}
 
     public function progressOf(Episode $episode): ?EpisodeProgress
@@ -90,7 +93,18 @@ final class WatchPresenter
             'is_overdue' => $this->isOverdue($episode),
             'quick_checks' => $this->checkSummary($episode),
             'progress' => self::progress($this->progressOf($episode), $episode->duration_seconds),
+            'live_quiz' => $this->liveQuiz($episode),
         ];
+    }
+
+    /**
+     * @return array{id: int, title: string, status: string}|null
+     */
+    public function liveQuiz(Episode $episode): ?array
+    {
+        $quiz = $this->liveQuizzes->get($episode->id);
+
+        return $quiz ? ['id' => $quiz->id, 'title' => $quiz->title, 'status' => $quiz->status] : null;
     }
 
     public static function progress(?EpisodeProgress $progress, ?int $duration): ?array

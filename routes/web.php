@@ -567,6 +567,8 @@ Route::prefix('{tenant:slug}')
         Route::delete('/materials/course/{course}/episodes/{episode}', [EpisodeController::class, 'destroy'])->name('tenant.episodes.destroy');
         Route::get('/materials/course/{course}/episodes/{episode}', [EpisodeContentController::class, 'show'])->name('tenant.episodes.show');
         Route::post('/materials/course/{course}/episodes/{episode}/remind', [EpisodeContentController::class, 'remind'])->name('tenant.episodes.remind');
+        Route::put('/materials/course/{course}/episodes/{episode}/quiz', [EpisodeContentController::class, 'linkQuiz'])->name('tenant.episodes.quiz');
+        Route::post('/materials/course/{course}/episodes/{episode}/quiz/start', [EpisodeContentController::class, 'startQuiz'])->name('tenant.episodes.quiz.start');
         Route::put('/materials/course/{course}/episodes/{episode}/scenes', [EpisodeContentController::class, 'saveScenes'])->name('tenant.episodes.scenes');
         Route::post('/materials/course/{course}/episodes/{episode}/checks', [EpisodeContentController::class, 'storeCheck'])->name('tenant.episodes.checks.store');
         Route::patch('/materials/course/{course}/episodes/{episode}/checks/{check}', [EpisodeContentController::class, 'updateCheck'])->name('tenant.episodes.checks.update');

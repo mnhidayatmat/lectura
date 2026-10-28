@@ -474,7 +474,8 @@ listed and return 404.
     "watched_percent": 52,
     "completed": false,
     "last_watched_at": "2026-10-07T21:14:00+08:00"
-  }
+  },
+  "live_quiz": { "id": 63, "title": "EP01 · Born Under the Caprock", "status": "waiting" }
 }
 ```
 
@@ -486,6 +487,11 @@ listed and return 404.
   lecture. `is_overdue`: `required_by` has passed and the episode is not completed.
 - `quick_checks`: the episode's in-video questions and the student's latest answers. `answered` and
   `correct` count checks, not attempts. `answered > correct` means at least one check to redo.
+- `live_quiz` (or `null`): the live quiz the lecturer linked to the episode, only while it is running
+  (`status` ∈ `waiting|active|reviewing`) for one of the student's sections and the episode is
+  available. Show a "Join the quiz" button that opens it like any live quiz
+  (`GET live/quizzes/{id}`, see live.md). The lecturer starts each run on the web, so re-fetch the
+  screen to pick it up.
 - `source`: `youtube` (the lecturer linked a YouTube video) or `upload` (a video file stored by
   Lectura). It decides how the player plays it; see the episode endpoint.
 - `poster_url` / `cover_url` are pre-signed (valid 6 hours, no bearer token needed), so a plain

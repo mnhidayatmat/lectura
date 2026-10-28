@@ -26,6 +26,70 @@
     @endif
 
     @php
+        $quiz = $episode->quizSession;
+        $quizEnded = $quiz?->status === 'ended';
+        $quizHasRun = $quiz?->started_at !== null;
+        $quizStatus = match (true) {
+            $quiz === null => null,
+            in_array($quiz->status, ['active', 'reviewing'], true) => 'Live now',
+            $quiz->status === 'waiting' => 'Lobby open',
+            $quizEnded && $quizHasRun => 'Last run finished',
+            default => 'Ready to start',
+        };
+    @endphp
+    <section class="{{ $card }} mb-6 space-y-4" aria-labelledby="quiz-heading">
+        <div>
+            <h3 id="quiz-heading" class="text-sm font-semibold text-slate-900 dark:text-white">Episode quiz</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Run a live quiz after the episode. While it runs, students in its section get a Join the quiz button on this episode in Watch.</p>
+        </div>
+        @if($quiz)
+            <div class="flex flex-wrap items-center gap-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 dark:border-fuchsia-800 dark:bg-fuchsia-900/20">
+                <span class="w-9 h-9 rounded-lg bg-fuchsia-600 text-[#fff] flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-fuchsia-950 dark:text-fuchsia-100 truncate">{{ $quiz->title }}</p>
+                    <p class="text-xs text-fuchsia-800 dark:text-fuchsia-300">
+                        {{ $quiz->session_questions_count }} {{ Str::plural('question', $quiz->session_questions_count) }}
+                        @unless($quizEnded)
+                            · Join code <span class="font-mono font-semibold">{{ $quiz->join_code }}</span>
+                        @endunless
+                        · {{ $quizStatus }}
+                    </p>
+                </div>
+                @if($quiz->lecturer_id === auth()->id())
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        @if($quizEnded && $quizHasRun)
+                            <a href="{{ route('tenant.quizzes.results', [$tenant->slug, $quiz]) }}" class="text-xs font-medium text-fuchsia-700 hover:text-fuchsia-900 dark:text-fuchsia-300 underline-offset-2 hover:underline">Last results</a>
+                        @endif
+                        <form method="POST" action="{{ route('tenant.episodes.quiz.start', [$tenant->slug, $course, $episode]) }}">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-700 text-[#fff] text-sm font-semibold transition">
+                                {{ $quizEnded ? 'Start quiz' : 'Open quiz' }}
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5-5 5M6 12h12"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                @endif
+            </div>
+        @endif
+        <form method="POST" action="{{ route('tenant.episodes.quiz', [$tenant->slug, $course, $episode]) }}" class="flex flex-wrap items-end gap-3">
+            @csrf
+            @method('PUT')
+            <div class="flex-1 min-w-48">
+                <label for="episode_quiz" class="{{ $label }}">{{ $quiz ? 'Linked quiz' : 'Link a quiz' }}</label>
+                <select id="episode_quiz" name="quiz_session_id" class="{{ $input }}">
+                    <option value="">No quiz</option>
+                    @foreach($courseQuizzes as $option)
+                        <option value="{{ $option->id }}" @selected($quiz?->id === $option->id)>{{ $option->title }} ({{ $option->join_code }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl">Save</button>
+        </form>
+    </section>
+
+    @php
         $aud = $report['audience'];
         $tz = $tenant->timezone ?: config('app.timezone');
         $statusLabel = ['not_started' => 'Not started', 'watching' => 'Watching', 'finished' => 'Finished'];

@@ -39,6 +39,7 @@
             <a href="{{ $preview['manageUrl'] }}" class="ml-auto font-semibold underline">Back to Episodes</a>
         </div>
     @endisset
+    @include('tenant.watch._live_quiz', ['episodes' => [$playback]])
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6" x-data="watchPlayer(@js($config))" x-init="boot()" @keydown.window.escape="cancelUpNext()">
         <div class="xl:col-span-2 space-y-3">
             <div class="rounded-2xl bg-slate-950 p-2 sm:p-3 shadow-xl">

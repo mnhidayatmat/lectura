@@ -25,6 +25,7 @@
         $watchedPct = $series['episodes_count'] ? round($series['completed_count'] / $series['episodes_count'] * 100) : 0;
     @endphp
 
+    @include('tenant.watch._live_quiz', ['episodes' => $series['episodes']])
     <div class="rounded-3xl bg-slate-950 text-slate-100 overflow-hidden shadow-xl">
         <section class="relative min-h-[14rem] sm:min-h-[18rem] flex items-end">
             @if($series['cover_url'])

@@ -75,6 +75,7 @@ class WatchController extends Controller
                     'finished' => EpisodeAnalytics::progressOf($episode, $studentIds)->whereNotNull('completed_at')->count(),
                     'checks_count' => $episode->checks()->count(),
                     'first_try_correct_percent' => EpisodeAnalytics::firstTryPercent($episode, $studentIds),
+                    'quiz' => $this->quizSummary($episode),
                 ],
                 ...$analytics->report(
                     $episode,
@@ -223,6 +224,27 @@ class WatchController extends Controller
     private function remindableSections(Collection $sections, ?int $sectionId): Collection
     {
         return $sectionId === null ? $sections->pluck('id') : collect([$sectionId]);
+    }
+
+    /**
+     * The linked live quiz, which the lecturer runs from the episode's web page.
+     */
+    private function quizSummary(Episode $episode): ?array
+    {
+        $quiz = $episode->quizSession()->withCount('sessionQuestions')->first();
+        if (! $quiz) {
+            return null;
+        }
+
+        return [
+            'id' => $quiz->id,
+            'title' => $quiz->title,
+            'status' => $quiz->status,
+            'join_code' => $quiz->status === 'ended' ? null : $quiz->join_code,
+            'questions_count' => $quiz->session_questions_count,
+            'has_run' => $quiz->started_at !== null,
+            'web_url' => route('tenant.episodes.show', [app('current_tenant')->slug, $episode->course_id, $episode]),
+        ];
     }
 
     private function episodeSummary(Episode $episode): array

@@ -910,7 +910,18 @@ covers all of them. A section that isn't mine in this course → 422 on `section
       { "id": 2, "name": "Section 02", "students": 38 }
     ],
     "section_id": null,
-    "episode": { "…same fields as an episodes[] entry…": "" },
+    "episode": {
+      "…same fields as an episodes[] entry…": "",
+      "quiz": {
+        "id": 63,
+        "title": "EP01 · Born Under the Caprock",
+        "status": "waiting",
+        "join_code": "XQHMTU",
+        "questions_count": 8,
+        "has_run": false,
+        "web_url": "https://lectura.coursesme.com/umpsa/materials/course/6/episodes/12"
+      }
+    },
     "audience": {
       "students": 43,
       "started": 31,
@@ -959,6 +970,10 @@ covers all of them. A section that isn't mine in this course → 422 on `section
 }
 ```
 
+- `episode.quiz` (or `null`): the live quiz linked to the episode on the web. Each start runs a fresh
+  copy and the link follows the newest run, so `status: "ended"` with `has_run: false` is the master
+  still to be run, and with `has_run: true` the last run is over. `join_code` is `null` once ended.
+  Quizzes are run (and linked) on the web: `web_url` is the episode's web page, which has Start.
 - `average_watched_percent`: mean of each starter's furthest point as a share of the duration.
 - `scenes[].reached`: starters whose furthest point reached the scene's start; `reached_percent` is of
   starters. `rewinds`: backward jumps of 5 s or more that landed inside the scene.

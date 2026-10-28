@@ -10,6 +10,7 @@ use App\Models\Course;
 use App\Models\Episode;
 use App\Models\EpisodeCaption;
 use App\Models\EpisodeCheck;
+use App\Models\QuizSession;
 use App\Models\Section;
 use App\Services\Episodes\EpisodeAnalytics;
 use App\Services\Episodes\EpisodeMedia;
@@ -38,6 +39,7 @@ class EpisodeContentController extends Controller
 
         $tenant = app('current_tenant');
         $episode->load([
+            'quizSession' => fn ($q) => $q->withCount('sessionQuestions'),
             'scenes',
             'captions',
             'checks' => fn ($q) => $q->with('options')->withCount([
@@ -57,6 +59,9 @@ class EpisodeContentController extends Controller
             'scenesText' => $scenesText,
             'suggestions' => $this->checkSuggestions($episode),
             'languages' => EpisodeCaption::LANGUAGES,
+            'courseQuizzes' => QuizSession::whereIn('section_id', $sections->pluck('id'))
+                ->latest()
+                ->get(['id', 'title', 'status', 'join_code']),
             'sections' => EpisodeAnalytics::sectionOptions($sections),
             'sectionId' => $sectionId,
             'report' => $analytics->report(
@@ -66,6 +71,41 @@ class EpisodeContentController extends Controller
                 sectionNames: $sectionId === null ? EpisodeAnalytics::sectionNamesByStudent($sections) : [],
             ),
         ]);
+    }
+
+    public function linkQuiz(Request $request, string $tenantSlug, Course $course, Episode $episode): RedirectResponse
+    {
+        $this->authorizeEpisode($course, $episode);
+
+        $courseQuizIds = QuizSession::whereIn('section_id', $this->lecturerSections($course)->pluck('id'))->pluck('id');
+        $quizId = $request->validate([
+            'quiz_session_id' => ['nullable', 'integer', Rule::in($courseQuizIds->all())],
+        ])['quiz_session_id'] ?? null;
+
+        $episode->update(['quiz_session_id' => $quizId]);
+
+        return back()->with('success', $quizId ? 'Quiz linked to this episode.' : 'Quiz unlinked from this episode.');
+    }
+
+    public function startQuiz(string $tenantSlug, Course $course, Episode $episode): RedirectResponse
+    {
+        $this->authorizeEpisode($course, $episode);
+
+        $quiz = $episode->quizSession ?? abort(404);
+        abort_unless($quiz->lecturer_id === auth()->id(), 403);
+
+        // A finished quiz (or the never-run master) runs again as a fresh copy,
+        // and the episode follows the newest run.
+        if ($quiz->status === 'ended') {
+            $quiz = $quiz->copyForNewRun(auth()->user());
+            $episode->update(['quiz_session_id' => $quiz->id]);
+        }
+
+        if ($quiz->isOffline()) {
+            return redirect()->route('tenant.quizzes.course', [$tenantSlug, $course]);
+        }
+
+        return redirect()->route('tenant.quizzes.control', [$tenantSlug, $quiz]);
     }
 
     public function remind(Request $request, string $tenantSlug, Course $course, Episode $episode, EpisodeReminderSender $sender): RedirectResponse

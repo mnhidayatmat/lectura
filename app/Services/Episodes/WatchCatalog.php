@@ -19,7 +19,9 @@ use App\Models\EpisodeClip;
 use App\Models\EpisodeProgress;
 use App\Models\EpisodeRewind;
 use App\Models\EpisodeScene;
+use App\Models\QuizSession;
 use App\Models\Section;
+use App\Models\SectionStudent;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -555,7 +557,33 @@ final class WatchCatalog
             ->get()
             ->groupBy(fn (EpisodeCheckAnswer $a) => $a->check->episode_id);
 
-        return new WatchPresenter($this->progressFor($user, $episodes), $checkCounts, $answers);
+        return new WatchPresenter($this->progressFor($user, $episodes), $checkCounts, $answers, $this->liveQuizzes($user, $episodes));
+    }
+
+    /**
+     * Each available episode's linked quiz while it is running for one of the student's sections.
+     *
+     * @param  Collection<int, Episode>  $episodes
+     * @return Collection<int, QuizSession> keyed by episode id
+     */
+    private function liveQuizzes(User $user, Collection $episodes): Collection
+    {
+        $linked = $episodes
+            ->filter(fn (Episode $e) => $e->quiz_session_id !== null && $e->isAvailable())
+            ->pluck('quiz_session_id', 'id');
+
+        if ($linked->isEmpty()) {
+            return collect();
+        }
+
+        $quizzes = QuizSession::whereIn('id', $linked->unique())
+            ->where('category', 'live')
+            ->whereIn('status', ['waiting', 'active', 'reviewing'])
+            ->whereIn('section_id', SectionStudent::where('user_id', $user->id)->where('is_active', true)->select('section_id'))
+            ->get(['id', 'title', 'status'])
+            ->keyBy('id');
+
+        return $linked->map(fn (int $quizId) => $quizzes->get($quizId))->filter();
     }
 
     /**

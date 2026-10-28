@@ -54,6 +54,7 @@ class Episode extends Model
         'video_size_bytes',
         'duration_seconds',
         'poster_path',
+        'quiz_session_id',
     ];
 
     protected function casts(): array
@@ -85,6 +86,15 @@ class Episode extends Model
     public function topic(): BelongsTo
     {
         return $this->belongsTo(CourseTopic::class, 'course_topic_id');
+    }
+
+    /**
+     * The live quiz the lecturer runs after this episode. Each run is a fresh copy,
+     * and the link follows the newest run.
+     */
+    public function quizSession(): BelongsTo
+    {
+        return $this->belongsTo(QuizSession::class);
     }
 
     public function uploader(): BelongsTo
