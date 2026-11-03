@@ -9,9 +9,10 @@ use App\Http\Controllers\Concerns\RedirectsToCourseContext;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\PortfolioPhoto;
+use App\Services\PortfolioService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class PortfolioController extends Controller
@@ -59,15 +60,12 @@ class PortfolioController extends Controller
     /**
      * Photos for a specific course with upload form.
      */
-    public function course(string $tenantSlug, Course $course): View
+    public function course(string $tenantSlug, Course $course, PortfolioService $portfolio): View
     {
         $this->authorizeCourseAccess($course);
 
-        $photos = PortfolioPhoto::where('course_id', $course->id)
-            ->where('user_id', auth()->id())
-            ->with('section')
-            ->latest('taken_at')
-            ->get();
+        $photos = $portfolio->photosFor($course, auth()->user());
+        $timeline = $portfolio->timeline($photos);
 
         $sections = $this->lecturerSections($course)->get();
         $categories = PortfolioPhoto::CATEGORIES;
@@ -75,17 +73,17 @@ class PortfolioController extends Controller
         $photosByCategory = $photos->groupBy('category');
         $photosByWeek = $photos->groupBy('week_number')->sortKeys();
 
-        return view('tenant.portfolio.course', compact('course', 'photos', 'sections', 'categories', 'photosByCategory', 'photosByWeek'));
+        return view('tenant.portfolio.course', compact('course', 'photos', 'sections', 'categories', 'photosByCategory', 'photosByWeek', 'timeline'));
     }
 
     /**
      * Store a new portfolio photo.
      */
-    public function store(Request $request, string $tenantSlug, Course $course): RedirectResponse
+    public function store(Request $request, string $tenantSlug, Course $course, PortfolioService $portfolio): RedirectResponse
     {
         $this->authorizeCourseAccess($course);
 
-        $request->validate([
+        $validated = $request->validate([
             'photo' => ['required', 'image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
             'category' => ['required', 'string', 'in:'.implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
             'caption' => ['nullable', 'string', 'max:255'],
@@ -95,30 +93,7 @@ class PortfolioController extends Controller
             'taken_at' => ['nullable', 'date'],
         ]);
 
-        $file = $request->file('photo');
-        $tenant = app('current_tenant');
-
-        $path = $file->store("portfolio/{$course->id}/".date('Y-m'), 'media');
-
-        // Generate thumbnail using GD
-        $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
-
-        PortfolioPhoto::create([
-            'tenant_id' => $tenant->id,
-            'course_id' => $course->id,
-            'section_id' => $request->section_id,
-            'user_id' => auth()->id(),
-            'category' => $request->category,
-            'caption' => $request->caption,
-            'description' => $request->description,
-            'file_path' => $path,
-            'thumbnail_path' => $thumbnailPath,
-            'file_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'file_size_bytes' => $file->getSize(),
-            'week_number' => $request->week_number,
-            'taken_at' => $request->taken_at ?? now(),
-        ]);
+        $portfolio->store($request->file('photo'), $course, $request->user(), $validated);
 
         return back()->with('success', 'Photo added to portfolio.');
     }
@@ -126,11 +101,11 @@ class PortfolioController extends Controller
     /**
      * Upload multiple photos at once.
      */
-    public function storeBatch(Request $request, string $tenantSlug, Course $course): RedirectResponse
+    public function storeBatch(Request $request, string $tenantSlug, Course $course, PortfolioService $portfolio): RedirectResponse
     {
         $this->authorizeCourseAccess($course);
 
-        $request->validate([
+        $validated = $request->validate([
             'photos' => ['required', 'array', 'min:1', 'max:20'],
             'photos.*' => ['image', 'max:10240', 'mimes:jpg,jpeg,png,webp'],
             'category' => ['required', 'string', 'in:'.implode(',', array_keys(PortfolioPhoto::CATEGORIES))],
@@ -138,96 +113,35 @@ class PortfolioController extends Controller
             'week_number' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $tenant = app('current_tenant');
-        $count = 0;
-
-        foreach ($request->file('photos') as $file) {
-            $path = $file->store("portfolio/{$course->id}/".date('Y-m'), 'media');
-            $thumbnailPath = $this->generateThumbnail($file, $course->id, $path);
-
-            PortfolioPhoto::create([
-                'tenant_id' => $tenant->id,
-                'course_id' => $course->id,
-                'section_id' => $request->section_id,
-                'user_id' => auth()->id(),
-                'category' => $request->category,
-                'file_path' => $path,
-                'thumbnail_path' => $thumbnailPath,
-                'file_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getClientMimeType(),
-                'file_size_bytes' => $file->getSize(),
-                'week_number' => $request->week_number,
-                'taken_at' => now(),
-            ]);
-            $count++;
+        $files = $request->file('photos');
+        foreach ($files as $file) {
+            $portfolio->store($file, $course, $request->user(), $validated);
         }
 
-        return back()->with('success', "{$count} photo(s) added to portfolio.");
+        return back()->with('success', count($files).' photo(s) added to portfolio.');
+    }
+
+    /**
+     * The generated teaching portfolio: every week's photos with captions, as a PDF.
+     */
+    public function pdf(string $tenantSlug, Course $course, PortfolioService $portfolio): Response
+    {
+        $this->authorizeCourseAccess($course);
+
+        return $portfolio->pdf($course, auth()->user())->download($portfolio->pdfFilename($course));
     }
 
     /**
      * Delete a portfolio photo.
      */
-    public function destroy(string $tenantSlug, PortfolioPhoto $photo): RedirectResponse
+    public function destroy(string $tenantSlug, PortfolioPhoto $photo, PortfolioService $portfolio): RedirectResponse
     {
         if ($photo->user_id !== auth()->id()) {
             abort(403);
         }
 
-        if (Storage::disk('media')->exists($photo->file_path)) {
-            Storage::disk('media')->delete($photo->file_path);
-        }
-        if ($photo->thumbnail_path && Storage::disk('media')->exists($photo->thumbnail_path)) {
-            Storage::disk('media')->delete($photo->thumbnail_path);
-        }
-
-        $photo->delete();
+        $portfolio->delete($photo);
 
         return back()->with('success', 'Photo removed from portfolio.');
-    }
-
-    /**
-     * Generate a thumbnail using GD.
-     */
-    private function generateThumbnail($file, int $courseId, string $originalPath): ?string
-    {
-        try {
-            $mime = $file->getClientMimeType();
-            $source = match ($mime) {
-                'image/jpeg' => imagecreatefromjpeg($file->getRealPath()),
-                'image/png' => imagecreatefrompng($file->getRealPath()),
-                'image/webp' => imagecreatefromwebp($file->getRealPath()),
-                default => null,
-            };
-
-            if (! $source) {
-                return null;
-            }
-
-            $origW = imagesx($source);
-            $origH = imagesy($source);
-            $thumbW = 400;
-            $thumbH = (int) round($origH * ($thumbW / $origW));
-
-            $thumb = imagecreatetruecolor($thumbW, $thumbH);
-            imagecopyresampled($thumb, $source, 0, 0, 0, 0, $thumbW, $thumbH, $origW, $origH);
-
-            $thumbDir = "portfolio/{$courseId}/thumbs";
-            $thumbName = pathinfo($originalPath, PATHINFO_FILENAME).'_thumb.jpg';
-            $thumbnailPath = "{$thumbDir}/{$thumbName}";
-
-            // Write to temp file then store
-            $tempPath = tempnam(sys_get_temp_dir(), 'thumb');
-            imagejpeg($thumb, $tempPath, 80);
-            imagedestroy($source);
-            imagedestroy($thumb);
-
-            Storage::disk('media')->put($thumbnailPath, file_get_contents($tempPath));
-            @unlink($tempPath);
-
-            return $thumbnailPath;
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

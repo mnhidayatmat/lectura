@@ -26,7 +26,7 @@ class PortfolioPhoto extends Model
     ];
 
     protected $fillable = [
-        'tenant_id', 'course_id', 'section_id', 'user_id',
+        'tenant_id', 'course_id', 'section_id', 'attendance_session_id', 'user_id',
         'category', 'caption', 'description', 'file_path', 'thumbnail_path',
         'file_name', 'mime_type', 'file_size_bytes', 'week_number', 'taken_at',
     ];
@@ -48,6 +48,11 @@ class PortfolioPhoto extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    public function attendanceSession(): BelongsTo
+    {
+        return $this->belongsTo(AttendanceSession::class);
     }
 
     public function user(): BelongsTo

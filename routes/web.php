@@ -538,6 +538,7 @@ Route::prefix('{tenant:slug}')
         Route::get('/portfolio/course/{course}', [PortfolioController::class, 'course'])->name('tenant.portfolio.course');
         Route::post('/portfolio/course/{course}/store', [PortfolioController::class, 'store'])->name('tenant.portfolio.store');
         Route::post('/portfolio/course/{course}/store-batch', [PortfolioController::class, 'storeBatch'])->name('tenant.portfolio.store-batch');
+        Route::get('/portfolio/course/{course}/pdf', [PortfolioController::class, 'pdf'])->name('tenant.portfolio.pdf');
         Route::delete('/portfolio/{photo}', [PortfolioController::class, 'destroy'])->name('tenant.portfolio.destroy');
 
         // Course Files

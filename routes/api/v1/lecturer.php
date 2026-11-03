@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\Lecturer\DashboardController;
 use App\Http\Controllers\Api\V1\Lecturer\ExcuseController;
 use App\Http\Controllers\Api\V1\Lecturer\GroupController;
 use App\Http\Controllers\Api\V1\Lecturer\MaterialController;
+use App\Http\Controllers\Api\V1\Lecturer\PortfolioController;
 use App\Http\Controllers\Api\V1\Lecturer\SectionController;
 use App\Http\Controllers\Api\V1\Lecturer\WatchController;
 use App\Http\Controllers\Api\V1\Lecturer\WheelController;
@@ -62,6 +63,14 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::post('/courses/{course}/materials/sections/{section}/links', [MaterialController::class, 'storeLink'])->name('materials.links.store');
     Route::patch('/courses/{course}/materials/items/{file}', [MaterialController::class, 'updateItem'])->name('materials.items.update');
     Route::delete('/courses/{course}/materials/items/{file}', [MaterialController::class, 'destroyItem'])->name('materials.items.destroy');
+
+    // Teaching portfolio (class photos → week-by-week timeline and PDF)
+    Route::get('/portfolio', [PortfolioController::class, 'index'])->name('portfolio.index');
+    Route::get('/courses/{course}/portfolio', [PortfolioController::class, 'show'])->name('portfolio.show');
+    Route::post('/courses/{course}/portfolio', [PortfolioController::class, 'store'])->name('portfolio.store');
+    Route::get('/courses/{course}/portfolio/pdf', [PortfolioController::class, 'pdf'])->name('portfolio.pdf');
+    Route::patch('/portfolio/{photo}', [PortfolioController::class, 'update'])->name('portfolio.update');
+    Route::delete('/portfolio/{photo}', [PortfolioController::class, 'destroy'])->name('portfolio.destroy');
 
     // Watch analytics (episodes are uploaded on the web)
     Route::get('/courses/{course}/watch', [WatchController::class, 'course'])->name('watch.course');

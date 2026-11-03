@@ -378,7 +378,7 @@ Custom config in `config/lectura.php` covers: tenant resolution, AI providers (C
 ### Performance & Portfolio
 
 - **Performance** (`/performance` lecturer, `/my-performance` student): `PerformanceAggregatorService` rolls up marks/attendance/assessment data into dashboards. AI suggestions (Pro) via `GeneratePerformanceSuggestions` job + `PerformanceAiService`, producing `PerformanceAiSuggestion` records (Alpine polls `ai-status`). The old `/analytics` routes now redirect here
-- **Portfolio** (`/portfolio`): lecturers store `PortfolioPhoto` evidence per course (compliance/teaching-portfolio documentation)
+- **Portfolio** (`/portfolio`): lecturers store `PortfolioPhoto` evidence per course (compliance/teaching-portfolio documentation). Web and the mobile API (`Api\V1\Lecturer\PortfolioController`, contract in `docs/mobile-api/lecturer.md` → Teaching portfolio) share `App\Services\PortfolioService`: storing (public `media` disk, 600 px EXIF-upright thumbnail), the week derived from the semester start when none is given, filling section/week/category/time from an `attendance_session_id` (photos taken in class), the week-by-week `timeline()` and the dompdf portfolio (`tenant/portfolio/pdf.blade.php`, thumbnails embedded as data URIs, times in the institution's timezone). Each lecturer sees only their own photos
 
 ### Role Switching (multi-role users)
 

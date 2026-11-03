@@ -853,6 +853,95 @@ picked student also gets a database notification. On Android it uses the app's `
 
 ---
 
+## Teaching portfolio
+
+Class photos per course, laid out as a week-by-week timeline, plus a generated PDF portfolio. Same
+data as the web Portfolio page (`/portfolio`, `PortfolioService`). A lecturer only ever sees and
+changes **their own** photos (a colleague teaching the same course gets 403 on someone else's photo).
+Images sit on the public `media` disk, so `image_url`/`thumbnail_url` load with no auth header.
+Deviations from the web: `section_id` must be one of the course's sections I can access (404/403),
+and `attendance_session_id` must be a session of this course I can open (422 otherwise).
+
+### GET `lecturer/portfolio`
+
+Every course I teach (owned + section-assigned), most photos first.
+
+```json
+{ "data": [
+  { "course": { "id": 4, "code": "BTG3333", "title": "Piping Design" },
+    "photo_count": 12, "week_count": 5,
+    "cover_url": "https://…/portfolio/4/thumbs/…_thumb.jpg",
+    "last_taken_at": "2026-11-03T02:14:00+00:00" }
+] }
+```
+
+### GET `lecturer/courses/{course}/portfolio`
+
+```json
+{ "data": {
+  "course": { "id": 4, "code": "BTG3333", "title": "Piping Design" },
+  "categories": [ { "key": "lecture", "label": "Lecture" }, { "key": "lab", "label": "Lab Session" }, … ],
+  "sections": [ { "id": 9, "name": "Section 01" } ],
+  "current_week": 5,
+  "photo_count": 12,
+  "timeline": [
+    { "week": 5, "label": "Week 5",
+      "from": "2026-11-03T02:14:00+00:00", "to": "2026-11-05T03:00:00+00:00",
+      "photos": [ Photo, … ] },
+    { "week": null, "label": "No week set", "from": …, "to": …, "photos": [ … ] }
+  ]
+} }
+```
+
+Groups run oldest week first; photos without a week come last. Photos inside a group are oldest
+first. `current_week` is today's teaching week from the course's semester start (`null` without one).
+
+**Photo**
+
+```json
+{ "id": 31, "course_id": 4, "category": "lab", "category_label": "Lab Session",
+  "caption": "Flow rig demo", "description": null, "week_number": 5,
+  "taken_at": "2026-11-03T02:14:00+00:00",
+  "image_url": "https://…", "thumbnail_url": "https://…", "file_size_bytes": 812345,
+  "section": { "id": 9, "name": "Section 01" },
+  "attendance_session": { "id": 120, "session_type": "lab", "week_number": 5, "started_at": "…" } }
+```
+
+`thumbnail_url` is a 600 px wide JPEG turned upright from the camera's EXIF orientation (falls back to
+`image_url`). `section` and `attendance_session` may be `null`.
+
+### POST `lecturer/courses/{course}/portfolio` (multipart)
+
+| field | |
+|---|---|
+| `photo` | required image, jpg/jpeg/png/webp, ≤ 10 MB |
+| `attendance_session_id` | optional — the class session the photo was taken in |
+| `category` | optional, a `categories` key; default from the session type (lecture/tutorial/lab; extra and replacement → lecture), else `other` |
+| `caption` (≤ 255), `description` (≤ 1000) | optional |
+| `section_id` | optional, ignored when a session is sent |
+| `week_number` | optional 1–30 |
+| `taken_at` | optional ISO-8601 |
+
+With a session, anything not sent comes from it: section, week (the session's, else counted from the
+semester start), category, and the time — now while the session is active, its `started_at` once it
+has ended. Without a session and without `week_number`, the week is counted from the semester start
+and `taken_at` (default now). → 201 `{ "message": "Photo added to your portfolio.", "data": Photo }`.
+
+### PATCH `lecturer/portfolio/{photo}`
+
+Any of `category`, `caption`, `description`, `week_number` (nullable). → `{ "message", "data": Photo }`.
+
+### DELETE `lecturer/portfolio/{photo}`
+
+Deletes the photo and its files. → `{ "message", "data": { "id" } }`.
+
+### GET `lecturer/courses/{course}/portfolio/pdf`
+
+`application/pdf` download (`{CODE}_teaching_portfolio.pdf`): a cover (lecturer, semester, period,
+photo/week/session/category totals), then one section per week with two photos a row, caption,
+description, category, section and time in the institution's timezone. The web page offers the same
+file at `/portfolio/course/{course}/pdf`.
+
 ## Watch analytics (episodes)
 
 Animated episodes are uploaded on the web (Materials → Episodes). These endpoints show how students
