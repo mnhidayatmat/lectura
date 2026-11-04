@@ -139,6 +139,10 @@ class QuizPlayController extends Controller
             abort(422, 'Time is up for this question.');
         }
 
+        if ($this->game->hasLeft($participant, $sq)) {
+            abort(422, 'You left the quiz during this question, so it can no longer be answered.');
+        }
+
         $existing = QuizResponse::where('quiz_session_question_id', $sq->id)
             ->where('quiz_participant_id', $participant->id)
             ->first();
@@ -170,6 +174,39 @@ class QuizPlayController extends Controller
         return response()->json([
             'message' => $existing ? 'Already answered.' : 'Answer submitted.',
             'data' => $this->answerData($response),
+        ]);
+    }
+
+    /**
+     * The app went to the background (or left the quiz screen) while this question was open
+     * and unanswered. The question is forfeited and the lecturer sees it.
+     */
+    public function away(Request $request, QuizSession $session): JsonResponse
+    {
+        $request->validate(['session_question_id' => ['required', 'integer']]);
+
+        $user = $request->user();
+        $this->authorizeQuiz($session, $user);
+
+        if ($session->isOffline()) {
+            abort(422, 'This quiz is not a live quiz.');
+        }
+
+        $participant = $this->findParticipant($session, $user);
+
+        if (! $participant) {
+            abort(403, 'You have not joined this quiz.');
+        }
+
+        $sq = QuizSessionQuestion::where('id', $request->session_question_id)
+            ->where('quiz_session_id', $session->id)
+            ->firstOrFail();
+
+        $forfeited = $this->game->recordDeparture($participant, $sq, 'app');
+
+        return response()->json([
+            'message' => $forfeited ? 'You left the quiz during this question, so it can no longer be answered.' : 'Nothing to record.',
+            'data' => ['forfeited' => $forfeited],
         ]);
     }
 

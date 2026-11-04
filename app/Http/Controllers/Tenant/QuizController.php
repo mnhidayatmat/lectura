@@ -611,6 +611,7 @@ class QuizController extends Controller
             'sessionQuestions.responses',
             'participants.user',
             'participants.responses',
+            'participants.departures',
         ]);
         $session->loadCount('participants');
 
@@ -690,6 +691,7 @@ class QuizController extends Controller
                     'unanswered' => max(0, $questionCount - $answered),
                     'accuracy' => $answered > 0 ? (int) round($correct / $answered * 100) : 0,
                     'avg_seconds' => $avgMs !== null ? round($avgMs / 1000, 1) : null,
+                    'left' => $p->departures->count(),
                 ];
             });
 
@@ -870,11 +872,41 @@ class QuizController extends Controller
             return response()->json(['message' => 'Time is up for this question.'], 422);
         }
 
+        if (! $answered && $this->game->hasLeft($participant, $sq)) {
+            return response()->json(['message' => 'You left the quiz during this question, so it can no longer be answered.'], 422);
+        }
+
         [, $existing] = $this->game->answer($participant, $sq, $option, trim((string) $request->answer_text));
 
         return response()->json([
             'message' => $existing ? 'Already answered.' : 'Answer submitted.',
         ]);
+    }
+
+    /**
+     * The web player's tab was hidden, or its window lost focus, while this question was open
+     * and unanswered (sent with `keepalive`, so it survives the tab closing).
+     */
+    public function away(Request $request, string $tenantSlug, QuizSession $session): JsonResponse
+    {
+        $request->validate(['session_question_id' => ['required', 'integer']]);
+
+        $participant = QuizParticipant::where('quiz_session_id', $session->id)
+            ->where('user_id', auth()->id())->first();
+
+        if (! $participant || $session->isOffline()) {
+            return response()->json(['message' => 'Not joined.'], 403);
+        }
+
+        $sq = QuizSessionQuestion::where('id', $request->session_question_id)
+            ->where('quiz_session_id', $session->id)
+            ->first();
+
+        if (! $sq) {
+            return response()->json(['message' => 'Question not found.'], 404);
+        }
+
+        return response()->json(['forfeited' => $this->game->recordDeparture($participant, $sq, 'web')]);
     }
 
     /**

@@ -37,4 +37,9 @@ class QuizParticipant extends Model
     {
         return $this->hasMany(QuizResponse::class);
     }
+
+    public function departures(): HasMany
+    {
+        return $this->hasMany(QuizDeparture::class);
+    }
 }

@@ -139,6 +139,7 @@
                                     <div class="text-right">
                                         <p class="text-3xl font-black tabular-nums leading-none"><span x-text="s.answered_count"></span><span class="text-white/40 text-xl"> / <span x-text="s.participant_count"></span></span></p>
                                         <p class="text-xs text-white/60 mt-1">answered</p>
+                                        <p x-show="s.left_count > 0" x-cloak class="mt-1 text-xs font-semibold text-amber-300" x-text="`${s.left_count} left the quiz`"></p>
                                     </div>
                                     <div class="relative w-20 h-20">
                                         <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">

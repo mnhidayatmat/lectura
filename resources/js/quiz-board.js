@@ -268,7 +268,9 @@ export default function quizBoard({ stateUrl, actions, initial, joinUrl }) {
                 sound?.play('tick', 0.9);
             }
             this.lastTick = this.remaining;
-            const everyone = this.s.participant_count > 0 && this.s.answered_count >= this.s.participant_count;
+            // A student who left the quiz during the question can no longer answer it.
+            const done = this.s.answered_count + (this.s.left_count || 0);
+            const everyone = this.s.participant_count > 0 && done >= this.s.participant_count;
             if (!this.autoClosing && !this.busy && (this.remaining === 0 || everyone)) {
                 this.autoClosing = true;
                 setTimeout(() => {

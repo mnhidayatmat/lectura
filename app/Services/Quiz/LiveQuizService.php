@@ -6,6 +6,7 @@ namespace App\Services\Quiz;
 
 use App\Http\Resources\Api\V1\Live\QuizQuestionResource;
 use App\Models\QuestionOption;
+use App\Models\QuizDeparture;
 use App\Models\QuizParticipant;
 use App\Models\QuizResponse;
 use App\Models\QuizSession;
@@ -242,6 +243,45 @@ class LiveQuizService
         return [$response, false];
     }
 
+    /**
+     * The student left the quiz (another app, tab or window) during a question. Recorded only
+     * for a question that has been opened and that they had not answered yet; from then on
+     * that question refuses their answer. A report sent late, after the question closed,
+     * still counts for the lecturer. Returns whether the question is now forfeited.
+     */
+    public function recordDeparture(QuizParticipant $participant, QuizSessionQuestion $question, string $client): bool
+    {
+        if ($question->status === 'pending' || $question->quiz_session_id !== $participant->quiz_session_id) {
+            return false;
+        }
+
+        $answered = QuizResponse::where('quiz_session_question_id', $question->id)
+            ->where('quiz_participant_id', $participant->id)
+            ->exists();
+
+        if ($answered) {
+            return false;
+        }
+
+        try {
+            QuizDeparture::firstOrCreate(
+                ['quiz_participant_id' => $participant->id, 'quiz_session_question_id' => $question->id],
+                ['client' => $client],
+            );
+        } catch (UniqueConstraintViolationException) {
+            // A second report raced the first; the row is there either way.
+        }
+
+        return true;
+    }
+
+    public function hasLeft(QuizParticipant $participant, QuizSessionQuestion $question): bool
+    {
+        return QuizDeparture::where('quiz_participant_id', $participant->id)
+            ->where('quiz_session_question_id', $question->id)
+            ->exists();
+    }
+
     public function rename(QuizParticipant $participant, string $nickname): void
     {
         $participant->update(['display_name' => $this->cleanNickname($nickname)]);
@@ -346,10 +386,12 @@ class LiveQuizService
 
         $question = null;
         $answered = 0;
+        $left = 0;
 
         if ($current) {
             $responses = QuizResponse::where('quiz_session_question_id', $current->id)->get(['selected_option_id']);
             $answered = $responses->count();
+            $left = QuizDeparture::where('quiz_session_question_id', $current->id)->count();
             $reveal = $phase === 'reveal';
             $counts = $responses->countBy('selected_option_id');
             $q = $current->question;
@@ -379,6 +421,7 @@ class LiveQuizService
             'is_last_question' => $questions->where('status', 'pending')->isEmpty(),
             'question' => $question,
             'answered_count' => $answered,
+            'left_count' => $left,
             'leaderboard' => in_array($phase, ['reveal', 'finished', 'ended'], true)
                 ? $this->standings($session)->take(10)->map(fn (array $row) => collect($row)->except('user_id')->all())->values()
                 : null,
@@ -423,7 +466,17 @@ class LiveQuizService
             'points_gained' => null,
             'rank' => $standing['rank'] ?? null,
             'previous_rank' => $standing['previous_rank'] ?? null,
+            'left' => false,
+            'left_count' => 0,
         ];
+
+        if ($participant) {
+            $departures = QuizDeparture::where('quiz_participant_id', $participant->id)->pluck('quiz_session_question_id');
+            $me['left_count'] = $departures->count();
+            $me['left'] = $question !== null
+                && in_array($phase, ['answering', 'reveal'], true)
+                && $departures->contains($question['session_question_id']);
+        }
 
         if ($participant && $question && in_array($phase, ['answering', 'reveal'], true)) {
             $response = QuizResponse::where('quiz_session_question_id', $question['session_question_id'])

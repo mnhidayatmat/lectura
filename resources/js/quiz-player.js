@@ -3,12 +3,20 @@
 // payload as the Lectura Go app (`LiveQuizService::playerState`). Sound effects only
 // (the music plays on the lecturer's board): ticks over the last 5 seconds, a pop when
 // the answer is in, the student's own correct/wrong sound and a fanfare at the end.
+//
+// Leaving during an open question (hiding the tab, or the window losing focus for more
+// than BLUR_GRACE_MS) forfeits that question: it is reported to `awayUrl` and the server
+// refuses the answer from then on. The screen is kept awake so an idle phone doesn't lock.
 
 import { OPTION_COLORS } from './quiz-board';
 import quizSounds from './quiz-sounds';
 
-export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialName, anonymous }) {
+const BLUR_GRACE_MS = 1500;
+
+export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, awayUrl, initialName, anonymous }) {
     let sound = null;
+    let blurTimer = null;
+    let wakeLock = null;
 
     return {
         s: null,
@@ -20,6 +28,7 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
         nameError: '',
         pendingId: null,
         lockedQuestion: null,
+        leftQuestion: null,
         submitError: '',
         remaining: null,
         deadline: null,
@@ -42,6 +51,53 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
             this.soundMuted = sound.state.muted;
             this.poll();
             setInterval(() => this.tick(), 250);
+            this.watchDepartures();
+        },
+
+        watchDepartures() {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    this.leave();
+                } else {
+                    this.keepAwake();
+                }
+            });
+            window.addEventListener('pagehide', () => this.leave());
+            window.addEventListener('blur', () => {
+                clearTimeout(blurTimer);
+                blurTimer = setTimeout(() => {
+                    if (!document.hasFocus()) {
+                        this.leave();
+                    }
+                }, BLUR_GRACE_MS);
+            });
+            window.addEventListener('focus', () => clearTimeout(blurTimer));
+            this.keepAwake();
+        },
+
+        async keepAwake() {
+            if (wakeLock || !navigator.wakeLock || document.hidden) {
+                return;
+            }
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => { wakeLock = null; });
+            } catch {
+                // not allowed here (no user gesture yet, low battery); nothing to do
+            }
+        },
+
+        get forfeited() {
+            return this.me.left || (this.question !== null && this.leftQuestion === this.question.session_question_id);
+        },
+
+        leave() {
+            const question = this.question;
+            if (this.phase !== 'answering' || !question || this.locked || this.forfeited || this.pendingId !== null || this.remaining === 0) {
+                return;
+            }
+            this.leftQuestion = question.session_question_id;
+            this.send(awayUrl, { session_question_id: question.session_question_id }, { keepalive: true }).catch(() => {});
         },
 
         get phase() {
@@ -123,7 +179,7 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
             this.remaining = this.phase === 'answering' && this.deadline !== null
                 ? Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000))
                 : null;
-            if (this.remaining > 0 && this.remaining <= 5 && this.remaining !== this.lastTick && !this.locked) {
+            if (this.remaining > 0 && this.remaining <= 5 && this.remaining !== this.lastTick && !this.locked && !this.forfeited) {
                 sound?.play('tick', 0.8);
             }
             this.lastTick = this.remaining;
@@ -135,7 +191,7 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
         },
 
         async answer(optionId) {
-            if (this.locked || this.pendingId !== null || this.remaining === 0) {
+            if (this.locked || this.forfeited || this.pendingId !== null || this.remaining === 0) {
                 return;
             }
             const questionId = this.question.session_question_id;
@@ -179,8 +235,9 @@ export default function quizPlayer({ stateUrl, respondUrl, nicknameUrl, initialN
             }
         },
 
-        send(url, body) {
+        send(url, body, options = {}) {
             return fetch(url, {
+                ...options,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

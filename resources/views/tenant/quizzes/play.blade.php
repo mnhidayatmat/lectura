@@ -13,6 +13,7 @@
             stateUrl: @js(route('tenant.quizzes.student-state', [app('current_tenant')->slug, $session])),
             respondUrl: @js(route('tenant.quizzes.respond', [app('current_tenant')->slug, $session])),
             nicknameUrl: @js(route('tenant.quizzes.nickname', [app('current_tenant')->slug, $session])),
+            awayUrl: @js(route('tenant.quizzes.away', [app('current_tenant')->slug, $session])),
             initialName: @js($participant->display_name),
             anonymous: @js((bool) $session->is_anonymous),
          })">
@@ -66,6 +67,10 @@
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         <span x-text="`${s?.participant_count || 0} joined`"></span>
                     </p>
+
+                    <p class="mt-6 max-w-xs rounded-2xl bg-amber-300/15 px-4 py-3 text-sm text-amber-100">
+                        Stay on this page while a question is open. Switching to another tab, app or window forfeits that question.
+                    </p>
                 </div>
 
                 {{-- ANSWERING --}}
@@ -82,9 +87,9 @@
 
                     <div class="mt-5 grid gap-3" :class="question?.options?.length === 2 ? 'grid-cols-2' : ''">
                         <template x-for="(opt, i) in question?.options || []" :key="opt.id">
-                            <button type="button" @click="answer(opt.id)" :disabled="locked || pendingId !== null || remaining === 0"
+                            <button type="button" @click="answer(opt.id)" :disabled="locked || forfeited || pendingId !== null || remaining === 0"
                                     class="relative flex items-center gap-3 rounded-2xl px-4 py-4 text-left shadow-lg shadow-black/20 transition active:scale-[.98]"
-                                    :class="selectedId === null ? '' : (selectedId === opt.id ? 'ring-4 ring-white scale-[1.02]' : 'opacity-30')"
+                                    :class="forfeited ? 'opacity-30' : (selectedId === null ? '' : (selectedId === opt.id ? 'ring-4 ring-white scale-[1.02]' : 'opacity-30'))"
                                     :style="`background:${colors[i % colors.length]}`">
                                 <span class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center font-black flex-shrink-0" x-text="opt.label"></span>
                                 <span class="font-semibold leading-snug" x-text="opt.text"></span>
@@ -94,8 +99,9 @@
 
                     <div class="mt-auto pt-5 text-center text-sm">
                         <p x-show="locked" class="rounded-2xl bg-white/10 px-4 py-3 font-semibold">Answer locked in! Look at the screen…</p>
-                        <p x-show="!locked && remaining === 0" class="rounded-2xl bg-white/10 px-4 py-3 font-semibold">Time's up!</p>
-                        <p x-show="!locked && remaining !== 0 && pendingId === null" class="text-white/60">Faster correct answers score more points.</p>
+                        <p x-show="!locked && forfeited" class="rounded-2xl bg-amber-300 text-amber-950 px-4 py-3 font-semibold">You left the quiz during this question, so it can't be answered. It scores 0.</p>
+                        <p x-show="!locked && !forfeited && remaining === 0" class="rounded-2xl bg-white/10 px-4 py-3 font-semibold">Time's up!</p>
+                        <p x-show="!locked && !forfeited && remaining !== 0 && pendingId === null" class="text-white/60">Faster correct answers score more points. Stay on this page until you answer.</p>
                         <p x-show="submitError" x-text="submitError" class="mt-2 text-rose-300"></p>
                     </div>
                 </div>
@@ -103,9 +109,9 @@
                 {{-- REVEAL --}}
                 <div x-show="phase === 'reveal'" x-cloak class="flex-1 flex flex-col">
                     <div class="qp-pop rounded-3xl px-5 py-6 text-center"
-                         :class="me.is_correct === true ? 'bg-emerald-500' : (me.is_correct === false ? 'bg-rose-500' : 'bg-white/10')">
-                        <p class="text-3xl font-black" x-text="me.is_correct === true ? 'Correct!' : (me.is_correct === false ? 'Not this time' : 'Time\'s up!')"></p>
-                        <p class="mt-1 text-lg font-bold" x-text="me.is_correct === true ? `+${(me.points_gained || 0).toLocaleString()} pts` : (me.is_correct === false ? 'No points this round' : 'No answer recorded')"></p>
+                         :class="me.is_correct === true ? 'bg-emerald-500' : (me.is_correct === false ? 'bg-rose-500' : (me.left ? 'bg-amber-600' : 'bg-white/10'))">
+                        <p class="text-3xl font-black" x-text="me.is_correct === true ? 'Correct!' : (me.is_correct === false ? 'Not this time' : (me.left ? 'You left the quiz' : 'Time\'s up!'))"></p>
+                        <p class="mt-1 text-lg font-bold" x-text="me.is_correct === true ? `+${(me.points_gained || 0).toLocaleString()} pts` : (me.is_correct === false ? 'No points this round' : (me.left ? 'This question scored 0' : 'No answer recorded'))"></p>
                     </div>
 
                     <div class="mt-4 grid grid-cols-2 gap-3 text-center">

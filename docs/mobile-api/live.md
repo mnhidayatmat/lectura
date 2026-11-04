@@ -20,6 +20,7 @@ Routes (names prefixed `api.v1.tenant.live.`):
 | GET | `live/quizzes/{quiz}/state` | Live quiz state — poll every ~2 s |
 | POST | `live/quizzes/{quiz}/nickname` | Set the name shown on the board (lobby) |
 | POST | `live/quizzes/{quiz}/respond` | Answer the open live question |
+| POST | `live/quizzes/{quiz}/away` | The student left the quiz during the open question (forfeits it) |
 | POST | `live/quizzes/{quiz}/submit-offline` | Submit all answers of an offline quiz |
 | GET | `live/quizzes/{quiz}/result` | Personal result with correct answers |
 | GET | `live/sessions/{session}` | Active-learning session bootstrap (joins when active) |
@@ -267,7 +268,7 @@ Poll every ~2 s while the screen is visible; stop when `phase == "finished"`. Th
 | `participant_count` | joined students |
 | `question_total` | |
 | `question` | `answering`: open Question + `remaining_seconds` (int). The timer is enforced: answers more than 3 s after it runs out are refused, and the lecturer's board closes the question when it hits 0 or everyone has answered. `reveal`: revealed Question + `remaining_seconds: null`. Otherwise `null` |
-| `me` | `joined`, `display_name` (the nickname shown on the board), `score` (marks), `points` (game points), `answered`, `selected_option_id`, `answer_text` (for the current question); reveal only: `is_correct` + `points_earned` (marks; both `null` if no answer = "Time's up") and `points_gained` (game points); reveal/finished: `rank` + `previous_rank` |
+| `me` | `joined`, `display_name` (the nickname shown on the board), `score` (marks), `points` (game points), `answered`, `selected_option_id`, `answer_text` (for the current question); reveal only: `is_correct` + `points_earned` (marks; both `null` if no answer = "Time's up") and `points_gained` (game points); reveal/finished: `rank` + `previous_rank`; `left` (answering/reveal: the student left the quiz during this question, so it is forfeited) and `left_count` (questions of this quiz left during) |
 | `leaderboard` | reveal/finished: top 10 `[{rank, previous_rank, name, score, points, gained, is_me}]`, else `null`. Names are nicknames (pseudonyms for anonymous quizzes) |
 
 **Game points (Mentimeter style).** Live quizzes rank by game points, not marks. A correct answer earns
@@ -393,8 +394,30 @@ Errors:
 - `403 "You have not joined this quiz."` — call `GET live/quizzes/{quiz}` (or join) first.
 - `422 "Question is not active."` — question closed/not open yet (refresh state).
 - `422 "Time is up for this question."` — more than 3 s past the question's time limit.
+- `422 "You left the quiz during this question, so it can no longer be answered."` — see `away` below.
 - `422 errors.session_question_id` (missing), `errors.selected_option_id` ("Please choose an answer." / "The selected option is invalid."), `errors.answer_text` ("Please type your answer.").
 - `422 "This quiz is not a live quiz."`, `403 "You are not enrolled in this section."`.
+
+### POST `live/quizzes/{quiz}/away` (live quizzes only)
+
+Leaving a live quiz during an open, unanswered question forfeits that question: the server refuses the
+answer from then on (on the web player too), it scores 0, and the lecturer sees it (`left_count` on the
+board, "Left the quiz on N questions" on the results page). The app sends this when it goes to the
+background, loses focus for more than 2 s (notification shade, Control Centre, an assistant overlay) or the
+quiz screen closes, and locks the question on the phone at once. It also locks answers, without
+forfeiting, while another app shares the screen (split screen, a floating window, iPad Split View), and keeps
+the screen awake during the quiz so an idle phone never locks itself into a forfeit. The web player does the
+same on `visibilitychange` (tab hidden) or a window blur longer than 1.5 s.
+
+Body: `{ "session_question_id": 1 }`
+
+```json
+{ "message": "You left the quiz during this question, so it can no longer be answered.", "data": { "forfeited": true } }
+```
+- `forfeited: false` (`"Nothing to record."`) when the student had already answered it or it has not been
+  opened yet. A report that arrives after the question closed (the phone was offline) is still recorded.
+  Reports are idempotent: one row per student per question (`quiz_departures`).
+- `404` for a question of another quiz; `403 "You have not joined this quiz."`.
 
 ### POST `live/quizzes/{quiz}/submit-offline`
 

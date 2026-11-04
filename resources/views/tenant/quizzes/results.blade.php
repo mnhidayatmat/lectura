@@ -175,6 +175,10 @@
                                                 @if($row->nickname)
                                                     <span class="block text-[11px] text-slate-400 truncate">as “{{ $row->nickname }}”</span>
                                                 @endif
+                                                @if($row->left > 0)
+                                                    <span class="mt-0.5 inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300"
+                                                          title="Left the quiz (another app, tab or window) while a question was open; those questions scored 0">Left the quiz on {{ $row->left }} {{ Str::plural('question', $row->left) }}</span>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>
