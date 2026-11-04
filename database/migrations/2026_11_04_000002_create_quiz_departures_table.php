@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('client', 8);
             $table->timestamp('created_at')->nullable();
 
-            $table->unique(['quiz_participant_id', 'quiz_session_question_id']);
+            $table->unique(['quiz_participant_id', 'quiz_session_question_id'], 'quiz_departures_participant_question_unique');
         });
     }
 
