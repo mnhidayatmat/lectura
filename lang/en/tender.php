@@ -160,7 +160,7 @@ return [
     'card_waiting' => 'The card opens when the Leader starts scoring.',
     'declaration' => 'I have no reason that stops me scoring both companies fairly.',
     'declare_first' => 'Confirm the declaration first.',
-    'evidence_placeholder' => 'One line of evidence (required)',
+    'evidence_placeholder' => 'Evidence (required)',
     'save_draft' => 'Save draft',
     'submit_card' => 'Submit card',
     'submit_confirm' => 'Submit your card? You cannot change it after.',

@@ -50,9 +50,9 @@
                     </div>
                 @endforeach
             </div>
-            <input name="scores[{{ $key }}][evidence]" maxlength="500" value="{{ old("scores.$key.evidence", $s?->evidence) }}" @disabled($locked)
+            <textarea name="scores[{{ $key }}][evidence]" maxlength="{{ \App\Services\Tender\TenderFlow::EVIDENCE_MAX }}" rows="3" @disabled($locked)
                    placeholder="{{ __('tender.evidence_placeholder') }}"
-                   class="mt-3 w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                   class="mt-3 w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">{{ old("scores.$key.evidence", $s?->evidence) }}</textarea>
         </div>
     @endforeach
 

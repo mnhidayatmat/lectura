@@ -763,7 +763,7 @@ winner, totals: {A, B} | null, review_status, my_task}]` where `my_task` is `jud
 
 ### CardRow and Pitch
 
-`CardRow`: `{criterion, level_a, level_b, evidence}` — levels 1–4 (0–4 on `compliance`), evidence ≤ 500 chars.
+`CardRow`: `{criterion, level_a, level_b, evidence}` — levels 1–4 (0–4 on `compliance`), evidence ≤ 16,000 chars.
 Submit requires both levels and non-empty evidence on every row. During `reconcile`, `PUT card` only reads
 `level_a`/`level_b` of `reconcile_criteria` rows and stores them as the after-reconcile levels (the originals
 are kept).

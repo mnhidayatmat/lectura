@@ -28,6 +28,9 @@ class TenderFlow
 {
     public const MIN_COMPANY = 4;
 
+    /** A Judge's evidence per row, in characters (about 2,500 words; fits a TEXT column). */
+    public const EVIDENCE_MAX = 16000;
+
     public const MAX_COMPANY = 6;
 
     public const MIN_GROUP = 2;
@@ -251,7 +254,7 @@ class TenderFlow
                 $judge->scores()->updateOrCreate(['criterion' => $key], [
                     'level_a' => $this->checkedLevel($session, $key, $row['level_a'] ?? null),
                     'level_b' => $this->checkedLevel($session, $key, $row['level_b'] ?? null),
-                    'evidence' => isset($row['evidence']) ? Str::limit(trim((string) $row['evidence']), 500, '') : null,
+                    'evidence' => isset($row['evidence']) ? Str::limit(trim((string) $row['evidence']), self::EVIDENCE_MAX, '') : null,
                 ]);
             }
 

@@ -169,7 +169,7 @@ class TenderController extends Controller
             'scores.*.criterion' => ['required', 'string'],
             'scores.*.level_a' => ['nullable', 'integer'],
             'scores.*.level_b' => ['nullable', 'integer'],
-            'scores.*.evidence' => ['nullable', 'string', 'max:500'],
+            'scores.*.evidence' => ['nullable', 'string', 'max:'.TenderFlow::EVIDENCE_MAX],
             'pitches' => ['sometimes', 'array'],
             'pitches.*.consultant_id' => ['required', 'integer'],
             'pitches.*.relevant' => ['required', 'integer'],

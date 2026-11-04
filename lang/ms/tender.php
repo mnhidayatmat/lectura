@@ -160,7 +160,7 @@ return [
     'card_waiting' => 'Kad dibuka apabila Ketua memulakan pemarkahan.',
     'declaration' => 'Saya tiada sebab yang menghalang saya memberi markah secara adil kepada kedua-dua syarikat.',
     'declare_first' => 'Sahkan pengisytiharan dahulu.',
-    'evidence_placeholder' => 'Satu baris bukti (wajib)',
+    'evidence_placeholder' => 'Bukti (wajib)',
     'save_draft' => 'Simpan draf',
     'submit_card' => 'Hantar kad',
     'submit_confirm' => 'Hantar kad anda? Ia tidak boleh diubah selepas itu.',

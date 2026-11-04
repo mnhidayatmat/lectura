@@ -346,7 +346,7 @@ class TenderGameController extends Controller
             'scores' => ['array'],
             'scores.*.level_a' => ['nullable', 'integer'],
             'scores.*.level_b' => ['nullable', 'integer'],
-            'scores.*.evidence' => ['nullable', 'string', 'max:500'],
+            'scores.*.evidence' => ['nullable', 'string', 'max:'.TenderFlow::EVIDENCE_MAX],
             'pitches' => ['array'],
         ]);
 
