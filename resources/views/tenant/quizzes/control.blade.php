@@ -100,7 +100,7 @@
                                 <p class="mt-4 text-sm font-medium text-slate-500">and enter the code</p>
                                 <p class="mt-1 font-mono text-5xl font-black tracking-[0.18em] text-indigo-700">{{ $session->join_code }}</p>
                                 <div class="mt-5 mx-auto w-44 h-44 [&_svg]:w-full [&_svg]:h-full" x-html="qrSvg"></div>
-                                <p class="mt-4 text-xs text-slate-500">Lectura Go app: <span class="font-semibold text-slate-700">Live → Join with code</span></p>
+                                <p class="mt-4 text-xs text-slate-500">Lectura Go app: <span class="font-semibold text-slate-700">scan this code</span> with Check in, or <span class="font-semibold text-slate-700">Live → Join with code</span></p>
                             </div>
 
                             <div class="min-w-0">
