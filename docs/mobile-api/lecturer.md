@@ -1139,6 +1139,85 @@ the app posts no progress and no answers.
   `notify_students`. Messages: "… is a draft. Students can't see it.", "… is locked. Students see it
   as coming soon.", "… unlocks {date}.", "… is released." (+ " Students were notified.").
 
+## Live quizzes (host)
+
+Run a live quiz from the phone with the same game as the web board (`LiveQuizService`), so the app can
+drive a class alone or be a remote while the board is projected: both read and change the same state.
+Quizzes are still written on the web; offline quizzes are not listed and every endpoint refuses them
+(`422 "Offline quizzes run on their own. Open them on the web."`).
+
+Access: viewing follows the web results page (the quiz's lecturer, or anyone with access to its
+course); every action is owner-only (`403 "Only the lecturer who created this quiz can run it."`), and
+actions on an ended quiz return `422 "This quiz has ended. Run it again to start a new round."`.
+
+### Quiz summary
+
+```json
+{
+  "id": 41, "title": "Week 5 Recap", "status": "waiting", "join_code": "K7PQ2M",
+  "is_anonymous": false, "question_count": 8, "participant_count": 0,
+  "never_run": false, "is_owner": true, "can_run": true,
+  "course": { "id": 3, "code": "CS201", "title": "Data Structures" },
+  "section": { "id": 9, "name": "Section 1" },
+  "started_at": null, "ended_at": null, "created_at": "2026-11-05T01:00:00+00:00",
+  "join_url": "https://…/demo-university/quiz/join?code=K7PQ2M",
+  "board_url": "https://…/demo-university/quizzes/41/control",
+  "results_url": "https://…/demo-university/quizzes/41/results"
+}
+```
+
+`status`: `waiting` (lobby) · `active` · `reviewing` (final standings) · `ended`. `can_run` = owner and
+not ended. `never_run`: an ended quiz nobody took (a master copy, started with `replay`).
+
+### GET `lecturer/quizzes[?course_id={id}]`
+
+Live quizzes in my sections (or created by me), running ones (`waiting|active|reviewing`) first, then
+by course code and the course's manual order. `{"data": [Quiz summary…]}`.
+
+### GET `lecturer/quizzes/{quiz}`
+
+Quiz summary + `board`, the web board's state. Poll it while the host screen is open (the app: 1 s
+while a question is open, 2 s otherwise).
+
+```json
+"board": {
+  "status": "active", "phase": "answering", "join_code": "K7PQ2M",
+  "participant_count": 24, "participants": [{ "id": 5, "name": "Ali" }],
+  "question_total": 8, "is_last_question": false,
+  "question": {
+    "session_question_id": 77, "number": 2, "type": "mcq", "text": "…", "time_limit": 30,
+    "remaining_seconds": 18,
+    "options": [{ "id": 301, "label": "A", "text": "…" }],
+    "explanation": null
+  },
+  "answered_count": 15, "left_count": 1,
+  "leaderboard": null
+}
+```
+
+- `phase`: `lobby` · `answering` · `reveal` (last question closed) · `finished` (final standings,
+  status `reviewing`) · `ended`.
+- `question` is `null` in the lobby and at the end. While answering, options carry no answer; in
+  `reveal` each option adds `is_correct` and `count`, and `explanation` is filled.
+- `left_count`: students who left the app during this question (forfeited, so they count as done).
+- `leaderboard` (reveal, finished, ended): top 10 `{participant_id, rank, previous_rank, name, points,
+  gained, score}` — the same rows as the student `leaderboard`, without `is_me`.
+
+### Actions
+
+Each returns `{"message": …, "data": {Quiz summary + board}}`.
+
+| Endpoint | Does | Refusals |
+|---|---|---|
+| POST `lecturer/quizzes/{quiz}/start` | Lobby closes, question 1 opens | 422 "This quiz has already started." |
+| POST `lecturer/quizzes/{quiz}/close` | Closes the open question (→ `reveal`). Body `{"session_question_id": 77}` (optional) closes only that question, so an auto-close sent after the board moved on is a no-op | — (nothing open is a no-op) |
+| POST `lecturer/quizzes/{quiz}/next` | Opens the next question, or → `finished` after the last ("Final standings.") | 422 "This quiz is not running.", 422 "Close the open question first." |
+| POST `lecturer/quizzes/{quiz}/end` | Closes anything open, saves totals (marks + game points), → `ended` | — |
+| POST `lecturer/quizzes/{quiz}/replay` | **201**: a fresh run with copies of the questions, in the lobby with a new join code; the original keeps its results | owner-only; any status |
+
+The app closes a question itself when the countdown reaches 0 or every participant has answered or
+left (as the web board does), always sending `session_question_id`.
+
 ## Differences from the web app (intentional)
 
 - Section endpoints (show, toggle, add/remove student) now check course **and** section access; the web SectionController had no authorization.
@@ -1149,3 +1228,4 @@ the app posts no progress and no answers.
 - Excuse review admits the section lecturers who could already set the record to `excused` through the override (session access); the web lets only the course owner review. It also refuses to review an excuse twice.
 - Assignment marking checks course access, that the submission belongs to the assignment and that marks stay within each criterion's and the assignment's maximum; the web's finalize route checks none of these.
 - Assessment release, unrelease and marking only reach students in my sections (web release-all covers every section; manual entry accepts any user id). Unrelease retracts the whole group, mirroring release; the web retracts one row. `weighted_marks` always uses percentage × weightage.
+- Quiz host: `close` accepts `session_question_id` and ignores a stale one (the web board closes whatever is open); `start`/`next` on the wrong phase return 422 instead of silently doing nothing.

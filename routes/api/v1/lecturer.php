@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Lecturer\ExcuseController;
 use App\Http\Controllers\Api\V1\Lecturer\GroupController;
 use App\Http\Controllers\Api\V1\Lecturer\MaterialController;
 use App\Http\Controllers\Api\V1\Lecturer\PortfolioController;
+use App\Http\Controllers\Api\V1\Lecturer\QuizHostController;
 use App\Http\Controllers\Api\V1\Lecturer\SectionController;
 use App\Http\Controllers\Api\V1\Lecturer\WatchController;
 use App\Http\Controllers\Api\V1\Lecturer\WheelController;
@@ -123,4 +124,13 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::get('/wheel/sessions', [WheelController::class, 'sessions'])->name('wheel.sessions');
     Route::get('/wheel/present-students', [WheelController::class, 'presentStudents'])->name('wheel.present-students');
     Route::post('/wheel/spins', [WheelController::class, 'storeSpin'])->name('wheel.spins.store');
+
+    // Live quizzes: run them from the phone (written on the web)
+    Route::get('/quizzes', [QuizHostController::class, 'index'])->name('quizzes.index');
+    Route::get('/quizzes/{quiz}', [QuizHostController::class, 'show'])->whereNumber('quiz')->name('quizzes.show');
+    Route::post('/quizzes/{quiz}/start', [QuizHostController::class, 'start'])->name('quizzes.start');
+    Route::post('/quizzes/{quiz}/close', [QuizHostController::class, 'close'])->name('quizzes.close');
+    Route::post('/quizzes/{quiz}/next', [QuizHostController::class, 'next'])->name('quizzes.next');
+    Route::post('/quizzes/{quiz}/end', [QuizHostController::class, 'end'])->name('quizzes.end');
+    Route::post('/quizzes/{quiz}/replay', [QuizHostController::class, 'replay'])->name('quizzes.replay');
 });
