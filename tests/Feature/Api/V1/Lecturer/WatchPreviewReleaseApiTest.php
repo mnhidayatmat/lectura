@@ -147,6 +147,8 @@ class WatchPreviewReleaseApiTest extends LecturerApiTestCase
 
     public function test_release_locks_schedules_and_publishes(): void
     {
+        // The scheduled release below must stay in the future whenever the suite runs.
+        $this->travelTo('2026-10-28 00:00:00');
         Notification::fake();
         $episode = $this->episode(['status' => Episode::STATUS_DRAFT, 'notify_students' => false]);
         $release = fn (array $body) => $this->actingAsApi($this->lecturer)->patchJson($this->api("lecturer/watch/episodes/{$episode->id}/release"), $body);
