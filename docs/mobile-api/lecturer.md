@@ -1008,6 +1008,8 @@ covers all of them. A section that isn't mine in this course → 422 on `section
         "join_code": "XQHMTU",
         "questions_count": 8,
         "has_run": false,
+        "category": "live",
+        "is_owner": true,
         "web_url": "https://lectura.coursesme.com/umpsa/materials/course/6/episodes/12"
       }
     },
@@ -1062,7 +1064,18 @@ covers all of them. A section that isn't mine in this course → 422 on `section
 - `episode.quiz` (or `null`): the live quiz linked to the episode on the web. Each start runs a fresh
   copy and the link follows the newest run, so `status: "ended"` with `has_run: false` is the master
   still to be run, and with `has_run: true` the last run is over. `join_code` is `null` once ended.
-  Quizzes are run (and linked) on the web: `web_url` is the episode's web page, which has Start.
+  Quizzes are linked on the web (`web_url` is the episode's web page) and run there or in the app:
+  `category` is `live` or `offline` (only live ones run in the app), `is_owner` says whether I may run it.
+
+### POST `lecturer/watch/episodes/{episode}/quiz/start`
+
+The episode page's Start, for the app. A linked quiz that has `ended` (the never-run master or a
+finished run) becomes a fresh copy in the lobby and the episode's link moves to it, so students in its
+section get "Join the quiz" on the episode (**201**, "A new run is ready. Students join with code
+K7PQ2M."). A run still open is returned as is (200, "The quiz is already running."). Data:
+`{"quiz_id": 64, "quiz": {…episode.quiz…}}`; open `quiz_id` with the quiz host endpoints (Live quizzes
+(host)). Refusals: 404 "This episode has no linked quiz.", 403 "Only the lecturer who created this quiz
+can run it.", 422 for an offline quiz.
 - `average_watched_percent`: mean of each starter's furthest point as a share of the duration.
 - `scenes[].reached`: starters whose furthest point reached the scene's start; `reached_percent` is of
   starters. `rewinds`: backward jumps of 5 s or more that landed inside the scene.

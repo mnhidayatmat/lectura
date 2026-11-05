@@ -190,6 +190,37 @@ class WatchController extends Controller
         ]]);
     }
 
+    /**
+     * Run the linked live quiz from the app, as the episode's web Start does: a finished quiz
+     * (or the never-run master) becomes a fresh copy and the episode follows the newest run, so
+     * students get Join the quiz on the episode. Returns the run to open in the host screen.
+     */
+    public function startQuiz(Episode $episode): JsonResponse
+    {
+        $this->authorizeEpisode($episode);
+
+        $quiz = $episode->quizSession ?? abort(404, 'This episode has no linked quiz.');
+
+        if ($quiz->isOffline()) {
+            abort(422, 'Offline quizzes run on their own. Open them on the web.');
+        }
+
+        if ($quiz->lecturer_id !== auth()->id()) {
+            abort(403, 'Only the lecturer who created this quiz can run it.');
+        }
+
+        $fresh = $quiz->status === 'ended';
+        if ($fresh) {
+            $quiz = $quiz->copyForNewRun(auth()->user());
+            $episode->update(['quiz_session_id' => $quiz->id]);
+        }
+
+        return response()->json([
+            'message' => $fresh ? 'A new run is ready. Students join with code '.$quiz->join_code.'.' : 'The quiz is already running.',
+            'data' => ['quiz_id' => $quiz->id, 'quiz' => $this->quizSummary($episode->refresh())],
+        ], $fresh ? 201 : 200);
+    }
+
     private function authorizeEpisode(Episode $episode): void
     {
         $this->ensureLecturer();
@@ -227,7 +258,7 @@ class WatchController extends Controller
     }
 
     /**
-     * The linked live quiz, which the lecturer runs from the episode's web page.
+     * The linked live quiz, run from the app (`startQuiz`) or the episode's web page.
      */
     private function quizSummary(Episode $episode): ?array
     {
@@ -243,6 +274,8 @@ class WatchController extends Controller
             'join_code' => $quiz->status === 'ended' ? null : $quiz->join_code,
             'questions_count' => $quiz->session_questions_count,
             'has_run' => $quiz->started_at !== null,
+            'category' => $quiz->category,
+            'is_owner' => $quiz->lecturer_id === auth()->id(),
             'web_url' => route('tenant.episodes.show', [app('current_tenant')->slug, $episode->course_id, $episode]),
         ];
     }

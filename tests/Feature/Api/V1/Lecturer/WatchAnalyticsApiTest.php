@@ -13,9 +13,12 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\EpisodeReminder;
 use Illuminate\Support\Facades\Notification;
+use Tests\Feature\Api\V1\Live\Concerns\BuildsLiveFixtures;
 
 class WatchAnalyticsApiTest extends LecturerApiTestCase
 {
+    use BuildsLiveFixtures;
+
     private Tenant $tenant;
 
     private User $lecturer;
@@ -336,5 +339,50 @@ class WatchAnalyticsApiTest extends LecturerApiTestCase
         $this->getJson($this->tenantApi($this->tenant, "lecturer/attendance/{$noWeek->id}"))
             ->assertOk()
             ->assertJsonPath('data.episode_watch', null);
+    }
+
+    public function test_starting_an_ended_episode_quiz_runs_a_fresh_copy_the_episode_follows(): void
+    {
+        $master = $this->createQuiz($this->section, $this->lecturer, ['status' => 'ended']);
+        $episode = $this->episode(['quiz_session_id' => $master->id]);
+
+        $this->actingAsApi($this->lecturer, 'lecturer')
+            ->getJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}"))
+            ->assertJsonPath('data.episode.quiz.id', $master->id)
+            ->assertJsonPath('data.episode.quiz.category', 'live')
+            ->assertJsonPath('data.episode.quiz.is_owner', true);
+
+        $runId = $this->postJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}/quiz/start"))
+            ->assertCreated()
+            ->assertJsonPath('data.quiz.status', 'waiting')
+            ->json('data.quiz_id');
+
+        $this->assertNotSame($master->id, $runId);
+        $this->assertSame($runId, $episode->fresh()->quiz_session_id);
+        $this->assertSame('ended', $master->fresh()->status);
+
+        // While that run is open, starting again opens the same run.
+        $this->postJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}/quiz/start"))
+            ->assertOk()
+            ->assertJsonPath('data.quiz_id', $runId);
+    }
+
+    public function test_only_the_quiz_owner_starts_an_episode_quiz(): void
+    {
+        $master = $this->createQuiz($this->section, $this->lecturer, ['status' => 'ended']);
+        $episode = $this->episode(['quiz_session_id' => $master->id]);
+        $colleague = $this->createMember($this->tenant, 'lecturer');
+        $this->section->lecturers()->attach($colleague->id);
+
+        $this->actingAsApi($colleague, 'lecturer')
+            ->postJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$episode->id}/quiz/start"))
+            ->assertForbidden();
+        $this->assertSame($master->id, $episode->fresh()->quiz_session_id);
+
+        $bare = $this->episode(['episode_number' => 2]);
+        $this->actingAsApi($this->lecturer, 'lecturer')
+            ->postJson($this->tenantApi($this->tenant, "lecturer/watch/episodes/{$bare->id}/quiz/start"))
+            ->assertNotFound()
+            ->assertJsonPath('message', 'This episode has no linked quiz.');
     }
 }

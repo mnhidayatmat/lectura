@@ -81,6 +81,7 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::get('/watch/episodes/{episode}/preview', [WatchController::class, 'previewEpisode'])->name('watch.episodes.preview');
     Route::patch('/watch/episodes/{episode}/release', [WatchController::class, 'release'])->name('watch.episodes.release');
     Route::post('/watch/episodes/{episode}/remind', [WatchController::class, 'remind'])->name('watch.episodes.remind');
+    Route::post('/watch/episodes/{episode}/quiz/start', [WatchController::class, 'startQuiz'])->name('watch.episodes.quiz.start');
 
     // Student groups
     Route::get('/courses/{course}/group-sets', [GroupController::class, 'index'])->name('group-sets.index');
