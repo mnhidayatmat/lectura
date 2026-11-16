@@ -510,6 +510,7 @@ Route::prefix('{tenant:slug}')
 
             // Submissions
             Route::get('/{assessment}/submissions', [AssessmentSubmissionController::class, 'index'])->name('tenant.assessments.submissions.index');
+            Route::post('/{assessment}/submissions/download', [AssessmentSubmissionController::class, 'bulkDownload'])->name('tenant.assessments.submissions.bulk-download');
             Route::get('/{assessment}/submissions/{submission}', [AssessmentSubmissionController::class, 'show'])->name('tenant.assessments.submissions.show');
             Route::post('/{assessment}/submissions/{submission}/mark', [AssessmentSubmissionController::class, 'storeMark'])->name('tenant.assessments.submissions.mark');
             Route::post('/{assessment}/scores/release', [AssessmentSubmissionController::class, 'release'])->name('tenant.assessments.scores.release');

@@ -163,7 +163,16 @@
     @endif
 
     {{-- Student / Submission table --}}
-    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    @php
+        $downloadableIds = $enrolledStudents
+            ->map(fn ($s) => $submissions->get($s->id))
+            ->filter(fn ($sub) => $sub && $sub->files->isNotEmpty())
+            ->pluck('id')->values();
+    @endphp
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+         x-data="{ selected: [], all: @js($downloadableIds),
+                   get allChecked() { return this.all.length > 0 && this.selected.length === this.all.length },
+                   toggleAll() { this.selected = this.allChecked ? [] : [...this.all] } }">
         @if($enrolledStudents->isEmpty())
             <div class="p-12 text-center">
                 <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -173,6 +182,28 @@
                 <p class="text-xs text-slate-400">Students enrolled in this course will appear here once they submit.</p>
             </div>
         @else
+            @if($downloadableIds->isNotEmpty())
+                <form method="POST" action="{{ route('tenant.assessments.submissions.bulk-download', [$tenant->slug, $course, $assessment]) }}"
+                      class="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-slate-100 dark:border-slate-700">
+                    @csrf
+                    <template x-for="id in selected" :key="id">
+                        <input type="hidden" name="submission_ids[]" :value="id">
+                    </template>
+                    <span class="text-xs text-slate-500 dark:text-slate-400" x-text="selected.length ? selected.length + ' selected' : '{{ $downloadableIds->count() }} with files'"></span>
+                    <div class="ml-auto flex items-center gap-2">
+                        <button type="submit" x-show="selected.length" x-cloak
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            <span x-text="'Download selected (' + selected.length + ')'"></span>
+                        </button>
+                        <button type="submit" name="all" value="1"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold rounded-lg transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Download all ({{ $downloadableIds->count() }})
+                        </button>
+                    </div>
+                </form>
+            @endif
             <div class="overflow-x-auto">
                 {{-- Group legend (only shown for group submissions) --}}
                 @if($assessment->usesGroupSubmission() && ($assessment->studentGroupSet->groups ?? collect())->isNotEmpty())
@@ -200,7 +231,13 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
-                            <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Student</th>
+                            <th class="pl-5 pr-1 py-3 w-8">
+                                @if($downloadableIds->isNotEmpty())
+                                    <input type="checkbox" :checked="allChecked" @change="toggleAll()" title="Select all with files"
+                                           class="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500">
+                                @endif
+                            </th>
+                            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Student</th>
                             @if($assessment->usesGroupSubmission())
                                 <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Group</th>
                             @endif
@@ -221,9 +258,19 @@
                                 $isLeader = $groupInfo && $groupInfo['role'] === 'leader';
                                 $gColor = $groupInfo['color'] ?? null;
                             @endphp
-                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$sub ? 'opacity-60' : '' }} {{ $gColor ? 'border-l-4 border-l-'.$gColor.'-400 dark:border-l-'.$gColor.'-500' : '' }}">
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition {{ !$sub ? 'opacity-60' : 'cursor-pointer' }} {{ $gColor ? 'border-l-4 border-l-'.$gColor.'-400 dark:border-l-'.$gColor.'-500' : '' }}"
+                                @if($sub)
+                                    onclick="if (!event.target.closest('a,button,input,label,form,[data-no-row-link]')) window.location = @js(route('tenant.assessments.submissions.show', [$tenant->slug, $course, $assessment, $sub]))"
+                                @endif>
+                                {{-- Select --}}
+                                <td class="pl-5 pr-1 py-3">
+                                    @if($sub && $sub->files->isNotEmpty())
+                                        <input type="checkbox" value="{{ $sub->id }}" x-model.number="selected"
+                                               class="rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500">
+                                    @endif
+                                </td>
                                 {{-- Student --}}
-                                <td class="px-5 py-3">
+                                <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         @if($student->avatar_url)
                                             <img src="{{ $student->avatar_url }}" class="w-8 h-8 rounded-full object-cover flex-shrink-0">
@@ -285,7 +332,7 @@
                                 {{-- Files --}}
                                 <td class="px-4 py-3 text-center">
                                     @if($sub && $sub->files->count() > 0)
-                                        <div x-data="{ open: false }" class="relative inline-block text-left">
+                                        <div x-data="{ open: false }" data-no-row-link class="relative inline-block text-left">
                                             <button type="button" @click="open = !open" @click.outside="open = false"
                                                     class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
                                                     title="Download files">

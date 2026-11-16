@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentSubmissionController extends Controller
@@ -532,6 +533,103 @@ class AssessmentSubmissionController extends Controller
         }
 
         return Storage::disk('uploads')->download($path, $file->file_name);
+    }
+
+    public function bulkDownload(Request $request, string $tenantSlug, Course $course, Assessment $assessment): BinaryFileResponse|RedirectResponse
+    {
+        $this->authorizeCourseAccess($course);
+        if ($assessment->course_id !== $course->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'submission_ids' => ['nullable', 'array'],
+            'submission_ids.*' => ['integer'],
+        ]);
+
+        $sectionIds = $this->lecturerSectionIds($course);
+        $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
+            ->where('is_active', true)
+            ->pluck('user_id');
+
+        $query = $assessment->submissions()
+            ->whereIn('user_id', $studentIds)
+            ->whereHas('files')
+            ->with(['user', 'files', 'studentGroup']);
+
+        if (! $request->boolean('all') && $request->filled('submission_ids')) {
+            $query->whereIn('id', $request->input('submission_ids'));
+        }
+
+        $submissions = $query->get();
+        if ($submissions->isEmpty()) {
+            return back()->with('error', 'No submitted files to download.');
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'subs_');
+        $zip = new \ZipArchive;
+        if ($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Could not create the zip file.');
+        }
+
+        $safe = fn (string $name): string => trim(preg_replace('/[^\pL\pN._\- ()]+/u', '_', $name), ' ._') ?: 'file';
+        $disk = Storage::disk('uploads');
+        $tempFiles = [];
+        $usedFolders = [];
+        $added = 0;
+
+        foreach ($submissions as $submission) {
+            $label = $submission->studentGroup?->name ?? $submission->user?->name ?? 'Student '.$submission->user_id;
+            $folder = $safe($label);
+            if (isset($usedFolders[$folder])) {
+                $folder .= ' ('.$submission->user_id.')';
+            }
+            $usedFolders[$folder] = true;
+
+            $usedNames = [];
+            foreach ($submission->files as $file) {
+                $path = $file->viewablePath();
+                if (! $disk->exists($path)) {
+                    continue;
+                }
+
+                $name = $safe($file->file_name);
+                $base = pathinfo($name, PATHINFO_FILENAME);
+                $ext = pathinfo($name, PATHINFO_EXTENSION);
+                for ($i = 2; isset($usedNames[$name]); $i++) {
+                    $name = $base.' ('.$i.')'.($ext !== '' ? '.'.$ext : '');
+                }
+                $usedNames[$name] = true;
+
+                $tmp = tempnam(sys_get_temp_dir(), 'subf_');
+                $in = $disk->readStream($path);
+                $out = fopen($tmp, 'wb');
+                stream_copy_to_stream($in, $out);
+                fclose($out);
+                if (is_resource($in)) {
+                    fclose($in);
+                }
+                $tempFiles[] = $tmp;
+
+                $zip->addFile($tmp, $folder.'/'.$name);
+                $added++;
+            }
+        }
+
+        $zip->close();
+        foreach ($tempFiles as $tmp) {
+            @unlink($tmp);
+        }
+
+        if ($added === 0) {
+            @unlink($zipPath);
+
+            return back()->with('error', 'The submitted files could not be found in storage.');
+        }
+
+        $zipName = $safe(($course->code ? $course->code.' ' : '').$assessment->title.' submissions').'.zip';
+
+        return response()->download($zipPath, $zipName, ['Content-Type' => 'application/zip'])->deleteFileAfterSend();
     }
 
     public function viewFile(string $tenantSlug, Course $course, Assessment $assessment, AssessmentSubmissionFile $file): StreamedResponse
