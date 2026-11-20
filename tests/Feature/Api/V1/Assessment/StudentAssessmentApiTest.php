@@ -16,6 +16,8 @@ use App\Models\StudentGroupSet;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\AssessmentSubmissionReceived;
+use App\Services\GoogleDriveService;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -243,6 +245,72 @@ class StudentAssessmentApiTest extends ApiTestCase
 
         Storage::disk('uploads')->assertMissing($oldPath);
         $this->assertDatabaseCount('assessment_submissions', 1);
+    }
+
+    public function test_a_failed_storage_write_is_refused_and_keeps_the_previous_submission(): void
+    {
+        $assessment = $this->createAssessment();
+
+        $this->actingAsApi($this->student)->postJson($this->showUrl($assessment).'/submit', [
+            'files' => [UploadedFile::fake()->create('v1.pdf', 10, 'application/pdf')],
+        ])->assertCreated();
+        $kept = AssessmentSubmissionFile::firstOrFail();
+
+        $fake = Storage::disk('uploads');
+        Storage::set('uploads', new class($fake->getDriver(), $fake->getAdapter(), $fake->getConfig()) extends FilesystemAdapter
+        {
+            public function putFileAs($path, $file, $name = null, $options = [])
+            {
+                return false;
+            }
+        });
+
+        foreach (['/resubmit', '/submit'] as $action) {
+            $this->postJson($this->showUrl($assessment).$action, [
+                'files' => [UploadedFile::fake()->create('v2.pdf', 10, 'application/pdf')],
+            ])->assertUnprocessable()->assertJsonValidationErrors('files');
+        }
+
+        $this->assertSame([$kept->id], AssessmentSubmissionFile::pluck('id')->all());
+        Storage::disk('uploads')->assertExists($kept->storage_path);
+    }
+
+    public function test_a_file_missing_from_storage_is_served_from_the_lecturers_drive(): void
+    {
+        $assessment = $this->createAssessment();
+        $this->lecturer->update(['drive_refresh_token' => 'refresh']);
+        $submission = AssessmentSubmission::create([
+            'tenant_id' => $this->tenant->id,
+            'assessment_id' => $assessment->id,
+            'user_id' => $this->student->id,
+            'submitted_at' => now(),
+            'status' => 'submitted',
+        ]);
+        $file = AssessmentSubmissionFile::create([
+            'assessment_submission_id' => $submission->id,
+            'file_name' => 'A1.pdf',
+            'file_type' => 'application/pdf',
+            'file_size_bytes' => 9,
+            'storage_path' => '0',
+            'drive_file_id' => 'drive-123',
+        ]);
+
+        $this->mock(GoogleDriveService::class)
+            ->shouldReceive('downloadFile')
+            ->withArgs(fn ($user, $id) => $user->is($this->lecturer) && $id === 'drive-123')
+            ->andReturn('%PDF-1.4 from drive');
+
+        $base = "/{$this->tenant->slug}/courses/{$this->course->id}/assessments/{$assessment->id}/submissions/files/{$file->id}";
+
+        $download = $this->actingAs($this->lecturer)->get($base.'/download')->assertOk();
+        $this->assertSame('%PDF-1.4 from drive', $download->streamedContent());
+        $this->assertStringContainsString('attachment', $download->headers->get('Content-Disposition'));
+
+        $view = $this->get($base.'/view')->assertOk();
+        $this->assertStringContainsString('inline', $view->headers->get('Content-Disposition'));
+
+        $file->update(['drive_file_id' => null]);
+        $this->get($base.'/download')->assertNotFound();
     }
 
     public function test_student_can_delete_an_ungraded_submission_but_not_a_graded_one(): void

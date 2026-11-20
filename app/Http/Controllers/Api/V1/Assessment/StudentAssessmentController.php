@@ -131,6 +131,8 @@ class StudentAssessmentController extends Controller
             throw ValidationException::withMessages(['files' => 'Cannot replace a graded submission.']);
         }
 
+        $paths = $this->storeOrFail($request, $assessment, 'Your files could not be saved. Nothing was submitted — please try again.');
+
         $assessment->load('course');
         $lecturer = $assessment->course->lecturer;
 
@@ -167,7 +169,7 @@ class StudentAssessmentController extends Controller
             $submission->update(['drive_folder_id' => $driveFolderId]);
         }
 
-        $this->storeSubmissionFiles($request->file('files'), $submission, $assessment, $lecturer, $driveFolderId, $driveContext);
+        $this->storeSubmissionFiles($request->file('files'), $paths, $submission, $lecturer, $driveFolderId, $driveContext);
 
         // Mirror the submission to every other group member so marks/release propagate uniformly
         if ($myGroup) {
@@ -249,6 +251,8 @@ class StudentAssessmentController extends Controller
 
         $this->validateSubmissionFiles($request);
 
+        $paths = $this->storeOrFail($request, $assessment, 'Your files could not be saved. Your previous submission is unchanged — please try again.');
+
         $assessment->load('course');
         $lecturer = $assessment->course->lecturer;
 
@@ -265,7 +269,7 @@ class StudentAssessmentController extends Controller
         $driveFolderId = $this->resolveDriveFolder($lecturer, $assessment, $user, $driveContext);
         $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
 
-        $this->storeSubmissionFiles($request->file('files'), $submission, $assessment, $lecturer, $driveFolderId, $driveContext);
+        $this->storeSubmissionFiles($request->file('files'), $paths, $submission, $lecturer, $driveFolderId, $driveContext);
 
         $submission->update([
             'notes' => $request->notes,
@@ -380,11 +384,7 @@ class StudentAssessmentController extends Controller
         // Students always get the graded copy once it exists
         $path = $file->viewablePath();
 
-        if (! Storage::disk('uploads')->exists($path)) {
-            abort(404, 'File not found.');
-        }
-
-        return Storage::disk('uploads')->download($path, $file->file_name);
+        return SubmissionFiles::serve($file, (string) $path);
     }
 
     private function authorizeEnrollment(Course $course, Assessment $assessment, User $user): void
@@ -657,18 +657,33 @@ class StudentAssessmentController extends Controller
     }
 
     /**
-     * @param  array<int, UploadedFile>  $files
+     * @return array<int|string, string>
+     */
+    private function storeOrFail(Request $request, Assessment $assessment, string $message): array
+    {
+        $paths = SubmissionFiles::store($request->file('files'), $assessment->id);
+
+        if ($paths === null) {
+            throw ValidationException::withMessages(['files' => $message]);
+        }
+
+        return $paths;
+    }
+
+    /**
+     * @param  array<int|string, UploadedFile>  $files
+     * @param  array<int|string, string>  $paths
      */
     private function storeSubmissionFiles(
         array $files,
+        array $paths,
         AssessmentSubmission $submission,
-        Assessment $assessment,
         ?User $lecturer,
         ?string $driveFolderId,
         array $driveContext,
     ): void {
-        foreach ($files as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
+        foreach ($files as $key => $file) {
+            $path = $paths[$key];
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {

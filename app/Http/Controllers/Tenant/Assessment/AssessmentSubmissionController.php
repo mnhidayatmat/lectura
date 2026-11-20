@@ -528,11 +528,7 @@ class AssessmentSubmissionController extends Controller
             $path = $file->storage_path;
         }
 
-        if (! Storage::disk('uploads')->exists($path)) {
-            abort(404, 'File not found.');
-        }
-
-        return Storage::disk('uploads')->download($path, $file->file_name);
+        return SubmissionFiles::serve($file, (string) $path);
     }
 
     public function bulkDownload(Request $request, string $tenantSlug, Course $course, Assessment $assessment): BinaryFileResponse|RedirectResponse
@@ -647,13 +643,7 @@ class AssessmentSubmissionController extends Controller
             $path = $file->storage_path;
         }
 
-        if (! $path || ! Storage::disk('uploads')->exists($path)) {
-            abort(404, 'File not found.');
-        }
-
-        return Storage::disk('uploads')->response($path, $file->file_name, [
-            'Content-Type' => $file->file_type ?: 'application/octet-stream',
-        ]);
+        return SubmissionFiles::serve($file, (string) $path, inline: true);
     }
 
     /**
@@ -922,6 +912,11 @@ class AssessmentSubmissionController extends Controller
             return back()->withErrors(['files' => 'Cannot replace a graded submission.']);
         }
 
+        $paths = SubmissionFiles::store($request->file('files'), $assessment->id);
+        if ($paths === null) {
+            return back()->withErrors(['files' => 'Your files could not be saved. Nothing was submitted — please try again.']);
+        }
+
         $assessment->load('course');
         $lecturer = $assessment->course->lecturer;
 
@@ -1001,8 +996,8 @@ class AssessmentSubmissionController extends Controller
             }
         }
 
-        foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
+        foreach ($request->file('files') as $key => $file) {
+            $path = $paths[$key];
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {
@@ -1221,6 +1216,11 @@ class AssessmentSubmissionController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        $paths = SubmissionFiles::store($request->file('files'), $assessment->id);
+        if ($paths === null) {
+            return back()->withErrors(['files' => 'Your files could not be saved. Your previous submission is unchanged — please try again.']);
+        }
+
         $assessment->load('course');
         $lecturer = $assessment->course->lecturer;
 
@@ -1283,8 +1283,8 @@ class AssessmentSubmissionController extends Controller
         // Upload new files
         $isLate = $assessment->due_date && now()->isAfter($assessment->due_date);
 
-        foreach ($request->file('files') as $file) {
-            $path = $file->store('assessment_submissions/'.$assessment->id, 'uploads');
+        foreach ($request->file('files') as $key => $file) {
+            $path = $paths[$key];
             $driveFileId = null;
 
             if ($driveFolderId && $lecturer) {

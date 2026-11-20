@@ -166,6 +166,13 @@ class GoogleDriveService
         ];
     }
 
+    public function downloadFile(User $user, string $fileId): string
+    {
+        $response = $this->getDriveService($user)->files->get($fileId, ['alt' => 'media']);
+
+        return (string) $response->getBody();
+    }
+
     public function deleteFile(User $user, string $fileId): void
     {
         try {
