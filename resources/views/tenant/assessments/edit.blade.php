@@ -57,6 +57,16 @@
             <form method="POST" action="{{ route('tenant.assessments.update', [$tenant->slug, $course, $assessment]) }}" enctype="multipart/form-data" class="space-y-6">
                 @csrf @method('PUT')
 
+                @if($errors->any())
+                    <div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">Assessment Details</h3>
 
