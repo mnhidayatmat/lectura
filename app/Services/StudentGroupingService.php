@@ -19,11 +19,11 @@ class StudentGroupingService
     {
         if ($section) {
             $userIds = SectionStudent::where('section_id', $section->id)
-                ->where('is_active', true)
+                ->roster()
                 ->pluck('user_id');
         } else {
             $userIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
-                ->where('is_active', true)
+                ->roster()
                 ->distinct()
                 ->pluck('user_id');
         }

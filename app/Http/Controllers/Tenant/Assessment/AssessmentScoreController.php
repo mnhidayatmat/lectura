@@ -39,7 +39,7 @@ class AssessmentScoreController extends Controller
 
         // All enrolled students across sections taught by this lecturer
         $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
-            ->where('is_active', true)
+            ->roster()
             ->distinct()
             ->pluck('user_id');
 
@@ -90,7 +90,7 @@ class AssessmentScoreController extends Controller
 
         // Get all enrolled students
         $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
-            ->where('is_active', true)
+            ->roster()
             ->distinct()
             ->pluck('user_id');
         $students = User::whereIn('id', $studentIds)->orderBy('name')->get();

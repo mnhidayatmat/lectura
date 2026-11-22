@@ -47,12 +47,9 @@ class AssessmentSubmissionController extends Controller
 
         // Get enrolled students
         $sectionIds = $this->lecturerSectionIds($course);
-        $enrolledStudents = User::whereIn('id', function ($q) use ($sectionIds) {
-            $q->select('user_id')
-                ->from('section_students')
-                ->whereIn('section_id', $sectionIds)
-                ->where('is_active', true);
-        })->orderBy('name')->get();
+        $enrolledStudents = User::whereIn('id', SectionStudent::whereIn('section_id', $sectionIds)
+            ->roster()
+            ->select('user_id'))->orderBy('name')->get();
 
         $submissions = $assessment->submissions()->with(['user', 'files'])->get()->keyBy('user_id');
         $scores = $assessment->scores()->get()->keyBy('user_id');
@@ -545,7 +542,7 @@ class AssessmentSubmissionController extends Controller
 
         $sectionIds = $this->lecturerSectionIds($course);
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)
+            ->roster()
             ->pluck('user_id');
 
         $query = $assessment->submissions()

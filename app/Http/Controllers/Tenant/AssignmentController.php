@@ -632,7 +632,7 @@ class AssignmentController extends Controller
     {
         $sectionIds = $course->sections()->pluck('id');
         $students = SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)
+            ->roster()
             ->with('user:id,name,email')
             ->get()
             ->pluck('user')

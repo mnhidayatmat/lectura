@@ -329,7 +329,7 @@ class AssessmentMarkingController extends Controller
     private function roster(Course $course): Collection
     {
         return $this->rosters[$course->id] ??= SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
-            ->where('is_active', true)
+            ->roster()
             ->with(['user', 'section'])
             ->get()
             ->unique('user_id')
