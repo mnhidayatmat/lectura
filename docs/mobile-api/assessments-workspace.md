@@ -153,6 +153,7 @@ Assessments that require submission (`status` active or completed) across all co
         }
       ]
     },
+    "rubric": [],
     "score": null,
     "can_submit": false,
     "can_resubmit": false,
@@ -161,6 +162,11 @@ Assessments that require submission (`status` active or completed) across all co
   }
 }
 ```
+
+`rubric` is the assessment's rubric, sent whether or not marks are released, so the student can read how
+the work will be marked: the same criterion shape as `score.criteria` below, with `marks` always `null` and
+no level `achieved` (`[]` when the assessment has no rubric). Once marks are released, `score.criteria`
+carries the marked copy.
 
 When marks are released, `score` is:
 

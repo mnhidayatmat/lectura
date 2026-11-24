@@ -10,8 +10,8 @@ use Tests\Feature\Api\V1\ApiTestCase;
 use Tests\Feature\Api\V1\Student\BuildsStudentFixtures;
 
 /**
- * Once marks are released, the student's assessment page shows the rubric
- * as the lecturer filled it in: each criterion's mark and the level it reached.
+ * The student's assessment page always shows the rubric; once marks are released,
+ * it shows it as the lecturer filled it in: each criterion's mark and the level it reached.
  */
 class StudentAssessmentRubricTest extends ApiTestCase
 {
@@ -44,11 +44,14 @@ class StudentAssessmentRubricTest extends ApiTestCase
 
         $url = "/{$tenant->slug}/courses/{$course->id}/assessments/{$assessment->id}/view";
 
-        $this->actingAs($student)->get($url)->assertOk()->assertDontSee('Understanding of tools descriptor');
+        $this->actingAs($student)->get($url)->assertOk()
+            ->assertSeeInOrder(['Rubric', 'How this assessment will be marked', 'Understanding of tools', 'Understanding of tools descriptor 1', 'Time Management'])
+            ->assertDontSee('Your Mark');
 
         $score->update(['is_released' => true, 'released_at' => now()]);
 
         $this->actingAs($student)->get($url)->assertOk()
+            ->assertDontSee('How this assessment will be marked')
             ->assertSeeInOrder(['Rubric', 'Understanding of tools', '2.5', 'Level 1 (1–3)', 'Time Management', '3.5', 'Level 2 (3–5)']);
 
         $this->assertSame('Level 1 (1–3)', $tools->load('levels')->levelFor(2.5)?->label);

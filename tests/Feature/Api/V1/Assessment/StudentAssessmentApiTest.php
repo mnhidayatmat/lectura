@@ -450,6 +450,46 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonPath('data.notice', null);
     }
 
+    public function test_the_rubric_is_shown_before_marks_are_released(): void
+    {
+        $assessment = $this->createAssessment();
+        $rubric = Rubric::create(['assessment_id' => $assessment->id, 'type' => 'matrix']);
+        $analysis = RubricCriteria::create(['rubric_id' => $rubric->id, 'title' => 'Analysis', 'description' => 'Depth of analysis', 'max_marks' => 30, 'sort_order' => 1]);
+        foreach ([['Weak', 10], ['Good', 20], ['Excellent', 30]] as $i => [$label, $marks]) {
+            RubricLevel::create(['rubric_criteria_id' => $analysis->id, 'label' => $label, 'description' => "$label work", 'marks' => $marks, 'sort_order' => $i]);
+        }
+
+        AssessmentScore::create([
+            'tenant_id' => $this->tenant->id,
+            'assessment_id' => $assessment->id,
+            'user_id' => $this->student->id,
+            'raw_marks' => 25,
+            'max_marks' => 50,
+            'weighted_marks' => 5,
+            'percentage' => 50,
+            'is_released' => false,
+            'criteria_marks' => [(string) $analysis->id => 25],
+        ]);
+
+        $this->actingAsApi($this->student)->getJson($this->showUrl($assessment))
+            ->assertOk()
+            ->assertJsonPath('data.score', null)
+            ->assertJsonPath('data.rubric.0.title', 'Analysis')
+            ->assertJsonPath('data.rubric.0.description', 'Depth of analysis')
+            ->assertJsonPath('data.rubric.0.max_marks', 30)
+            ->assertJsonPath('data.rubric.0.marks', null)
+            ->assertJsonPath('data.rubric.0.levels.1.label', 'Good')
+            ->assertJsonPath('data.rubric.0.levels.1.description', 'Good work')
+            ->assertJsonPath('data.rubric.0.levels.2.achieved', false);
+    }
+
+    public function test_rubric_is_empty_without_one(): void
+    {
+        $this->actingAsApi($this->student)->getJson($this->showUrl($this->createAssessment()))
+            ->assertOk()
+            ->assertJsonPath('data.rubric', []);
+    }
+
     private function createAssessment(array $attributes = []): Assessment
     {
         return Assessment::create(array_merge([

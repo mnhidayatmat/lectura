@@ -577,6 +577,7 @@ class StudentAssessmentController extends Controller
                     ->values(),
             ] : null,
             'submission' => $submission ? (new SubmissionResource($submission))->resolve() : null,
+            'rubric' => $this->rubricPayload($assessment),
             'score' => $score ? $this->scorePayload($score, $assessment) : null,
             'can_submit' => $submission === null && $acceptsSubmissions && $leaderAllowed,
             'can_resubmit' => $submission !== null && $submission->status !== 'graded' && $leaderAllowed,
@@ -602,25 +603,37 @@ class StudentAssessmentController extends Controller
                     $marks = array_key_exists((string) $criterion->id, $criteriaMarks)
                         ? (float) $criteriaMarks[(string) $criterion->id]
                         : null;
-                    $achieved = $criterion->levelFor($marks);
 
-                    return [
-                        'id' => $criterion->id,
-                        'title' => $criterion->title,
-                        'description' => $criterion->description,
-                        'max_marks' => $criterion->max_marks !== null ? (float) $criterion->max_marks : null,
-                        'weightage' => $criterion->weightage !== null ? (float) $criterion->weightage : null,
-                        'marks' => $marks,
-                        'levels' => $criterion->levels
-                            ->map(fn (RubricLevel $level) => [
-                                'label' => $level->label,
-                                'description' => $level->description,
-                                'marks' => (float) $level->marks,
-                                'achieved' => $achieved !== null && $achieved->is($level),
-                            ])
-                            ->values(),
-                    ];
+                    return $this->criterionPayload($criterion, $marks, $criterion->levelFor($marks));
                 })
+                ->values(),
+        ];
+    }
+
+    private function rubricPayload(Assessment $assessment): array
+    {
+        return ($assessment->rubric?->criteria ?? collect())
+            ->map(fn (RubricCriteria $criterion) => $this->criterionPayload($criterion, null, null))
+            ->values()
+            ->all();
+    }
+
+    private function criterionPayload(RubricCriteria $criterion, ?float $marks, ?RubricLevel $achieved): array
+    {
+        return [
+            'id' => $criterion->id,
+            'title' => $criterion->title,
+            'description' => $criterion->description,
+            'max_marks' => $criterion->max_marks !== null ? (float) $criterion->max_marks : null,
+            'weightage' => $criterion->weightage !== null ? (float) $criterion->weightage : null,
+            'marks' => $marks,
+            'levels' => $criterion->levels
+                ->map(fn (RubricLevel $level) => [
+                    'label' => $level->label,
+                    'description' => $level->description,
+                    'marks' => (float) $level->marks,
+                    'achieved' => $achieved !== null && $achieved->is($level),
+                ])
                 ->values(),
         ];
     }

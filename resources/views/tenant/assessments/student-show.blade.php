@@ -218,6 +218,46 @@
             </div>
         @endif
 
+        {{-- Rubric before marks are released --}}
+        @php $plainRubric = $score ? collect() : ($assessment->rubric?->criteria ?? collect()); @endphp
+        @if($plainRubric->isNotEmpty())
+            @php $fmtMark = fn ($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.'); @endphp
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Rubric</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">How this assessment will be marked.</p>
+                <div class="space-y-4">
+                    @foreach($plainRubric as $criterion)
+                        <div>
+                            <div class="flex items-baseline justify-between gap-3">
+                                <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $criterion->title }}</p>
+                                @if($criterion->max_marks !== null)
+                                    <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 shrink-0">{{ $fmtMark($criterion->max_marks) }} <span class="font-normal text-slate-400">marks</span></p>
+                                @endif
+                            </div>
+                            @if($criterion->description)
+                                <p class="text-xs text-slate-500 dark:text-slate-400">{{ $criterion->description }}</p>
+                            @endif
+                            @if($criterion->levels->isNotEmpty())
+                                <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    @foreach($criterion->levels as $level)
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ $level->label }}</span>
+                                                <span class="text-[11px] text-slate-400 shrink-0">{{ $fmtMark($level->marks) }}</span>
+                                            </div>
+                                            @if($level->description)
+                                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $level->description }}</p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         {{-- Marked submission (lecturer pen annotations, only after score released) --}}
         @php
             $annotatedFiles = ($score && $submission)

@@ -838,9 +838,7 @@ class AssessmentSubmissionController extends Controller
             ->where('is_released', true)
             ->first();
 
-        if ($score) {
-            $assessment->load('rubric.criteria.levels');
-        }
+        $assessment->load('rubric.criteria.levels');
 
         // Group submission context
         $myGroup = null;
