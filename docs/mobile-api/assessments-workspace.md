@@ -173,13 +173,21 @@ When marks are released, `score` is:
   "feedback": "Strong analysis.",
   "released_at": "2026-09-20T09:00:00+08:00",
   "criteria": [
-    { "id": 3, "title": "Analysis", "description": null, "max_marks": 30, "weightage": null, "marks": 27.5 },
-    { "id": 4, "title": "Writing", "description": null, "max_marks": 20, "weightage": null, "marks": 15 }
+    { "id": 3, "title": "Analysis", "description": null, "max_marks": 30, "weightage": null, "marks": 27.5,
+      "levels": [
+        { "label": "Good", "description": "Sound analysis with gaps", "marks": 20, "achieved": false },
+        { "label": "Excellent", "description": "Complete, justified analysis", "marks": 30, "achieved": true }
+      ] },
+    { "id": 4, "title": "Writing", "description": null, "max_marks": 20, "weightage": null, "marks": 15, "levels": [] }
   ]
 }
 ```
 
-(`criteria` is `[]` when the assessment has no rubric; a criterion's `marks` is `null` if it wasn't marked.)
+(`criteria` is `[]` when the assessment has no rubric; a criterion's `marks` is `null` if it wasn't marked.
+`levels` are the rubric's scale in order (`[]` when the criterion has none); `marks` is what choosing that
+level awards. At most one level is `achieved`: the lowest-marked level whose marks reach the criterion's
+mark, or the top level for a mark above them all (`RubricCriteria::levelFor`, which the web page uses too).
+None is achieved when the criterion wasn't marked.)
 
 Field notes:
 

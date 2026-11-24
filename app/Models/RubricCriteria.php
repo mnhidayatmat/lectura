@@ -33,4 +33,21 @@ class RubricCriteria extends Model
     {
         return $this->hasMany(RubricLevel::class)->orderBy('sort_order');
     }
+
+    /**
+     * The level a mark reaches: the lowest-marked level whose marks are at
+     * least the given mark (clicking a level when grading fills in its marks),
+     * or the top level for a mark above every level.
+     */
+    public function levelFor(?float $marks): ?RubricLevel
+    {
+        if ($marks === null || $this->levels->isEmpty()) {
+            return null;
+        }
+
+        $ordered = $this->levels->sortBy(fn (RubricLevel $level) => [(float) $level->marks, $level->sort_order]);
+
+        return $ordered->first(fn (RubricLevel $level) => $marks <= (float) $level->marks + 0.0001)
+            ?? $ordered->last();
+    }
 }

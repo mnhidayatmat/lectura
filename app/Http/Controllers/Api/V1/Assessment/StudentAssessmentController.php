@@ -12,6 +12,7 @@ use App\Models\AssessmentSubmission;
 use App\Models\AssessmentSubmissionFile;
 use App\Models\Course;
 use App\Models\RubricCriteria;
+use App\Models\RubricLevel;
 use App\Models\Section;
 use App\Models\SectionStudent;
 use App\Models\StudentGroup;
@@ -476,7 +477,7 @@ class StudentAssessmentController extends Controller
 
     private function detail(Course $course, Assessment $assessment, User $user): array
     {
-        $assessment->loadMissing('rubric.criteria');
+        $assessment->loadMissing('rubric.criteria.levels');
 
         $submission = AssessmentSubmission::where('assessment_id', $assessment->id)
             ->where('user_id', $user->id)
@@ -597,16 +598,29 @@ class StudentAssessmentController extends Controller
             'feedback' => $score->feedback,
             'released_at' => $score->released_at?->toIso8601String(),
             'criteria' => $criteria
-                ->map(fn (RubricCriteria $criterion) => [
-                    'id' => $criterion->id,
-                    'title' => $criterion->title,
-                    'description' => $criterion->description,
-                    'max_marks' => $criterion->max_marks !== null ? (float) $criterion->max_marks : null,
-                    'weightage' => $criterion->weightage !== null ? (float) $criterion->weightage : null,
-                    'marks' => array_key_exists((string) $criterion->id, $criteriaMarks)
+                ->map(function (RubricCriteria $criterion) use ($criteriaMarks) {
+                    $marks = array_key_exists((string) $criterion->id, $criteriaMarks)
                         ? (float) $criteriaMarks[(string) $criterion->id]
-                        : null,
-                ])
+                        : null;
+                    $achieved = $criterion->levelFor($marks);
+
+                    return [
+                        'id' => $criterion->id,
+                        'title' => $criterion->title,
+                        'description' => $criterion->description,
+                        'max_marks' => $criterion->max_marks !== null ? (float) $criterion->max_marks : null,
+                        'weightage' => $criterion->weightage !== null ? (float) $criterion->weightage : null,
+                        'marks' => $marks,
+                        'levels' => $criterion->levels
+                            ->map(fn (RubricLevel $level) => [
+                                'label' => $level->label,
+                                'description' => $level->description,
+                                'marks' => (float) $level->marks,
+                                'achieved' => $achieved !== null && $achieved->is($level),
+                            ])
+                            ->values(),
+                    ];
+                })
                 ->values(),
         ];
     }

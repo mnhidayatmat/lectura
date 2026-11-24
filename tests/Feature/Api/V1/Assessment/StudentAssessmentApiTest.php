@@ -9,6 +9,7 @@ use App\Models\AssessmentSubmissionFile;
 use App\Models\Course;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
+use App\Models\RubricLevel;
 use App\Models\Section;
 use App\Models\StudentGroup;
 use App\Models\StudentGroupMember;
@@ -404,6 +405,9 @@ class StudentAssessmentApiTest extends ApiTestCase
         $rubric = Rubric::create(['assessment_id' => $assessment->id, 'type' => 'matrix']);
         $analysis = RubricCriteria::create(['rubric_id' => $rubric->id, 'title' => 'Analysis', 'max_marks' => 30, 'sort_order' => 1]);
         $writing = RubricCriteria::create(['rubric_id' => $rubric->id, 'title' => 'Writing', 'max_marks' => 20, 'sort_order' => 2]);
+        foreach ([['Weak', 10], ['Good', 20], ['Excellent', 30]] as $i => [$label, $marks]) {
+            RubricLevel::create(['rubric_criteria_id' => $analysis->id, 'label' => $label, 'description' => "$label work", 'marks' => $marks, 'sort_order' => $i]);
+        }
 
         $submission = AssessmentSubmission::create([
             'tenant_id' => $this->tenant->id,
@@ -435,6 +439,13 @@ class StudentAssessmentApiTest extends ApiTestCase
             ->assertJsonPath('data.score.criteria.0.title', 'Analysis')
             ->assertJsonPath('data.score.criteria.0.marks', 27.5)
             ->assertJsonPath('data.score.criteria.1.marks', 15)
+            ->assertJsonPath('data.score.criteria.0.levels.0.label', 'Weak')
+            ->assertJsonPath('data.score.criteria.0.levels.0.description', 'Weak work')
+            ->assertJsonPath('data.score.criteria.0.levels.2.marks', 30)
+            ->assertJsonPath('data.score.criteria.0.levels.0.achieved', false)
+            ->assertJsonPath('data.score.criteria.0.levels.1.achieved', false)
+            ->assertJsonPath('data.score.criteria.0.levels.2.achieved', true)
+            ->assertJsonPath('data.score.criteria.1.levels', [])
             ->assertJsonPath('data.can_resubmit', false)
             ->assertJsonPath('data.notice', null);
     }

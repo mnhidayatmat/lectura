@@ -157,6 +157,58 @@
                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Weighted: {{ $score->weighted_marks }} ({{ $assessment->weightage }}%)</p>
                     </div>
                 </div>
+                @php
+                    $rubricCriteria = $assessment->rubric?->criteria ?? collect();
+                    $criteriaMarks = is_array($score->criteria_marks) ? $score->criteria_marks : [];
+                    $fmtMark = fn ($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
+                @endphp
+                @if($rubricCriteria->isNotEmpty())
+                    <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Rubric</h4>
+                        <div class="space-y-4">
+                            @foreach($rubricCriteria as $criterion)
+                                @php
+                                    $mark = array_key_exists((string) $criterion->id, $criteriaMarks) ? (float) $criteriaMarks[(string) $criterion->id] : null;
+                                    $achieved = $criterion->levelFor($mark);
+                                    $max = (float) $criterion->max_marks;
+                                    $pct = ($mark !== null && $max > 0) ? min(100, max(0, $mark / $max * 100)) : 0;
+                                @endphp
+                                <div>
+                                    <div class="flex items-baseline justify-between gap-3">
+                                        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $criterion->title }}</p>
+                                        <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 shrink-0">{{ $mark === null ? '—' : $fmtMark($mark) }} <span class="font-normal text-slate-400">/ {{ $fmtMark($max) }}</span></p>
+                                    </div>
+                                    @if($criterion->description)
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ $criterion->description }}</p>
+                                    @endif
+                                    <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                                        <div class="h-full rounded-full {{ $pct >= 70 ? 'bg-emerald-500' : ($pct >= 40 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                    @if($criterion->levels->isNotEmpty())
+                                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            @foreach($criterion->levels as $level)
+                                                @php $isAchieved = $achieved !== null && $achieved->is($level); @endphp
+                                                <div class="rounded-xl border px-3 py-2 {{ $isAchieved ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-600' : 'border-slate-200 dark:border-slate-700 opacity-60' }}">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <span class="text-xs font-semibold {{ $isAchieved ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300' }}">{{ $level->label }}</span>
+                                                        @if($isAchieved)
+                                                            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                        @else
+                                                            <span class="text-[11px] text-slate-400 shrink-0">{{ $fmtMark($level->marks) }}</span>
+                                                        @endif
+                                                    </div>
+                                                    @if($level->description)
+                                                        <p class="mt-0.5 text-xs {{ $isAchieved ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400' }}">{{ $level->description }}</p>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 @if($score->feedback)
                     <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
                         <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Feedback</h4>
