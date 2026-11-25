@@ -546,7 +546,11 @@ sends `FeedbackReleased` to each member.
 
 Course assessment-plan items (tests, projects …), separate from assignments. Access: the
 assessment's course by the course rule; the roster is always **my sections** only (the web's
-"lecturer sections": admin all, owner own + unassigned, section lecturer own).
+"lecturer sections": admin all, owner own + unassigned, section lecturer own), narrowed to
+**this semester's**: active sections whose term (the section's, else the course's) is current, or
+that have no term. A finished section's students (last semester's, still enrolled) stay out. A
+course with no such section (one that only ran in a past term) keeps all my sections, so its old
+marks can still be read (`Course::currentSectionsOf`, shared with the web's marking pages).
 
 ### GET `lecturer/courses/{course}/assessments`
 

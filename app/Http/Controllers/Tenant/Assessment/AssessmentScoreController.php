@@ -37,8 +37,8 @@ class AssessmentScoreController extends Controller
 
         $tenant = app('current_tenant');
 
-        // All enrolled students across sections taught by this lecturer
-        $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+        // This semester's students in the sections taught by this lecturer
+        $studentIds = SectionStudent::whereIn('section_id', $this->currentRosterSectionIds($course))
             ->roster()
             ->distinct()
             ->pluck('user_id');
@@ -89,7 +89,7 @@ class AssessmentScoreController extends Controller
         $assessment->load('rubric.criteria');
 
         // Get all enrolled students
-        $studentIds = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+        $studentIds = SectionStudent::whereIn('section_id', $this->currentRosterSectionIds($course))
             ->roster()
             ->distinct()
             ->pluck('user_id');

@@ -37,8 +37,9 @@ final class AssessmentAnnouncer
         $assessment->announced_at = now();
         $assessment->loadMissing(['course', 'tenant']);
 
+        $sectionIds = $assessment->course->currentSectionsOf($assessment->course->sections()->get())->pluck('id');
         $students = User::whereHas('sections', fn ($q) => $q
-            ->where('sections.course_id', $assessment->course_id)
+            ->whereIn('sections.id', $sectionIds)
             ->where('section_students.is_active', true))
             ->get();
 

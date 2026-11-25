@@ -76,7 +76,7 @@ class AssessmentPlanController extends Controller
 
         // Total enrolled students across the sections this lecturer teaches — the
         // denominator for grading completion (same population the scores page uses).
-        $totalStudents = SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+        $totalStudents = SectionStudent::whereIn('section_id', $this->currentRosterSectionIds($course))
             ->roster()
             ->distinct()
             ->pluck('user_id')

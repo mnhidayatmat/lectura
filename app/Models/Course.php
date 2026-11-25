@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -172,6 +173,28 @@ class Course extends Model
         return $this->sections->contains(
             fn (Section $section) => $section->is_active && ($section->academicTerm ?? $this->academicTerm)?->isCurrent()
         );
+    }
+
+    /**
+     * This semester's class among the given sections: the active ones in the current term
+     * (the section's own, else the course's), plus active ones with no term at all. A course
+     * with none of those (a past course) keeps every section, so its records stay reachable.
+     *
+     * @param  Collection<int, Section>  $sections
+     * @return Collection<int, Section>
+     */
+    public function currentSectionsOf(Collection $sections): Collection
+    {
+        $this->loadMissing('academicTerm');
+        $sections->loadMissing('academicTerm');
+
+        $current = $sections->filter(function (Section $section) {
+            $term = $section->academicTerm ?? $this->academicTerm;
+
+            return $section->is_active && ($term === null || $term->isCurrent());
+        });
+
+        return $current->isNotEmpty() ? $current->values() : $sections->values();
     }
 
     public function totalStudents(): int

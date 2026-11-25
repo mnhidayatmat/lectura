@@ -322,13 +322,13 @@ class AssessmentMarkingController extends Controller
     }
 
     /**
-     * Active enrolments in the sections this lecturer may see — the web's score list.
+     * Active enrolments in this semester's sections this lecturer may see — the web's score list.
      *
      * @return Collection<int, SectionStudent>
      */
     private function roster(Course $course): Collection
     {
-        return $this->rosters[$course->id] ??= SectionStudent::whereIn('section_id', $this->lecturerSectionIds($course))
+        return $this->rosters[$course->id] ??= SectionStudent::whereIn('section_id', $this->currentRosterSectionIds($course))
             ->roster()
             ->with(['user', 'section'])
             ->get()

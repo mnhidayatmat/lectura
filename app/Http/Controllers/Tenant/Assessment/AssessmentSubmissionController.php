@@ -46,7 +46,7 @@ class AssessmentSubmissionController extends Controller
         $tenant = app('current_tenant');
 
         // Get enrolled students
-        $sectionIds = $this->lecturerSectionIds($course);
+        $sectionIds = $this->currentRosterSectionIds($course);
         $enrolledStudents = User::whereIn('id', SectionStudent::whereIn('section_id', $sectionIds)
             ->roster()
             ->select('user_id'))->orderBy('name')->get();
@@ -540,7 +540,7 @@ class AssessmentSubmissionController extends Controller
             'submission_ids.*' => ['integer'],
         ]);
 
-        $sectionIds = $this->lecturerSectionIds($course);
+        $sectionIds = $this->currentRosterSectionIds($course);
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
             ->roster()
             ->pluck('user_id');

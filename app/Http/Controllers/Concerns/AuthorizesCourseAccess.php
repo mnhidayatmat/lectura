@@ -98,6 +98,15 @@ trait AuthorizesCourseAccess
     }
 
     /**
+     * The lecturer's sections whose students make up this semester's class
+     * (see Course::currentSectionsOf), for rosters such as assessment marking.
+     */
+    protected function currentRosterSectionIds(Course $course): Collection
+    {
+        return $course->currentSectionsOf($this->lecturerSections($course)->get())->pluck('id');
+    }
+
+    /**
      * Get all section IDs the current user may access across all courses.
      */
     protected function allAccessibleSectionIds(): Collection
