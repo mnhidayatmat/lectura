@@ -25,7 +25,7 @@ class AttendanceReportService
     {
         $sectionIds = $section
             ? collect([$section->id])
-            : $course->sections()->pluck('id');
+            : $course->currentSectionIds();
 
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->where('status', 'ended')
@@ -37,7 +37,7 @@ class AttendanceReportService
 
         // All students enrolled in these sections
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)
+            ->roster()
             ->distinct()
             ->pluck('user_id');
 

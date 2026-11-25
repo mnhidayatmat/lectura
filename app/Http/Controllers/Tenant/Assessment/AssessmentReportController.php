@@ -21,8 +21,8 @@ class AssessmentReportController extends Controller
             'learningOutcomes',
             'assessments.clos',
             'assessments.items.assessable',
-            'assessments.scores',
         ]);
+        $rosterIds = $this->currentRosterStudentIds($course);
 
         // Build TOS matrix data
         $tosMatrix = $course->assessments->map(fn ($a) => [
@@ -38,6 +38,7 @@ class AssessmentReportController extends Controller
         foreach ($course->learningOutcomes as $clo) {
             $scores = \App\Models\AssessmentCloScore::where('course_learning_outcome_id', $clo->id)
                 ->whereIn('assessment_id', $course->assessments->pluck('id'))
+                ->whereIn('user_id', $rosterIds)
                 ->get();
 
             $cloAttainment[$clo->id] = [

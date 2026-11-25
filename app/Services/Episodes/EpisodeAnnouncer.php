@@ -36,10 +36,7 @@ final class EpisodeAnnouncer
         $episode->announced_at = now();
         $episode->loadMissing(['course', 'series', 'tenant']);
 
-        $students = User::whereHas('sections', fn ($q) => $q
-            ->where('sections.course_id', $episode->course_id)
-            ->where('section_students.is_active', true))
-            ->get();
+        $students = User::whereIn('id', $episode->course->currentStudentIds())->get();
 
         Notification::send($students, new EpisodePublished($episode));
 

@@ -32,7 +32,7 @@ class WatchController extends Controller
         $this->authorizeCourse($course);
 
         $series = $course->series;
-        $studentIds = EpisodeAnalytics::studentIds($this->lecturerSectionIds($course));
+        $studentIds = EpisodeAnalytics::studentIds($this->currentRosterSectionIds($course));
         $episodes = $series ? $series->episodes()->withCount('checks')->get() : collect();
 
         $progress = EpisodeProgress::whereIn('episode_id', $episodes->pluck('id'))
@@ -236,7 +236,8 @@ class WatchController extends Controller
      */
     private function audienceOf(Request $request, Course $course): array
     {
-        $sections = $this->lecturerSections($course)->orderBy('name')->get(['id', 'name']);
+        // This semester's sections only; past terms' classes are closed.
+        $sections = $course->currentSectionsOf($this->lecturerSections($course)->orderBy('name')->get());
 
         $sectionId = $request->validate([
             'section_id' => ['nullable', 'integer', Rule::in($sections->pluck('id')->all())],

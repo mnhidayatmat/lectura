@@ -11,7 +11,6 @@ use App\Services\Course\CourseContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CourseContextController extends Controller
@@ -37,13 +36,8 @@ class CourseContextController extends Controller
 
         $todaySlots = $this->todaySlotsByCourse($courses);
 
-        $studentCounts = DB::table('section_students')
-            ->join('sections', 'sections.id', '=', 'section_students.section_id')
-            ->whereIn('sections.course_id', $courses->pluck('id'))
-            ->where('section_students.is_active', true)
-            ->groupBy('sections.course_id')
-            ->selectRaw('sections.course_id, count(distinct section_students.user_id) as total')
-            ->pluck('total', 'course_id');
+        // This semester's class per course; past terms' sections are closed.
+        $studentCounts = $courses->mapWithKeys(fn (Course $course) => [$course->id => $course->totalStudents()]);
 
         $terms = $courses->mapWithKeys(fn (Course $course) => [$course->id => $this->courseContext->termFor($course)]);
 

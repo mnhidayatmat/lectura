@@ -661,7 +661,7 @@
                 <form method="POST" action="{{ route('tenant.active-learning.generate-ai', [app('current_tenant')->slug, $course, $plan]) }}" enctype="multipart/form-data" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                     @csrf
                     @php
-                        $autoStudentCount = \App\Models\SectionStudent::whereHas('section', fn($q) => $q->where('course_id', $course->id))->where('is_active', true)->distinct('user_id')->count('user_id');
+                        $autoStudentCount = $course->totalStudents();
                     @endphp
 
                     {{-- Context (read-only) --}}

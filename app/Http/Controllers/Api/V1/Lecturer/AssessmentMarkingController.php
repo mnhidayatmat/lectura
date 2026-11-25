@@ -42,10 +42,11 @@ class AssessmentMarkingController extends Controller
         $this->ensureLecturer();
         $this->authorizeCourse($course);
 
+        $counts = $this->scoreCounts($this->roster($course)->pluck('user_id'));
         $assessments = Assessment::where('course_id', $course->id)
             ->whereNull('parent_id')
-            ->with(['children' => fn ($q) => $q->withCount($this->scoreCounts())])
-            ->withCount($this->scoreCounts())
+            ->with(['children' => fn ($q) => $q->withCount($counts)])
+            ->withCount($counts)
             ->orderBy('sort_order')
             ->get();
 
@@ -511,12 +512,13 @@ class AssessmentMarkingController extends Controller
             ]]);
     }
 
-    private function scoreCounts(): array
+    /** Counts over this semester's students only ($userIds, the roster). */
+    private function scoreCounts(\Illuminate\Support\Collection $userIds): array
     {
         return [
-            'scores as graded_count' => fn ($q) => $q->whereNotNull('finalized_at'),
-            'scores as released_count' => fn ($q) => $q->where('is_released', true),
-            'submissions as submissions_count',
+            'scores as graded_count' => fn ($q) => $q->whereIn('user_id', $userIds)->whereNotNull('finalized_at'),
+            'scores as released_count' => fn ($q) => $q->whereIn('user_id', $userIds)->where('is_released', true),
+            'submissions as submissions_count' => fn ($q) => $q->whereIn('user_id', $userIds),
         ];
     }
 

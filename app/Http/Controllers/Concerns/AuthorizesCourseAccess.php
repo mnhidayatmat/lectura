@@ -107,6 +107,15 @@ trait AuthorizesCourseAccess
     }
 
     /**
+     * This semester's students in the lecturer's current sections — the only ids
+     * submissions, scores and marks may be counted or listed for.
+     */
+    protected function currentRosterStudentIds(Course $course): Collection
+    {
+        return $course->currentStudentIds($this->currentRosterSectionIds($course));
+    }
+
+    /**
      * Get all section IDs the current user may access across all courses.
      */
     protected function allAccessibleSectionIds(): Collection

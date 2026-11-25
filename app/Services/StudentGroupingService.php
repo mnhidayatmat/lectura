@@ -22,7 +22,7 @@ class StudentGroupingService
                 ->roster()
                 ->pluck('user_id');
         } else {
-            $userIds = SectionStudent::whereIn('section_id', $course->sections()->pluck('id'))
+            $userIds = SectionStudent::whereIn('section_id', $course->currentSectionIds())
                 ->roster()
                 ->distinct()
                 ->pluck('user_id');

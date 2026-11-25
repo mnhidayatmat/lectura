@@ -153,7 +153,7 @@ CourseSummary fields plus details. Course owners (and admins) get **all** sectio
   }
 }
 ```
-`section.invite_code` is the **student** enrolment code. `total_students` counts distinct active students across all sections of the course. `active_session_id` = the section's running attendance session (or `null`; always `null` for an inactive section, which stays listed so it can be switched back on).
+`section.invite_code` is the **student** enrolment code. `total_students` counts this semester's students (the course's current sections, `Course::totalStudents`). `active_session_id` = the section's running attendance session (or `null`; always `null` for an inactive section, which stays listed so it can be switched back on).
 Errors: 403 course access, 404 other tenant / unknown.
 
 ### POST `lecturer/courses/join`
@@ -497,6 +497,9 @@ Assignments in my accessible courses (`course_id` optional), latest deadline fir
 }
 ```
 
+Assignment `counts` and `submissions` list this semester's students only (the course's current
+sections, as above); submissions from a past term's class are left out.
+
 ### GET `lecturer/assignments/{assignment}`
 
 The summary above plus `description`, `rubric` and `submissions` (newest first):
@@ -551,6 +554,8 @@ assessment's course by the course rule; the roster is always **my sections** onl
 that have no term. A finished section's students (last semester's, still enrolled) stay out. A
 course with no such section (one that only ran in a past term) keeps all my sections, so its old
 marks can still be read (`Course::currentSectionsOf`, shared with the web's marking pages).
+The list's `counts` (submissions, graded, released) cover the same students only — an assessment
+reused from last semester does not count that class's submissions or scores.
 
 ### GET `lecturer/courses/{course}/assessments`
 

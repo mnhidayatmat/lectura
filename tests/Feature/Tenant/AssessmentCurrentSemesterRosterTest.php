@@ -66,6 +66,51 @@ class AssessmentCurrentSemesterRosterTest extends ApiTestCase
         }
     }
 
+    public function test_submission_counts_leave_out_last_semesters_submissions(): void
+    {
+        [$tenant, $lecturer, $course, $assessment] = $this->courseWithPastAndCurrentSections();
+        foreach (['Graduated Student', 'Current Student'] as $name) {
+            $assessment->submissions()->create([
+                'tenant_id' => $tenant->id,
+                'user_id' => User::where('name', $name)->value('id'),
+                'status' => 'submitted',
+                'submitted_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($lecturer)
+            ->get("/{$tenant->slug}/courses/{$course->id}/assessments/{$assessment->id}/submissions")
+            ->assertOk()
+            ->assertViewHas('stats', fn (array $stats) => $stats['enrolled'] === 1 && $stats['submitted'] === 1)
+            ->assertViewHas('submissions', fn ($submissions) => $submissions->count() === 1);
+    }
+
+    public function test_scores_counts_and_release_leave_out_last_semesters_scores(): void
+    {
+        [$tenant, $lecturer, $course, $assessment] = $this->courseWithPastAndCurrentSections();
+        foreach (['Graduated Student' => 40, 'Current Student' => 80] as $name => $percentage) {
+            $assessment->scores()->create([
+                'tenant_id' => $tenant->id,
+                'user_id' => User::where('name', $name)->value('id'),
+                'raw_marks' => $percentage,
+                'max_marks' => 100,
+                'weighted_marks' => $percentage / 10,
+                'percentage' => $percentage,
+                'finalized_at' => now(),
+            ]);
+        }
+        $base = "/{$tenant->slug}/courses/{$course->id}/assessments/{$assessment->id}";
+
+        $this->actingAs($lecturer)->get($base.'/scores')->assertOk()
+            ->assertViewHas('stats', fn (array $stats) => $stats['graded'] === 1 && (float) $stats['avg'] === 80.0);
+
+        $this->actingAs($lecturer)->post($base.'/scores/release')->assertRedirect();
+        $released = $assessment->scores()->with('user')->get()->mapWithKeys(fn ($s) => [$s->user->name => (bool) $s->is_released]);
+        $this->assertSame(['Current Student' => true, 'Graduated Student' => false], $released->sortKeys()->all());
+
+        $this->assertSame(1, $course->fresh()->totalStudents());
+    }
+
     public function test_app_marking_lists_only_this_semesters_students(): void
     {
         [$tenant, $lecturer, $course, $assessment] = $this->courseWithPastAndCurrentSections();

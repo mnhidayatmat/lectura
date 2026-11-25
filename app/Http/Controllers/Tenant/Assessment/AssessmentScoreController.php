@@ -46,9 +46,9 @@ class AssessmentScoreController extends Controller
         $students = User::whereIn('id', $studentIds)->orderBy('name')->get();
 
         // Scores & submissions keyed by user_id
-        $scores = $assessment->scores()->get()->keyBy('user_id');
+        $scores = $assessment->scores()->whereIn('user_id', $studentIds)->get()->keyBy('user_id');
         $submissions = $assessment->requires_submission
-            ? $assessment->submissions()->get()->keyBy('user_id')
+            ? $assessment->submissions()->whereIn('user_id', $studentIds)->get()->keyBy('user_id')
             : collect();
 
         // Summary stats — count any score record as "graded" (computed or manual)
@@ -73,7 +73,7 @@ class AssessmentScoreController extends Controller
             abort(403);
         }
 
-        $count = $this->scoreService->computeScores($assessment);
+        $count = $this->scoreService->computeScores($assessment, $this->currentRosterStudentIds($course));
 
         return back()->with('success', "Scores computed for {$count} students.");
     }
@@ -96,7 +96,7 @@ class AssessmentScoreController extends Controller
         $students = User::whereIn('id', $studentIds)->orderBy('name')->get();
 
         // Existing scores — both totals and per-criterion JSON, keyed by user_id
-        $scores = $assessment->scores()->get()->keyBy('user_id');
+        $scores = $assessment->scores()->whereIn('user_id', $studentIds)->get()->keyBy('user_id');
         $existingScores = $scores->map(fn ($s) => $s->raw_marks);
         $existingCriteriaMarks = $scores->map(fn ($s) => is_array($s->criteria_marks) ? $s->criteria_marks : []);
         $existingAnswerScripts = $scores->map(fn ($s) => ($s->answer_script_drive_link || $s->answer_script_path)
@@ -148,10 +148,14 @@ class AssessmentScoreController extends Controller
 
         $tenant = app('current_tenant');
         $count = 0;
-        $scriptFiles = $request->file('answer_script_files', []) ?? [];
+        $rosterIds = $this->currentRosterStudentIds($course)->map(fn ($id) => (int) $id);
+        $onRoster = fn ($userId): bool => $rosterIds->contains((int) $userId);
+        $scriptFiles = array_filter($request->file('answer_script_files', []) ?? [], $onRoster, ARRAY_FILTER_USE_KEY);
         $removeScripts = collect($request->input('remove_answer_scripts', []))
             ->filter(fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN))
             ->keys()
+            ->filter($onRoster)
+            ->values()
             ->all();
         $existingScores = $assessment->scores()->get()->keyBy('user_id');
 
@@ -270,7 +274,7 @@ class AssessmentScoreController extends Controller
         $students = User::whereIn('id', $studentIds)->get()->keyBy('id');
 
         if ($hasRubric) {
-            $payload = $request->input('criteria_marks', []);
+            $payload = array_filter($request->input('criteria_marks', []) ?: [], $onRoster, ARRAY_FILTER_USE_KEY);
             foreach ($payload as $userId => $perCriterion) {
                 if (! is_array($perCriterion)) {
                     continue;
@@ -324,7 +328,7 @@ class AssessmentScoreController extends Controller
                 $count++;
             }
         } else {
-            foreach ($request->input('marks', []) as $userId => $rawMarks) {
+            foreach (array_filter($request->input('marks', []) ?: [], $onRoster, ARRAY_FILTER_USE_KEY) as $userId => $rawMarks) {
                 if ($rawMarks === null || $rawMarks === '') {
                     continue;
                 }

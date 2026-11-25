@@ -14,7 +14,6 @@ use App\Models\QuizSession;
 use App\Models\Rubric;
 use App\Models\RubricCriteria;
 use App\Models\RubricLevel;
-use App\Models\SectionStudent;
 use App\Models\StudentGroupSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -65,22 +64,21 @@ class AssessmentPlanController extends Controller
 
         // Load only top-level assessments with their children. scores_count drives
         // the grading-completion indicator on each card (graded students / total).
+        // Every count is this semester's students only — the same population as the denominator.
+        $rosterIds = $this->currentRosterStudentIds($course);
+        $thisSemester = fn ($q) => $q->whereIn('user_id', $rosterIds);
         $assessments = $course->assessments()->topLevel()
-            ->withCount('scores')
+            ->withCount(['scores' => $thisSemester])
             ->with([
-                'children' => fn ($q) => $q->withCount('scores'),
-                'children.clos', 'children.submissions',
+                'children' => fn ($q) => $q->withCount(['scores' => $thisSemester]),
+                'children.clos', 'children.submissions' => $thisSemester,
                 'clos', 'items.assessable',
             ])
             ->get();
 
         // Total enrolled students across the sections this lecturer teaches — the
         // denominator for grading completion (same population the scores page uses).
-        $totalStudents = SectionStudent::whereIn('section_id', $this->currentRosterSectionIds($course))
-            ->roster()
-            ->distinct()
-            ->pluck('user_id')
-            ->count();
+        $totalStudents = $rosterIds->count();
 
         // Only top-level assessments contribute to the course total; children are sub-divisions of their parent.
         $totalWeightage = $assessments->sum('weightage');

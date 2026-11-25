@@ -159,16 +159,18 @@ class PerformanceAggregatorService
     {
         $course->load(['learningOutcomes']);
 
-        $sections = $allowedSections ?? $course->sections()->get();
+        // This semester's class only, unless the lecturer picked a section.
+        $sections = $course->currentSectionsOf($allowedSections ?? $course->sections()->get());
 
         $sectionIds = $section
             ? collect([$section->id])
             : $sections->pluck('id');
 
         $studentIds = SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)
+            ->roster()
             ->pluck('user_id')
-            ->unique();
+            ->unique()
+            ->values();
 
         $students = User::whereIn('id', $studentIds)->get()->keyBy('id');
         $tenantId = app('current_tenant')->id;
@@ -313,9 +315,13 @@ class PerformanceAggregatorService
      */
     public function getStudentCoursePerformance(User $student, Course $course, bool $releasedOnly = false): array
     {
-        $course->load(['sections', 'learningOutcomes']);
+        $course->load(['learningOutcomes']);
         $tenantId = app('current_tenant')->id;
-        $sectionIds = $course->sections->pluck('id');
+        // The student's own sections of this course — not other sections or other terms' classes.
+        $sectionIds = SectionStudent::where('user_id', $student->id)
+            ->where('is_active', true)
+            ->whereIn('section_id', $course->sections()->select('id'))
+            ->pluck('section_id');
 
         // Marks — both gradebooks. When the student is the viewer, unreleased
         // assessment scores must stay hidden.

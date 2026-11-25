@@ -36,7 +36,7 @@ class EpisodeController extends Controller
 
         $tenant = app('current_tenant');
         $series = $course->series;
-        $studentIds = EpisodeAnalytics::studentIds($this->lecturerSectionIds($course));
+        $studentIds = EpisodeAnalytics::studentIds($this->currentRosterSectionIds($course));
         $episodes = $series
             ? $series->episodes()->with('topic')->withCount([
                 'scenes',

@@ -17,9 +17,10 @@ use Illuminate\Support\Collection;
 class AssessmentScoreService
 {
     /**
-     * Compute scores for an assessment from its linked items.
+     * Compute scores for an assessment from its linked items. With $studentIds, only
+     * those students (this semester's class) are touched — past terms keep their marks.
      */
-    public function computeScores(Assessment $assessment): int
+    public function computeScores(Assessment $assessment, ?Collection $studentIds = null): int
     {
         $assessment->load(['items.assessable', 'clos']);
         $tenant = app('current_tenant');
@@ -27,7 +28,7 @@ class AssessmentScoreService
         // No linked items — re-normalise any existing manual/submission scores
         // (handles cases where total_marks or weightage was changed after marking)
         if ($assessment->items->isEmpty()) {
-            return $this->renormaliseExistingScores($assessment);
+            return $this->renormaliseExistingScores($assessment, $studentIds);
         }
 
         // Collect raw scores from all linked items per student
@@ -38,6 +39,9 @@ class AssessmentScoreService
             $contribution = $item->contribution_percentage / 100;
 
             foreach ($itemScores as $userId => $data) {
+                if ($studentIds !== null && ! $studentIds->contains($userId)) {
+                    continue;
+                }
                 $existing = $studentScores->get($userId, ['raw' => 0, 'max' => 0]);
                 $existing['raw'] += $data['marks'] * $contribution;
                 $existing['max'] += $data['max'] * $contribution;
@@ -128,9 +132,11 @@ class AssessmentScoreService
      * Re-calculate percentage and weighted_marks for all existing scores on this assessment.
      * Useful after total_marks or weightage is edited without changing the raw marks.
      */
-    protected function renormaliseExistingScores(Assessment $assessment): int
+    protected function renormaliseExistingScores(Assessment $assessment, ?Collection $studentIds = null): int
     {
-        $scores = $assessment->scores()->get();
+        $scores = $assessment->scores()
+            ->when($studentIds !== null, fn ($q) => $q->whereIn('user_id', $studentIds))
+            ->get();
         $count  = 0;
 
         foreach ($scores as $score) {

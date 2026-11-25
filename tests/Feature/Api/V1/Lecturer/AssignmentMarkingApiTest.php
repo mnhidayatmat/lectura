@@ -57,6 +57,7 @@ class AssignmentMarkingApiTest extends LecturerApiTestCase
         $lecturer = $this->createMember($tenant, 'lecturer');
         $student = $this->createMember($tenant, 'student');
         $course = $this->createCourse($tenant, $lecturer, ['code' => 'SKM1001']);
+        $this->enroll($this->createSection($course), $student);
         $assignment = $this->assignment($tenant, $course, $lecturer);
 
         return [$tenant, $lecturer, $student, $assignment, $this->submit($assignment, $student)];
@@ -143,6 +144,9 @@ class AssignmentMarkingApiTest extends LecturerApiTestCase
         $leader = $this->createMember($tenant, 'student');
         $member = $this->createMember($tenant, 'student');
         $course = $this->createCourse($tenant, $lecturer);
+        $section = $this->createSection($course);
+        $this->enroll($section, $leader);
+        $this->enroll($section, $member);
         $set = StudentGroupSet::create(['tenant_id' => $tenant->id, 'course_id' => $course->id, 'type' => 'lab', 'name' => 'Labs', 'created_by' => $lecturer->id]);
         $group = StudentGroup::create(['student_group_set_id' => $set->id, 'name' => 'Group A']);
         $assignment = $this->assignment($tenant, $course, $lecturer, ['type' => 'group', 'student_group_set_id' => $set->id]);

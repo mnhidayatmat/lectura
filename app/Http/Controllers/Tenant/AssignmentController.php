@@ -77,6 +77,17 @@ class AssignmentController extends Controller
             ->latest()
             ->get();
 
+        // Submission counts cover this semester's students only; past terms' classes are closed.
+        $rosters = $courses->mapWithKeys(fn (Course $c) => [$c->id => $c->currentStudentIds()]);
+        $submitters = Submission::whereIn('assignment_id', $assignments->pluck('id'))
+            ->get(['assignment_id', 'user_id'])
+            ->groupBy('assignment_id');
+        foreach ($assignments as $a) {
+            $a->submissions_count = ($submitters[$a->id] ?? collect())
+                ->whereIn('user_id', $rosters[$a->course_id] ?? collect())
+                ->count();
+        }
+
         return view('tenant.assignments.index', compact('assignments', 'courses'));
     }
 
@@ -389,9 +400,14 @@ class AssignmentController extends Controller
             ));
         }
 
+        // Lecturer view: this semester's students only; past terms' classes are closed.
+        $rosterIds = $assignment->course->currentStudentIds();
+        $assignment->setRelation('submissions', $assignment->submissions->whereIn('user_id', $rosterIds)->values());
+
         // Load submission counts for sub-assignments
         $subAssignmentIds = $assignment->subAssignments->pluck('id');
         $subSubmissionCounts = Submission::whereIn('assignment_id', $subAssignmentIds)
+            ->whereIn('user_id', $rosterIds)
             ->selectRaw('assignment_id, COUNT(*) as count')
             ->groupBy('assignment_id')
             ->pluck('count', 'assignment_id');
@@ -404,10 +420,10 @@ class AssignmentController extends Controller
         $assignment->update(['status' => 'published']);
         $assignment->load('course');
 
-        // Notify enrolled students
-        $sectionIds = $assignment->course->sections()->pluck('id');
+        // Notify this semester's students
+        $sectionIds = $assignment->course->currentSectionIds();
         $students = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)->with('user')->get();
+            ->roster()->whereHas('user')->with('user')->get()->unique('user_id');
 
         foreach ($students as $ss) {
             $ss->user->notify(new AssignmentPublished($assignment));
@@ -630,7 +646,7 @@ class AssignmentController extends Controller
      */
     public function courseStudents(string $tenantSlug, Course $course): JsonResponse
     {
-        $sectionIds = $course->sections()->pluck('id');
+        $sectionIds = $course->currentSectionIds();
         $students = SectionStudent::whereIn('section_id', $sectionIds)
             ->roster()
             ->with('user:id,name,email')

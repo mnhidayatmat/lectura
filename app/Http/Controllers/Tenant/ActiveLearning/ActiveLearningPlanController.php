@@ -15,7 +15,6 @@ use App\Models\Course;
 use App\Models\CourseFile;
 use App\Models\QuizSession;
 use App\Models\Section;
-use App\Models\SectionStudent;
 use App\Services\ActiveLearning\ActiveLearningPlanService;
 use App\Services\ActiveLearning\TierGateService;
 use App\Services\AI\ActiveLearningGeneratorService;
@@ -290,10 +289,7 @@ class ActiveLearningPlanController extends Controller
 
         // Use user-provided values or fall back to auto-detected
         $studentCount = $request->integer('student_count')
-            ?: SectionStudent::whereHas(
-                'section',
-                fn ($q) => $q->where('course_id', $course->id)
-            )->where('is_active', true)->distinct('user_id')->count('user_id');
+            ?: $course->totalStudents();
 
         // Update plan duration if user changed it
         $totalDuration = $request->integer('total_duration') ?: $plan->duration_minutes;

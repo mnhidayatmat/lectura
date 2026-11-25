@@ -26,7 +26,7 @@ class AttendanceWarningService
             return;
         }
 
-        $sectionIds = $course->sections()->pluck('id');
+        $sectionIds = $course->currentSectionIds();
 
         $totalSessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->where('status', 'ended')
@@ -36,9 +36,9 @@ class AttendanceWarningService
             return;
         }
 
-        // Get all students enrolled in any section of this course
+        // This semester's students (past terms' classes are closed)
         $studentIds = \App\Models\SectionStudent::whereIn('section_id', $sectionIds)
-            ->where('is_active', true)
+            ->roster()
             ->distinct()
             ->pluck('user_id');
 
@@ -56,7 +56,7 @@ class AttendanceWarningService
      */
     public function getAbsenceSummary(Course $course, User $student): array
     {
-        $sectionIds = $course->sections()->pluck('id');
+        $sectionIds = $course->currentSectionIds();
 
         $sessionIds = AttendanceSession::whereIn('section_id', $sectionIds)
             ->where('status', 'ended')

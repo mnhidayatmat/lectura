@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Lecturer;
 use App\Http\Controllers\Api\V1\Lecturer\Concerns\AuthorizesLecturerAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
+use App\Models\Course;
 use App\Models\Feedback;
 use App\Models\RubricCriteria;
 use App\Models\StudentMark;
@@ -66,7 +67,7 @@ class AssignmentMarkingController extends Controller
             'data' => array_merge($this->summary($assignment), [
                 'description' => $assignment->description,
                 'rubric' => $this->rubric($assignment),
-                'submissions' => $this->markingUnits($assignment->submissions, $assignment)
+                'submissions' => $this->markingUnits($this->thisSemester($assignment), $assignment)
                     ->map(fn (Submission $submission) => $this->submissionRow($submission, $marks->get($submission->user_id), $studentIds[$submission->user_id] ?? null))
                     ->values(),
             ]),
@@ -266,6 +267,21 @@ class AssignmentMarkingController extends Controller
         };
     }
 
+    /** @var array<int, \Illuminate\Support\Collection<int, int>> */
+    private array $rosters = [];
+
+    /**
+     * The assignment's submissions from this semester's students — past terms' classes are closed.
+     *
+     * @return Collection<int, Submission>
+     */
+    private function thisSemester(Assignment $assignment): Collection
+    {
+        $roster = $this->rosters[$assignment->course_id] ??= Course::findOrFail($assignment->course_id)->currentStudentIds();
+
+        return $assignment->submissions->whereIn('user_id', $roster)->values();
+    }
+
     /**
      * One row per thing to mark. A group submits once and every member gets a copy
      * without the files, so the copy carrying the files stands for the group.
@@ -288,7 +304,7 @@ class AssignmentMarkingController extends Controller
 
     private function summary(Assignment $assignment): array
     {
-        $units = $this->markingUnits($assignment->submissions, $assignment);
+        $units = $this->markingUnits($this->thisSemester($assignment), $assignment);
 
         return [
             'id' => $assignment->id,

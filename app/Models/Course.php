@@ -197,13 +197,33 @@ class Course extends Model
         return $current->isNotEmpty() ? $current->values() : $sections->values();
     }
 
+    /**
+     * This semester's sections of the whole course (see currentSectionsOf).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function currentSectionIds(): \Illuminate\Support\Collection
+    {
+        return $this->currentSectionsOf($this->sections()->get())->pluck('id');
+    }
+
+    /**
+     * This semester's students: the roster of the given sections (default: all current sections).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function currentStudentIds(?\Illuminate\Support\Collection $sectionIds = null): \Illuminate\Support\Collection
+    {
+        return SectionStudent::whereIn('section_id', $sectionIds ?? $this->currentSectionIds())
+            ->roster()
+            ->whereHas('user')
+            ->distinct()
+            ->pluck('user_id');
+    }
+
     public function totalStudents(): int
     {
-        return SectionStudent::whereIn('section_id', $this->sections()->pluck('id'))
-            ->where('is_active', true)
-            ->whereHas('user')
-            ->distinct('user_id')
-            ->count('user_id');
+        return $this->currentStudentIds()->count();
     }
 
     public function getStatusBadgeAttribute(): array

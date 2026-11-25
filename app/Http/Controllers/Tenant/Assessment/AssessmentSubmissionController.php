@@ -51,8 +51,9 @@ class AssessmentSubmissionController extends Controller
             ->roster()
             ->select('user_id'))->orderBy('name')->get();
 
-        $submissions = $assessment->submissions()->with(['user', 'files'])->get()->keyBy('user_id');
-        $scores = $assessment->scores()->get()->keyBy('user_id');
+        $submissions = $assessment->submissions()->whereIn('user_id', $enrolledStudents->pluck('id'))
+            ->with(['user', 'files'])->get()->keyBy('user_id');
+        $scores = $assessment->scores()->whereIn('user_id', $enrolledStudents->pluck('id'))->get()->keyBy('user_id');
 
         // Build a map user_id => group metadata (id, name, color, role) so the
         // submissions table can color-code each group and badge the leader.
@@ -110,17 +111,19 @@ class AssessmentSubmissionController extends Controller
         $submission->load(['user', 'files', 'score']);
         $assessment->load('rubric.criteria.levels');
 
-        // Ordered list: ungraded first, then by submission time — for prev/next navigation
+        // Ordered list of this semester's submissions: ungraded first, then by submission time — for prev/next navigation
+        $rosterIds = $this->currentRosterStudentIds($course);
         $orderedIds = $assessment->submissions()
+            ->whereIn('user_id', $rosterIds)
             ->orderByRaw("CASE WHEN status = 'graded' THEN 1 ELSE 0 END")
             ->orderBy('submitted_at')
             ->pluck('id');
 
         $pos = $orderedIds->search($submission->id);
-        $prev = $pos > 0 ? AssessmentSubmission::find($orderedIds[$pos - 1]) : null;
-        $next = $pos < $orderedIds->count() - 1 ? AssessmentSubmission::find($orderedIds[$pos + 1]) : null;
+        $prev = $pos !== false && $pos > 0 ? AssessmentSubmission::find($orderedIds[$pos - 1]) : null;
+        $next = $pos !== false && $pos < $orderedIds->count() - 1 ? AssessmentSubmission::find($orderedIds[$pos + 1]) : null;
 
-        $gradedCount = $assessment->submissions()->where('status', 'graded')->count();
+        $gradedCount = $assessment->submissions()->whereIn('user_id', $rosterIds)->where('status', 'graded')->count();
         $totalCount = $orderedIds->count();
 
         return view('tenant.assessments.submissions.show', compact(
@@ -434,7 +437,8 @@ class AssessmentSubmissionController extends Controller
             abort(403);
         }
 
-        $query = $assessment->scores()->whereNotNull('finalized_at')->where('is_released', false);
+        $query = $assessment->scores()->whereIn('user_id', $this->currentRosterStudentIds($course))
+            ->whereNotNull('finalized_at')->where('is_released', false);
 
         if ($request->has('score_ids')) {
             $request->validate(['score_ids' => ['required', 'array'], 'score_ids.*' => ['integer']]);
