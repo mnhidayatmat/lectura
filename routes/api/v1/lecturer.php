@@ -110,6 +110,7 @@ Route::prefix('lecturer')->name('lecturer.')->group(function () {
     Route::get('/assessments/{assessment}', [AssessmentMarkingController::class, 'show'])->name('assessments.show');
     Route::get('/assessments/{assessment}/submissions/{submission}', [AssessmentMarkingController::class, 'submission'])->name('assessments.submissions.show');
     Route::get('/assessments/{assessment}/submissions/{submission}/files/{file}', [AssessmentMarkingController::class, 'file'])->name('assessments.submissions.file');
+    Route::post('/assessments/{assessment}/submissions/{submission}/marked-script', [AssessmentMarkingController::class, 'markedScript'])->name('assessments.submissions.marked-script');
     Route::put('/assessments/{assessment}/scores/{user}', [AssessmentMarkingController::class, 'mark'])->name('assessments.scores.mark');
     Route::post('/assessments/{assessment}/release', [AssessmentMarkingController::class, 'release'])->name('assessments.release');
     Route::post('/assessments/{assessment}/scores/{score}/unrelease', [AssessmentMarkingController::class, 'unrelease'])->name('assessments.scores.unrelease');

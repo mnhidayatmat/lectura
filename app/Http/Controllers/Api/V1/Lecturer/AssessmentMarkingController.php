@@ -19,7 +19,10 @@ use App\Notifications\AssessmentMarksReleased;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -112,26 +115,7 @@ class AssessmentMarkingController extends Controller
     {
         $this->authorizeSubmission($assessment, $submission);
 
-        $submission->load(['user', 'files']);
-
-        return response()->json([
-            'data' => [
-                'id' => $submission->id,
-                'status' => $submission->status,
-                'notes' => $submission->notes,
-                'is_late' => (bool) $submission->is_late,
-                'submitted_at' => $submission->submitted_at?->toIso8601String(),
-                'student' => ['id' => $submission->user?->id, 'name' => $submission->user?->name],
-                'files' => $submission->files->map(fn (AssessmentSubmissionFile $file) => [
-                    'id' => $file->id,
-                    'name' => $file->file_name,
-                    'mime_type' => $file->file_type,
-                    'size_bytes' => $file->file_size_bytes ? (int) $file->file_size_bytes : null,
-                    'has_annotations' => $file->annotated_at !== null,
-                    'is_stamped' => $file->graded_file_path !== null,
-                ])->values(),
-            ],
-        ]);
+        return response()->json(['data' => $this->submissionPayload($submission)]);
     }
 
     /**
@@ -296,6 +280,125 @@ class AssessmentMarkingController extends Controller
             'message' => 'Marks retracted.',
             'data' => ['retracted' => $count, 'score' => $this->score($score->refresh())],
         ]);
+    }
+
+    /**
+     * MarkScore uploads the red-pen marked PDF here and it replaces the student's files: the first
+     * replaced row (lowest id) becomes the marked PDF, the rest of the replaced rows are removed.
+     * Original objects stay on the disk and are listed once in `original_files`.
+     */
+    public function markedScript(Request $request, Assessment $assessment, AssessmentSubmission $submission): JsonResponse
+    {
+        $this->authorizeSubmission($assessment, $submission);
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf', 'max:102400'],
+            'replace_file_ids' => ['nullable', 'array'],
+            'replace_file_ids.*' => ['integer'],
+        ]);
+
+        $files = $submission->files()->orderBy('id')->get();
+
+        if ($request->has('replace_file_ids')) {
+            $ids = collect($request->input('replace_file_ids', []))->map(fn ($id) => (int) $id)->unique();
+            if ($ids->diff($files->pluck('id'))->isNotEmpty()) {
+                throw ValidationException::withMessages(['replace_file_ids' => 'Every file to replace must belong to this submission.']);
+            }
+            $replaced = $files->whereIn('id', $ids->all())->values();
+        } else {
+            $replaced = $files->reject(fn (AssessmentSubmissionFile $file) => $this->isMedia($file))->values();
+        }
+
+        if ($replaced->isEmpty()) {
+            throw ValidationException::withMessages(['replace_file_ids' => 'There are no files on this submission to replace.']);
+        }
+
+        $disk = Storage::disk('uploads');
+        $path = $request->file('file')->storeAs(
+            "assessment_submissions/{$assessment->id}/marked",
+            "{$submission->id}-".Str::random(8).'.pdf',
+            'uploads',
+        );
+
+        try {
+            $stale = DB::transaction(function () use ($submission, $replaced, $request, $path) {
+                $kept = $replaced->first();
+                $stale = null;
+                $baseName = collect($submission->original_files ?? [])->firstWhere('id', $kept->id)['file_name'] ?? $kept->file_name;
+
+                if ($submission->original_files === null) {
+                    $submission->update(['original_files' => $replaced->map(fn (AssessmentSubmissionFile $file) => [
+                        'id' => $file->id,
+                        'file_name' => $file->file_name,
+                        'file_type' => $file->file_type,
+                        'file_size_bytes' => $file->file_size_bytes,
+                        'storage_path' => $file->storage_path,
+                        'graded_file_path' => $file->graded_file_path,
+                        'drive_file_id' => $file->drive_file_id,
+                    ])->values()->all()]);
+                } elseif (! in_array($kept->storage_path, array_column($submission->original_files, 'storage_path'), true)) {
+                    $stale = $kept->storage_path;
+                }
+
+                $kept->update([
+                    'storage_path' => $path,
+                    'file_name' => pathinfo((string) $baseName, PATHINFO_FILENAME).'_marked.pdf',
+                    'file_type' => 'application/pdf',
+                    'file_size_bytes' => $request->file('file')->getSize(),
+                    'graded_file_path' => null,
+                    'graded_at' => null,
+                    'drive_file_id' => null,
+                ]);
+
+                AssessmentSubmissionFile::whereIn('id', $replaced->slice(1)->pluck('id'))->delete();
+
+                return $stale;
+            });
+        } catch (\Throwable $e) {
+            $disk->delete($path);
+            throw $e;
+        }
+
+        if ($stale && $stale !== $path) {
+            $disk->delete($stale);
+        }
+
+        return response()->json([
+            'message' => 'Marked script uploaded.',
+            'data' => $this->submissionPayload($submission->refresh()),
+        ]);
+    }
+
+    private function isMedia(AssessmentSubmissionFile $file): bool
+    {
+        $type = strtolower((string) $file->file_type);
+        $extension = strtolower(pathinfo((string) $file->file_name, PATHINFO_EXTENSION));
+
+        return str_starts_with($type, 'video/')
+            || str_starts_with($type, 'audio/')
+            || in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'mpeg', 'mpg', 'mp3', 'wav', 'm4a'], true);
+    }
+
+    private function submissionPayload(AssessmentSubmission $submission): array
+    {
+        $submission->load(['user', 'files']);
+
+        return [
+            'id' => $submission->id,
+            'status' => $submission->status,
+            'notes' => $submission->notes,
+            'is_late' => (bool) $submission->is_late,
+            'submitted_at' => $submission->submitted_at?->toIso8601String(),
+            'student' => ['id' => $submission->user?->id, 'name' => $submission->user?->name],
+            'files' => $submission->files->map(fn (AssessmentSubmissionFile $file) => [
+                'id' => $file->id,
+                'name' => $file->file_name,
+                'mime_type' => $file->file_type,
+                'size_bytes' => $file->file_size_bytes ? (int) $file->file_size_bytes : null,
+                'has_annotations' => $file->annotated_at !== null,
+                'is_stamped' => $file->graded_file_path !== null,
+            ])->values(),
+        ];
     }
 
     private function authorizeAssessment(Assessment $assessment): Course

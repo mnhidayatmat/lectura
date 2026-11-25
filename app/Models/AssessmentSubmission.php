@@ -17,7 +17,7 @@ class AssessmentSubmission extends Model
 
     protected $fillable = [
         'tenant_id', 'assessment_id', 'user_id', 'student_group_id',
-        'notes', 'is_late', 'submitted_at', 'status', 'drive_folder_id',
+        'notes', 'is_late', 'submitted_at', 'status', 'drive_folder_id', 'original_files',
     ];
 
     protected function casts(): array
@@ -25,6 +25,7 @@ class AssessmentSubmission extends Model
         return [
             'is_late' => 'boolean',
             'submitted_at' => 'datetime',
+            'original_files' => 'array',
         ];
     }
 

@@ -595,6 +595,16 @@ Sorted by name; `group`, `submission`, `score` may be `null`.
 The submission (`notes`, `files` with `is_stamped`) and a file download. The file is the
 grade-stamped copy when one exists; `original=1` gives the upload.
 
+### POST `lecturer/assessments/{assessment}/submissions/{submission}/marked-script`
+
+Used by the MarkScore desktop marker. Multipart: `file` (PDF, ≤ 100 MB), optional
+`replace_file_ids[]` (files of this submission; default every file except video/audio). The
+marked PDF replaces those files: the lowest-id one becomes `<name>_marked.pdf` (stamped copy and
+Drive id cleared), the other replaced rows are removed. Original objects stay on the disk and are
+listed once in the submission's `original_files`; a re-upload deletes only the previous marked
+copy. Marks are not changed. 422 for a non-PDF, a foreign file id or nothing to replace.
+Response: `{ message, data }`, `data` as the submission GET above.
+
 ### PUT `lecturer/assessments/{assessment}/scores/{user}`
 
 Body: `raw_marks` 0…`total_marks`, or with a rubric `criteria_marks` `{ "<criterion id>": marks }`
