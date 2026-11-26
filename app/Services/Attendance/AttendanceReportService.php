@@ -19,13 +19,14 @@ use Illuminate\Support\Facades\Storage;
 class AttendanceReportService
 {
     /**
-     * Generate comprehensive attendance data for a course.
+     * Generate comprehensive attendance data for a course: one section, else the
+     * given sections (the viewer's own), else every current section of the course.
      */
-    public function generateCourseReport(Course $course, ?Section $section = null): array
+    public function generateCourseReport(Course $course, ?Section $section = null, ?Collection $sectionIds = null): array
     {
         $sectionIds = $section
             ? collect([$section->id])
-            : $course->currentSectionIds();
+            : ($sectionIds ?? $course->currentSectionIds());
 
         $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->where('status', 'ended')
@@ -112,9 +113,9 @@ class AttendanceReportService
     /**
      * Generate PDF report and return the response.
      */
-    public function exportPdf(Course $course, ?Section $section = null)
+    public function exportPdf(Course $course, ?Section $section = null, ?Collection $sectionIds = null)
     {
-        $data = $this->generateCourseReport($course, $section);
+        $data = $this->generateCourseReport($course, $section, $sectionIds);
 
         $pdf = Pdf::loadView('tenant.attendance.report.pdf', $data);
         $pdf->setPaper('a4', 'landscape');
@@ -127,9 +128,9 @@ class AttendanceReportService
     /**
      * Generate PDF, store to disk, and return the path.
      */
-    public function generatePdfFile(Course $course, ?Section $section = null): string
+    public function generatePdfFile(Course $course, ?Section $section = null, ?Collection $sectionIds = null): string
     {
-        $data = $this->generateCourseReport($course, $section);
+        $data = $this->generateCourseReport($course, $section, $sectionIds);
 
         $pdf = Pdf::loadView('tenant.attendance.report.pdf', $data);
         $pdf->setPaper('a4', 'landscape');
@@ -143,9 +144,9 @@ class AttendanceReportService
     /**
      * Sync attendance report into "Attendance Records" course folder.
      */
-    public function syncToCourseFiles(Course $course): CourseFile
+    public function syncToCourseFiles(Course $course, ?Collection $sectionIds = null): CourseFile
     {
-        $path = $this->generatePdfFile($course);
+        $path = $this->generatePdfFile($course, null, $sectionIds);
 
         $folder = CourseFolder::firstOrCreate(
             ['course_id' => $course->id, 'name' => 'Attendance Records', 'parent_id' => null],
